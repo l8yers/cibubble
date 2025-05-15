@@ -1,0 +1,30 @@
+baseURL: https://example.org/
+languageCode: en-us
+title: CIBUBBLE
+theme: ["PaperMod"]
+
+baseURL: "https://yourdomain.com/"
+languageCode: "en-us"
+title: "CI BUBBLE"
+theme: "PaperMod"
+
+params:
+  ShowReadingTime: true
+  ShowPostNavLinks: true
+  ShowCodeCopyButtons: true
+  defaultTheme: light      
+  homeInfoParams:
+    Title: "Welcome to CI BUBBLE!"
+    Content: "Learning languages the natural way, one word at a time."
+
+menu:
+  main:
+    - name: "Home"
+      url: "/"
+      weight: 1
+    - name: "About"
+      url: "/about/"
+      weight: 2
+    - name: "Posts"
+      url: "/posts/"
+      weight: 3
