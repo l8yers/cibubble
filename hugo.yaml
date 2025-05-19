@@ -7,9 +7,13 @@ theme: "PaperMod"
 
 params:
   assets:
-    logo: "static/images/ci-logo.png"
+    favicon: "images/ci-logo.png"  # Optional
+    logo: "images/ci-logo.png"
+
   label:
-    text: ""  # ← important: blank this to hide "CI BUBBLE" text
+    text: ""         # ← hides "CI BUBBLE"
+    icon: "images/ci-logo.png"   # ← ensures logo is used
+    iconHeight: 40   # Adjust as needed
   ShowReadingTime: true
   ShowPostNavLinks: true
   ShowCodeCopyButtons: true
