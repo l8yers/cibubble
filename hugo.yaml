@@ -7,7 +7,7 @@ theme: "PaperMod"
 
 params:
   assets:
-    logo: "images/ci-logo.png"
+    logo: "static/images/ci-logo.png"
   label:
     text: ""  # ← important: blank this to hide "CI BUBBLE" text
   ShowReadingTime: true
