@@ -1,7 +1,13 @@
 .logo a {
   font-size: 0 !important;
+  display: inline-flex;
+  align-items: center;
 }
 
 .logo a::before {
   content: "" !important;
+}
+
+.logo a span {
+  display: none !important;  /* ← THIS hides the text label */
 }

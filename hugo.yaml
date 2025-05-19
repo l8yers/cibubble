@@ -2,7 +2,7 @@
 
 baseURL: "https://cibubble.com/"
 languageCode: "en-us"
-title: "CI BUBBLE"
+title: "C"
 theme: "PaperMod"
 
 params:
