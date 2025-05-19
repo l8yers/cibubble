@@ -5,7 +5,7 @@ draft: false
 description: "An introduction to comprehensible input — the natural way to learn languages without grammar drills or flashcards."
 tags: ["comprehensible input", "language learning", "krashen", "CI"]
 cover:
-  image: "images/ci-featured.jpg"
+  image: "images/ci-featured.png"
   alt: "Relaxed language learner watching CI video"
   caption: "Learning with comprehensible input is easy and fun"
 
