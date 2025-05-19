@@ -9,6 +9,7 @@ params:
   assets:
     favicon: "images/ci-logo.png"  # Optional
     logo: "images/ci-logo.png"
+    customCSS: ["css/custom.css"]
   label:
     text: ""         # ← hides "CI BUBBLE"
     icon: "images/ci-logo.png"   # ← ensures logo is used

@@ -1,0 +1,7 @@
+.logo a {
+  font-size: 0 !important;
+}
+
+.logo a::before {
+  content: "" !important;
+}
