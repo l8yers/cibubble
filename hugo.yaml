@@ -9,11 +9,10 @@ params:
   assets:
     favicon: "images/ci-logo.png"  # Optional
     logo: "images/ci-logo.png"
-
   label:
     text: ""         # ← hides "CI BUBBLE"
     icon: "images/ci-logo.png"   # ← ensures logo is used
-    iconHeight: 40   # Adjust as needed
+    iconHeight: 250   # Adjust as needed
   ShowReadingTime: true
   ShowPostNavLinks: true
   ShowCodeCopyButtons: true
