@@ -6,6 +6,8 @@ title: "CI BUBBLE"
 theme: "PaperMod"
 
 params:
+  assets:
+    logo: "images/ci-logo.png"
   ShowReadingTime: true
   ShowPostNavLinks: true
   ShowCodeCopyButtons: true
