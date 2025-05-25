@@ -2,18 +2,18 @@
 
 baseURL: "https://cibubble.com/"
 languageCode: "en-us"
-title: "C"
+title: "CI BUBBLE"
 theme: "PaperMod"
 
 params:
   assets:
     favicon: "images/ci-logo.png"  # Optional
-    logo: "images/ci-logo.png"
-    customCSS: ["css/custom.css"]
-  label:
-    text: ""         # ← hides "CI BUBBLE"
-    icon: "images/ci-logo.png"   # ← ensures logo is used
-    iconHeight: 250   # Adjust as needed
+  #   logo: "images/ci-logo.png"
+  #   customCSS: ["css/custom.css"]
+  # label:
+  #   text: ""         # ← hides "CI BUBBLE"
+  #   icon: "images/ci-logo.png"   # ← ensures logo is used
+  #   iconHeight: 50 # Adjust as needed
   ShowReadingTime: true
   ShowPostNavLinks: true
   ShowCodeCopyButtons: true
