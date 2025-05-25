@@ -2,7 +2,7 @@
 
 baseURL: "https://cibubble.com/"
 languageCode: "en-us"
-title: "CI BUBBLE"
+title: "CIBUBBLE"
 theme: "PaperMod"
 
 params:
@@ -20,7 +20,7 @@ params:
   defaultTheme: light      
   homeInfoParams:
     Title: "Welcome to CI BUBBLE!"
-    Content: "Learning languages the natural way, one word at a time."
+    Content: "Learning languages the natural way"
 
 menu:
   main:

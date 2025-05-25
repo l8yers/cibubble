@@ -1,48 +1,34 @@
 ---
-title: "About"
-date: 2025-05-19
+title: "About CIbubble"
+date: 2025-05-20
 draft: false
 ---
 
-![Relaxed person watching language content](/images/about-hero.png)
+![Relaxed person watching language content](/images/about-hero.png) 
 
-## What is CIbubble?
+## Welcome to CIbubble
 
-CIbubble is a blog about learning languages **the natural way** through *comprehensible input*.
+CIbubble is your go-to resource for learning languages naturally, effectively, and effortlessly through **comprehensible input (CI)**.
 
-No grammar drills. No memorising verb tables. No guilt from skipping flashcards.  
-Just stories, videos, and real content you can understand and grow with.
+Forget endless grammar drills, vocabulary flashcards, and traditional classroom methods. At CIbubble, we believe in a more enjoyable and intuitive way to learn languages. You learn by simply understanding messages.
 
----
+## What Is Comprehensible Input?
 
-## Why I Started This
+Comprehensible input is language content that's just slightly above your current level. It's easy enough that you can understand most of it, but challenging enough to introduce new vocabulary and grammar naturally. This method was popularized by linguist Stephen Krashen, and it's how you learned your first language.
 
-Like a lot of people, I tried learning languages the traditional way. It didn't stick.
+## How CIbubble Helps You
 
-Then I found comprehensible input, and everything clicked. Instead of trying to *study* the language, I just listened. Watched. Read. Bit by bit, I started to understand and enjoy it.
+Here you'll find:
 
-CIbubble is here to share what I have learned, what worked for me, and how you can learn a langauge the natural way too.
+- Clear explanations of how comprehensible input works.
+- Tips and advice on finding and using the best CI resources.
+- Free content suggestions for languages like Spanish, French, Mandarin, and more.
+- Articles designed to help you avoid common mistakes and maximize your language acquisition.
 
----
+Our mission is to guide you away from ineffective language learning methods and toward real, lasting fluency naturally.
 
-## What You’ll Find Here
+## Why CIbubble?
 
-- Posts about language learning and the CI method  
-- Reviews and recommendations for good input content  
-- Personal reflections from the learning journey  
-- Tips for beginners starting from zero  
+Because language learning shouldn't feel like work. It should feel like curiosity, discovery, and enjoyment. CIbubble provides easy, accessible guidance on using comprehensible input effectively, making language learning not only possible but enjoyable.
 
----
-
-## Who Am I?
-
-I'm a language learner who didn't fit the classroom mold.  
-Diagnosed late with ADHD and autism, I've always learned best by immersion, not instruction.  
-This blog is part personal notebook, part guide and hopefully part inspiration.
-
----
-
-Want to reach out, suggest a topic, or just say hi?  
-You can email me or comment where the blog is shared.
-
-Thanks for stopping by.
+Join us today, and see how easy language learning can truly be.
