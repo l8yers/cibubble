@@ -15,10 +15,13 @@
       <a href={"https://youtube.com/watch?v=" + video.id} target="_blank">
         <img
           src={"https://img.youtube.com/vi/" + video.id + "/hqdefault.jpg"}
-          alt="YouTube thumbnail"
+          alt={video.title || video.id}
           style="width:100%; border-radius:4px;"
         />
-        <p style="margin:0.5rem 0 0;">{video.id}</p>
+        <p style="margin:0.5rem 0 0;">{video.title || video.id}</p>
+        {#if video.playlist}
+          <small>From playlist: {video.playlist}</small>
+        {/if}
       </a>
     </div>
   {/each}
