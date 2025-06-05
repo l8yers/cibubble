@@ -1,0 +1,22 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Video {
+  id           String   @id
+  youtubeUrl   String
+  title        String
+  duration     String
+  thumbnail    String
+  rating       String
+  addedAt      DateTime @default(now())
+  channelTitle String
+  channelId    String
+}
+
+// Add more models later for user, logs, etc.
