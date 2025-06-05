@@ -11,6 +11,21 @@
     if (h) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     return `${m}:${s.toString().padStart(2, '0')}`;
   }
+
+  function badgeColor(rating) {
+    switch (rating?.toLowerCase()) {
+      case "beginner":
+        return "background:#b9f5b9;color:#156318;border:1.2px solid #48d548;";
+      case "intermediate":
+        return "background:#ffe495;color:#a68215;border:1.2px solid #ffd400;";
+      case "advanced":
+        return "background:#fad2e2;color:#9b2e54;border:1.2px solid #e74a89;";
+      case "native":
+        return "background:#bde2ff;color:#15487a;border:1.2px solid #41a7e6;";
+      default:
+        return "background:#e7e7e7;color:#888;border:1.2px solid #ccc;";
+    }
+  }
 </script>
 
 <h1>All Videos</h1>
@@ -21,7 +36,7 @@
         <a href={"/video/" + video.id} class="video-link">
           <div class="thumb-wrap">
             <img
-              src={"https://img.youtube.com/vi/" + video.id + "/hqdefault.jpg"}
+              src={video.thumbnail ?? ("https://img.youtube.com/vi/" + video.id + "/hqdefault.jpg")}
               alt={video.title}
               class="thumb"
             />
@@ -29,7 +44,15 @@
               <span class="duration-badge">{parseISODuration(video.duration)}</span>
             {/if}
           </div>
-          <p class="video-title">{video.title}</p>
+          <div class="video-info">
+            <p class="video-title">{video.title}</p>
+            <div class="meta-row">
+              <span class="difficulty-badge" style={badgeColor(video.rating)}>
+                {video.rating || "not rated yet"}
+              </span>
+              <span class="channel-title">{video.channelTitle ?? ""}</span>
+            </div>
+          </div>
         </a>
       </div>
     {/each}
@@ -44,7 +67,6 @@
     min-height: 100vh;
     background: #fafbfc;
   }
-
   .video-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -53,7 +75,6 @@
     margin: 0 auto;
     max-width: 1800px;
   }
-
   .video-card {
     border: 1px solid #eee;
     border-radius: 8px;
@@ -65,11 +86,9 @@
     height: 100%;
     transition: box-shadow 0.2s;
   }
-
   .video-card:hover {
     box-shadow: 0 6px 24px #0002;
   }
-
   .video-link {
     text-decoration: none;
     color: inherit;
@@ -78,7 +97,6 @@
     height: 100%;
     cursor: pointer;
   }
-
   .thumb-wrap {
     position: relative;
     width: 100%;
@@ -86,9 +104,8 @@
     overflow: hidden;
     border-radius: 6px;
     background: #111;
-    margin-bottom: 0.6em;
+    margin-bottom: 0.5em;
   }
-
   .thumb {
     position: absolute;
     top: 0; left: 0;
@@ -97,7 +114,6 @@
     border-radius: 6px;
     display: block;
   }
-
   .duration-badge {
     position: absolute;
     bottom: 8px;
@@ -110,16 +126,50 @@
     font-family: monospace;
     pointer-events: none;
   }
-
+  .video-info {
+    margin-top: 0.2em;
+  }
   .video-title {
-    margin: 0.5em 0 0.1em;
+    margin: 0 0 0.18em 0;
     font-weight: 600;
-    font-size: 1.08em;
-    line-height: 1.18;
-    flex: 0 0 auto;
+    font-size: 1.07em;
+    line-height: 1.21;
+    flex: 1 1 auto;
     text-overflow: ellipsis;
     overflow: hidden;
     white-space: nowrap;
     width: 100%;
+    color: #111;
+  }
+  .meta-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.6em;
+    margin-top: 0.1em;
+  }
+  .difficulty-badge {
+    font-size: 0.91em;
+    font-weight: 600;
+    border-radius: 6px;
+    padding: 0.1em 0.75em 0.12em 0.75em;
+    display: inline-block;
+    text-transform: capitalize;
+    white-space: nowrap;
+    letter-spacing: 0.01em;
+    min-width: 72px;
+    text-align: center;
+    box-shadow: 0 1px 2px #0001;
+    user-select: none;
+  }
+  .channel-title {
+    color: #456;
+    font-size: 0.92em;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+    opacity: 0.92;
   }
 </style>
