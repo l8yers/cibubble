@@ -3,43 +3,84 @@ import fs from 'fs/promises';
 import path from 'path';
 import 'dotenv/config';
 
-// Path to your local JSON "database"
 const dbPath = path.resolve('src/lib/videos.json');
 const YT_API_KEY = process.env.YOUTUBE_API_KEY;
 
-// Helper: fetch all videos in a playlist using YouTube API
+// Fetches all metadata for a single video
+async function fetchVideoDetails(videoId) {
+  const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${videoId}&key=${YT_API_KEY}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  const item = data.items?.[0];
+  if (!item) return null;
+  return {
+    id: videoId,
+    youtubeUrl: `https://www.youtube.com/watch?v=${videoId}`,
+    title: item.snippet.title,
+    duration: item.contentDetails.duration,
+    thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+    rating: "not rated yet",
+    addedAt: new Date().toISOString(),
+    channelTitle: item.snippet.channelTitle,
+    channelId: item.snippet.channelId,
+  };
+}
+
+// Fetches all video details in a playlist
 async function fetchPlaylistVideos(playlistId) {
-  let videos = [];
+  let videoIds = [];
   let nextPage = '';
   do {
     const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=50&pageToken=${nextPage}&key=${YT_API_KEY}`;
     const res = await fetch(url);
     const data = await res.json();
     if (data.items) {
-      videos = videos.concat(
-        data.items.map(item => ({
-          type: 'video',
-          id: item.snippet.resourceId.videoId,
-          title: item.snippet.title,
-          playlist: playlistId,
-        }))
+      videoIds = videoIds.concat(
+        data.items
+          .filter(item => item.snippet.resourceId.kind === "youtube#video")
+          .map(item => item.snippet.resourceId.videoId)
       );
     }
     nextPage = data.nextPageToken || '';
   } while (nextPage);
+
+  // Batch fetch details for all videoIds
+  let videos = [];
+  for (let i = 0; i < videoIds.length; i += 50) {
+    const batchIds = videoIds.slice(i, i + 50);
+    const details = await fetchMultipleVideoDetails(batchIds);
+    videos = videos.concat(details);
+  }
   return videos;
 }
 
-// Helper: fetch all uploads from a channel using YouTube API
+// Fetches all uploads for a channel
 async function fetchChannelUploads(channelId) {
-  // 1. Get the uploads playlist ID for the channel
   const url1 = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${YT_API_KEY}`;
   const res1 = await fetch(url1);
   const data1 = await res1.json();
   const playlistId = data1.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
   if (!playlistId) return [];
-  // 2. Fetch all videos from uploads playlist
   return fetchPlaylistVideos(playlistId);
+}
+
+// Batch-fetches metadata for multiple videos
+async function fetchMultipleVideoDetails(videoIds) {
+  const ids = videoIds.join(',');
+  const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${ids}&key=${YT_API_KEY}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return data.items.map(item => ({
+    id: item.id,
+    youtubeUrl: `https://www.youtube.com/watch?v=${item.id}`,
+    title: item.snippet.title,
+    duration: item.contentDetails.duration,
+    thumbnail: `https://img.youtube.com/vi/${item.id}/hqdefault.jpg`,
+    rating: "not rated yet",
+    addedAt: new Date().toISOString(),
+    channelTitle: item.snippet.channelTitle,
+    channelId: item.snippet.channelId,
+  }));
 }
 
 // GET handler: returns all videos
@@ -66,7 +107,8 @@ export async function POST({ request }) {
     let newVideos = [];
 
     if (body.type === 'video') {
-      newVideos = [body];
+      const details = await fetchVideoDetails(body.id);
+      if (details) newVideos = [details];
     } else if (body.type === 'playlist') {
       newVideos = await fetchPlaylistVideos(body.id);
     } else if (body.type === 'channel') {
@@ -87,6 +129,21 @@ export async function POST({ request }) {
     });
   } catch (e) {
     console.error('API ERROR:', e);
+    return new Response(JSON.stringify({ error: e.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// DELETE handler: clears the video database
+export async function DELETE() {
+  try {
+    await fs.writeFile(dbPath, '[]');
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (e) {
     return new Response(JSON.stringify({ error: e.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
