@@ -1,5 +1,16 @@
 <script>
+  import { onMount, onDestroy } from 'svelte';
+  import { supabase } from '$lib/supabaseClient.js';
+
   export let data;
+  let video = data.video;
+  let user = null;
+
+  let watchSeconds = 0;
+  let lastSaved = 0;
+  let timer = null;
+  let isPlaying = false;
+  let player = null;
 
   function parseISODuration(duration) {
     if (!duration) return '';
@@ -10,35 +21,115 @@
     if (h) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     return `${m}:${s.toString().padStart(2, '0')}`;
   }
+
+  async function fetchUser() {
+    const { data: { user } } = await supabase.auth.getUser();
+    return user;
+  }
+
+  async function saveProgress() {
+    if (!user || !video.id) return;
+    const sessionSeconds = watchSeconds - lastSaved;
+    if (sessionSeconds <= 0) return;
+    await supabase.from('watch_logs').insert({
+      user_id: user.id,
+      video_id: video.id,
+      watched_seconds: sessionSeconds
+    });
+    lastSaved = watchSeconds;
+  }
+
+  function startTimer() {
+    if (timer) return;
+    timer = setInterval(() => {
+      watchSeconds++;
+      // Save every 30s
+      if (watchSeconds - lastSaved >= 30) saveProgress();
+    }, 1000);
+  }
+
+  function stopTimer() {
+    if (timer) {
+      clearInterval(timer);
+      timer = null;
+    }
+    saveProgress();
+  }
+
+  function onPlayerStateChange(event) {
+    if (event.data === window.YT.PlayerState.PLAYING) {
+      isPlaying = true;
+      startTimer();
+    } else {
+      isPlaying = false;
+      stopTimer();
+    }
+  }
+
+  function initPlayer() {
+    player = new window.YT.Player('ytplayer', {
+      videoId: video.id,
+      width: '100%',
+      height: '480',
+      events: {
+        'onStateChange': onPlayerStateChange,
+      }
+    });
+  }
+
+  function handleVisibility() {
+    if (document.visibilityState === 'hidden') {
+      stopTimer();
+    } else if (isPlaying && player?.getPlayerState() === window.YT.PlayerState.PLAYING) {
+      startTimer();
+    }
+  }
+
+  onMount(async () => {
+    user = await fetchUser();
+
+    // Load YT API if needed
+    if (!window.YT) {
+      const tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.body.appendChild(tag);
+      window.onYouTubeIframeAPIReady = initPlayer;
+    } else {
+      initPlayer();
+    }
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('beforeunload', stopTimer);
+  });
+
+  onDestroy(() => {
+    stopTimer();
+    document.removeEventListener('visibilitychange', handleVisibility);
+    window.removeEventListener('beforeunload', stopTimer);
+  });
 </script>
 
 <div class="player-page">
   <div class="player-section">
     <div class="video-embed-wrap">
-      <iframe
-        src={`https://www.youtube.com/embed/${data.video.id}?autoplay=1`}
-        width="100%"
-        height="480"
-        frameborder="0"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowfullscreen
-        title={data.video.title}
-        class="player-iframe"
-      ></iframe>
+      <div id="ytplayer"></div>
     </div>
-    <h2 class="video-title">{data.video.title}</h2>
+    <h2 class="video-title">{video.title}</h2>
     <div class="video-meta">
-      {#if data.video.duration}
-        <span class="meta-badge">Length: {parseISODuration(data.video.duration)}</span>
+      {#if video.duration}
+        <span class="meta-badge">Length: {parseISODuration(video.duration)}</span>
       {/if}
-      {#if data.video.rating}
+      {#if video.rating}
         <span class="meta-badge" style="background: #fcf4e3; color: #a38118; margin-left:0.6em;">
-          Level: {data.video.rating}
+          Level: {video.rating}
         </span>
       {/if}
-      {#if data.video.channelTitle}
-        <span class="meta-badge" style="background:#f0f0f6; color:#233;">Channel: {data.video.channelTitle}</span>
+      {#if video.channeltitle}
+        <span class="meta-badge" style="background:#f0f0f6; color:#233;">Channel: {video.channeltitle}</span>
       {/if}
+    </div>
+    <div style="margin-top:1em;font-weight:500;">
+      <b>Session seconds watched:</b> {watchSeconds}
     </div>
   </div>
 </div>
@@ -73,15 +164,6 @@
     box-shadow: 0 2px 18px #0001;
     min-width: 0;
   }
-  .player-iframe {
-    width: 100%;
-    height: 100%;
-    min-height: 320px;
-    border: none;
-    border-radius: 12px;
-    background: #000;
-    display: block;
-  }
   .video-title {
     font-size: 1.35em;
     font-weight: 700;
@@ -115,6 +197,5 @@
     .player-section { padding: 1rem 0.5vw 1rem 0.5vw; }
     .player-page { padding: 1rem 0vw; }
     .video-title { font-size: 1.1em; }
-    .player-iframe { min-height: 200px; }
   }
 </style>

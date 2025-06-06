@@ -1,54 +1,62 @@
 <script>
   import { supabase } from '$lib/supabaseClient.js';
-  import { goto } from '$app/navigation';
   let email = '';
   let password = '';
   let error = '';
-  let loading = false;
+  let message = '';
 
-  async function handleLogin(e) {
+  async function handleSignup(e) {
     e.preventDefault();
     error = '';
-    loading = true;
+    message = '';
 
-    const { error: authError } = await supabase.auth.signInWithPassword({
+    if (!email || !password) {
+      error = "Please fill in all fields.";
+      return;
+    }
+
+    const { error: authError } = await supabase.auth.signUp({
       email,
       password,
     });
 
     if (authError) {
       error = authError.message;
-      loading = false;
       return;
     }
 
-    goto('/');
+    message = "Signup successful! Please check your email for confirmation.";
+    email = '';
+    password = '';
   }
 </script>
 
-<form class="auth-form" on:submit={handleLogin}>
-  <h2>Sign In</h2>
+<form class="auth-form" on:submit={handleSignup}>
+  <h2>Create an account</h2>
   <input
     type="email"
     bind:value={email}
     placeholder="Email"
     required
     autocomplete="email"
-    autofocus
   />
   <input
     type="password"
     bind:value={password}
     placeholder="Password"
     required
-    autocomplete="current-password"
+    autocomplete="new-password"
+    minlength="6"
   />
-  <button type="submit" disabled={loading}>{loading ? "Signing in..." : "Sign In"}</button>
+  <button type="submit">Sign Up</button>
   {#if error}
     <div class="error">{error}</div>
   {/if}
+  {#if message}
+    <div class="success">{message}</div>
+  {/if}
   <div class="switch-link" style="margin-top:1em">
-    Don’t have an account? <a href="/signup">Sign up</a>
+    Already have an account? <a href="/login">Log in</a>
   </div>
 </form>
 
@@ -102,6 +110,15 @@
     color: #c13;
     background: #ffeaea;
     border: 1px solid #ffc7c7;
+    border-radius: 4px;
+    padding: 0.5em;
+    font-size: 1em;
+    text-align: center;
+  }
+  .success {
+    color: #185c1b;
+    background: #e5ffd6;
+    border: 1px solid #b6ef8c;
     border-radius: 4px;
     padding: 0.5em;
     font-size: 1em;

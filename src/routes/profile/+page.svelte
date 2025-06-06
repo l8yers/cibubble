@@ -1,54 +1,9 @@
 <script>
-  import { supabase } from '$lib/supabaseClient.js';
   import { onMount } from 'svelte';
+  import { supabase } from '$lib/supabaseClient.js';
 
   let user = null;
-  let username = '';
   let totalWatched = 0;
-  let newUsername = '';
-  let message = '';
-  let error = '';
-
-  onMount(async () => {
-    // Get user info
-    const { data: { user: supaUser } } = await supabase.auth.getUser();
-    user = supaUser;
-
-    if (user) {
-      // Get username from profile table
-      let { data: profile } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', user.id)
-        .single();
-      username = profile?.username || '';
-      newUsername = username;
-
-      // Get total time watched from watch_logs table
-      let { data: logs, error: logError } = await supabase
-        .from('watch_logs')
-        .select('watched_seconds')
-        .eq('user_id', user.id);
-
-      totalWatched = (logs || []).reduce((sum, l) => sum + (l.watched_seconds || 0), 0);
-    }
-  });
-
-  async function saveUsername() {
-    message = '';
-    error = '';
-    if (!user) return;
-    // Upsert profile
-    const { error: upsertError } = await supabase
-      .from('profiles')
-      .upsert({ id: user.id, username: newUsername });
-    if (upsertError) {
-      error = upsertError.message;
-    } else {
-      username = newUsername;
-      message = 'Username saved!';
-    }
-  }
 
   function formatSeconds(seconds) {
     const h = Math.floor(seconds / 3600);
@@ -58,27 +13,60 @@
     if (m) return `${m}m ${s}s`;
     return `${s}s`;
   }
+
+  onMount(async () => {
+    const { data: { user: supaUser } } = await supabase.auth.getUser();
+    user = supaUser;
+
+    if (user) {
+      const { data: logs } = await supabase
+        .from('watch_logs')
+        .select('watched_seconds')
+        .eq('user_id', user.id);
+
+      if (logs && logs.length) {
+        totalWatched = logs.reduce((sum, row) => sum + (row.watched_seconds || 0), 0);
+      } else {
+        totalWatched = 0;
+      }
+    }
+  });
 </script>
 
-{#if !user}
-  <p>Please <a href="/login">log in</a> to see your profile.</p>
-{:else}
-  <h2>Your Profile</h2>
-  <p><b>Email:</b> {user.email}</p>
-  <p><b>User ID:</b> {user.id}</p>
+<div class="profile-page">
+  {#if !user}
+    <p>Please <a href="/login">log in</a> to see your profile.</p>
+  {:else}
+    <h2>Your Profile</h2>
+    <p><b>Email:</b> {user.email}</p>
+    <div style="margin-top:1.5em;">
+      <b>Total time watched:</b>
+      <span style="margin-left:0.6em; font-weight:600;">
+        {formatSeconds(totalWatched)}
+      </span>
+    </div>
+  {/if}
+</div>
 
-  <form on:submit|preventDefault={saveUsername} style="margin-bottom:1em">
-    <label>
-      Username:
-      <input bind:value={newUsername} placeholder="Set your username" />
-      <button type="submit" style="margin-left:0.6em">Save</button>
-    </label>
-    {#if message}<span style="color:green;margin-left:1em">{message}</span>{/if}
-    {#if error}<span style="color:red;margin-left:1em">{error}</span>{/if}
-  </form>
-
-  <div>
-    <b>Total time watched:</b>
-    {formatSeconds(totalWatched)}
-  </div>
-{/if}
+<style>
+  .profile-page {
+    max-width: 420px;
+    margin: 3.5em auto;
+    background: #fff;
+    padding: 2em 2.5em;
+    border-radius: 15px;
+    box-shadow: 0 2px 18px #0001;
+    color: #234;
+  }
+  .profile-page h2 {
+    margin-bottom: 1.2em;
+    text-align: center;
+    font-weight: 700;
+    color: #234;
+  }
+  .profile-page p {
+    font-size: 1.08em;
+    margin-bottom: 0.8em;
+    color: #222;
+  }
+</style>
