@@ -1,5 +1,12 @@
 export async function load({ fetch }) {
-  const res = await fetch('/api/videos');
-  const videos = await res.json();
-  return { videos };
+  try {
+    const res = await fetch('/api/videos');
+    if (!res.ok) {
+      return { videos: [] };
+    }
+    const videos = await res.json();
+    return { videos };
+  } catch (e) {
+    return { videos: [] };
+  }
 }

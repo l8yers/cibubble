@@ -1,12 +1,10 @@
 // src/routes/api/videos/+server.js
-import fs from 'fs/promises';
-import path from 'path';
+import { supabase } from '$lib/supabaseClient.js';
 import 'dotenv/config';
 
-const dbPath = path.resolve('src/lib/videos.json');
 const YT_API_KEY = process.env.YOUTUBE_API_KEY;
 
-// Fetches all metadata for a single video
+// Helper: Fetch single video metadata
 async function fetchVideoDetails(videoId) {
   const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${videoId}&key=${YT_API_KEY}`;
   const res = await fetch(url);
@@ -15,18 +13,38 @@ async function fetchVideoDetails(videoId) {
   if (!item) return null;
   return {
     id: videoId,
-    youtubeUrl: `https://www.youtube.com/watch?v=${videoId}`,
+    youtubeurl: `https://www.youtube.com/watch?v=${videoId}`,
     title: item.snippet.title,
     duration: item.contentDetails.duration,
     thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
     rating: "not rated yet",
-    addedAt: new Date().toISOString(),
-    channelTitle: item.snippet.channelTitle,
-    channelId: item.snippet.channelId,
+    addedat: new Date().toISOString(),
+    channeltitle: item.snippet.channelTitle,
+    channelid: item.snippet.channelId,
   };
 }
 
-// Fetches all video details in a playlist
+// Helper: Batch fetch multiple video details
+async function fetchMultipleVideoDetails(videoIds) {
+  if (videoIds.length === 0) return [];
+  const ids = videoIds.join(',');
+  const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${ids}&key=${YT_API_KEY}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return (data.items ?? []).map(item => ({
+    id: item.id,
+    youtubeurl: `https://www.youtube.com/watch?v=${item.id}`,
+    title: item.snippet.title,
+    duration: item.contentDetails.duration,
+    thumbnail: `https://img.youtube.com/vi/${item.id}/hqdefault.jpg`,
+    rating: "not rated yet",
+    addedat: new Date().toISOString(),
+    channeltitle: item.snippet.channelTitle,
+    channelid: item.snippet.channelId,
+  }));
+}
+
+// Helper: Fetch all videos in a playlist
 async function fetchPlaylistVideos(playlistId) {
   let videoIds = [];
   let nextPage = '';
@@ -54,7 +72,7 @@ async function fetchPlaylistVideos(playlistId) {
   return videos;
 }
 
-// Fetches all uploads for a channel
+// Helper: Fetch all uploads for a channel
 async function fetchChannelUploads(channelId) {
   const url1 = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${YT_API_KEY}`;
   const res1 = await fetch(url1);
@@ -64,48 +82,31 @@ async function fetchChannelUploads(channelId) {
   return fetchPlaylistVideos(playlistId);
 }
 
-// Batch-fetches metadata for multiple videos
-async function fetchMultipleVideoDetails(videoIds) {
-  const ids = videoIds.join(',');
-  const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${ids}&key=${YT_API_KEY}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  return data.items.map(item => ({
-    id: item.id,
-    youtubeUrl: `https://www.youtube.com/watch?v=${item.id}`,
-    title: item.snippet.title,
-    duration: item.contentDetails.duration,
-    thumbnail: `https://img.youtube.com/vi/${item.id}/hqdefault.jpg`,
-    rating: "not rated yet",
-    addedAt: new Date().toISOString(),
-    channelTitle: item.snippet.channelTitle,
-    channelId: item.snippet.channelId,
-  }));
-}
+// --- API HANDLERS ---
 
-// GET handler: returns all videos
+// GET: Return all videos in DB
 export async function GET() {
-  try {
-    const data = await fs.readFile(dbPath, 'utf8');
-    return new Response(data, {
-      headers: { 'Content-Type': 'application/json' }
-    });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), {
+  const { data, error } = await supabase.from('videos').select('*').order('addedat', { ascending: false });
+  if (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });
   }
+  return new Response(JSON.stringify(data), {
+    headers: { 'Content-Type': 'application/json' }
+  });
 }
 
-// POST handler: adds a video, playlist, or channel
+// POST: Add a video, playlist, or channel
 export async function POST({ request }) {
   try {
     const body = await request.json();
-    const raw = await fs.readFile(dbPath, 'utf8');
-    const dbVideos = JSON.parse(raw);
-    let newVideos = [];
+    if (!body.type || !body.id) {
+      return new Response(JSON.stringify({ error: 'Missing type or id' }), { status: 400 });
+    }
 
+    let newVideos = [];
     if (body.type === 'video') {
       const details = await fetchVideoDetails(body.id);
       if (details) newVideos = [details];
@@ -113,18 +114,29 @@ export async function POST({ request }) {
       newVideos = await fetchPlaylistVideos(body.id);
     } else if (body.type === 'channel') {
       newVideos = await fetchChannelUploads(body.id);
+    } else {
+      return new Response(JSON.stringify({ error: 'Invalid type' }), { status: 400 });
     }
 
-    // Deduplicate by video ID
-    const allVideos = [...dbVideos];
-    newVideos.forEach(video => {
-      if (!allVideos.some(v => v.id === video.id)) {
-        allVideos.push(video);
-      }
-    });
+    if (newVideos.length === 0) {
+      return new Response(JSON.stringify({ success: false, added: 0 }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
 
-    await fs.writeFile(dbPath, JSON.stringify(allVideos, null, 2));
-    return new Response(JSON.stringify({ success: true, added: newVideos.length }), {
+    // Deduplicate by video ID (against DB)
+    const { data: existing, error: fetchErr } = await supabase.from('videos').select('id');
+    const existingIds = (existing || []).map(v => v.id);
+
+    const videosToAdd = newVideos.filter(v => !existingIds.includes(v.id));
+    let addedCount = 0;
+    if (videosToAdd.length > 0) {
+      const { error } = await supabase.from('videos').insert(videosToAdd);
+      if (error) throw error;
+      addedCount = videosToAdd.length;
+    }
+
+    return new Response(JSON.stringify({ success: true, added: addedCount }), {
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (e) {
@@ -136,10 +148,11 @@ export async function POST({ request }) {
   }
 }
 
-// DELETE handler: clears the video database
+// DELETE: Remove all videos (for testing/dev only)
 export async function DELETE() {
   try {
-    await fs.writeFile(dbPath, '[]');
+    const { error } = await supabase.from('videos').delete().neq('id', '');
+    if (error) throw error;
     return new Response(JSON.stringify({ success: true }), {
       headers: { 'Content-Type': 'application/json' }
     });

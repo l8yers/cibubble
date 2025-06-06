@@ -1,60 +1,59 @@
 <script>
   export let data;
-  let videos = data.videos;
+  let videos = data.videos ?? [];
 
   function parseISODuration(duration) {
     if (!duration) return '';
+    // Parses ISO 8601 (PT1H2M3S) to h:mm:ss or m:ss
     const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-    const h = parseInt(match[1] || "0", 10);
-    const m = parseInt(match[2] || "0", 10);
-    const s = parseInt(match[3] || "0", 10);
+    if (!match) return '';
+    const h = parseInt(match[1] || '0', 10);
+    const m = parseInt(match[2] || '0', 10);
+    const s = parseInt(match[3] || '0', 10);
     if (h) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     return `${m}:${s.toString().padStart(2, '0')}`;
   }
 
   function badgeColor(rating) {
-    switch (rating?.toLowerCase()) {
-      case "beginner":
-        return "background:#b9f5b9;color:#156318;border:1.2px solid #48d548;";
-      case "intermediate":
-        return "background:#ffe495;color:#a68215;border:1.2px solid #ffd400;";
-      case "advanced":
-        return "background:#fad2e2;color:#9b2e54;border:1.2px solid #e74a89;";
-      case "native":
-        return "background:#bde2ff;color:#15487a;border:1.2px solid #41a7e6;";
-      default:
-        return "background:#e7e7e7;color:#888;border:1.2px solid #ccc;";
+    switch ((rating ?? '').toLowerCase()) {
+      case "beginner": return "background:#b9f5b9;color:#156318;border:1.2px solid #48d548;";
+      case "intermediate": return "background:#ffe495;color:#a68215;border:1.2px solid #ffd400;";
+      case "advanced": return "background:#fad2e2;color:#9b2e54;border:1.2px solid #e74a89;";
+      case "native": return "background:#bde2ff;color:#15487a;border:1.2px solid #41a7e6;";
+      default: return "background:#e7e7e7;color:#888;border:1.2px solid #ccc;";
     }
   }
 </script>
 
-<h1>All Videos</h1>
+<h1 style="margin-bottom:1.2em">All Videos</h1>
 <div class="video-grid-container">
   <div class="video-grid">
-    {#each videos as video}
-      <div class="video-card">
-        <a href={"/video/" + video.id} class="video-link">
-          <div class="thumb-wrap">
-            <img
-              src={video.thumbnail ?? ("https://img.youtube.com/vi/" + video.id + "/hqdefault.jpg")}
-              alt={video.title}
-              class="thumb"
-            />
-            {#if video.duration}
-              <span class="duration-badge">{parseISODuration(video.duration)}</span>
-            {/if}
-          </div>
-          <div class="video-info">
-            <p class="video-title">{video.title}</p>
-            <div class="meta-row">
-              <span class="difficulty-badge" style={badgeColor(video.rating)}>
-                {video.rating || "not rated yet"}
-              </span>
-              <span class="channel-title">{video.channelTitle ?? ""}</span>
+    {#each videos as video (video.id)}
+      {#if video && video.title}
+        <div class="video-card">
+          <a href={"/video/" + video.id} class="video-link">
+            <div class="thumb-wrap">
+              <img
+                src={video.thumbnail ?? ("https://img.youtube.com/vi/" + video.id + "/hqdefault.jpg")}
+                alt={video.title}
+                class="thumb"
+              />
+              {#if video.duration}
+                <span class="duration-badge">{parseISODuration(video.duration)}</span>
+              {/if}
             </div>
-          </div>
-        </a>
-      </div>
+            <div class="video-info">
+              <p class="video-title">{video.title}</p>
+              <div class="meta-row">
+                <span class="difficulty-badge" style={badgeColor(video.rating)}>
+                  {video.rating || "not rated yet"}
+                </span>
+                <span class="channel-title">{video.channelTitle ?? ""}</span>
+              </div>
+            </div>
+          </a>
+        </div>
+      {/if}
     {/each}
   </div>
 </div>
