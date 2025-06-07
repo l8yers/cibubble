@@ -14,7 +14,7 @@
   text-decoration: none;
 }
 .logo-img {
-  height: 3em;
+  height: 3.6em;
   width: auto;
   vertical-align: middle;
 }
