@@ -26,9 +26,6 @@
 </script>
 
 <style>
-body {
-  background: #141414;
-}
 .page-header {
   color: #eee;
   font-size: 2rem;
@@ -94,20 +91,18 @@ body {
 {:else}
   <div class="grid">
     {#each videos as video}
-      <div class="card">
-        <a href={`https://www.youtube.com/watch?v=${video.id}`} target="_blank" rel="noopener">
-          <img
-            class="thumb"
-            src={`https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`}
-            alt={video.title}
-            on:error="{(e) => e.target.src='https://placehold.co/480x270?text=No+Thumbnail'}"
-          />
-        </a>
+      <a href={`/video/${video.id}`} class="card">
+        <img
+          class="thumb"
+          src={`https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`}
+          alt={video.title}
+          on:error="{(e) => e.target.src='https://placehold.co/480x270?text=No+Thumbnail'}"
+        />
         <div class="card-body">
           <div class="card-title">{video.title}</div>
           <div class="card-channel">{video.channel_name}</div>
         </div>
-      </div>
+      </a>
     {/each}
   </div>
 {/if}
