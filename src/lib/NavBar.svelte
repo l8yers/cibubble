@@ -82,6 +82,7 @@
   <div class="nav-links">
     <a class="nav-link" href="/">Home</a>
     <a class="nav-link" href="/add-video">Add Video</a>
+        <a class="nav-link" href="/faq">FAQ</a>
     {#if user}
       <a class="nav-link" href="/profile">Profile</a>
       <button class="logout-btn" on:click={logout}>Logout</button>
@@ -89,6 +90,6 @@
       <a class="nav-link" href="/signup">Sign Up</a>
       <a class="nav-link" href="/login">Login</a>
     {/if}
-    <a class="nav-link" href="/faq">FAQ</a>
+
   </div>
 </nav>

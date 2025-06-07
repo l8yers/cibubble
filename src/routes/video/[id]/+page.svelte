@@ -1,19 +1,23 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import { page } from '$app/stores';
 
   let video = null;
   let suggestions = [];
   let loading = true;
+  let user = null;
 
   $: id = $page.params.id;
 
+  // --- Fetch user, video, and suggestions ---
   onMount(async () => {
-    loading = true;
+    // Get logged-in user
+    const { data: sess } = await supabase.auth.getSession();
+    user = sess.session?.user ?? null;
 
     // Fetch main video
-    const { data: vid, error } = await supabase
+    const { data: vid } = await supabase
       .from('videos')
       .select('*')
       .eq('id', id)
@@ -29,7 +33,67 @@
       .limit(12);
     suggestions = suggs || [];
     loading = false;
+
+    // --- YouTube API setup ---
+    window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+    if (!window.YT) {
+      const tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.body.appendChild(tag);
+    } else {
+      ytReady = true;
+    }
   });
+
+  // --- Watch time tracking logic ---
+  let player;
+  let ytReady = false;
+  let watchSeconds = 0;
+  let interval = null;
+
+  function onYouTubeIframeAPIReady() {
+    ytReady = true;
+    initPlayer();
+  }
+
+  $: if (ytReady && !player) initPlayer();
+
+  function initPlayer() {
+    if (player || !document.getElementById('yt-player')) return;
+    player = new window.YT.Player('yt-player', {
+      events: { 'onStateChange': onPlayerStateChange }
+    });
+  }
+  function onPlayerStateChange(event) {
+    // 1: playing, 2: paused, 0: ended
+    if (event.data === 1) startWatchTimer();
+    else stopWatchTimer();
+  }
+
+  function startWatchTimer() {
+    if (!interval) interval = setInterval(() => {
+      watchSeconds += 1;
+      if (watchSeconds % 5 === 0) saveWatchTime();
+    }, 1000);
+  }
+  function stopWatchTimer() {
+    if (interval) {
+      clearInterval(interval);
+      interval = null;
+      saveWatchTime();
+    }
+  }
+  async function saveWatchTime() {
+    if (!user) return;
+    const today = new Date().toISOString().slice(0, 10);
+    await supabase.from('watch_sessions').upsert({
+      user_id: user.id,
+      video_id: id,
+      seconds: watchSeconds,
+      date: today
+    }, { onConflict: ['user_id', 'video_id', 'date'] });
+  }
+  onDestroy(() => stopWatchTimer());
 </script>
 
 <style>
@@ -38,7 +102,7 @@
   gap: 2rem;
   max-width: 1200px;
   margin: 2.3rem auto 2.3rem auto;
-  color: var(--text-main);
+  color: #181818;
   background: #fff;
   min-height: 75vh;
 }
@@ -61,7 +125,7 @@
 }
 .player-channel {
   font-size: 1rem;
-  color: var(--text-secondary);
+  color: #666;
   margin-bottom: 1.1em;
 }
 .suggestions {
@@ -101,7 +165,7 @@
 .suggest-title {
   font-size: 1.01rem;
   font-weight: 600;
-  color: var(--text-main);
+  color: #181818;
   line-height: 1.1;
   margin-bottom: 0.17em;
   max-height: 2.1em;
@@ -109,7 +173,7 @@
   text-overflow: ellipsis;
 }
 .suggest-channel {
-  color: var(--text-secondary);
+  color: #666;
   font-size: 0.93rem;
 }
 @media (max-width: 900px) {
@@ -129,9 +193,10 @@
     <div class="player-main">
       <div class="player-embed">
         <iframe
+          id="yt-player"
           width="100%"
           height="100%"
-          src={`https://www.youtube.com/embed/${video.id}`}
+          src={`https://www.youtube.com/embed/${video.id}?enablejsapi=1`}
           title={video.title}
           frameborder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

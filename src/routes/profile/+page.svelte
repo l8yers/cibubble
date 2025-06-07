@@ -1,7 +1,6 @@
 <script>
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
-  import { goto } from '$app/navigation';
 
   let user = null;
   let myVideos = [];
@@ -12,7 +11,12 @@
   let watchTime = 0;
   let todayWatchTime = 0;
 
-  // Simple: fetch user, videos, and watch times on mount
+  function formatMinutes(seconds) {
+    if (!seconds) return '0 min';
+    const m = Math.round(seconds / 60);
+    return m > 0 ? `${m} min` : `${seconds} sec`;
+  }
+
   onMount(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
@@ -28,13 +32,21 @@
         .order('created', { ascending: false });
       myVideos = videos || [];
 
-      // Fetch total watch time (fake/demo: sum of video lengths watched, if you track this)
-      // If you have a "watched" table, sum user_id = user.id
-      // For now, just count number of videos as a placeholder:
-      watchTime = myVideos.reduce((acc, v) => acc + (v.length || 0), 0); // length in seconds
+      // --- Fetch total watch time (from watch_sessions) ---
+      let { data: allSessions } = await supabase
+        .from('watch_sessions')
+        .select('seconds')
+        .eq('user_id', user.id);
+      watchTime = (allSessions ?? []).reduce((acc, s) => acc + (s.seconds || 0), 0);
 
-      // If you have a way to get "today's watch time", do it here
-      todayWatchTime = 0; // placeholder
+      // --- Today's watch time ---
+      const today = new Date().toISOString().slice(0, 10);
+      let { data: todaySessions } = await supabase
+        .from('watch_sessions')
+        .select('seconds')
+        .eq('user_id', user.id)
+        .eq('date', today);
+      todayWatchTime = (todaySessions ?? []).reduce((acc, s) => acc + (s.seconds || 0), 0);
     }
   });
 
@@ -147,8 +159,6 @@ button:hover {
 }
 </style>
 
-
-
 {#if !user}
   <div class="profile-main" style="text-align:center;">
     <div style="margin:2em 0;">Not logged in.<br/><a href="/login" class="video-link">Login here</a></div>
@@ -168,8 +178,8 @@ button:hover {
     <div class="message">{message}</div>
 
     <div class="section-title">Stats</div>
-    <div class="stats-row"><b>Total watch time:</b> {Math.round(watchTime/60)} min</div>
-    <div class="stats-row"><b>Today's watch time:</b> {todayWatchTime} min</div>
+    <div class="stats-row"><b>Total watch time:</b> {formatMinutes(watchTime)}</div>
+    <div class="stats-row"><b>Today's watch time:</b> {formatMinutes(todayWatchTime)}</div>
 
     <div class="section-title">My Videos</div>
     {#if myVideos.length === 0}
