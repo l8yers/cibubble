@@ -7,29 +7,26 @@
   let suggestions = [];
   let loading = true;
 
-  // Get ID from route params
   $: id = $page.params.id;
 
   onMount(async () => {
     loading = true;
 
-    // Fetch this video
+    // Fetch main video
     const { data: vid, error } = await supabase
       .from('videos')
       .select('*')
       .eq('id', id)
       .maybeSingle();
-
     video = vid;
 
-    // Fetch suggested videos (latest 12, excluding current)
+    // Fetch sidebar suggestions
     const { data: suggs } = await supabase
       .from('videos')
       .select('*')
       .order('created', { ascending: false })
       .neq('id', id)
       .limit(12);
-
     suggestions = suggs || [];
     loading = false;
   });
@@ -40,8 +37,10 @@
   display: flex;
   gap: 2rem;
   max-width: 1200px;
-  margin: 2rem auto;
-  color: #eee;
+  margin: 2.3rem auto 2.3rem auto;
+  color: var(--text-main);
+  background: #fff;
+  min-height: 75vh;
 }
 .player-main {
   flex: 1 1 66%;
@@ -50,19 +49,19 @@
 .player-embed {
   width: 100%;
   aspect-ratio: 16/9;
-  background: #111;
+  background: #eee;
   border-radius: 12px;
-  margin-bottom: 1.3rem;
-  border: 1px solid #222;
+  margin-bottom: 1.5rem;
+  border: 1px solid #ececec;
 }
 .player-title {
-  font-size: 1.35rem;
+  font-size: 1.32rem;
   font-weight: bold;
-  margin-bottom: 0.35em;
+  margin-bottom: 0.3em;
 }
 .player-channel {
   font-size: 1rem;
-  color: #b3b3b3;
+  color: var(--text-secondary);
   margin-bottom: 1.1em;
 }
 .suggestions {
@@ -70,24 +69,27 @@
   max-width: 340px;
   display: flex;
   flex-direction: column;
-  gap: 1.1rem;
+  gap: 1.09rem;
 }
 .suggest-card {
   display: flex;
   gap: 0.8em;
-  background: #19191e;
+  background: #fafafa;
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid #232323;
-  transition: background 0.2s;
+  border: 1px solid #ececec;
+  transition: background 0.16s;
   cursor: pointer;
 }
-.suggest-card:hover { background: #23232b; }
+.suggest-card:hover {
+  background: #ffeaea;
+  border-color: #ffd4d4;
+}
 .suggest-thumb {
   width: 120px;
   aspect-ratio: 16/9;
   object-fit: cover;
-  background: #181818;
+  background: #eee;
 }
 .suggest-body {
   flex: 1;
@@ -97,17 +99,17 @@
   justify-content: center;
 }
 .suggest-title {
-  font-size: 1.02rem;
+  font-size: 1.01rem;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-main);
   line-height: 1.1;
-  margin-bottom: 0.19em;
-  max-height: 2.2em;
+  margin-bottom: 0.17em;
+  max-height: 2.1em;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .suggest-channel {
-  color: #b3b3b3;
+  color: var(--text-secondary);
   font-size: 0.93rem;
 }
 @media (max-width: 900px) {

@@ -12,9 +12,6 @@
       .order('created', { ascending: false })
       .limit(100);
 
-    console.log('Supabase data:', data);
-    console.log('Supabase error:', error);
-
     if (error) {
       videos = [];
       alert('Error fetching videos: ' + error.message);
@@ -27,62 +24,64 @@
 
 <style>
 .page-header {
-  color: #eee;
-  font-size: 2rem;
+  color: #181818;
+  font-size: 2.1rem;
   font-weight: 700;
-  margin-top: 2rem;
+  margin: 2.1rem 0 0.7rem 0;
   text-align: center;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
 }
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.5rem;
-  margin: 2rem 0;
-  padding: 0 2vw;
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  gap: 2.1rem;
+  margin: 2.5rem 0 1.5rem 0;
+  padding: 0 3vw;
+  background: #fff;
 }
 .card {
-  background: #18181b;
-  border-radius: 16px;
+  background: #fff;
+  border-radius: 13px;
   overflow: hidden;
-  box-shadow: 0 4px 12px #0003;
+  box-shadow: 0 2px 10px #e4e4e4;
+  border: 1px solid #ececec;
   display: flex;
   flex-direction: column;
-  transition: transform 0.1s;
-  border: 1px solid #222;
+  transition: box-shadow 0.15s, transform 0.13s;
 }
-.card:hover { transform: translateY(-4px) scale(1.03);}
+.card:hover {
+  box-shadow: 0 8px 28px #e93c2f11;
+  transform: translateY(-3px) scale(1.018);
+}
 .thumb {
   width: 100%;
   aspect-ratio: 16/9;
   object-fit: cover;
-  background: #222;
+  background: #eee;
 }
 .card-body {
-  padding: 1rem;
-  color: #eee;
+  padding: 1.1em 1em 0.95em 1em;
+  color: #181818;
 }
 .card-title {
-  font-size: 1.05rem;
+  font-size: 1.09rem;
   margin-bottom: 0.3em;
-  font-weight: bold;
+  font-weight: 600;
   min-height: 2.5em;
-  line-height: 1.2;
+  line-height: 1.22;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .card-channel {
-  font-size: 0.92rem;
-  color: #b3b3b3;
+  font-size: 0.97rem;
+  color: #666;
   margin-top: 0.3em;
 }
-@media (max-width: 600px) {
+@media (max-width: 650px) {
   .grid { grid-template-columns: 1fr; }
   .page-header { font-size: 1.2rem; }
 }
 </style>
-
-<div class="page-header">CIBUBBLE – Comprehensible Input Video Library</div>
 
 {#if loading}
   <p style="text-align:center; color:#aaa; margin-top:3rem;">Loading videos…</p>
