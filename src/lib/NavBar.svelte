@@ -1,22 +1,25 @@
 <script>
-  import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
-  import { goto } from '$app/navigation';
+  import { onMount } from 'svelte';
 
-  let session = null;
+  let user = null;
 
+  // Check session at mount and listen for changes
   onMount(async () => {
-    const { data: { session: sess } } = await supabase.auth.getSession();
-    session = sess;
-    supabase.auth.onAuthStateChange((event, { session: sess }) => {
-      session = sess;
+    // Get current session from localStorage (browser)
+    const { data } = await supabase.auth.getSession();
+    user = data.session?.user ?? null;
+
+    // Listen for login/logout and update user
+    supabase.auth.onAuthStateChange((_event, session) => {
+      user = session?.user ?? null;
     });
   });
 
   async function logout() {
     await supabase.auth.signOut();
-    session = null;
-    goto('/');
+    user = null;
+    window.location.href = '/';
   }
 </script>
 
@@ -36,7 +39,7 @@
   text-decoration: none;
 }
 .logo-img {
-  height: 3.6em;
+  height: 3.7em;
   width: auto;
   vertical-align: middle;
 }
@@ -50,37 +53,42 @@
   display: flex;
   gap: 1.6em;
 }
-.nav-link, .nav-btn {
+.nav-link,
+.logout-btn {
   color: #181818;
   font-size: 1.08em;
   font-weight: 500;
   padding: 0.2em 0.6em;
   border-radius: 7px;
   text-decoration: none;
+  transition: background 0.18s, color 0.18s;
   background: none;
   border: none;
   cursor: pointer;
-  transition: background 0.18s, color 0.18s;
 }
-.nav-link:hover, .nav-btn:hover {
+.nav-link:hover,
+.logout-btn:hover {
   background: #f7f7f7;
   color: #e93c2f;
+}
+.logout-btn {
+  font-family: inherit;
 }
 </style>
 
 <nav class="header">
   <a href="/" class="logo-row">
-    <img src="/logo.png" alt="CIBUBBLE logo" class="logo-img" />
-  </a>
+    <img src="/logo.png" alt="CIBUBBLE logo" class="logo-img" />  </a>
   <div class="nav-links">
     <a class="nav-link" href="/">Home</a>
     <a class="nav-link" href="/add-video">Add Video</a>
-    <a class="nav-link" href="/faq">FAQ</a>
-    {#if session}
+    {#if user}
       <a class="nav-link" href="/profile">Profile</a>
-      <button class="nav-btn" on:click={logout}>Logout</button>
+      <button class="logout-btn" on:click={logout}>Logout</button>
     {:else}
-      <a class="nav-link" href="/login">Login / Sign Up</a>
+      <a class="nav-link" href="/signup">Sign Up</a>
+      <a class="nav-link" href="/login">Login</a>
     {/if}
+    <a class="nav-link" href="/faq">FAQ</a>
   </div>
 </nav>
