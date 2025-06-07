@@ -49,7 +49,8 @@
   let player;
   let ytReady = false;
   let watchSeconds = 0;
-  let interval = null;
+  let pollingInterval = null;
+  let lastTime = 0;
 
   function onYouTubeIframeAPIReady() {
     ytReady = true;
@@ -64,35 +65,47 @@
       events: { 'onStateChange': onPlayerStateChange }
     });
   }
-  function onPlayerStateChange(event) {
-    // 1: playing, 2: paused, 0: ended
-    if (event.data === 1) startWatchTimer();
-    else stopWatchTimer();
-  }
 
   function startWatchTimer() {
-    if (!interval) interval = setInterval(() => {
-      watchSeconds += 1;
-      if (watchSeconds % 5 === 0) saveWatchTime();
-    }, 1000);
+    if (!pollingInterval && player) {
+      lastTime = player.getCurrentTime?.() || 0;
+      pollingInterval = setInterval(() => {
+        const currentTime = player.getCurrentTime?.() || 0;
+        let delta = currentTime - lastTime;
+        if (delta < 0) delta = 0;      // If jumped back, ignore
+        if (delta > 5) delta = 1;      // If skipped, only count 1s
+        watchSeconds += delta;
+        lastTime = currentTime;
+        if (Math.floor(watchSeconds) % 5 === 0) saveWatchTime();
+      }, 1000);
+    }
   }
+
   function stopWatchTimer() {
-    if (interval) {
-      clearInterval(interval);
-      interval = null;
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      pollingInterval = null;
       saveWatchTime();
     }
   }
+
   async function saveWatchTime() {
     if (!user) return;
     const today = new Date().toISOString().slice(0, 10);
     await supabase.from('watch_sessions').upsert({
       user_id: user.id,
       video_id: id,
-      seconds: watchSeconds,
+      seconds: Math.floor(watchSeconds),
       date: today
     }, { onConflict: ['user_id', 'video_id', 'date'] });
   }
+
+  function onPlayerStateChange(event) {
+    // 1: playing, 2: paused, 0: ended
+    if (event.data === 1) startWatchTimer();
+    else stopWatchTimer();
+  }
+
   onDestroy(() => stopWatchTimer());
 </script>
 
