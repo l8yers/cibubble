@@ -122,6 +122,7 @@
   aspect-ratio: 16/9;
   object-fit: cover;
   background: #eee;
+  min-height: 160px;
 }
 .card-body {
   padding: 1rem;
@@ -203,7 +204,12 @@ a:hover {
     {#each videos as video}
       <div class="card">
         <a href={`/video/${video.id}`}>
-          <img class="thumb" src={video.thumbnail || `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`} alt={video.title} />
+          <img
+            class="thumb"
+            src={`https://i.ytimg.com/vi/${video.id}/maxresdefault.jpg`}
+            alt={video.title}
+            on:error={(e) => { e.target.src = `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`; }}
+          />
         </a>
         <div class="card-body">
           <div class="card-title">{video.title}</div>
