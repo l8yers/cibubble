@@ -11,97 +11,196 @@
       .select('*')
       .order('created', { ascending: false })
       .limit(100);
-
-    if (error) {
-      videos = [];
-      alert('Error fetching videos: ' + error.message);
-    } else if (data) {
-      videos = data;
-    }
+    videos = data ?? [];
     loading = false;
   });
+
+  function formatVideoDuration(sec) {
+    sec = Math.round(sec);
+    if (isNaN(sec) || sec <= 0) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function badgeProps(level) {
+    if (!level) return { label: "Not Yet Rated", color: "#bcbcbc", text: "#666" };
+    switch (level.trim().toLowerCase()) {
+      case "superbeginner":
+      case "super beginner":   return { label: "Super Beginner", color: "#16a800", text: "#fff" };
+      case "beginner":         return { label: "Beginner",       color: "#2f6ae9", text: "#fff" };
+      case "intermediate":     return { label: "Intermediate",   color: "#f9ae17", text: "#fff" };
+      case "advanced":         return { label: "Advanced",       color: "#7d2fe9", text: "#fff" };
+      default:                 return { label: "Not Yet Rated",  color: "#bcbcbc", text: "#666" };
+    }
+  }
 </script>
 
 <style>
-.page-header {
-  color: #181818;
-  font-size: 2.1rem;
-  font-weight: 700;
-  margin: 2.1rem 0 0.7rem 0;
-  text-align: center;
-  letter-spacing: 0.5px;
+:global(html) {
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  background: #f5f6fa;
 }
-.grid {
+
+.ds-grid-main {
+  max-width: 1820px;
+  margin: 2.5rem auto 0 auto;
+  padding: 0 2vw 3vw 2vw;
+}
+
+.ds-video-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  grid-template-columns: repeat(5, 1fr);
   gap: 2.1rem;
-  margin: 2.5rem 0 1.5rem 0;
-  padding: 0 3vw;
-  background: #fff;
+  justify-content: center;
 }
-.card {
+
+@media (max-width: 1600px) {
+  .ds-video-grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 1250px) {
+  .ds-video-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 950px) {
+  .ds-video-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+  .ds-grid-main { padding: 0 0.3em; }
+  .ds-video-grid { grid-template-columns: 1fr; gap: 1.1rem; }
+}
+
+.ds-card {
   background: #fff;
-  border-radius: 13px;
-  overflow: hidden;
-  box-shadow: 0 2px 10px #e4e4e4;
-  border: 1px solid #ececec;
+  border-radius: 18px;
+  box-shadow: 0 4px 32px #e4e4e4;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  border: 1.4px solid #f1f1f2;
+  min-width: 0;
+  position: relative;
   transition: box-shadow 0.15s, transform 0.13s;
+  text-decoration: none;
 }
-.card:hover {
-  box-shadow: 0 8px 28px #e93c2f11;
-  transform: translateY(-3px) scale(1.018);
+.ds-card:hover {
+  box-shadow: 0 8px 48px #e93c2f15;
+  transform: translateY(-4px) scale(1.018);
 }
-.thumb {
+
+.ds-thumb-wrap {
+  position: relative;
+}
+.ds-thumb {
   width: 100%;
   aspect-ratio: 16/9;
   object-fit: cover;
-  background: #eee;
+  background: #ececec;
+  display: block;
 }
-.card-body {
-  padding: 1.1em 1em 0.95em 1em;
-  color: #181818;
-}
-.card-title {
-  font-size: 1.09rem;
-  margin-bottom: 0.3em;
+.ds-thumb-duration {
+  position: absolute;
+  right: 1em;
+  bottom: 1em;
+  background: #1a1a1aee;
+  color: #fff;
+  font-size: 0.91em;
   font-weight: 600;
+  padding: 0.11em 0.6em;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px #1818182b;
+  opacity: 0.78;
+  letter-spacing: 0.03em;
+  z-index: 2;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Card content */
+.ds-card-body {
+  padding: 1.05em 1.15em 1.1em 1.15em;
+  color: #181818;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.ds-title {
+  font-size: 1.13rem;
+  font-weight: 700;
+  margin-bottom: 0.38em;
+  line-height: 1.21;
   min-height: 2.5em;
-  line-height: 1.22;
+  max-height: 2.5em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
+  word-break: break-word;
 }
-.card-channel {
-  font-size: 0.97rem;
-  color: #666;
-  margin-top: 0.3em;
+
+.ds-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 0.53em;
+  margin-bottom: 0.13em;
 }
-@media (max-width: 650px) {
-  .grid { grid-template-columns: 1fr; }
-  .page-header { font-size: 1.2rem; }
+.ds-diff-badge {
+  font-size: 0.91em;
+  font-weight: 700;
+  padding: 0.23em 1.09em;
+  border-radius: 12px;
+  letter-spacing: 0.01em;
+  display: inline-block;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px #e0e0e0;
+  border: none;
+}
+.ds-channel {
+  font-size: 0.98rem;
+  color: #787878;
+  font-weight: 500;
+  margin-bottom: 0.28em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
 }
 </style>
 
-{#if loading}
-  <p style="text-align:center; color:#aaa; margin-top:3rem;">Loading videos…</p>
-{:else if videos.length === 0}
-  <p style="text-align:center; color:#aaa; margin-top:3rem;">No videos yet. Try adding one!</p>
-{:else}
-  <div class="grid">
-    {#each videos as video}
-      <a href={`/video/${video.id}`} class="card">
-        <img
-          class="thumb"
-          src={`https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`}
-          alt={video.title}
-          on:error="{(e) => e.target.src='https://placehold.co/480x270?text=No+Thumbnail'}"
-        />
-        <div class="card-body">
-          <div class="card-title">{video.title}</div>
-          <div class="card-channel">{video.channel_name}</div>
-        </div>
-      </a>
-    {/each}
-  </div>
-{/if}
+<div class="ds-grid-main">
+  {#if loading}
+    <p style="text-align:center; color:#aaa; margin-top:3rem;">Loading videos…</p>
+  {:else if videos.length === 0}
+    <p style="text-align:center; color:#aaa; margin-top:3rem;">No videos yet. Try adding one!</p>
+  {:else}
+    <div class="ds-video-grid">
+      {#each videos as video}
+        <a href={`/video/${video.id}`} class="ds-card">
+          <div class="ds-thumb-wrap">
+            <img
+              class="ds-thumb"
+              src={`https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`}
+              alt={video.title}
+              on:error="{(e) => e.target.src='https://placehold.co/480x270?text=No+Thumb'}"
+            />
+            {#if video.length}
+              <span class="ds-thumb-duration">
+                {formatVideoDuration(video.length)}
+              </span>
+            {/if}
+          </div>
+          <div class="ds-card-body">
+            <div class="ds-title">{video.title}</div>
+            <div class="ds-meta-row">
+              <span
+                class="ds-diff-badge"
+                style="background: {badgeProps(video.level).color}; color: {badgeProps(video.level).text};"
+              >{badgeProps(video.level).label}</span>
+              <span class="ds-channel">{video.channel_name}</span>
+            </div>
+          </div>
+        </a>
+      {/each}
+    </div>
+  {/if}
+</div>
