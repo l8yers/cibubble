@@ -5,9 +5,9 @@
   let videos = [];
   let loading = false;
   let errorMsg = '';
-  let offset = 0;
-  const pageSize = 30;
-  let allLoaded = false;
+  let page = 1;
+  let pageSize = 30;
+  let totalCount = 0;
 
   function difficultyLabel(level) {
     switch (level) {
@@ -36,58 +36,72 @@
       ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
       : `${m}:${String(s).padStart(2, '0')}`;
   }
-  async function loadVideos({ reset = false } = {}) {
-    if (loading || allLoaded) return;
+
+  async function loadVideos() {
     loading = true;
     errorMsg = '';
+    videos = [];
 
-    if (reset) {
-      const { data, error } = await supabase
-        .from('videos')
-        .select('*, playlist:playlist_id(title), channel:channel_id(name)')
-        .limit(100);
-      if (error) errorMsg = error.message;
-      else if (data && data.length > 0) {
-        videos = data.slice(0, pageSize);
-        offset = pageSize;
-        allLoaded = false;
-      } else {
-        videos = [];
-        allLoaded = true;
-      }
-      loading = false;
-      return;
-    }
-    const from = offset;
-    const to = from + pageSize - 1;
-    const { data, error } = await supabase
+    // Get total count
+    let { count } = await supabase
       .from('videos')
-      .select('*, playlist:playlist_id(title), channel:channel_id(name)')
-      .order('created', { ascending: false })
-      .range(from, to);
-    if (error) errorMsg = error.message;
-    else if (data && data.length > 0) {
-      videos = [...videos, ...data];
-      offset += data.length;
-      if (data.length < pageSize) allLoaded = true;
+      .select('id', { count: 'exact', head: true });
+
+    totalCount = count || 0;
+
+    // Get random set for the current page
+    let { data, error } = await supabase
+      .rpc('random_videos', {
+        page_offset: (page - 1) * pageSize,
+        page_size: pageSize
+      });
+
+    if (error) {
+      errorMsg = error.message;
+      videos = [];
     } else {
-      allLoaded = true;
+      videos = data || [];
     }
     loading = false;
   }
-  function handleScroll() {
-    if (allLoaded || loading) return;
-    const scrollPosition = window.innerHeight + window.scrollY;
-    const docHeight = document.body.offsetHeight;
-    if (docHeight - scrollPosition < 400) {
-      loadVideos();
+
+  // Fallback: Use a simple random sort if you don't have a Postgres function (see below)
+  async function fallbackRandomVideos() {
+    loading = true;
+    errorMsg = '';
+    let { data, error, count } = await supabase
+      .from('videos')
+      .select('*, playlist:playlist_id(title), channel:channel_id(name)', { count: 'exact' });
+    if (error) {
+      errorMsg = error.message;
+      videos = [];
+    } else {
+      // Shuffle array for random page
+      let shuffled = data.sort(() => Math.random() - 0.5);
+      videos = shuffled.slice((page - 1) * pageSize, page * pageSize);
+      totalCount = count || 0;
+    }
+    loading = false;
+  }
+
+  // Use Postgres function if available, else fallback to JS
+  onMount(async () => {
+    // Try Postgres function first
+    try {
+      await loadVideos();
+      if (!videos.length) await fallbackRandomVideos();
+    } catch {
+      await fallbackRandomVideos();
+    }
+  });
+
+  // When page changes, re-load
+  $: if (page > 0) {
+    loading = true;
+    if (typeof window !== 'undefined') {
+      loadVideos().catch(fallbackRandomVideos);
     }
   }
-  onMount(() => {
-    loadVideos({ reset: true });
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  });
 </script>
 
 <style>
@@ -100,7 +114,7 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 1.25rem;
+  gap: 1.3rem;
   margin: 2rem 0;
 }
 .card {
@@ -136,13 +150,12 @@
   background: #fff;
   color: #222;
   font-weight: 600;
-  font-size: 1em;
-  border-radius: 9px 0 0 9px;
-  padding: 3px 13px 3px 10px;
+  font-size: 0.96em;
+  border-radius: 7px;
+  padding: 2px 12px 2px 8px;
   box-shadow: 0 2px 6px #0001, 0 1px 3px #0001;
-  letter-spacing: 0.03em;
-  opacity: 0.97;
-  border: 1.5px solid #e3e3e3;
+  opacity: 0.93;
+  border: 1.3px solid #e3e3e3;
   pointer-events: none;
   user-select: none;
   z-index: 2;
@@ -170,17 +183,16 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 0.48em;
-  margin-top: 0.74em;
-  font-size: 0.96em;
+  margin-top: 0.65em;
+  font-size: 0.98em;
 }
 .badge {
   display: inline-block;
   font-size: 0.89em;
   font-weight: 600;
-  padding: 0.23em 0.8em;
-  border-radius: 5px;
+  padding: 0.18em 0.7em;
+  border-radius: 4px;
   margin-right: 0.5em;
-  margin-bottom: 0.1em;
   color: #fff;
   background: #bbb;
   letter-spacing: 0.01em;
@@ -193,9 +205,9 @@
   font-size: 0.97em;
   text-decoration: none;
   background: #f6f6f6;
-  border-radius: 4px;
-  padding: 0.11em 0.6em;
-  margin-right: 0.2em;
+  border-radius: 3px;
+  padding: 0.12em 0.55em;
+  margin-right: 0.18em;
   font-weight: 500;
   transition: background 0.13s, color 0.13s;
 }
@@ -203,15 +215,28 @@
   background: #e4e4e4;
   color: #e93c2f;
 }
-.error-msg {
-  color: #c00;
-  background: #fee;
-  border: 1px solid #fcc;
-  border-radius: 7px;
-  padding: 1em;
-  margin: 2em auto;
-  max-width: 460px;
-  text-align: center;
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.4em;
+  margin: 2.6em 0 0 0;
+}
+.page-btn {
+  background: #f6f6f6;
+  color: #222;
+  border: 1.5px solid #ddd;
+  border-radius: 6px;
+  font-size: 1.05em;
+  padding: 0.4em 1.3em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.13s, border 0.13s;
+}
+.page-btn[disabled] {
+  background: #e3e3e3;
+  color: #aaa;
+  cursor: default;
 }
 @media (max-width: 1450px) {
   .grid { grid-template-columns: repeat(4, 1fr);}
@@ -257,17 +282,27 @@
               {difficultyLabel(video.level)}
             </span>
             <a class="meta-link" href={`/channel/${video.channel_id}`}>{video.channel?.name ?? video.channel_name ?? "Unknown Channel"}</a>
-            <a class="meta-link" href={`/playlist/${video.playlist_id}`}>{video.playlist?.title ?? "Unknown Playlist"}</a>
+            {#if video.playlist_id}
+              <a class="meta-link" href={`/playlist/${video.playlist_id}`}>{video.playlist?.title ?? ""}</a>
+            {/if}
           </div>
         </div>
       </div>
     {/each}
   </div>
 
+  <!-- Pagination controls -->
+  <div class="pagination">
+    <button class="page-btn" on:click={() => { page = Math.max(1, page - 1); loadVideos(); }} disabled={page === 1 || loading}>
+      ← Prev
+    </button>
+    <span>Page {page} of {Math.ceil(totalCount / pageSize) || 1}</span>
+    <button class="page-btn" on:click={() => { page++; loadVideos(); }} disabled={page * pageSize >= totalCount || loading}>
+      Next →
+    </button>
+  </div>
   {#if loading}
     <p style="text-align:center;margin:2em 0;">Loading…</p>
-  {:else if allLoaded && videos.length > 0}
-    <p style="text-align:center;color:#888;">No more videos to load.</p>
   {:else if videos.length === 0}
     <p style="text-align:center;margin:2em 0;">No videos yet.</p>
   {/if}
