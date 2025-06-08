@@ -9,14 +9,6 @@
   const pageSize = 30;
   let allLoaded = false;
 
-  function shuffle(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-  }
-
   function difficultyLabel(level) {
     switch (level) {
       case 'superbeginner': return 'Super Beginner';
@@ -26,7 +18,6 @@
       default: return 'Not Yet Rated';
     }
   }
-
   function difficultyColor(level) {
     switch (level) {
       case 'superbeginner': return '#44c366';
@@ -36,8 +27,6 @@
       default: return '#bbb';
     }
   }
-
-  // Video length formatting (mm:ss or h:mm:ss)
   function formatLength(sec) {
     if (!sec || isNaN(sec)) return '';
     const h = Math.floor(sec / 3600);
@@ -47,7 +36,6 @@
       ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
       : `${m}:${String(s).padStart(2, '0')}`;
   }
-
   async function loadVideos({ reset = false } = {}) {
     if (loading || allLoaded) return;
     loading = true;
@@ -60,7 +48,7 @@
         .limit(100);
       if (error) errorMsg = error.message;
       else if (data && data.length > 0) {
-        videos = shuffle(data).slice(0, pageSize);
+        videos = data.slice(0, pageSize);
         offset = pageSize;
         allLoaded = false;
       } else {
@@ -70,7 +58,6 @@
       loading = false;
       return;
     }
-
     const from = offset;
     const to = from + pageSize - 1;
     const { data, error } = await supabase
@@ -78,7 +65,6 @@
       .select('*, playlist:playlist_id(title), channel:channel_id(name)')
       .order('created', { ascending: false })
       .range(from, to);
-
     if (error) errorMsg = error.message;
     else if (data && data.length > 0) {
       videos = [...videos, ...data];
@@ -89,7 +75,6 @@
     }
     loading = false;
   }
-
   function handleScroll() {
     if (allLoaded || loading) return;
     const scrollPosition = window.innerHeight + window.scrollY;
@@ -98,7 +83,6 @@
       loadVideos();
     }
   }
-
   onMount(() => {
     loadVideos({ reset: true });
     window.addEventListener('scroll', handleScroll);
@@ -111,49 +95,57 @@
   max-width: 1920px;
   margin: 0 auto;
   padding: 2rem 2vw 2.5rem 2vw;
+  font-family: Inter, Arial, sans-serif;
 }
 .grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 1.5rem;
+  gap: 1.25rem;
   margin: 2rem 0;
 }
 .card {
   background: #fff;
-  border-radius: 16px;
+  border-radius: 6px;
   overflow: hidden;
-  box-shadow: 0 4px 12px #eee;
+  box-shadow: 0 2px 12px #e8e8e8;
   display: flex;
   flex-direction: column;
-  transition: transform 0.1s;
+  transition: transform 0.13s, box-shadow 0.13s;
+  border: 1px solid #ededed;
 }
-.card:hover { transform: translateY(-4px) scale(1.03);}
+.card:hover {
+  transform: translateY(-2px) scale(1.025);
+  box-shadow: 0 6px 24px #e4e4e4;
+}
 .thumb-wrapper {
   position: relative;
+  background: #e5e5e5;
 }
 .thumb {
   width: 100%;
   aspect-ratio: 16/9;
   object-fit: cover;
   background: #eee;
-  min-height: 160px;
+  min-height: 112px;
   display: block;
 }
 .length-badge {
   position: absolute;
-  bottom: 8px;
-  right: 10px;
-  background: rgba(24,24,24,0.86);
-  color: #fff;
-  padding: 0.14em 0.7em;
-  border-radius: 8px;
-  font-size: 0.92em;
-  font-weight: 500;
+  bottom: 10px;
+  right: 12px;
+  background: #fff;
+  color: #222;
+  font-weight: 600;
+  font-size: 1em;
+  border-radius: 9px 0 0 9px;
+  padding: 3px 13px 3px 10px;
+  box-shadow: 0 2px 6px #0001, 0 1px 3px #0001;
   letter-spacing: 0.03em;
-  box-shadow: 0 1px 6px #0004;
-  opacity: 0.85;
+  opacity: 0.97;
+  border: 1.5px solid #e3e3e3;
   pointer-events: none;
   user-select: none;
+  z-index: 2;
 }
 .card-body {
   padding: 1rem 1rem 0.7rem 1rem;
@@ -165,7 +157,7 @@
 .card-title {
   font-size: 1.08rem;
   margin-bottom: 0.25em;
-  font-weight: bold;
+  font-weight: 600;
   min-height: 2.2em;
   max-height: 2.3em;
   overflow: hidden;
@@ -177,16 +169,16 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.55em;
-  margin-top: 0.7em;
-  font-size: 0.95em;
+  gap: 0.48em;
+  margin-top: 0.74em;
+  font-size: 0.96em;
 }
 .badge {
   display: inline-block;
   font-size: 0.89em;
   font-weight: 600;
   padding: 0.23em 0.8em;
-  border-radius: 100px;
+  border-radius: 5px;
   margin-right: 0.5em;
   margin-bottom: 0.1em;
   color: #fff;
@@ -197,15 +189,15 @@
   white-space: nowrap;
 }
 .meta-link {
-  color: #111;
-  font-size: 0.96em;
+  color: #252525;
+  font-size: 0.97em;
   text-decoration: none;
   background: #f6f6f6;
-  border-radius: 6px;
-  padding: 0.13em 0.7em;
-  margin-right: 0.4em;
+  border-radius: 4px;
+  padding: 0.11em 0.6em;
+  margin-right: 0.2em;
   font-weight: 500;
-  transition: background 0.13s;
+  transition: background 0.13s, color 0.13s;
 }
 .meta-link:hover {
   background: #e4e4e4;
@@ -215,7 +207,7 @@
   color: #c00;
   background: #fee;
   border: 1px solid #fcc;
-  border-radius: 8px;
+  border-radius: 7px;
   padding: 1em;
   margin: 2em auto;
   max-width: 460px;

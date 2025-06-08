@@ -81,7 +81,7 @@
     <img src="/logo.png" alt="CIBUBBLE logo" class="logo-img" />  </a>
   <div class="nav-links">
     <a class="nav-link" href="/">Home</a>
-    <a class="nav-link" href="/add-video">Add Video</a>
+    <a class="nav-link" href="/admin">ADMIN</a>
         <a class="nav-link" href="/faq">FAQ</a>
     {#if user}
       <a class="nav-link" href="/profile">Profile</a>
