@@ -37,6 +37,17 @@
     }
   }
 
+  // Video length formatting (mm:ss or h:mm:ss)
+  function formatLength(sec) {
+    if (!sec || isNaN(sec)) return '';
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    return h > 0
+      ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+      : `${m}:${String(s).padStart(2, '0')}`;
+  }
+
   async function loadVideos({ reset = false } = {}) {
     if (loading || allLoaded) return;
     loading = true;
@@ -117,20 +128,43 @@
   transition: transform 0.1s;
 }
 .card:hover { transform: translateY(-4px) scale(1.03);}
+.thumb-wrapper {
+  position: relative;
+}
 .thumb {
   width: 100%;
   aspect-ratio: 16/9;
   object-fit: cover;
   background: #eee;
   min-height: 160px;
+  display: block;
+}
+.length-badge {
+  position: absolute;
+  bottom: 8px;
+  right: 10px;
+  background: rgba(24,24,24,0.86);
+  color: #fff;
+  padding: 0.14em 0.7em;
+  border-radius: 8px;
+  font-size: 0.92em;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  box-shadow: 0 1px 6px #0004;
+  opacity: 0.85;
+  pointer-events: none;
+  user-select: none;
 }
 .card-body {
-  padding: 1rem;
+  padding: 1rem 1rem 0.7rem 1rem;
   color: #222;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 .card-title {
   font-size: 1.08rem;
-  margin-bottom: 0.3em;
+  margin-bottom: 0.25em;
   font-weight: bold;
   min-height: 2.2em;
   max-height: 2.3em;
@@ -140,19 +174,18 @@
   -webkit-box-orient: vertical;
 }
 .card-meta {
-  font-size: 0.92rem;
-  color: #888;
   display: flex;
   align-items: center;
-  gap: 0.5em;
   flex-wrap: wrap;
-  margin-top: 0.4em;
+  gap: 0.55em;
+  margin-top: 0.7em;
+  font-size: 0.95em;
 }
 .badge {
   display: inline-block;
-  font-size: 0.85em;
+  font-size: 0.89em;
   font-weight: 600;
-  padding: 0.24em 0.85em;
+  padding: 0.23em 0.8em;
   border-radius: 100px;
   margin-right: 0.5em;
   margin-bottom: 0.1em;
@@ -163,13 +196,20 @@
   text-shadow: 0 1px 4px #0001;
   white-space: nowrap;
 }
-a {
-  color: #e93c2f;
+.meta-link {
+  color: #111;
+  font-size: 0.96em;
   text-decoration: none;
-  margin-right: 0.7em;
+  background: #f6f6f6;
+  border-radius: 6px;
+  padding: 0.13em 0.7em;
+  margin-right: 0.4em;
+  font-weight: 500;
+  transition: background 0.13s;
 }
-a:hover {
-  text-decoration: underline;
+.meta-link:hover {
+  background: #e4e4e4;
+  color: #e93c2f;
 }
 .error-msg {
   color: #c00;
@@ -204,12 +244,17 @@ a:hover {
     {#each videos as video}
       <div class="card">
         <a href={`/video/${video.id}`}>
-          <img
-            class="thumb"
-            src={`https://i.ytimg.com/vi/${video.id}/maxresdefault.jpg`}
-            alt={video.title}
-            on:error={(e) => { e.target.src = `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`; }}
-          />
+          <span class="thumb-wrapper">
+            <img
+              class="thumb"
+              src={`https://i.ytimg.com/vi/${video.id}/maxresdefault.jpg`}
+              alt={video.title}
+              on:error={(e) => { e.target.src = `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`; }}
+            />
+            {#if video.length}
+              <span class="length-badge">{formatLength(video.length)}</span>
+            {/if}
+          </span>
         </a>
         <div class="card-body">
           <div class="card-title">{video.title}</div>
@@ -219,9 +264,8 @@ a:hover {
               style="background:{difficultyColor(video.level)};">
               {difficultyLabel(video.level)}
             </span>
-            <a href={`/channel/${video.channel_id}`}>{video.channel?.name ?? video.channel_name ?? "Unknown Channel"}</a>
-            &middot;
-            <a href={`/playlist/${video.playlist_id}`}>{video.playlist?.title ?? "Unknown Playlist"}</a>
+            <a class="meta-link" href={`/channel/${video.channel_id}`}>{video.channel?.name ?? video.channel_name ?? "Unknown Channel"}</a>
+            <a class="meta-link" href={`/playlist/${video.playlist_id}`}>{video.playlist?.title ?? "Unknown Playlist"}</a>
           </div>
         </div>
       </div>

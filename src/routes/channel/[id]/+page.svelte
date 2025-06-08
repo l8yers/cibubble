@@ -1,41 +1,41 @@
-<script context="module">
-  export async function load({ params, fetch }) {
-    const channelId = params.id;
-    const res = await fetch(`/api/channel?id=${channelId}`);
-    if (!res.ok) return { status: 404 };
-    const { channel, playlists } = await res.json();
-    return { props: { channel, playlists } };
-  }
-</script>
-
 <script>
-  export let channel, playlists;
+  import { supabase } from '$lib/supabaseClient';
+  import { page } from '$app/stores';
+  import { onMount } from 'svelte';
+
+  let videos = [];
+  let channel = null;
+  let loading = true;
+
+  $: id = $page.params.id;
+
+  onMount(async () => {
+    // Get channel info
+    const { data: ch } = await supabase.from('channels').select('*').eq('id', id).maybeSingle();
+    channel = ch;
+    // Get videos for this channel
+    const { data } = await supabase
+      .from('videos')
+      .select('*, playlist:playlist_id(title)')
+      .eq('channel_id', id)
+      .order('created', { ascending: false });
+    videos = data || [];
+    loading = false;
+  });
 </script>
 
-<style>
-.header { margin-bottom: 2em; }
-.header-title { font-size: 1.55rem; font-weight: 700; margin-bottom: 0.16em; }
-.header-meta { color: #777; }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.4em; }
-.card { background: #fff; border-radius: 13px; box-shadow: 0 2px 10px #eee; overflow: hidden;}
-.thumb { width: 100%; aspect-ratio: 16/9; object-fit: cover;}
-.card-body { padding: 0.9em 1em; }
-.card-title { font-weight: 600; font-size: 1.07em; }
-</style>
-
-<div class="header">
-  <div class="header-title">{channel.name}</div>
-</div>
-
-<div class="grid">
-  {#each playlists as pl}
-    <div class="card">
-      <a href={`/playlist/${pl.id}`}>
-        <img class="thumb" src={pl.thumbnail} alt={pl.title} />
-      </a>
-      <div class="card-body">
-        <div class="card-title">{pl.title}</div>
-      </div>
-    </div>
-  {/each}
-</div>
+<h2 style="margin:2.2em 0 1em 0;">Channel: {channel?.name || id}</h2>
+{#if loading}
+  <p>Loading…</p>
+{:else if videos.length === 0}
+  <p>No videos for this channel.</p>
+{:else}
+  <ul>
+    {#each videos as v}
+      <li>
+        <a href={`/video/${v.id}`}>{v.title}</a>
+        {#if v.playlist?.title} — <span style="color:#888;">{v.playlist.title}</span>{/if}
+      </li>
+    {/each}
+  </ul>
+{/if}
