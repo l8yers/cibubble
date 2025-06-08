@@ -1,35 +1,29 @@
 <script>
   import { supabase } from '$lib/supabaseClient';
-  import { onMount } from 'svelte';
 
-  // Video import
   let url = '';
+  let message = '';
   let importing = false;
-  let importResult = null;
-  let importError = '';
-  let saveMessage = '';
-  let saving = false;
-  let playlistSelections = [];
-  let playlistLevel = '';
-  let selectedPlaylist = null;
+  let clearing = false;
+  let deleting = {};
+  let channels = [];
+  let refreshing = false;
+  let showPlaylistsFor = null;
+  let playlists = [];
+  let playlistsLoading = false;
 
   const levels = [
-    { value: '', label: 'Not Yet Rated' },
+    { value: '', label: 'Set Level' },
     { value: 'superbeginner', label: 'Super Beginner' },
     { value: 'beginner', label: 'Beginner' },
     { value: 'intermediate', label: 'Intermediate' },
-    { value: 'advanced', label: 'Advanced' }
+    { value: 'advanced', label: 'Advanced' },
+    { value: 'notyet', label: 'Not Yet Rated' }
   ];
 
-  async function importVideos() {
+  async function importChannel() {
+    message = '';
     importing = true;
-    importError = '';
-    saveMessage = '';
-    importResult = null;
-    playlistSelections = [];
-    playlistLevel = '';
-    selectedPlaylist = null;
-
     try {
       const res = await fetch('/api/add-video', {
         method: 'POST',
@@ -37,181 +31,128 @@
         body: JSON.stringify({ url })
       });
       const json = await res.json();
-      if (json.error) {
-        importError = json.error;
-        importing = false;
-        return;
-      }
-      // Reject single videos
-      if (json.type === 'video') {
-        importError = "Single video uploads are disabled. Please add playlists or channels only.";
-        importing = false;
-        return;
-      }
-      importResult = json;
-      if (importResult.type === 'channel') {
-        playlistSelections = importResult.playlists.map(pl => ({
-          ...pl, level: ''
-        }));
-      }
-      if (importResult.type === 'playlist') {
-        playlistLevel = '';
-        selectedPlaylist = importResult.playlist;
-      }
+      if (json.error) message = `❌ ${json.error}`;
+      else message = `✅ Imported channel "${json.channel?.name}". ${json.playlists_count} playlists, ${json.videos_added} videos.`;
+      await refresh();
     } catch (e) {
-      importError = e.message || "Unknown error.";
+      message = '❌ Import failed.';
     }
     importing = false;
   }
 
-  // Channel: Import each playlist with set level
-  async function importSelectedPlaylists() {
-    saving = true;
-    saveMessage = '';
-    let imported = 0, failed = 0;
-    for (const pl of playlistSelections.filter(p => p.level)) {
-      const res = await fetch('/api/add-video', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playlistId: pl.id })
-      });
-      const data = await res.json();
-      if (!data.playlist?.videos?.length) { failed++; continue; }
-      // Upsert channel, playlist, then all videos
-      await supabase.from('channels').upsert([{
-        id: pl.channel_id,
-        name: pl.channel_name,
-        thumbnail: pl.channel_thumbnail || '',
-        description: ''
-      }]);
-      await supabase.from('playlists').upsert([{
-        id: pl.id,
-        channel_id: pl.channel_id,
-        title: pl.title,
-        thumbnail: pl.thumbnail,
-        description: ''
-      }]);
-      const { error } = await supabase.from('videos').upsert(data.playlist.videos.map(v => ({
-        id: v.id,
-        title: v.title,
-        channel_id: pl.channel_id,
-        playlist_id: pl.id,
-        channel_name: pl.channel_name,
-        thumbnail: v.thumbnail,
-        length: v.length ?? null,
-        level: pl.level,
-        created: new Date().toISOString()
-      })));
-      if (!error) imported++;
-      else failed++;
-    }
-    if (imported) saveMessage = `Imported ${imported} playlist${imported>1?'s':''}.`;
-    if (failed) saveMessage += ` Failed: ${failed}`;
-    saving = false;
-    fetchVideos();
-  }
-
-  // Playlist: Save all videos at selected level
-  async function importPlaylist() {
-    if (!playlistLevel) { saveMessage = "Select a level first."; return; }
-    saving = true; saveMessage = '';
-    const pl = selectedPlaylist;
-    await supabase.from('channels').upsert([{
-      id: pl.channel_id,
-      name: pl.channel_name,
-      thumbnail: pl.channel_thumbnail || '',
-      description: ''
-    }]);
-    await supabase.from('playlists').upsert([{
-      id: pl.id,
-      channel_id: pl.channel_id,
-      title: pl.title,
-      thumbnail: pl.thumbnail,
-      description: ''
-    }]);
-    const { error } = await supabase.from('videos').upsert(pl.videos.map(v => ({
-      id: v.id,
-      title: v.title,
-      channel_id: pl.channel_id,
-      playlist_id: pl.id,
-      channel_name: pl.channel_name,
-      thumbnail: v.thumbnail,
-      length: v.length ?? null,
-      level: playlistLevel,
-      created: new Date().toISOString()
-    })));
-    saveMessage = error ? error.message : "Playlist imported!";
-    saving = false;
-    fetchVideos();
-  }
-
-  // Admin tools
-  let videos = [];
-  let loading = false;
-  let adminMsg = '';
-
-  async function fetchVideos() {
-    loading = true;
-    adminMsg = '';
-    const { data, error } = await supabase
-      .from('videos')
-      .select('*')
-      .order('created', { ascending: false })
-      .limit(30);
-    if (error) adminMsg = error.message;
-    else videos = data || [];
-    loading = false;
+  async function refresh() {
+    refreshing = true;
+    let { data, error } = await supabase.from('channels').select('*');
+    if (error) message = error.message;
+    else channels = await Promise.all(
+      (data || []).map(async (chan) => {
+        const { count: playlists_count } = await supabase
+          .from('playlists')
+          .select('id', { count: 'exact', head: true })
+          .eq('channel_id', chan.id);
+        const { count: videos_count } = await supabase
+          .from('videos')
+          .select('id', { count: 'exact', head: true })
+          .eq('channel_id', chan.id);
+        return { ...chan, playlists_count, videos_count, _newLevel: '' };
+      })
+    );
+    refreshing = false;
   }
 
   async function clearDatabase() {
-    if (!confirm("Delete ALL videos, playlists, and channels? This can't be undone!")) return;
-    adminMsg = "Clearing database…";
-    let { error } = await supabase.from('videos').delete().neq('id', '');
-    if (error) { adminMsg = "Failed to delete videos: " + error.message; return; }
-    error = (await supabase.from('playlists').delete().neq('id', '')).error;
-    if (error) { adminMsg = "Failed to delete playlists: " + error.message; return; }
-    error = (await supabase.from('channels').delete().neq('id', '')).error;
-    if (error) { adminMsg = "Failed to delete channels: " + error.message; return; }
-    adminMsg = "Database cleared!";
-    fetchVideos();
+    if (!confirm('Are you sure? This will delete ALL videos, playlists, and channels!')) return;
+    clearing = true;
+    message = '';
+    await supabase.from('videos').delete().neq('id', '');
+    await supabase.from('playlists').delete().neq('id', '');
+    await supabase.from('channels').delete().neq('id', '');
+    await refresh();
+    message = '✅ Database cleared.';
+    clearing = false;
   }
 
-  async function deleteVideo(id) {
-    if (!confirm("Delete this video?")) return;
-    const { error } = await supabase.from('videos').delete().eq('id', id);
-    if (error) { adminMsg = "Failed to delete: " + error.message; }
-    else {
-      adminMsg = "Video deleted.";
-      fetchVideos();
+  async function deleteChannel(id) {
+    if (!confirm('Delete this channel and ALL its videos/playlists?')) return;
+    deleting[id] = true;
+    await supabase.from('videos').delete().eq('channel_id', id);
+    await supabase.from('playlists').delete().eq('channel_id', id);
+    await supabase.from('channels').delete().eq('id', id);
+    await refresh();
+    deleting[id] = false;
+  }
+
+  async function setChannelLevel(channelId, level) {
+    if (!level) return;
+    await supabase.from('videos').update({ level }).eq('channel_id', channelId);
+    message = `✅ All videos for this channel set to "${levels.find(l => l.value === level)?.label}"`;
+    await refresh();
+  }
+
+  // Playlists per channel
+  async function togglePlaylistsFor(channelId) {
+    if (showPlaylistsFor === channelId) {
+      showPlaylistsFor = null;
+      playlists = [];
+      return;
     }
+    showPlaylistsFor = channelId;
+    playlistsLoading = true;
+    let { data, error } = await supabase
+      .from('playlists')
+      .select('*')
+      .eq('channel_id', channelId);
+    if (!error) {
+      // Add video count and _newLevel for each playlist
+      playlists = await Promise.all(
+        (data || []).map(async (pl) => {
+          const { count: videos_count } = await supabase
+            .from('videos')
+            .select('id', { count: 'exact', head: true })
+            .eq('playlist_id', pl.id);
+          return { ...pl, videos_count, _newLevel: '' };
+        })
+      );
+    } else {
+      playlists = [];
+    }
+    playlistsLoading = false;
   }
 
-  function editVideo(id) {
-    alert("Edit feature coming soon! (Or implement inline editing here.)");
+  async function setPlaylistLevel(playlistId, level) {
+    if (!level) return;
+    await supabase.from('videos').update({ level }).eq('playlist_id', playlistId);
+    message = `✅ All videos for this playlist set to "${levels.find(l => l.value === level)?.label}"`;
+    // Refresh just the playlist row
+    if (showPlaylistsFor) togglePlaylistsFor(showPlaylistsFor);
   }
 
-  onMount(fetchVideos);
+  refresh();
 </script>
 
 <style>
-/* Copy previous admin styles here, and styles from add-video page as needed */
 .admin-main {
-  max-width: 990px;
-  margin: 2.5rem auto 0 auto;
+  max-width: 1000px;
+  margin: 3.5rem auto 0 auto;
   background: #fff;
-  border-radius: 13px;
-  border: 1px solid #eee;
-  box-shadow: 0 2px 18px #f3f3f3;
-  padding: 2.2rem 2vw 2.5rem 2vw;
+  border-radius: 11px;
+  border: 1px solid #ececec;
+  box-shadow: 0 2px 18px #ececec;
+  padding: 2.4rem 2vw 2.7rem 2vw;
+  font-family: Inter, Arial, sans-serif;
 }
-h2 {
-  font-size: 1.38rem;
-  font-weight: 700;
-  margin-bottom: 1.6em;
-  color: #e93c2f;
+.row { display: flex; gap: 1em; margin-bottom: 1.4em; align-items: center; }
+input[type="text"] {
+  width: 370px;
+  padding: 0.73em 1em;
+  font-size: 1.09rem;
+  border: 1px solid #ececec;
+  border-radius: 7px;
+  background: #fafafa;
+  color: #181818;
 }
 button {
-  padding: 0.6em 1.5em;
+  padding: 0.66em 1.6em;
   font-size: 1.04rem;
   background: #e93c2f;
   color: #fff;
@@ -219,239 +160,134 @@ button {
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
-  margin-bottom: 1.2em;
-  transition: background 0.16s;
-}
-button:hover { background: #b8271b; }
-input[type="text"] {
-  width: 420px;
-  padding: 0.7em 1em;
-  font-size: 1.08rem;
-  border: 1px solid #ececec;
-  border-radius: 9px;
-  background: #fafafa;
-  color: #181818;
   margin-right: 1em;
+  transition: background 0.18s;
 }
-.form-row {
-  margin-bottom: 1.1em;
-  display: flex;
-  align-items: center;
-  gap: 1.1em;
-}
-.admin-msg, .error, .success {
-  color: #2e9be6;
-  margin: 0.6em 0 1.1em 0;
-  min-height: 1.5em;
-}
-.error { color: #c00; background: #fee; border: 1px solid #fcc; padding: 0.5em 1em;}
-.success { color: #26890d; background: #eefeea; border: 1px solid #b4e3be; padding: 0.5em 1em;}
-table {
-  border-collapse: collapse;
+button[disabled] { background: #e3e3e3; color: #aaa; cursor: default; }
+button:hover:not([disabled]) { background: #b8271b; }
+.admin-table {
   width: 100%;
-  font-size: 1.01em;
-  background: #fafcff;
-  margin-top: 1.1em;
+  margin: 2.2em 0 0 0;
+  border-collapse: collapse;
+  background: #fff;
+  font-size: 1.04em;
 }
-th, td {
-  border: 1px solid #f3f3f3;
-  padding: 0.7em 0.9em;
+.admin-table th, .admin-table td {
+  padding: 0.85em 0.8em;
+  border-bottom: 1px solid #f2f2f2;
   text-align: left;
 }
-th {
-  background: #f4f7fa;
-  color: #333;
+.admin-table th { color: #e93c2f; font-weight: 700;}
+.admin-table td {
+  vertical-align: middle;
 }
-tr:nth-child(even) td {
-  background: #f8fafd;
-}
-.admin-actions button {
-  font-size: 0.97em;
-  background: #f9c846;
-  color: #222;
-  border-radius: 7px;
-  margin: 0 0.5em 0 0;
-  padding: 0.27em 0.85em;
-  font-weight: 600;
-}
-.admin-actions button.delete-btn {
-  background: #fff;
-  color: #c22;
-  border: 1.2px solid #f2c0c0;
-}
-.admin-actions button.delete-btn:hover {
-  background: #ffecec;
-  color: #fff;
-  border: 1.2px solid #e93c2f;
-}
-.playlist-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.2em;
-  margin: 2em 0 1.5em 0;
-}
-.pl-card {
-  background: #f7f7fa;
-  border-radius: 10px;
-  box-shadow: 0 1px 7px #eee;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 1.1em 1em 1.2em 1em;
-  border: 1.3px solid #f1f1f1;
-}
-.pl-thumb {
-  width: 120px;
-  height: 67px;
+.channel-thumb {
+  width: 44px;
+  height: 44px;
   object-fit: cover;
-  border-radius: 7px;
-  margin-bottom: 0.7em;
-  box-shadow: 0 2px 8px #ddd;
+  border-radius: 8px;
+  margin-right: 1.1em;
+  border: 1.5px solid #eee;
 }
-.pl-title {
-  font-size: 1.07em;
-  font-weight: 600;
-  margin-bottom: 0.28em;
-  text-align: center;
-  line-height: 1.2;
-  min-height: 2.2em;
-  max-height: 2.4em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+.playlist-row {
+  background: #fafbfc;
 }
-.pl-meta {
-  font-size: 0.95em;
-  color: #888;
-  margin-bottom: 0.37em;
-  text-align: center;
-}
-.pl-controls {
-  margin-top: 0.6em;
-  width: 100%;
-}
-select {
-  font-size: 1.01em;
-  padding: 0.24em 0.8em;
-  border-radius: 6px;
-  border: 1px solid #e3e3e3;
-  background: #fff;
-  width: 100%;
+@media (max-width: 700px) {
+  .admin-main { padding: 1.3em 0.3em;}
+  .admin-table th, .admin-table td { font-size: 0.97em; padding: 0.6em;}
 }
 </style>
 
 <div class="admin-main">
-  <h2>Admin Tools</h2>
-  <button on:click={clearDatabase}>Clear Database</button>
-  <div class="admin-msg">{adminMsg}</div>
-  
-  <!-- Video Import Section -->
-  <div style="margin-bottom:2em; margin-top:2em;">
-    <div class="form-row">
-      <input
-        type="text"
-        placeholder="Paste YouTube playlist or channel link (videos not accepted)"
-        bind:value={url}
-        on:keydown={(e) => e.key === 'Enter' && importVideos()}
-        autocomplete="off"
-        autofocus
-      />
-      <button on:click={importVideos} disabled={importing || !url}>Import</button>
-    </div>
-    {#if importError}
-      <div class="error">{importError}</div>
-    {/if}
-    {#if importResult?.type === 'playlist'}
-      <div style="margin-top:1.5em;">
-        <div class="import-row">
-          <img class="pl-thumb"
-            src={importResult.playlist.thumbnail}
-            alt={importResult.playlist.title} />
-          <div>
-            <div class="pl-title">{importResult.playlist.title}</div>
-            <div class="pl-meta">{importResult.playlist.videos.length} videos</div>
-          </div>
-        </div>
-        <div style="margin-top:0.7em;">
-          <select bind:value={playlistLevel}>
-            <option value="">Select Level</option>
-            {#each levels as lvl}
-              <option value={lvl.value}>{lvl.label}</option>
-            {/each}
-          </select>
-          <button on:click={importPlaylist} disabled={saving || !playlistLevel}>
-            {saving ? "Saving..." : "Save Playlist"}
-          </button>
-        </div>
-        {#if saveMessage}
-          <div class={saveMessage.includes("imported") ? 'success' : 'error'}>{saveMessage}</div>
-        {/if}
-      </div>
-    {/if}
+  <h2 style="margin-bottom:1.7em;">CIBUBBLE Admin Tools</h2>
 
-    {#if importResult?.type === 'channel'}
-      <div style="margin:1.5em 0 1em 0;font-weight:600;">Assign a level to each playlist you want to import:</div>
-      <div class="playlist-grid">
-        {#each playlistSelections as pl, i}
-          <div class="pl-card">
-            <img class="pl-thumb" src={pl.thumbnail} alt={pl.title} />
-            <div class="pl-title">{pl.title}</div>
-            <div class="pl-meta">{pl.videoCount} videos</div>
-            <div class="pl-controls">
-              <select bind:value={pl.level}>
-                <option value="">Set Level (skip to ignore)</option>
-                {#each levels as lvl}
-                  <option value={lvl.value}>{lvl.label}</option>
-                {/each}
-              </select>
-            </div>
-          </div>
-        {/each}
-      </div>
-      <button style="margin-top:1.2em;"
-        on:click={importSelectedPlaylists}
-        disabled={saving || !playlistSelections.some(pl=>pl.level)}
-      >
-        {saving ? "Saving..." : "Import Playlists"}
-      </button>
-      {#if saveMessage}
-        <div class={saveMessage.includes("Imported") ? 'success' : 'error'}>{saveMessage}</div>
-      {/if}
-    {/if}
+  <div class="row">
+    <input type="text" placeholder="Paste YouTube channel link or @handle…" bind:value={url} />
+    <button on:click={importChannel} disabled={!url || importing}>{importing ? 'Importing…' : 'Import Channel'}</button>
+    <button on:click={refresh} disabled={refreshing}>↻ Refresh</button>
+    <button style="margin-left:auto;" on:click={clearDatabase} disabled={clearing}>Clear Database</button>
   </div>
-  
-  <h3>Recent Videos</h3>
-  {#if loading}
-    <p>Loading…</p>
-  {:else if videos.length === 0}
-    <p>No videos in the database.</p>
-  {:else}
-    <table>
-      <thead>
+  {#if message}
+    <div style="margin:1em 0 1.2em 0; color:{message.startsWith('✅') ? '#27ae60' : '#c0392b'}; font-weight:500;">{message}</div>
+  {/if}
+
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th>Channel</th>
+        <th>Playlists</th>
+        <th>Videos</th>
+        <th style="width:260px;"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {#each channels as chan}
         <tr>
-          <th>Title</th>
-          <th>Channel</th>
-          <th>Level</th>
-          <th>Created</th>
-          <th>Actions</th>
+          <td>
+            <img class="channel-thumb" src={chan.thumbnail} alt={chan.name} />
+            <span style="font-weight:600;">{chan.name}</span>
+          </td>
+          <td>
+            <a style="color:#2e9be6;cursor:pointer;font-weight:600;text-decoration:underline;"
+              on:click={() => togglePlaylistsFor(chan.id)}>
+              {chan.playlists_count}
+              {showPlaylistsFor === chan.id ? '▲' : '▼'}
+            </a>
+          </td>
+          <td>{chan.videos_count}</td>
+          <td>
+            <select bind:value={chan._newLevel}>
+              {#each levels as lvl}
+                <option value={lvl.value}>{lvl.label}</option>
+              {/each}
+            </select>
+            <button on:click={() => setChannelLevel(chan.id, chan._newLevel)} disabled={!chan._newLevel}>Set Level</button>
+            <button style="background:#bbb;" on:click={() => deleteChannel(chan.id)} disabled={!!deleting[chan.id]}>Delete</button>
+          </td>
         </tr>
-      </thead>
-      <tbody>
-        {#each videos as v}
-          <tr>
-            <td>{v.title}</td>
-            <td>{v.channel_name}</td>
-            <td>{v.level || "Not Rated"}</td>
-            <td style="font-size:0.97em;">{v.created?.slice(0, 10)}</td>
-            <td class="admin-actions">
-              <button on:click={() => editVideo(v.id)}>Edit</button>
-              <button class="delete-btn" on:click={() => deleteVideo(v.id)}>Delete</button>
+        {#if showPlaylistsFor === chan.id}
+          <tr class="playlist-row">
+            <td colspan="4" style="padding-left:3em;">
+              {#if playlistsLoading}
+                Loading playlists…
+              {:else if playlists.length === 0}
+                No playlists.
+              {:else}
+                <table style="width:90%;margin:0.8em 0;font-size:0.99em;">
+                  <thead>
+                    <tr>
+                      <th>Playlist</th>
+                      <th>Videos</th>
+                      <th>Set Level</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {#each playlists as pl}
+                      <tr>
+                        <td>{pl.title}</td>
+                        <td>{pl.videos_count}</td>
+                        <td>
+                          <select bind:value={pl._newLevel}>
+                            {#each levels as lvl}
+                              <option value={lvl.value}>{lvl.label}</option>
+                            {/each}
+                          </select>
+                          <button on:click={() => setPlaylistLevel(pl.id, pl._newLevel)} disabled={!pl._newLevel}>Set Level</button>
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              {/if}
             </td>
           </tr>
-        {/each}
-      </tbody>
-    </table>
-  {/if}
+        {/if}
+      {/each}
+      {#if channels.length === 0}
+        <tr>
+          <td colspan="4" style="text-align:center;color:#999;">No channels found.</td>
+        </tr>
+      {/if}
+    </tbody>
+  </table>
 </div>
