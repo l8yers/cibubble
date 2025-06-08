@@ -1,3 +1,4 @@
+<!-- src/routes/add-video/+page.svelte -->
 <script>
   import { supabase } from '$lib/supabaseClient';
 
@@ -7,32 +8,28 @@
   let importError = '';
   let saveMessage = '';
   let saving = false;
-  let clearing = false;
 
   let playlistSelections = [];
-  let playlistVideos = [];
   let playlistLevel = '';
-  let singleVideoLevel = '';
   let selectedPlaylist = null;
 
   const levels = [
-    { value: '',            label: 'Not Yet Rated' },
+    { value: '', label: 'Not Yet Rated' },
     { value: 'superbeginner', label: 'Super Beginner' },
-    { value: 'beginner',    label: 'Beginner' },
+    { value: 'beginner', label: 'Beginner' },
     { value: 'intermediate', label: 'Intermediate' },
-    { value: 'advanced',    label: 'Advanced' }
+    { value: 'advanced', label: 'Advanced' }
   ];
 
+  // Main import logic: call API and display either playlist or channel/playlist list
   async function importVideos() {
     importing = true;
     importError = '';
     saveMessage = '';
     result = null;
     playlistSelections = [];
-    playlistVideos = [];
     playlistLevel = '';
     selectedPlaylist = null;
-    singleVideoLevel = '';
 
     try {
       const res = await fetch('/api/add-video', {
@@ -40,26 +37,35 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
       });
-      const json = await res.json();
+      const text = await res.text();
+      let json;
+      try {
+        json = JSON.parse(text);
+      } catch (e) {
+        importError = "Invalid JSON response from server. Full response: " + text;
+        importing = false;
+        return;
+      }
       if (json.error) {
         importError = json.error;
+        importing = false;
+        return;
+      }
+      // Reject single videos
+      if (json.type === 'video') {
+        importError = "Single video uploads are disabled. Please add playlists or channels only.";
         importing = false;
         return;
       }
       result = json;
       if (result.type === 'channel') {
         playlistSelections = result.playlists.map(pl => ({
-          ...pl,
-          level: ''
+          ...pl, level: ''
         }));
       }
       if (result.type === 'playlist') {
         playlistLevel = '';
-        playlistVideos = result.playlist.videos;
         selectedPlaylist = result.playlist;
-      }
-      if (result.type === 'video') {
-        singleVideoLevel = '';
       }
     } catch (e) {
       importError = e.message || "Unknown error.";
@@ -67,26 +73,50 @@
     importing = false;
   }
 
+  // Import each playlist from a channel with selected level
   async function importSelectedPlaylists() {
     saving = true;
     saveMessage = '';
     let imported = 0, failed = 0;
     for (const pl of playlistSelections.filter(p => p.level)) {
+      // For real use: call your backend for each playlist, or build a batch API endpoint
       const res = await fetch('/api/add-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playlistId: pl.id })
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        failed++;
+        continue;
+      }
       if (!data.playlist?.videos?.length) { failed++; continue; }
+      // Upsert channel, playlist, then all videos
+      await supabase.from('channels').upsert([{
+        id: pl.channel_id,
+        name: pl.channel_name,
+        thumbnail: pl.channel_thumbnail || '',
+        description: ''
+      }]);
+      await supabase.from('playlists').upsert([{
+        id: pl.id,
+        channel_id: pl.channel_id,
+        title: pl.title,
+        thumbnail: pl.thumbnail,
+        description: ''
+      }]);
       const { error } = await supabase.from('videos').upsert(data.playlist.videos.map(v => ({
         id: v.id,
         title: v.title,
-        channel_id: v.channel_id,
-        channel_name: v.channel_name,
+        channel_id: pl.channel_id,
+        playlist_id: pl.id,
+        channel_name: pl.channel_name,
+        thumbnail: v.thumbnail,
         length: null,
         level: pl.level,
-        added_by: null,
         created: new Date().toISOString()
       })));
       if (!error) imported++;
@@ -97,61 +127,37 @@
     saving = false;
   }
 
+  // Import all videos in a single playlist at a given level
   async function importPlaylist() {
     if (!playlistLevel) { saveMessage = "Select a level first."; return; }
     saving = true; saveMessage = '';
-    const { error } = await supabase.from('videos').upsert(playlistVideos.map(v => ({
+    const pl = selectedPlaylist;
+    await supabase.from('channels').upsert([{
+      id: pl.channel_id,
+      name: pl.channel_name,
+      thumbnail: pl.channel_thumbnail || '',
+      description: ''
+    }]);
+    await supabase.from('playlists').upsert([{
+      id: pl.id,
+      channel_id: pl.channel_id,
+      title: pl.title,
+      thumbnail: pl.thumbnail,
+      description: ''
+    }]);
+    const { error } = await supabase.from('videos').upsert(pl.videos.map(v => ({
       id: v.id,
       title: v.title,
-      channel_id: v.channel_id,
-      channel_name: v.channel_name,
+      channel_id: pl.channel_id,
+      playlist_id: pl.id,
+      channel_name: pl.channel_name,
+      thumbnail: v.thumbnail,
       length: null,
       level: playlistLevel,
-      added_by: null,
       created: new Date().toISOString()
     })));
     saveMessage = error ? error.message : "Playlist imported!";
     saving = false;
-  }
-
-  async function importSingleVideo() {
-    if (!singleVideoLevel) { saveMessage = "Select a level first."; return; }
-    saving = true; saveMessage = '';
-    const v = result.video;
-    const { error } = await supabase.from('videos').upsert([{
-      id: v.id,
-      title: v.title,
-      channel_id: v.channel_id,
-      channel_name: v.channel_name,
-      length: null,
-      level: singleVideoLevel,
-      added_by: null,
-      created: new Date().toISOString()
-    }]);
-    saveMessage = error ? error.message : "Video imported!";
-    saving = false;
-  }
-
-  async function clearDatabase() {
-    if (!confirm("Are you sure? This will permanently delete ALL videos!")) return;
-    clearing = true;
-    saveMessage = '';
-    try {
-      const { error } = await supabase.from('videos').delete().neq('id', '');
-      if (error) {
-        saveMessage = "Error deleting videos: " + error.message;
-      } else {
-        saveMessage = "All videos deleted!";
-        result = null;
-        url = '';
-        playlistSelections = [];
-        playlistVideos = [];
-        selectedPlaylist = null;
-      }
-    } catch (e) {
-      saveMessage = "Error: " + (e.message || e);
-    }
-    clearing = false;
   }
 </script>
 
@@ -194,18 +200,6 @@ button {
 }
 button[disabled] { background: #e3e3e3; color: #aaa; cursor: default; }
 button:hover:not([disabled]) { background: #b8271b; }
-.clear-btn {
-  background:#fff;
-  color:#e93c2f;
-  border:2px solid #e93c2f;
-  margin-bottom:1.3em;
-  margin-right:1.2em;
-}
-.clear-btn[disabled] { color:#ddd; border-color: #ddd; }
-.error, .success { margin: 1em 0 0.7em 0; min-height: 1.2em;}
-.error { color: #e93c2f; }
-.success { color: #16870f; }
-
 .playlist-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -262,54 +256,23 @@ select {
   background: #fff;
   width: 100%;
 }
-input[type="checkbox"] {
-  margin-right: 0.3em;
+.error {
+  color: #b4001d;
+  font-weight: bold;
+  margin-bottom: 1em;
 }
-.playlist-videos-preview {
-  margin: 1.3em 0;
-  background: #fafbfc;
-  border-radius: 10px;
-  padding: 1.2em;
-  border: 1px solid #eee;
-  box-shadow: 0 2px 6px #eee;
-}
-.import-thumb {
-  width: 70px;
-  aspect-ratio: 16/9;
-  object-fit: cover;
-  border-radius: 6px;
-  background: #eee;
-  margin-right: 0.8em;
-  flex-shrink: 0;
-}
-.import-row {
-  display: flex;
-  align-items: center;
-  margin-bottom: 0.6em;
-}
-.import-title {
-  font-size: 1.01rem;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 340px;
+.success {
+  color: #168200;
+  font-weight: bold;
+  margin-top: 1.2em;
 }
 </style>
 
 <div class="add-main">
-  <button
-    class="clear-btn"
-    on:click={clearDatabase}
-    disabled={clearing || importing || saving}
-  >
-    {clearing ? "Clearing..." : "Clear All Videos"}
-  </button>
-
   <div class="form-row">
     <input
       type="text"
-      placeholder="Paste YouTube video, playlist, or channel link"
+      placeholder="Paste YouTube playlist or channel link (videos not accepted)"
       bind:value={url}
       on:keydown={(e) => e.key === 'Enter' && importVideos()}
       autocomplete="off"
@@ -321,42 +284,14 @@ input[type="checkbox"] {
     <div class="error">{importError}</div>
   {/if}
 
-  {#if result?.type === 'video'}
-    <div style="margin-top:1.5em;">
-      <div class="import-row">
-        <img class="import-thumb"
-          src={result.video.thumbnail}
-          alt={result.video.title} />
-        <div>
-          <div class="import-title">{result.video.title}</div>
-          <div class="pl-meta">{result.video.channel_name}</div>
-        </div>
-      </div>
-      <div style="margin-top:0.7em;">
-        <select bind:value={singleVideoLevel}>
-          <option value="">Select Level</option>
-          {#each levels as lvl}
-            <option value={lvl.value}>{lvl.label}</option>
-          {/each}
-        </select>
-        <button on:click={importSingleVideo} disabled={saving || !singleVideoLevel}>
-          {saving ? "Saving..." : "Save Video"}
-        </button>
-      </div>
-      {#if saveMessage}
-        <div class={saveMessage.includes("imported") ? 'success' : 'error'}>{saveMessage}</div>
-      {/if}
-    </div>
-  {/if}
-
   {#if result?.type === 'playlist'}
     <div style="margin-top:1.5em;">
-      <div class="import-row">
-        <img class="import-thumb"
+      <div class="import-row" style="display:flex;align-items:center;gap:1.2em;">
+        <img class="pl-thumb"
           src={result.playlist.thumbnail}
           alt={result.playlist.title} />
         <div>
-          <div class="import-title">{result.playlist.title}</div>
+          <div class="pl-title">{result.playlist.title}</div>
           <div class="pl-meta">{result.playlist.videos.length} videos</div>
         </div>
       </div>
@@ -370,23 +305,10 @@ input[type="checkbox"] {
         <button on:click={importPlaylist} disabled={saving || !playlistLevel}>
           {saving ? "Saving..." : "Save Playlist"}
         </button>
-      </div>
-      <div class="playlist-videos-preview">
-        {#each result.playlist.videos.slice(0, 5) as v}
-          <div class="import-row">
-            <img class="import-thumb"
-              src={v.thumbnail}
-              alt={v.title} />
-            <div class="import-title">{v.title}</div>
-          </div>
-        {/each}
-        {#if result.playlist.videos.length > 5}
-          <div style="color:#888; margin-top:0.5em;">+{result.playlist.videos.length - 5} more…</div>
+        {#if saveMessage}
+          <div class={saveMessage.includes("imported") ? 'success' : 'error'}>{saveMessage}</div>
         {/if}
       </div>
-      {#if saveMessage}
-        <div class={saveMessage.includes("imported") ? 'success' : 'error'}>{saveMessage}</div>
-      {/if}
     </div>
   {/if}
 
@@ -416,7 +338,7 @@ input[type="checkbox"] {
       {saving ? "Saving..." : "Import Playlists"}
     </button>
     {#if saveMessage}
-      <div class={saveMessage.includes("Imported") || saveMessage.includes("deleted") ? 'success' : 'error'}>{saveMessage}</div>
+      <div class={saveMessage.includes("Imported") ? 'success' : 'error'}>{saveMessage}</div>
     {/if}
   {/if}
 </div>

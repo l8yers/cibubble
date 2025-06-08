@@ -1,135 +1,124 @@
 import { json } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
 
-// Extract ID helpers (improved to support all cases)
-function extractIds(url) {
-  let match;
-  if ((match = url.match(/youtube\.com\/channel\/([a-zA-Z0-9_-]{24})/))) return { type: 'channel', id: match[1] };
-  if ((match = url.match(/youtube\.com\/user\/([a-zA-Z0-9_-]+)/))) return { type: 'user', username: match[1] };
-  if ((match = url.match(/youtube\.com\/@([a-zA-Z0-9._-]+)/))) return { type: 'handle', handle: match[1] };
-  if ((match = url.match(/[?&]list=([a-zA-Z0-9_-]+)/))) return { type: 'playlist', id: match[1] };
-  if ((match = url.match(/(?:v=|youtu\.be\/|\/embed\/)([a-zA-Z0-9_-]{11})/))) return { type: 'video', id: match[1] };
+const YOUTUBE_API_KEY =
+  process.env.YOUTUBE_API_KEY ||
+  process.env.VITE_YOUTUBE_API_KEY ||
+  import.meta.env.VITE_YOUTUBE_API_KEY;
+
+  console.log('YOUTUBE API KEY:', process.env.YOUTUBE_API_KEY, import.meta.env.VITE_YOUTUBE_API_KEY);
+
+// Extracts channel ID or playlist ID from a YouTube URL
+function extractInfo(url) {
+  // Playlist: https://www.youtube.com/playlist?list=...
+  const playlistMatch = url.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+  if (playlistMatch) return { type: 'playlist', id: playlistMatch[1] };
+  // Channel handle: https://www.youtube.com/@name
+  const channelMatch = url.match(/youtube\.com\/@([a-zA-Z0-9_]+)/);
+  if (channelMatch) return { type: 'channel', handle: channelMatch[1] };
   return null;
 }
-async function getChannelIdByUserOrHandle({ username, handle }, apiKey) {
-  let url, res, data;
-  if (username) {
-    url = `https://www.googleapis.com/youtube/v3/channels?part=id&forUsername=${username}&key=${apiKey}`;
-    res = await fetch(url); data = await res.json();
-    if (data.items && data.items[0]?.id) return data.items[0].id;
-  }
-  if (handle) {
-    url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=%40${handle}&key=${apiKey}`;
-    res = await fetch(url); data = await res.json();
-    if (data.items && data.items[0]?.snippet?.channelId) return data.items[0].snippet.channelId;
-  }
-  return null;
-}
-async function fetchPlaylistVideos(playlistId, apiKey) {
-  let videos = [], nextPageToken = '';
-  do {
-    const apiUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&maxResults=50&playlistId=${playlistId}&key=${apiKey}${nextPageToken ? `&pageToken=${nextPageToken}` : ''}`;
-    const res = await fetch(apiUrl);
-    const data = await res.json();
-    if (data.items) videos.push(...data.items);
-    nextPageToken = data.nextPageToken;
-  } while (nextPageToken);
-  return videos
-    .map(item => ({
-      id: item.contentDetails?.videoId,
-      title: item.snippet?.title || '',
-      channel_id: item.snippet?.channelId || '',
-      channel_name: item.snippet?.channelTitle || '',
-      thumbnail: item.snippet?.thumbnails?.medium?.url || '',
-      // Don't fetch duration yet (extra API calls)
-    }))
-    .filter(v => v.id && v.title && v.title !== "Private video" && v.title !== "Deleted video");
-}
-async function fetchPlaylistMeta(playlistId, apiKey) {
-  const apiUrl = `https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=${playlistId}&key=${apiKey}`;
-  const res = await fetch(apiUrl);
+
+// Gets channel ID from channel handle
+async function getChannelIdFromHandle(handle) {
+  const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(handle)}&key=${YOUTUBE_API_KEY}`;
+  const res = await fetch(url);
   const data = await res.json();
-  if (data.items && data.items[0]) {
-    return {
-      id: data.items[0].id,
-      title: data.items[0].snippet?.title,
-      thumbnail: data.items[0].snippet?.thumbnails?.medium?.url || '',
-    };
-  }
-  return null;
+  return data.items?.[0]?.snippet?.channelId || null;
 }
-async function fetchChannelPlaylists(channelId, apiKey) {
-  let playlists = [], nextPageToken = '';
+
+// Gets all playlists for a channel
+async function getPlaylistsForChannel(channelId) {
+  let playlists = [];
+  let nextPage = '';
   do {
-    const apiUrl = `https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&channelId=${channelId}&maxResults=50&key=${apiKey}${nextPageToken ? `&pageToken=${nextPageToken}` : ''}`;
-    const res = await fetch(apiUrl);
+    const url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet&channelId=${channelId}&maxResults=50&pageToken=${nextPage}&key=${YOUTUBE_API_KEY}`;
+    const res = await fetch(url);
     const data = await res.json();
-    if (data.items) playlists.push(...data.items);
-    nextPageToken = data.nextPageToken;
-  } while (nextPageToken);
-  return playlists
-    .filter(pl => pl.snippet?.title && pl.contentDetails?.itemCount > 0)
-    .map(pl => ({
-      id: pl.id,
-      title: pl.snippet.title,
-      thumbnail: pl.snippet.thumbnails?.medium?.url || '',
-      videoCount: pl.contentDetails.itemCount,
-    }));
+    playlists.push(...(data.items || []));
+    nextPage = data.nextPageToken || '';
+  } while (nextPage);
+  return playlists.map(p => ({
+    id: p.id,
+    title: p.snippet.title,
+    thumbnail: p.snippet.thumbnails?.default?.url || '',
+    channel_id: p.snippet.channelId,
+    channel_name: p.snippet.channelTitle,
+    channel_thumbnail: '', // can fetch if needed
+    videoCount: p.contentDetails?.itemCount || 0
+  }));
+}
+
+// Gets all videos for a playlist
+async function getPlaylistVideos(playlistId) {
+  let videos = [];
+  let nextPage = '';
+  do {
+    const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=50&pageToken=${nextPage}&key=${YOUTUBE_API_KEY}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    videos.push(...(data.items || []));
+    nextPage = data.nextPageToken || '';
+  } while (nextPage);
+  return videos.map(v => ({
+    id: v.snippet.resourceId.videoId,
+    title: v.snippet.title,
+    thumbnail: v.snippet.thumbnails?.default?.url || ''
+  }));
+}
+
+// Gets playlist metadata
+async function getPlaylistInfo(playlistId) {
+  const url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=${playlistId}&key=${YOUTUBE_API_KEY}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  const p = data.items?.[0];
+  if (!p) return null;
+  return {
+    id: p.id,
+    title: p.snippet.title,
+    thumbnail: p.snippet.thumbnails?.default?.url || '',
+    channel_id: p.snippet.channelId,
+    channel_name: p.snippet.channelTitle,
+    channel_thumbnail: '', // could be fetched separately
+  };
 }
 
 export async function POST({ request }) {
-  const { url, playlistId } = await request.json();
-  if (!url && !playlistId) return json({ error: 'No URL or playlistId provided.' }, { status: 400 });
+  try {
+    let { url, playlistId } = await request.json();
+    if (!YOUTUBE_API_KEY) return json({ error: 'Missing YouTube API key' }, { status: 500 });
 
-  // --- Playlist Import (if playlistId is posted) ---
-  if (playlistId) {
-    // Fetch playlist meta and all videos for it:
-    const meta = await fetchPlaylistMeta(playlistId, env.YOUTUBE_API_KEY);
-    const videos = await fetchPlaylistVideos(playlistId, env.YOUTUBE_API_KEY);
-    return json({ type: 'playlist', playlist: { ...meta, videos } });
+    // Handle playlist import (direct or from channel page)
+    if (playlistId) {
+      // Get playlist info and videos
+      const info = await getPlaylistInfo(playlistId);
+      if (!info) return json({ error: 'Playlist not found' }, { status: 404 });
+      const videos = await getPlaylistVideos(playlistId);
+      return json({ type: 'playlist', playlist: { ...info, videos } });
+    }
+
+    // Handle main URL entry (playlist or channel)
+    const parsed = extractInfo(url);
+    if (!parsed) return json({ error: 'Invalid YouTube link.' }, { status: 400 });
+
+    if (parsed.type === 'playlist') {
+      // Single playlist
+      const info = await getPlaylistInfo(parsed.id);
+      if (!info) return json({ error: 'Playlist not found' }, { status: 404 });
+      const videos = await getPlaylistVideos(parsed.id);
+      return json({ type: 'playlist', playlist: { ...info, videos } });
+    } else if (parsed.type === 'channel') {
+      // Channel handle: look up channel ID
+      const channelId = await getChannelIdFromHandle(parsed.handle);
+      if (!channelId) return json({ error: 'Channel not found' }, { status: 404 });
+      const playlists = await getPlaylistsForChannel(channelId);
+      if (!playlists.length) return json({ error: 'No playlists found for channel.' }, { status: 404 });
+      return json({ type: 'channel', playlists });
+    }
+
+    return json({ error: 'Invalid link.' }, { status: 400 });
+  } catch (err) {
+    console.error('API ERROR:', err);
+    return json({ error: err.message || 'Unknown server error' }, { status: 500 });
   }
-
-  // --- Initial Import via URL ---
-  const info = extractIds(url);
-  if (!info) return json({ error: 'Invalid YouTube link.' }, { status: 400 });
-
-  // Single Video:
-  if (info.type === 'video') {
-    // Fetch meta only:
-    const apiUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${info.id}&key=${env.YOUTUBE_API_KEY}`;
-    const res = await fetch(apiUrl); const data = await res.json();
-    if (!data.items?.length) return json({ error: 'Video not found.' }, { status: 404 });
-    const vid = data.items[0];
-    return json({
-      type: 'video',
-      video: {
-        id: vid.id,
-        title: vid.snippet?.title,
-        channel_id: vid.snippet?.channelId,
-        channel_name: vid.snippet?.channelTitle,
-        thumbnail: `https://i.ytimg.com/vi/${vid.id}/hqdefault.jpg`
-      }
-    });
-  }
-
-  // Playlist:
-  if (info.type === 'playlist') {
-    const meta = await fetchPlaylistMeta(info.id, env.YOUTUBE_API_KEY);
-    const videos = await fetchPlaylistVideos(info.id, env.YOUTUBE_API_KEY);
-    return json({ type: 'playlist', playlist: { ...meta, videos } });
-  }
-
-  // Channel (by id/user/handle):
-  let channelId = null;
-  if (info.type === 'channel') channelId = info.id;
-  else if (info.type === 'user' || info.type === 'handle') {
-    channelId = await getChannelIdByUserOrHandle(info, env.YOUTUBE_API_KEY);
-    if (!channelId) return json({ error: 'Could not resolve channel.' }, { status: 400 });
-  }
-  if (channelId) {
-    const playlists = await fetchChannelPlaylists(channelId, env.YOUTUBE_API_KEY);
-    return json({ type: 'channel', playlists });
-  }
-
-  return json({ error: 'Unsupported or invalid link.' }, { status: 400 });
 }
