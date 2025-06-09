@@ -12,6 +12,14 @@
   let playlists = [];
   let playlistsLoading = false;
 
+  let runningTimeByLevel = {
+    superbeginner: 0,
+    beginner: 0,
+    intermediate: 0,
+    advanced: 0,
+    notyet: 0
+  };
+
   const levels = [
     { value: '', label: 'Set Level' },
     { value: 'superbeginner', label: 'Super Beginner' },
@@ -64,6 +72,29 @@
         return { ...chan, playlists_count, videos_count, avg_length };
       })
     );
+
+    // Now also get running time per level
+    const { data: allVideos } = await supabase
+      .from('videos')
+      .select('level, length');
+
+    runningTimeByLevel = {
+      superbeginner: 0,
+      beginner: 0,
+      intermediate: 0,
+      advanced: 0,
+      notyet: 0
+    };
+    (allVideos || []).forEach(v => {
+      if (!v || typeof v.length !== 'number') return;
+      const lvl = v.level || 'notyet';
+      if (runningTimeByLevel[lvl] !== undefined) {
+        runningTimeByLevel[lvl] += v.length;
+      } else {
+        runningTimeByLevel.notyet += v.length;
+      }
+    });
+
     refreshing = false;
   }
 
@@ -237,6 +268,13 @@ button:hover:not([disabled]) { background: #b8271b; }
           ) / 10
         } hours
       </div>
+    </div>
+    <div style="margin:1.4em 0 0.7em 0; font-size:1.04em; color:#226;">
+      <div>Super Beginner: {Math.round(runningTimeByLevel.superbeginner/360)/10} hours</div>
+      <div>Beginner: {Math.round(runningTimeByLevel.beginner/360)/10} hours</div>
+      <div>Intermediate: {Math.round(runningTimeByLevel.intermediate/360)/10} hours</div>
+      <div>Advanced: {Math.round(runningTimeByLevel.advanced/360)/10} hours</div>
+      <div>Not Yet Rated: {Math.round(runningTimeByLevel.notyet/360)/10} hours</div>
     </div>
   {/if}
 
