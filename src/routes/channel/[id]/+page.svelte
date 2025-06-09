@@ -79,12 +79,9 @@
   padding: 2rem 2vw 2.5rem 2vw;
   font-family: Inter, Arial, sans-serif;
 }
-
 .channel-bar {
-  max-width: 1360px;
-  width: 100%;
-  margin: 0 auto 1.6rem auto;
-  padding: 0.33em 1.6em 0.33em 1em;
+  width: inherit;
+  padding: 0.33em 1.5em 0.33em 1em;
   display: flex;
   align-items: center;
   gap: 1.1em;
@@ -93,6 +90,7 @@
   box-shadow: 0 2px 8px #f0f0f0;
   font-size: 1.12rem;
   border: 1px solid #efefef;
+  margin-bottom: 1.6rem;
 }
 
 .channel-avatar {
@@ -104,9 +102,8 @@
   border: 1.3px solid #ececec;
   margin-right: 0.5em;
 }
-
 .channel-bar-name {
-  font-size: 1.21rem;
+  font-size: 1.18rem;
   font-weight: 600;
   color: #191919;
   margin-right: 1.2em;
@@ -115,7 +112,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 .channel-bar-desc {
   color: #888;
   font-size: 1em;
@@ -125,7 +121,6 @@
   text-overflow: ellipsis;
   min-width: 0;
 }
-
 .section-title {
   margin: 2.2em 0 1em 0;
   font-size: 1.25rem;
@@ -136,16 +131,21 @@
   margin-left: auto;
   margin-right: auto;
 }
-
+.page-container {
+  max-width: 1920px;
+  margin: 0 auto;
+  padding: 2rem 2vw 2.5rem 2vw;
+  font-family: Inter, Arial, sans-serif;
+}
 .grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 1.3rem;
-  margin: 2rem 0 1.5rem 0;
-  max-width: 1360px;
-  margin-left: auto;
-  margin-right: auto;
+  margin: 2rem 0;
+  /* REMOVE: max-width: 1360px; */
+  /* REMOVE: margin-left/right: auto; */
 }
+
 .card {
   background: #fff;
   border-radius: 6px;
@@ -237,7 +237,6 @@
   background: #e4e4e4;
   color: #e93c2f;
 }
-
 .playlists-bar {
   display: flex;
   flex-wrap: wrap;
@@ -248,7 +247,6 @@
   padding-right: 0.2em;
   align-items: center;
 }
-
 .playlist-link {
   display: inline-block;
   font-size: 1.05rem;
