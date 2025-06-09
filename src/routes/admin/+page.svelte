@@ -210,6 +210,17 @@ button:hover:not([disabled]) { background: #b8271b; }
   {#if message}
     <div style="margin:1em 0 1.2em 0; color:{message.startsWith('✅') ? '#27ae60' : '#c0392b'}; font-weight:500;">{message}</div>
   {/if}
+  {#if channels.length > 0}
+  <div style="display:flex; gap:2.5em; margin: 0 0 1.2em 0; font-size:1.08em; font-weight:600; color:#1a3e6e;">
+    <div>Channels: {channels.length}</div>
+    <div>
+      Playlists: {channels.reduce((a, c) => a + (c.playlists_count || 0), 0)}
+    </div>
+    <div>
+      Videos: {channels.reduce((a, c) => a + (c.videos_count || 0), 0)}
+    </div>
+  </div>
+{/if}
 
   <table class="admin-table">
     <thead>
