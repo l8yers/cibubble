@@ -2,10 +2,10 @@
   import { supabase } from '$lib/supabaseClient';
   import { onMount } from 'svelte';
 
-  let videos = [];
+  let allVideos = [];     // All fetched videos
+  let videos = [];        // Currently displayed
   let loading = false;
   let errorMsg = '';
-  let offset = 0;
   const pageSize = 30;
   let allLoaded = false;
 
@@ -37,28 +37,27 @@
       : `${m}:${String(s).padStart(2, '0')}`;
   }
 
-  // Group round-robin shuffle (for fairer channel mix)
-  function channelRoundRobinShuffle(inputVideos, pageSize) {
-    // 1. Group videos by channel
+  // Channel-fair round robin shuffle
+  function channelRoundRobinShuffle(inputVideos, size) {
     const byChannel = {};
     inputVideos.forEach(v => {
       if (!byChannel[v.channel_id]) byChannel[v.channel_id] = [];
       byChannel[v.channel_id].push(v);
     });
-    // 2. Shuffle each channel's videos
+    // Shuffle videos within each channel
     for (const arr of Object.values(byChannel)) {
       arr.sort(() => Math.random() - 0.5);
     }
-    // 3. Round robin pick videos from each channel until filled
+    // Take from each channel, round robin, until filled
     const shuffled = [];
     let keepGoing = true;
-    while (keepGoing && shuffled.length < pageSize) {
+    while (keepGoing && shuffled.length < size) {
       keepGoing = false;
       for (const arr of Object.values(byChannel)) {
         if (arr.length) {
           shuffled.push(arr.shift());
           keepGoing = true;
-          if (shuffled.length === pageSize) break;
+          if (shuffled.length === size) break;
         }
       }
     }
@@ -74,16 +73,15 @@
       const { data, error } = await supabase
         .from('videos')
         .select('*, playlist:playlist_id(title), channel:channel_id(name)')
-        .limit(500);
+        .limit(2000); // Fetch enough for lots of scroll
 
       if (error) errorMsg = error.message;
       else if (data && data.length > 0) {
         let filtered = data.filter(v => v.title !== 'Private video');
-        // Use channel-fair shuffle
-        let shuffled = channelRoundRobinShuffle(filtered, pageSize);
-        videos = shuffled;
-        offset = pageSize;
-        allLoaded = false;
+        allVideos = filtered;
+        // Show first diverse batch
+        videos = channelRoundRobinShuffle(allVideos, pageSize);
+        allLoaded = videos.length >= allVideos.length;
       } else {
         videos = [];
         allLoaded = true;
@@ -92,28 +90,26 @@
       return;
     }
 
-    const { data, error } = await supabase
-      .from('videos')
-      .select('*, playlist:playlist_id(title), channel:channel_id(name)')
-      .limit(500);
+    // Remove already shown videos for this lazy load
+const alreadyShown = new Set(videos.map(v => v.id));
+const unseen = allVideos.filter(
+  v => !alreadyShown.has(v.id)
+    && v.title !== 'Private video'
+    && v.title !== 'Deleted video'
+    && v.title !== ''
+    && v.title !== null
+);
+if (unseen.length === 0) {
+  allLoaded = true;
+  loading = false;
+  return;
+}
 
-    if (error) errorMsg = error.message;
-    else if (data && data.length > 0) {
-      let filtered = data.filter(v => v.title !== 'Private video');
-      // Take next "pageSize" in channel-fair way (with offset)
-      let batch = filtered.slice(offset, offset + pageSize * 5); // grab more for fair shuffle
-      let next = channelRoundRobinShuffle(batch, pageSize);
-      if (next.length) {
-        videos = [...videos, ...next];
-        offset += next.length;
-        if (next.length < pageSize) allLoaded = true;
-      } else {
-        allLoaded = true;
-      }
-    } else {
-      allLoaded = true;
-    }
-    loading = false;
+const nextBatch = channelRoundRobinShuffle(unseen, pageSize);
+videos = [...videos, ...nextBatch];
+if (videos.length >= allVideos.length) allLoaded = true;
+loading = false;
+
   }
 
   function handleScroll() {
@@ -131,7 +127,6 @@
     return () => window.removeEventListener('scroll', handleScroll);
   });
 
-  // Thumbnail fallback logic
   function getBestThumbnail(video) {
     if (video.thumbnail) return video.thumbnail;
     if (video.id) return `https://img.youtube.com/vi/${video.id}/hqdefault.jpg`;
