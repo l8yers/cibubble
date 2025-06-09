@@ -37,6 +37,34 @@
       : `${m}:${String(s).padStart(2, '0')}`;
   }
 
+  // Group round-robin shuffle (for fairer channel mix)
+  function channelRoundRobinShuffle(inputVideos, pageSize) {
+    // 1. Group videos by channel
+    const byChannel = {};
+    inputVideos.forEach(v => {
+      if (!byChannel[v.channel_id]) byChannel[v.channel_id] = [];
+      byChannel[v.channel_id].push(v);
+    });
+    // 2. Shuffle each channel's videos
+    for (const arr of Object.values(byChannel)) {
+      arr.sort(() => Math.random() - 0.5);
+    }
+    // 3. Round robin pick videos from each channel until filled
+    const shuffled = [];
+    let keepGoing = true;
+    while (keepGoing && shuffled.length < pageSize) {
+      keepGoing = false;
+      for (const arr of Object.values(byChannel)) {
+        if (arr.length) {
+          shuffled.push(arr.shift());
+          keepGoing = true;
+          if (shuffled.length === pageSize) break;
+        }
+      }
+    }
+    return shuffled;
+  }
+
   async function loadVideos({ reset = false } = {}) {
     if (loading || allLoaded) return;
     loading = true;
@@ -47,11 +75,13 @@
         .from('videos')
         .select('*, playlist:playlist_id(title), channel:channel_id(name)')
         .limit(500);
+
       if (error) errorMsg = error.message;
       else if (data && data.length > 0) {
-        let filtered = data.filter(v => v.thumbnail && v.title !== 'Private video');
-        let shuffled = filtered.sort(() => Math.random() - 0.5);
-        videos = shuffled.slice(0, pageSize);
+        let filtered = data.filter(v => v.title !== 'Private video');
+        // Use channel-fair shuffle
+        let shuffled = channelRoundRobinShuffle(filtered, pageSize);
+        videos = shuffled;
         offset = pageSize;
         allLoaded = false;
       } else {
@@ -66,11 +96,13 @@
       .from('videos')
       .select('*, playlist:playlist_id(title), channel:channel_id(name)')
       .limit(500);
+
     if (error) errorMsg = error.message;
     else if (data && data.length > 0) {
-      let filtered = data.filter(v => v.thumbnail && v.title !== 'Private video');
-      let shuffled = filtered.sort(() => Math.random() - 0.5);
-      let next = shuffled.slice(offset, offset + pageSize);
+      let filtered = data.filter(v => v.title !== 'Private video');
+      // Take next "pageSize" in channel-fair way (with offset)
+      let batch = filtered.slice(offset, offset + pageSize * 5); // grab more for fair shuffle
+      let next = channelRoundRobinShuffle(batch, pageSize);
       if (next.length) {
         videos = [...videos, ...next];
         offset += next.length;
@@ -98,6 +130,13 @@
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   });
+
+  // Thumbnail fallback logic
+  function getBestThumbnail(video) {
+    if (video.thumbnail) return video.thumbnail;
+    if (video.id) return `https://img.youtube.com/vi/${video.id}/hqdefault.jpg`;
+    return '/images/no_thumb_nail.png';
+  }
 </script>
 
 <style>
@@ -218,9 +257,10 @@
           <span class="thumb-wrapper">
             <img
               class="thumb"
-              src={`https://i.ytimg.com/vi/${video.id}/maxresdefault.jpg`}
+              src={getBestThumbnail(video)}
               alt={video.title}
-              on:error={(e) => { e.target.src = `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`; }}
+              loading="lazy"
+              on:error={e => e.target.src = '/images/no_thumb_nail.png'}
             />
           </span>
         </a>
