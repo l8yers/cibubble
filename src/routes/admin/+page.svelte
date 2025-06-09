@@ -50,11 +50,18 @@
           .from('playlists')
           .select('id', { count: 'exact', head: true })
           .eq('channel_id', chan.id);
-        const { count: videos_count } = await supabase
+
+        const { data: videoLens, count: videos_count } = await supabase
           .from('videos')
-          .select('id', { count: 'exact', head: true })
+          .select('length', { count: 'exact' })
           .eq('channel_id', chan.id);
-        return { ...chan, playlists_count, videos_count, _newLevel: '' };
+
+        // Calculate average length for this channel (in seconds)
+        const lens = (videoLens || []).map(v => v.length || 0);
+        const totalLength = lens.reduce((a, l) => a + l, 0);
+        const avg_length = lens.length ? totalLength / lens.length : 0;
+
+        return { ...chan, playlists_count, videos_count, avg_length };
       })
     );
     refreshing = false;
@@ -210,17 +217,28 @@ button:hover:not([disabled]) { background: #b8271b; }
   {#if message}
     <div style="margin:1em 0 1.2em 0; color:{message.startsWith('✅') ? '#27ae60' : '#c0392b'}; font-weight:500;">{message}</div>
   {/if}
+
   {#if channels.length > 0}
-  <div style="display:flex; gap:2.5em; margin: 0 0 1.2em 0; font-size:1.08em; font-weight:600; color:#1a3e6e;">
-    <div>Channels: {channels.length}</div>
-    <div>
-      Playlists: {channels.reduce((a, c) => a + (c.playlists_count || 0), 0)}
+    <div style="display:flex; gap:2.5em; margin: 0 0 1.2em 0; font-size:1.08em; font-weight:600; color:#1a3e6e;">
+      <div>Channels: {channels.length}</div>
+      <div>
+        Playlists: {channels.reduce((a, c) => a + (c.playlists_count || 0), 0)}
+      </div>
+      <div>
+        Videos: {channels.reduce((a, c) => a + (c.videos_count || 0), 0)}
+      </div>
+      <div>
+        Total Running Time: {
+          Math.round(
+            channels.reduce(
+              (sum, c) => sum + (c.videos_count || 0) * (c.avg_length || 0),
+              0
+            ) / 360
+          ) / 10
+        } hours
+      </div>
     </div>
-    <div>
-      Videos: {channels.reduce((a, c) => a + (c.videos_count || 0), 0)}
-    </div>
-  </div>
-{/if}
+  {/if}
 
   <table class="admin-table">
     <thead>
