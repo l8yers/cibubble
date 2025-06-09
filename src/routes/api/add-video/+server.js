@@ -47,19 +47,47 @@ function extractChannelIdOrHandle(url) {
   return null;
 }
 
+// --- Robust channel ID resolution for @handles, usernames, etc. ---
 async function getChannelIdFromHandle(handle) {
-  const url = `https://www.googleapis.com/youtube/v3/channels?part=id,snippet,contentDetails&forUsername=${encodeURIComponent(handle)}&key=${YOUTUBE_API_KEY}`;
+  const handleOnly = handle.startsWith('@') ? handle.slice(1) : handle;
+
+  // 1. Try forHandle (new YouTube @handle system)
+  let url = `https://www.googleapis.com/youtube/v3/channels?part=id,snippet,contentDetails&forHandle=${encodeURIComponent(handleOnly)}&key=${YOUTUBE_API_KEY}`;
   let res = await fetch(url);
   let data = await res.json();
-  if (data.items && data.items.length > 0) return data.items[0].id;
 
-  // Try search (for @handles)
-  const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(handle)}&key=${YOUTUBE_API_KEY}`;
-  res = await fetch(searchUrl);
+  if (data.items && data.items.length > 0) {
+    console.log('Found channel via forHandle:', data.items[0].id, data.items[0].snippet.title);
+    return data.items[0].id;
+  } else {
+    console.warn('Channel not found via forHandle:', handleOnly, data);
+  }
+
+  // 2. Try legacy forUsername
+  url = `https://www.googleapis.com/youtube/v3/channels?part=id,snippet,contentDetails&forUsername=${encodeURIComponent(handleOnly)}&key=${YOUTUBE_API_KEY}`;
+  res = await fetch(url);
   data = await res.json();
-  if (data.items && data.items.length > 0) return data.items[0].snippet.channelId;
 
-  return null;
+  if (data.items && data.items.length > 0) {
+    console.log('Found channel via forUsername:', data.items[0].id, data.items[0].snippet.title);
+    return data.items[0].id;
+  } else {
+    console.warn('Channel not found via forUsername:', handleOnly, data);
+  }
+
+  // 3. Fallback: Search (last resort, not as reliable)
+  url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(handleOnly)}&key=${YOUTUBE_API_KEY}`;
+  res = await fetch(url);
+  data = await res.json();
+
+  if (data.items && data.items.length > 0) {
+    const channelId = data.items[0].snippet.channelId;
+    console.log('Found channel via search:', channelId, data.items[0].snippet.title);
+    return channelId;
+  } else {
+    console.error('Channel not found via any method:', handleOnly, data);
+    return null;
+  }
 }
 
 async function getChannelInfo(channelId) {
@@ -96,7 +124,6 @@ async function getPlaylists(channelId) {
   }));
 }
 
-// --- Fetches all videos for a playlist, with durations ---
 async function getPlaylistVideos(playlistId) {
   let videos = [];
   let nextPage = '';
@@ -128,7 +155,6 @@ async function getPlaylistVideos(playlistId) {
   }));
 }
 
-// --- Gets all uploads for a channel (with durations) ---
 async function getAllUploads(uploadsPlaylistId) {
   const videos = await getPlaylistVideos(uploadsPlaylistId);
   return videos.map(v => ({ ...v, playlist_id: null }));
@@ -143,29 +169,47 @@ export async function POST({ request }) {
     const extracted = extractChannelIdOrHandle(url);
     if (!extracted) return json({ error: 'Invalid YouTube channel link.' }, { status: 400 });
 
-    // Resolve channel ID from handle if needed
     let channelId = extracted.id;
+    let resolvedVia = 'direct';
+
     if (!channelId && extracted.handle) {
       channelId = await getChannelIdFromHandle(extracted.handle);
-      if (!channelId) return json({ error: 'Channel not found.' }, { status: 404 });
+      resolvedVia = 'handle';
+      if (!channelId) {
+        return json({ error: 'Channel not found (handle could not be resolved).' }, { status: 404 });
+      }
     }
+
+    console.log(`[IMPORT] Importing channel with ID: ${channelId} (via: ${resolvedVia})`);
 
     // Get channel info
     const channel = await getChannelInfo(channelId);
-    if (!channel) return json({ error: 'Could not fetch channel info.' }, { status: 404 });
+    if (!channel) {
+      console.error(`[IMPORT] Could not fetch channel info for ID: ${channelId}`);
+      return json({ error: 'Could not fetch channel info.' }, { status: 404 });
+    }
+    console.log(`[IMPORT] Fetched channel info: ${channel.id} "${channel.name}"`);
 
     // Insert/update channel
-    await supabase.from('channels').upsert([{
+    const { error: channelError } = await supabase.from('channels').upsert([{
       id: channel.id,
       name: channel.name,
       thumbnail: channel.thumbnail,
       description: channel.description
     }]);
+    if (channelError) {
+      console.error(`[IMPORT] Error upserting channel:`, channelError);
+      return json({ error: 'Failed to upsert channel.' }, { status: 500 });
+    }
 
     // Get and upsert playlists
     const playlists = await getPlaylists(channelId);
     if (playlists.length > 0) {
-      await supabase.from('playlists').upsert(playlists);
+      const { error: playlistError } = await supabase.from('playlists').upsert(playlists);
+      if (playlistError) {
+        console.error(`[IMPORT] Error upserting playlists:`, playlistError);
+        return json({ error: 'Failed to upsert playlists.' }, { status: 500 });
+      }
     }
 
     // Get all playlist videos (with durations)
@@ -199,7 +243,7 @@ export async function POST({ request }) {
 
     // Upsert videos with durations!
     if (allVideos.length > 0) {
-      await supabase.from('videos').upsert(allVideos.map(v => ({
+      const { error: videoError } = await supabase.from('videos').upsert(allVideos.map(v => ({
         id: v.id,
         playlist_id: v.playlist_id,
         channel_id: v.channel_id,
@@ -211,6 +255,10 @@ export async function POST({ request }) {
         created: v.created,
         playlist_position: v.playlist_position
       })));
+      if (videoError) {
+        console.error(`[IMPORT] Error upserting videos:`, videoError);
+        return json({ error: 'Failed to upsert videos.' }, { status: 500 });
+      }
     }
 
     return json({
@@ -220,7 +268,7 @@ export async function POST({ request }) {
       videos_added: allVideos.length
     });
   } catch (err) {
-    console.error("IMPORT ERROR", err);
+    console.error("[IMPORT ERROR]", err);
     return json({ error: err.message || 'Unknown error' }, { status: 500 });
   }
 }

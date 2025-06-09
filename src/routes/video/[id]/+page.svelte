@@ -28,7 +28,7 @@
       .select('*')
       .order('created', { ascending: false })
       .neq('id', id)
-      .limit(16);
+      .limit(8);
     suggestions = suggs || [];
     loading = false;
 

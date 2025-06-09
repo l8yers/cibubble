@@ -160,7 +160,7 @@
 .length-inline {
   color: #fff;
   background: #333;
-  font-size: 0.97em;
+  font-size: 0.87em;
   padding: 0.12em 0.7em;
   border-radius: 9px;
   margin-left: 0.2em;
