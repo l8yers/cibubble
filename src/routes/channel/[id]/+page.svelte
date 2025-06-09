@@ -7,6 +7,7 @@
   let playlists = [];
   let channel = null;
   let loading = true;
+  let activeTab = 'videos';
 
   $: id = $page.params.id;
 
@@ -81,18 +82,26 @@
 }
 .channel-bar {
   width: inherit;
-  padding: 0.33em 1.5em 0.33em 1em;
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 1.1em;
-  border-radius: 7px;
+  justify-content: space-between;
   background: #fff;
   box-shadow: 0 2px 8px #f0f0f0;
   font-size: 1.12rem;
   border: 1px solid #efefef;
-  margin-bottom: 1.6rem;
+  border-radius: 7px;
+  padding: 0.33em 1.8em 0.33em 1em;
+  margin-bottom: 1.8rem;
+  gap: 1.2em;
 }
 
+.channel-info {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  min-width: 0;
+}
 .channel-avatar {
   width: 36px;
   height: 36px;
@@ -100,26 +109,56 @@
   border-radius: 22%;
   background: #f4f4f4;
   border: 1.3px solid #ececec;
-  margin-right: 0.5em;
+}
+.channel-bar-details {
+  min-width: 0;
 }
 .channel-bar-name {
-  font-size: 1.18rem;
+  font-size: 1.13rem;
   font-weight: 600;
   color: #191919;
-  margin-right: 1.2em;
-  line-height: 1.12;
+  line-height: 1.13;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-bottom: 0.15em;
 }
 .channel-bar-desc {
   color: #888;
   font-size: 1em;
-  flex: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
+  line-height: 1.05;
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.1em;
+  margin-left: 1.2em;
+}
+.tab-btn {
+  font-size: 1.09rem;
+  font-weight: 600;
+  color: #888;
+  background: none;
+  border: none;
+  border-bottom: 2.5px solid transparent;
+  padding: 0.35em 1.15em 0.28em 1.15em;
+  margin: 0;
+  cursor: pointer;
+  transition: color 0.13s, border-bottom 0.13s, background 0.13s;
+  border-radius: 0;
+}
+.tab-btn.active {
+  color: #2562e9;
+  border-bottom: 2.5px solid #2562e9;
+  background: #f7fbff;
+}
+.tab-btn:focus {
+  outline: 2px solid #2562e9;
 }
 .section-title {
   margin: 2.2em 0 1em 0;
@@ -127,25 +166,13 @@
   font-weight: 600;
   color: #222;
   letter-spacing: 0.01em;
-  max-width: 1360px;
-  margin-left: auto;
-  margin-right: auto;
-}
-.page-container {
-  max-width: 1920px;
-  margin: 0 auto;
-  padding: 2rem 2vw 2.5rem 2vw;
-  font-family: Inter, Arial, sans-serif;
 }
 .grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 1.3rem;
   margin: 2rem 0;
-  /* REMOVE: max-width: 1360px; */
-  /* REMOVE: margin-left/right: auto; */
 }
-
 .card {
   background: #fff;
   border-radius: 6px;
@@ -237,12 +264,12 @@
   background: #e4e4e4;
   color: #e93c2f;
 }
+
 .playlists-bar {
   display: flex;
   flex-wrap: wrap;
   gap: 0.7em 1.2em;
   margin: 2.5em auto 0.6em auto;
-  max-width: 1360px;
   padding-left: 0.2em;
   padding-right: 0.2em;
   align-items: center;
@@ -267,69 +294,89 @@
 
 <div class="page-container">
   <div class="channel-bar">
-    <img class="channel-avatar"
-      src={channel?.thumbnail || '/images/no_thumb_nail.png'}
-      alt="Channel avatar"
-      loading="lazy"
-      on:error={e => e.target.src = '/images/no_thumb_nail.png'}
-    />
-    <div class="channel-bar-name">{channel?.name || id}</div>
-    {#if channel?.description}
-      <div class="channel-bar-desc">{channel.description}</div>
-    {/if}
+    <div class="channel-info">
+      <img class="channel-avatar"
+        src={channel?.thumbnail || '/images/no_thumb_nail.png'}
+        alt="Channel avatar"
+        loading="lazy"
+        on:error={e => e.target.src = '/images/no_thumb_nail.png'}
+      />
+      <div class="channel-bar-details">
+        <div class="channel-bar-name">{channel?.name || id}</div>
+        {#if channel?.description}
+          <div class="channel-bar-desc">{channel.description}</div>
+        {/if}
+      </div>
+    </div>
+    <div class="tabs">
+      <button
+        class="tab-btn {activeTab === 'videos' ? 'active' : ''}"
+        on:click={() => activeTab = 'videos'}>
+        Videos
+      </button>
+      <button
+        class="tab-btn {activeTab === 'playlists' ? 'active' : ''}"
+        on:click={() => activeTab = 'playlists'}>
+        Playlists
+      </button>
+    </div>
   </div>
 
-  <div class="section-title">Videos</div>
-  {#if loading}
-    <p>Loading…</p>
-  {:else if videos.length === 0}
-    <p>No videos for this channel.</p>
-  {:else}
-    <div class="grid">
-      {#each videos as video}
-        <div class="card">
-          <a href={`/video/${video.id}`}>
-            <span class="thumb-wrapper">
-              <img
-                class="thumb"
-                src={getBestThumbnail(video)}
-                alt={video.title}
-                loading="lazy"
-                on:error={e => e.target.src = '/images/no_thumb_nail.png'}
-              />
-            </span>
-          </a>
-          <div class="card-body">
-            <div class="card-title-row">
-              <span class="card-title">{video.title}</span>
-              {#if video.length}
-                <span class="length-inline">{formatLength(video.length)}</span>
-              {/if}
-            </div>
-            <div class="card-meta">
-              <span class="badge" style="background:{difficultyColor(video.level)};">
-                {difficultyLabel(video.level)}
+  {#if activeTab === 'videos'}
+    <div class="section-title">Videos</div>
+    {#if loading}
+      <p>Loading…</p>
+    {:else if videos.length === 0}
+      <p>No videos for this channel.</p>
+    {:else}
+      <div class="grid">
+        {#each videos as video}
+          <div class="card">
+            <a href={`/video/${video.id}`}>
+              <span class="thumb-wrapper">
+                <img
+                  class="thumb"
+                  src={getBestThumbnail(video)}
+                  alt={video.title}
+                  loading="lazy"
+                  on:error={e => e.target.src = '/images/no_thumb_nail.png'}
+                />
               </span>
-              {#if video.playlist_id}
-                <a class="meta-link" href={`/playlist/${video.playlist_id}`}>
-                  {video.playlist?.title ?? ""}
-                </a>
-              {/if}
+            </a>
+            <div class="card-body">
+              <div class="card-title-row">
+                <span class="card-title">{video.title}</span>
+                {#if video.length}
+                  <span class="length-inline">{formatLength(video.length)}</span>
+                {/if}
+              </div>
+              <div class="card-meta">
+                <span class="badge" style="background:{difficultyColor(video.level)};">
+                  {difficultyLabel(video.level)}
+                </span>
+                {#if video.playlist_id}
+                  <a class="meta-link" href={`/playlist/${video.playlist_id}`}>
+                    {video.playlist?.title ?? ""}
+                  </a>
+                {/if}
+              </div>
             </div>
           </div>
-        </div>
-      {/each}
-    </div>
-  {/if}
-
-  <div class="section-title" style="margin-top:3.5rem;">Playlists</div>
-  {#if playlists.length === 0}
-    <p style="color:#888;">No playlists for this channel.</p>
-  {:else}
-    <div class="playlists-bar">
-      {#each playlists as pl}
-        <a href={`/playlist/${pl.id}`} class="playlist-link">{pl.title}</a>
-      {/each}
-    </div>
+        {/each}
+      </div>
+    {/if}
+  {:else if activeTab === 'playlists'}
+    <div class="section-title">Playlists</div>
+    {#if loading}
+      <p>Loading…</p>
+    {:else if playlists.length === 0}
+      <p style="color:#888;">No playlists for this channel.</p>
+    {:else}
+      <div class="playlists-bar">
+        {#each playlists as pl}
+          <a href={`/playlist/${pl.id}`} class="playlist-link">{pl.title}</a>
+        {/each}
+      </div>
+    {/if}
   {/if}
 </div>
