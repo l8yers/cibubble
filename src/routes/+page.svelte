@@ -11,10 +11,10 @@
   ];
   const sortChoices = [
     { value: 'random', label: 'Random' },
-    { value: 'hard', label: 'Hard → Easy' },
-    { value: 'easy', label: 'Easy → Hard' },
-    { value: 'long', label: 'Longest' },
-    { value: 'short', label: 'Shortest' }
+    { value: 'easy', label: 'Easy' },
+    { value: 'hard', label: 'Hard' },
+    { value: 'long', label: 'Long' },
+    { value: 'short', label: 'Short' }
   ];
 
   // --- STATE ---
@@ -24,7 +24,9 @@
   let errorMsg = '';
   const pageSize = 30;
   let allLoaded = false;
-  let selectedLevels = new Set();
+  let selectedLevels = new Set(levels.map(l => l.value));
+  let showLevelDropdown = false;
+  let showSortDropdown = false;
   let sortBy = 'random';
 
   // --- UTILS ---
@@ -49,32 +51,16 @@
     if (video.id) return `https://img.youtube.com/vi/${video.id}/hqdefault.jpg`;
     return '/images/no_thumb_nail.png';
   }
-
-  // --- SHUFFLE ---
-  function channelRoundRobinShuffle(inputVideos, size) {
-    const byChannel = {};
-    inputVideos.forEach(v => {
-      if (!byChannel[v.channel_id]) byChannel[v.channel_id] = [];
-      byChannel[v.channel_id].push(v);
-    });
-    // Shuffle within channels
-    for (const arr of Object.values(byChannel)) {
-      arr.sort(() => Math.random() - 0.5);
+  function levelOrder(level) {
+    return ['superbeginner', 'beginner', 'intermediate', 'advanced'].indexOf(level);
+  }
+  function shuffleArray(array) {
+    let arr = [...array];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
     }
-    // Take from each channel, round robin, until filled
-    const shuffled = [];
-    let keepGoing = true;
-    while (keepGoing && shuffled.length < size) {
-      keepGoing = false;
-      for (const arr of Object.values(byChannel)) {
-        if (arr.length) {
-          shuffled.push(arr.shift());
-          keepGoing = true;
-          if (shuffled.length === size) break;
-        }
-      }
-    }
-    return shuffled;
+    return arr;
   }
 
   // --- FILTER/SORT LOGIC ---
@@ -84,25 +70,20 @@
       v.title !== 'Deleted video' &&
       v.title &&
       v.title !== null &&
-      (selectedLevels.size === 0 || selectedLevels.has(v.level))
+      (selectedLevels.has(v.level))
     );
     if (sortBy === 'random') {
-      // Use round robin shuffle for channel fairness
-      return channelRoundRobinShuffle(filtered, filtered.length);
-    } else if (sortBy === 'hard') {
-      return filtered.sort((a, b) => levelOrder(b.level) - levelOrder(a.level));
+      return shuffleArray(filtered);
     } else if (sortBy === 'easy') {
       return filtered.sort((a, b) => levelOrder(a.level) - levelOrder(b.level));
+    } else if (sortBy === 'hard') {
+      return filtered.sort((a, b) => levelOrder(b.level) - levelOrder(a.level));
     } else if (sortBy === 'long') {
       return filtered.sort((a, b) => (b.length || 0) - (a.length || 0));
     } else if (sortBy === 'short') {
       return filtered.sort((a, b) => (a.length || 0) - (b.length || 0));
     }
     return filtered;
-  }
-
-  function levelOrder(level) {
-    return ['superbeginner', 'beginner', 'intermediate', 'advanced'].indexOf(level);
   }
 
   // --- DATA LOAD ---
@@ -164,13 +145,34 @@
     }
     updateGrid();
   }
-  function clearLevels() {
-    selectedLevels = new Set();
+  function allLevelsSelected() {
+    return selectedLevels.size === levels.length;
+  }
+  function toggleAllLevels() {
+    if (allLevelsSelected()) {
+      selectedLevels = new Set();
+    } else {
+      selectedLevels = new Set(levels.map(l => l.value));
+    }
     updateGrid();
   }
-  function handleSortChange(ev) {
-    sortBy = ev.target.value;
+  function handleSortSelect(value) {
+    sortBy = value;
+    showSortDropdown = false;
     updateGrid();
+  }
+  function handleLevelDropdownToggle() {
+    showLevelDropdown = !showLevelDropdown;
+  }
+  function handleSortDropdownToggle() {
+    showSortDropdown = !showSortDropdown;
+  }
+
+  // Dropdown close on outside click
+  function handleClickOutside(node, cb) {
+    const onClick = e => { if (!node.contains(e.target)) cb(); };
+    document.addEventListener('mousedown', onClick);
+    return { destroy: () => document.removeEventListener('mousedown', onClick) };
   }
 
   onMount(() => {
@@ -181,6 +183,7 @@
 </script>
 
 <style>
+/* ...[same styles as before, no changes needed]... */
 .page-container {
   max-width: 1920px;
   margin: 0 auto;
@@ -197,7 +200,11 @@
   margin-left: auto;
   margin-right: auto;
 }
-.select-sort {
+.dropdown {
+  position: relative;
+  min-width: 120px;
+}
+.dropdown-btn {
   padding: 0.42em 1.1em;
   font-size: 1.05em;
   border-radius: 6px;
@@ -205,51 +212,48 @@
   background: #f9f9f9;
   color: #1d1d1d;
   font-weight: 600;
-}
-.level-badges {
-  display: flex;
-  gap: 0.6em;
-  align-items: center;
-}
-.level-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.42em;
-  padding: 0.13em 1.1em;
-  font-size: 1em;
-  border-radius: 18px;
-  border: 1.3px solid #ededed;
-  background: #fafafa;
-  font-weight: 600;
   cursor: pointer;
-  user-select: none;
-  outline: none;
-  transition: background 0.13s, color 0.13s;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  min-width: 110px;
+  transition: border 0.11s, background 0.11s;
 }
-.level-btn.selected {
-  background: #f3faff;
-  border: 1.3px solid #bbb;
-  color: #222;
+.dropdown-btn[aria-expanded="true"] {
+  background: #f1f5fb;
+  border: 1.2px solid #bbb;
+}
+.dropdown-content {
+  position: absolute;
+  z-index: 10;
+  background: #fff;
+  border: 1.3px solid #e8e8e8;
+  border-radius: 8px;
+  box-shadow: 0 2px 18px #eee;
+  min-width: 180px;
+  padding: 0.8em 0.6em;
+  top: 110%;
+  left: 0;
+  font-size: 1em;
+}
+.levels-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+  margin: 0.3em 0 0.4em 0;
+}
+.level-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  font-size: 1.03em;
 }
 .level-dot {
-  width: 18px;
-  height: 18px;
+  width: 17px;
+  height: 17px;
   border-radius: 9px;
   margin-right: 0.4em;
   display: inline-block;
-}
-.level-label {
-  white-space: nowrap;
-}
-.clear-levels {
-  margin-left: 0.6em;
-  font-size: 0.98em;
-  color: #999;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  text-decoration: underline;
 }
 .grid {
   display: grid;
@@ -360,28 +364,62 @@
 <div class="page-container">
   <!-- Controls Bar -->
   <div class="controls-bar">
-    <!-- Sort By -->
-    <label for="sortby" style="font-weight:600;">Sort by:</label>
-    <select class="select-sort" id="sortby" bind:value={sortBy} on:change={handleSortChange}>
-      {#each sortChoices as opt}
-        <option value={opt.value}>{opt.label}</option>
-      {/each}
-    </select>
+    <!-- Sort By Dropdown -->
+    <div class="dropdown" use:handleClickOutside={() => showSortDropdown = false}>
+      <button
+        class="dropdown-btn"
+        aria-expanded={showSortDropdown}
+        on:click={handleSortDropdownToggle}
+        type="button"
+      >
+        Sort by: <b style="margin-left:0.3em;">{sortChoices.find(o => o.value === sortBy)?.label}</b>
+        <svg width="12" height="9" style="margin-left:7px;" fill="none"><path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2"/></svg>
+      </button>
+      {#if showSortDropdown}
+        <div class="dropdown-content">
+          {#each sortChoices as opt}
+            <div style="padding:0.32em 0.2em;cursor:pointer;" on:click={() => handleSortSelect(opt.value)}>
+              {opt.label}
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </div>
 
-    <!-- Level/Difficulty Filter -->
-    <div class="level-badges">
-      <span style="font-weight:600;">Levels:</span>
-      {#each levels as lvl}
-        <button
-          class="level-btn {selectedLevels.has(lvl.value) ? 'selected' : ''}"
-          on:click={() => toggleLevel(lvl.value)}
-          type="button"
-        >
-          <span class="level-dot" style="background:{lvl.color}"></span>
-          <span class="level-label">{lvl.label}</span>
-        </button>
-      {/each}
-      <button class="clear-levels" on:click={clearLevels}>Clear</button>
+    <!-- Levels Dropdown -->
+    <div class="dropdown" use:handleClickOutside={() => showLevelDropdown = false}>
+      <button
+        class="dropdown-btn"
+        aria-expanded={showLevelDropdown}
+        on:click={handleLevelDropdownToggle}
+        type="button"
+      >
+        Levels
+        <svg width="12" height="9" style="margin-left:7px;" fill="none"><path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2"/></svg>
+      </button>
+      {#if showLevelDropdown}
+        <div class="dropdown-content">
+          <div style="margin-bottom:0.5em;font-size:1em;font-weight:600;">Include</div>
+          <div class="levels-list">
+            {#each levels as lvl}
+              <label class="level-checkbox">
+                <input
+                  type="checkbox"
+                  checked={selectedLevels.has(lvl.value)}
+                  on:change={() => toggleLevel(lvl.value)}
+                />
+                <span class="level-dot" style="background:{lvl.color}"></span>
+                <span>{lvl.label}</span>
+              </label>
+            {/each}
+          </div>
+          <div style="margin-top:0.4em;">
+            <button style="font-size:0.97em;color:#176cda;background:none;border:none;cursor:pointer;" on:click={toggleAllLevels}>
+              {allLevelsSelected() ? "Clear all" : "Select all"}
+            </button>
+          </div>
+        </div>
+      {/if}
     </div>
   </div>
 
