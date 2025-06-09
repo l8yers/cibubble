@@ -8,7 +8,37 @@ const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || process.env.VITE_YOUTUBE_
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Extracts channel ID or handle from a YouTube URL
+// --- Duration Parsing Utility ---
+function parseDuration(iso) {
+  // "PT1H2M10S" → seconds
+  const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  return (
+    (parseInt(m?.[1] || 0) * 3600) +
+    (parseInt(m?.[2] || 0) * 60) +
+    (parseInt(m?.[3] || 0))
+  );
+}
+
+// --- Fetch durations for an array of video IDs ---
+async function fetchVideoDurations(videoIds) {
+  let results = [];
+  for (let i = 0; i < videoIds.length; i += 50) {
+    const ids = videoIds.slice(i, i + 50).join(",");
+    const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${YOUTUBE_API_KEY}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.items) {
+      results.push(...data.items.map(v => ({
+        id: v.id,
+        length: parseDuration(v.contentDetails.duration)
+      })));
+    }
+  }
+  // Reduce to { id: length, ... }
+  return results.reduce((acc, v) => ({ ...acc, [v.id]: v.length }), {});
+}
+
+// --- Extracts channel ID or handle from a YouTube URL ---
 function extractChannelIdOrHandle(url) {
   const channelIdMatch = url.match(/youtube\.com\/channel\/([a-zA-Z0-9_-]+)/);
   if (channelIdMatch) return { id: channelIdMatch[1], type: "id" };
@@ -66,6 +96,7 @@ async function getPlaylists(channelId) {
   }));
 }
 
+// --- Fetches all videos for a playlist, with durations ---
 async function getPlaylistVideos(playlistId) {
   let videos = [];
   let nextPage = '';
@@ -76,27 +107,34 @@ async function getPlaylistVideos(playlistId) {
     if (data.items) videos.push(...data.items);
     nextPage = data.nextPageToken || '';
   } while (nextPage);
+
+  const videoIds = videos.map(v => v.contentDetails.videoId).filter(Boolean);
+  let durations = {};
+  if (videoIds.length) {
+    durations = await fetchVideoDurations(videoIds);
+  }
+
   return videos.map(v => ({
     id: v.contentDetails.videoId,
     title: v.snippet.title,
     channel_id: v.snippet.channelId,
     channel_name: v.snippet.channelTitle,
     thumbnail: v.snippet.thumbnails?.high?.url || v.snippet.thumbnails?.default?.url || '',
-    length: null, // (optional) could fetch details for duration
+    length: durations[v.contentDetails.videoId] ?? null,
     playlist_id: playlistId,
     created: new Date().toISOString(),
-    level: "notyet", // set default or ask user later
+    level: "notyet",
     playlist_position: v.snippet.position ?? null,
   }));
 }
 
+// --- Gets all uploads for a channel (with durations) ---
 async function getAllUploads(uploadsPlaylistId) {
-  // Get all uploads (not just from playlists)
-  return getPlaylistVideos(uploadsPlaylistId).then(videos =>
-    videos.map(v => ({ ...v, playlist_id: null }))
-  );
+  const videos = await getPlaylistVideos(uploadsPlaylistId);
+  return videos.map(v => ({ ...v, playlist_id: null }));
 }
 
+// --- MAIN ENTRY POINT ---
 export async function POST({ request }) {
   try {
     if (!YOUTUBE_API_KEY) return json({ error: 'Missing YouTube API key' }, { status: 500 });
@@ -130,7 +168,7 @@ export async function POST({ request }) {
       await supabase.from('playlists').upsert(playlists);
     }
 
-    // Get all playlist videos
+    // Get all playlist videos (with durations)
     let playlistVideos = [];
     for (const pl of playlists) {
       const vids = await getPlaylistVideos(pl.id);
@@ -146,14 +184,12 @@ export async function POST({ request }) {
     // Merge playlist videos and uploads, prefer playlist if duplicate id
     const seen = new Set();
     const allVideos = [];
-    // Add playlist videos first (they will have playlist_id set)
     for (const v of playlistVideos) {
       if (!seen.has(v.id)) {
         allVideos.push(v);
         seen.add(v.id);
       }
     }
-    // Add uploads videos if not already included
     for (const v of uploadsVideos) {
       if (!seen.has(v.id)) {
         allVideos.push(v);
@@ -161,7 +197,7 @@ export async function POST({ request }) {
       }
     }
 
-    // Upsert videos
+    // Upsert videos with durations!
     if (allVideos.length > 0) {
       await supabase.from('videos').upsert(allVideos.map(v => ({
         id: v.id,
