@@ -84,7 +84,7 @@
     <a class="nav-link" href="/admin">ADMIN</a>
         <!-- <a class="nav-link" href="/faq">FAQ</a> -->
     {#if user}
-      <a class="nav-link" href="/profile">Profile</a>
+      <a class="nav-link" href="/progress">Progress</a>
       <button class="logout-btn" on:click={logout}>Logout</button>
     {:else}
       <a class="nav-link" href="/signup">Sign Up</a>

@@ -10,11 +10,60 @@
   let message = '';
   let watchTime = 0;
   let todayWatchTime = 0;
+  let activityDays = [];
+  let streak = 0;
 
   function formatMinutes(seconds) {
     if (!seconds) return '0 min';
     const m = Math.round(seconds / 60);
     return m > 0 ? `${m} min` : `${seconds} sec`;
+  }
+
+  function barColor(mins) {
+    if (mins >= 120) return '#e93c2f';
+    if (mins >= 60) return '#44c366';
+    if (mins >= 30) return '#f9c846';
+    if (mins >= 10) return '#f7ed85';
+    if (mins > 0) return '#b7f6ed';
+    return '#ececec';
+  }
+
+  async function fetchRecentActivity() {
+    if (!user) return;
+    // Get last 14 days
+    const today = new Date();
+    const dates = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      dates.push(d.toISOString().slice(0, 10));
+    }
+    // Query all sessions in that range
+    const fromDate = dates[0];
+    const toDate = dates[dates.length - 1];
+    let { data: sessions } = await supabase
+      .from('watch_sessions')
+      .select('date,seconds')
+      .eq('user_id', user.id)
+      .gte('date', fromDate)
+      .lte('date', toDate);
+
+    // Sum seconds for each day
+    const map = {};
+    (sessions || []).forEach(s => {
+      map[s.date] = (map[s.date] || 0) + (s.seconds || 0);
+    });
+    activityDays = dates.map(date => ({
+      date,
+      mins: Math.round((map[date] || 0) / 60)
+    }));
+
+    // Compute streak (count backward from today until a zero is found)
+    streak = 0;
+    for (let i = activityDays.length - 1; i >= 0; i--) {
+      if (activityDays[i].mins > 0) streak++;
+      else break;
+    }
   }
 
   onMount(async () => {
@@ -47,6 +96,9 @@
         .eq('user_id', user.id)
         .eq('date', today);
       todayWatchTime = (todaySessions ?? []).reduce((acc, s) => acc + (s.seconds || 0), 0);
+
+      // --- Recent activity and streak ---
+      await fetchRecentActivity();
     }
   });
 
@@ -97,6 +149,47 @@
   font-weight: bold;
   margin: 1.7em 0 1em 0;
   letter-spacing: 0.3px;
+}
+.stats-row {
+  color: #222;
+  font-size: 1.07em;
+  margin-bottom: 0.7em;
+}
+.streak-row {
+  font-size: 1em;
+  color: #2562e9;
+  margin-bottom: 0.7em;
+  font-weight: 500;
+}
+.activity-bar-graph {
+  display: flex;
+  gap: 8px;
+  align-items: end;
+  margin: 1.1em 0 0.2em 0;
+  height: 54px;
+}
+.activity-bar {
+  width: 24px;
+  border-radius: 5px 5px 2px 2px;
+  background: #ececec;
+  position: relative;
+  transition: height 0.2s, background 0.2s;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  cursor: pointer;
+}
+.activity-bar-today {
+  outline: 2px solid #2562e9;
+  box-shadow: 0 0 0 2px #e8e8fa;
+}
+.activity-labels {
+  display: flex;
+  gap: 8px;
+  margin-top: 3px;
+  font-size: 0.91em;
+  color: #888;
+  justify-content: start;
 }
 .profile-row {
   margin-bottom: 1.3em;
@@ -152,11 +245,6 @@ button:hover {
   text-decoration: underline;
   color: #181818;
 }
-.stats-row {
-  color: #222;
-  font-size: 1.07em;
-  margin-bottom: 0.7em;
-}
 </style>
 
 {#if !user}
@@ -165,21 +253,33 @@ button:hover {
   </div>
 {:else}
   <div class="profile-main">
-    <div class="section-title">Account</div>
-    <div class="profile-row"><b>Email:</b> {email}</div>
-    <div>
-      <input type="email" bind:value={newEmail} placeholder="New email" autocomplete="email" />
-      <button on:click={updateEmail}>Change Email</button>
-    </div>
-    <div>
-      <input type="password" bind:value={newPassword} placeholder="New password" autocomplete="new-password" />
-      <button on:click={updatePassword}>Change Password</button>
-    </div>
-    <div class="message">{message}</div>
+    <div class="section-title">Progress</div>
 
-    <div class="section-title">Stats</div>
+    <!-- Stats and graph at the top -->
     <div class="stats-row"><b>Total watch time:</b> {formatMinutes(watchTime)}</div>
     <div class="stats-row"><b>Today's watch time:</b> {formatMinutes(todayWatchTime)}</div>
+    <div class="streak-row">
+      🔥 <b>Streak:</b> {streak} day{streak === 1 ? '' : 's'} active
+    </div>
+
+    <div style="font-size:0.98em; color:#888; margin-bottom:0.2em;">Minutes watched per day (last 14 days)</div>
+    <div class="activity-bar-graph">
+      {#each activityDays as d, i}
+        <div
+          class="activity-bar {i === activityDays.length - 1 ? 'activity-bar-today' : ''}"
+          style="height:{Math.min(d.mins, 120)/1.2}px; background:{barColor(d.mins)}"
+          title={`Date: ${d.date}\n${d.mins} min`}
+        ></div>
+      {/each}
+    </div>
+    <div class="activity-labels">
+      {#each activityDays as d, i}
+        <div style="width:24px; text-align:center">
+          {i % 2 === 0 ? d.date.slice(5) : ''}
+        </div>
+      {/each}
+    </div>
+    <div style="font-size:0.87em; color:#aaa; margin-top:0.2em;">Days (oldest &rarr; today)</div>
 
     <div class="section-title">My Videos</div>
     {#if myVideos.length === 0}
@@ -194,5 +294,17 @@ button:hover {
         {/each}
       </ul>
     {/if}
+
+    <div class="section-title">Account</div>
+    <div class="profile-row"><b>Email:</b> {email}</div>
+    <div>
+      <input type="email" bind:value={newEmail} placeholder="New email" autocomplete="email" />
+      <button on:click={updateEmail}>Change Email</button>
+    </div>
+    <div>
+      <input type="password" bind:value={newPassword} placeholder="New password" autocomplete="new-password" />
+      <button on:click={updatePassword}>Change Password</button>
+    </div>
+    <div class="message">{message}</div>
   </div>
 {/if}
