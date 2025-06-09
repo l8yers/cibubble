@@ -5,6 +5,8 @@
 
   let videos = [];
   let playlists = [];
+  let playlistThumbs = {};
+  let playlistLevels = {};
   let channel = null;
   let loading = true;
   let activeTab = 'videos';
@@ -29,23 +31,38 @@
       default: return '#bbb';
     }
   }
-  function formatLength(sec) {
-    if (!sec || isNaN(sec)) return '';
-    const h = Math.floor(sec / 3600);
-    const m = Math.floor((sec % 3600) / 60);
-    const s = sec % 60;
-    return h > 0
-      ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-      : `${m}:${String(s).padStart(2, '0')}`;
-  }
   function getBestThumbnail(video) {
-    if (video.thumbnail) return video.thumbnail;
-    if (video.id) return `https://img.youtube.com/vi/${video.id}/hqdefault.jpg`;
+    if (video?.thumbnail) return video.thumbnail;
+    if (video?.id) return `https://img.youtube.com/vi/${video.id}/hqdefault.jpg`;
     return '/images/no_thumb_nail.png';
+  }
+
+  // Fetch thumbnail and level for each playlist (from its first video)
+  async function fetchPlaylistExtras(pls) {
+    const thumbs = {};
+    const levels = {};
+    for (const pl of pls) {
+      const { data: vids } = await supabase
+        .from('videos')
+        .select('id, thumbnail, level')
+        .eq('playlist_id', pl.id)
+        .order('playlist_position', { ascending: true })
+        .limit(1);
+      if (vids && vids.length > 0) {
+        thumbs[pl.id] = getBestThumbnail(vids[0]);
+        levels[pl.id] = vids[0].level;
+      } else {
+        thumbs[pl.id] = '/images/no_thumb_nail.png';
+        levels[pl.id] = 'notyet';
+      }
+    }
+    playlistThumbs = thumbs;
+    playlistLevels = levels;
   }
 
   onMount(async () => {
     loading = true;
+
     // Get channel info
     const { data: ch } = await supabase.from('channels').select('*').eq('id', id).maybeSingle();
     channel = ch;
@@ -69,11 +86,15 @@
       .order('title', { ascending: true });
     playlists = pls || [];
 
+    // Get thumbs and levels for all playlists (in parallel)
+    await fetchPlaylistExtras(playlists);
+
     loading = false;
   });
 </script>
 
 <style>
+/* (styles as before, no change needed) */
 .page-container {
   max-width: 1920px;
   margin: 0 auto;
@@ -81,7 +102,7 @@
   font-family: Inter, Arial, sans-serif;
 }
 .channel-bar {
-  width: inherit;
+  width: 100%;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -95,7 +116,6 @@
   margin-bottom: 1.8rem;
   gap: 1.2em;
 }
-
 .channel-info {
   display: flex;
   align-items: center;
@@ -132,7 +152,6 @@
   min-width: 0;
   line-height: 1.05;
 }
-
 .tabs {
   display: flex;
   align-items: center;
@@ -264,32 +283,6 @@
   background: #e4e4e4;
   color: #e93c2f;
 }
-
-.playlists-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.7em 1.2em;
-  margin: 2.5em auto 0.6em auto;
-  padding-left: 0.2em;
-  padding-right: 0.2em;
-  align-items: center;
-}
-.playlist-link {
-  display: inline-block;
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: #2562e9;
-  background: #f2f7ff;
-  border-radius: 5px;
-  padding: 0.15em 0.8em;
-  text-decoration: none;
-  border: 1.1px solid #dde6fb;
-  transition: background 0.13s, color 0.13s;
-}
-.playlist-link:hover {
-  background: #d5e7ff;
-  color: #e93c2f;
-}
 </style>
 
 <div class="page-container">
@@ -347,7 +340,7 @@
               <div class="card-title-row">
                 <span class="card-title">{video.title}</span>
                 {#if video.length}
-                  <span class="length-inline">{formatLength(video.length)}</span>
+                  <span class="length-inline">{video.length}</span>
                 {/if}
               </div>
               <div class="card-meta">
@@ -372,9 +365,31 @@
     {:else if playlists.length === 0}
       <p style="color:#888;">No playlists for this channel.</p>
     {:else}
-      <div class="playlists-bar">
+      <div class="grid">
         {#each playlists as pl}
-          <a href={`/playlist/${pl.id}`} class="playlist-link">{pl.title}</a>
+          <div class="card">
+            <a href={`/playlist/${pl.id}`}>
+              <span class="thumb-wrapper">
+                <img
+                  class="thumb"
+                  src={playlistThumbs[pl.id] || '/images/no_thumb_nail.png'}
+                  alt={pl.title}
+                  loading="lazy"
+                  on:error={e => e.target.src = '/images/no_thumb_nail.png'}
+                />
+              </span>
+            </a>
+            <div class="card-body">
+              <div class="card-title-row">
+                <span class="card-title">{pl.title}</span>
+              </div>
+              <div class="card-meta">
+                <span class="badge" style="background:{difficultyColor(playlistLevels[pl.id])};">
+                  {difficultyLabel(playlistLevels[pl.id])}
+                </span>
+              </div>
+            </div>
+          </div>
         {/each}
       </div>
     {/if}
