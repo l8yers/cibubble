@@ -30,3 +30,4 @@ export function getBestThumbnail(video) {
   if (video.id) return `https://img.youtube.com/vi/${video.id}/hqdefault.jpg`;
   return '/images/no_thumb_nail.png';
 }
+// comment//
