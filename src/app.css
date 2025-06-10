@@ -24,3 +24,10 @@ a {
 a:hover {
   color: var(--primary);
 }
+
+.page-container {
+  max-width: 1920px;   /* or 1200px, or whatever width you prefer */
+  margin: 0 auto;
+  padding: 4rem 2vw 2.5rem 2vw;  /* Gives space left/right and on top/bottom */
+  font-family: Inter, Arial, sans-serif;
+}

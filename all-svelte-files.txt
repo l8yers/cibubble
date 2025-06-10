@@ -1,0 +1,2855 @@
+<script>
+  import { supabase } from '$lib/supabaseClient';
+  import { onMount } from 'svelte';
+
+  let user = null;
+
+  // Check session at mount and listen for changes
+  onMount(async () => {
+    // Get current session from localStorage (browser)
+    const { data } = await supabase.auth.getSession();
+    user = data.session?.user ?? null;
+
+    // Listen for login/logout and update user
+    supabase.auth.onAuthStateChange((_event, session) => {
+      user = session?.user ?? null;
+    });
+  });
+
+  async function logout() {
+    await supabase.auth.signOut();
+    user = null;
+    window.location.href = '/';
+  }
+</script>
+
+<style>
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  padding: 0.8em 2vw;
+  border-bottom: 1px solid #ececec;
+}
+.logo-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65em;
+  text-decoration: none;
+}
+.logo-img {
+  height: 3.7em;
+  width: auto;
+  vertical-align: middle;
+}
+.logo-title {
+  font-size: 1.37em;
+  font-weight: bold;
+  letter-spacing: 1px;
+  color: #181818;
+}
+.nav-links {
+  display: flex;
+  gap: 1.6em;
+}
+.nav-link,
+.logout-btn {
+  color: #181818;
+  font-size: 1.08em;
+  font-weight: 500;
+  padding: 0.2em 0.6em;
+  border-radius: 7px;
+  text-decoration: none;
+  transition: background 0.18s, color 0.18s;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.nav-link:hover,
+.logout-btn:hover {
+  background: #f7f7f7;
+  color: #e93c2f;
+}
+.logout-btn {
+  font-family: inherit;
+}
+</style>
+
+<nav class="header">
+  <a href="/" class="logo-row">
+    <img src="/logo.png" alt="CIBUBBLE logo" class="logo-img" />  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="/">Home</a>
+    <a class="nav-link" href="/admin">ADMIN</a>
+        <!-- <a class="nav-link" href="/faq">FAQ</a> -->
+    {#if user}
+      <a class="nav-link" href="/progress">Progress</a>
+      <button class="logout-btn" on:click={logout}>Logout</button>
+    {:else}
+      <a class="nav-link" href="/signup">Sign Up</a>
+      <a class="nav-link" href="/login">Login</a>
+    {/if}
+
+  </div>
+</nav>
+<script>
+  import { supabase } from '$lib/supabaseClient';
+
+  let url = '';
+  let message = '';
+  let importing = false;
+  let clearing = false;
+  let deleting = {};
+  let channels = [];
+  let refreshing = false;
+  let showPlaylistsFor = null;
+  let playlists = [];
+  let playlistsLoading = false;
+
+  let runningTimeByLevel = {
+    superbeginner: 0,
+    beginner: 0,
+    intermediate: 0,
+    advanced: 0,
+    notyet: 0
+  };
+
+  const levels = [
+    { value: '', label: 'Set Level' },
+    { value: 'superbeginner', label: 'Super Beginner' },
+    { value: 'beginner', label: 'Beginner' },
+    { value: 'intermediate', label: 'Intermediate' },
+    { value: 'advanced', label: 'Advanced' },
+    { value: 'notyet', label: 'Not Yet Rated' }
+  ];
+
+  async function importChannel() {
+    message = '';
+    importing = true;
+    try {
+      const res = await fetch('/api/add-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      const json = await res.json();
+      if (json.error) message = `❌ ${json.error}`;
+      else message = `✅ Imported channel "${json.channel?.name}". ${json.playlists_count} playlists, ${json.videos_added} videos.`;
+      await refresh();
+    } catch (e) {
+      message = '❌ Import failed.';
+    }
+    importing = false;
+  }
+
+  async function refresh() {
+    refreshing = true;
+    let { data, error } = await supabase.from('channels').select('*');
+    if (error) message = error.message;
+    else channels = await Promise.all(
+      (data || []).map(async (chan) => {
+        const { count: playlists_count } = await supabase
+          .from('playlists')
+          .select('id', { count: 'exact', head: true })
+          .eq('channel_id', chan.id);
+
+        const { data: videoLens, count: videos_count } = await supabase
+          .from('videos')
+          .select('length', { count: 'exact' })
+          .eq('channel_id', chan.id);
+
+        // Calculate average length for this channel (in seconds)
+        const lens = (videoLens || []).map(v => v.length || 0);
+        const totalLength = lens.reduce((a, l) => a + l, 0);
+        const avg_length = lens.length ? totalLength / lens.length : 0;
+
+        return { ...chan, playlists_count, videos_count, avg_length };
+      })
+    );
+
+    // Now also get running time per level
+    const { data: allVideos } = await supabase
+      .from('videos')
+      .select('level, length');
+
+    runningTimeByLevel = {
+      superbeginner: 0,
+      beginner: 0,
+      intermediate: 0,
+      advanced: 0,
+      notyet: 0
+    };
+    (allVideos || []).forEach(v => {
+      if (!v || typeof v.length !== 'number') return;
+      const lvl = v.level || 'notyet';
+      if (runningTimeByLevel[lvl] !== undefined) {
+        runningTimeByLevel[lvl] += v.length;
+      } else {
+        runningTimeByLevel.notyet += v.length;
+      }
+    });
+
+    refreshing = false;
+  }
+
+  async function clearDatabase() {
+    if (!confirm('Are you sure? This will delete ALL videos, playlists, and channels!')) return;
+    clearing = true;
+    message = '';
+    await supabase.from('videos').delete().neq('id', '');
+    await supabase.from('playlists').delete().neq('id', '');
+    await supabase.from('channels').delete().neq('id', '');
+    await refresh();
+    message = '✅ Database cleared.';
+    clearing = false;
+  }
+
+  async function deleteChannel(id) {
+    if (!confirm('Delete this channel and ALL its videos/playlists?')) return;
+    deleting[id] = true;
+    await supabase.from('videos').delete().eq('channel_id', id);
+    await supabase.from('playlists').delete().eq('channel_id', id);
+    await supabase.from('channels').delete().eq('id', id);
+    await refresh();
+    deleting[id] = false;
+  }
+
+  async function setChannelLevel(channelId, level) {
+    if (!level) return;
+    await supabase.from('videos').update({ level }).eq('channel_id', channelId);
+    message = `✅ All videos for this channel set to "${levels.find(l => l.value === level)?.label}"`;
+    await refresh();
+  }
+
+  // Playlists per channel
+  async function togglePlaylistsFor(channelId) {
+    if (showPlaylistsFor === channelId) {
+      showPlaylistsFor = null;
+      playlists = [];
+      return;
+    }
+    showPlaylistsFor = channelId;
+    playlistsLoading = true;
+    let { data, error } = await supabase
+      .from('playlists')
+      .select('*')
+      .eq('channel_id', channelId);
+    if (!error) {
+      // Add video count and _newLevel for each playlist
+      playlists = await Promise.all(
+        (data || []).map(async (pl) => {
+          const { count: videos_count } = await supabase
+            .from('videos')
+            .select('id', { count: 'exact', head: true })
+            .eq('playlist_id', pl.id);
+          return { ...pl, videos_count, _newLevel: '' };
+        })
+      );
+    } else {
+      playlists = [];
+    }
+    playlistsLoading = false;
+  }
+
+  async function setPlaylistLevel(playlistId, level) {
+    if (!level) return;
+    await supabase.from('videos').update({ level }).eq('playlist_id', playlistId);
+    message = `✅ All videos for this playlist set to "${levels.find(l => l.value === level)?.label}"`;
+    // Refresh just the playlist row
+    if (showPlaylistsFor) togglePlaylistsFor(showPlaylistsFor);
+  }
+
+  refresh();
+</script>
+
+<style>
+.admin-main {
+  max-width: 1000px;
+  margin: 3.5rem auto 0 auto;
+  background: #fff;
+  border-radius: 11px;
+  border: 1px solid #ececec;
+  box-shadow: 0 2px 18px #ececec;
+  padding: 2.4rem 2vw 2.7rem 2vw;
+  font-family: Inter, Arial, sans-serif;
+}
+.row { display: flex; gap: 1em; margin-bottom: 1.4em; align-items: center; }
+input[type="text"] {
+  width: 370px;
+  padding: 0.73em 1em;
+  font-size: 1.09rem;
+  border: 1px solid #ececec;
+  border-radius: 7px;
+  background: #fafafa;
+  color: #181818;
+}
+button {
+  padding: 0.66em 1.6em;
+  font-size: 1.04rem;
+  background: #e93c2f;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  margin-right: 1em;
+  transition: background 0.18s;
+}
+button[disabled] { background: #e3e3e3; color: #aaa; cursor: default; }
+button:hover:not([disabled]) { background: #b8271b; }
+.admin-table {
+  width: 100%;
+  margin: 2.2em 0 0 0;
+  border-collapse: collapse;
+  background: #fff;
+  font-size: 1.04em;
+}
+.admin-table th, .admin-table td {
+  padding: 0.85em 0.8em;
+  border-bottom: 1px solid #f2f2f2;
+  text-align: left;
+}
+.admin-table th { color: #e93c2f; font-weight: 700;}
+.admin-table td {
+  vertical-align: middle;
+}
+.channel-thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-right: 1.1em;
+  border: 1.5px solid #eee;
+}
+.playlist-row {
+  background: #fafbfc;
+}
+@media (max-width: 700px) {
+  .admin-main { padding: 1.3em 0.3em;}
+  .admin-table th, .admin-table td { font-size: 0.97em; padding: 0.6em;}
+}
+</style>
+
+<div class="admin-main">
+  <h2 style="margin-bottom:1.7em;">CIBUBBLE Admin Tools</h2>
+
+  <div class="row">
+    <input type="text" placeholder="Paste YouTube channel link or @handle…" bind:value={url} />
+    <button on:click={importChannel} disabled={!url || importing}>{importing ? 'Importing…' : 'Import Channel'}</button>
+    <button on:click={refresh} disabled={refreshing}>↻ Refresh</button>
+    <button style="margin-left:auto;" on:click={clearDatabase} disabled={clearing}>Clear Database</button>
+  </div>
+  {#if message}
+    <div style="margin:1em 0 1.2em 0; color:{message.startsWith('✅') ? '#27ae60' : '#c0392b'}; font-weight:500;">{message}</div>
+  {/if}
+
+  {#if channels.length > 0}
+    <div style="display:flex; gap:2.5em; margin: 0 0 1.2em 0; font-size:1.08em; font-weight:600; color:#1a3e6e;">
+      <div>Channels: {channels.length}</div>
+      <div>
+        Playlists: {channels.reduce((a, c) => a + (c.playlists_count || 0), 0)}
+      </div>
+      <div>
+        Videos: {channels.reduce((a, c) => a + (c.videos_count || 0), 0)}
+      </div>
+      <div>
+        Total Running Time: {
+          Math.round(
+            channels.reduce(
+              (sum, c) => sum + (c.videos_count || 0) * (c.avg_length || 0),
+              0
+            ) / 360
+          ) / 10
+        } hours
+      </div>
+    </div>
+    <div style="margin:1.4em 0 0.7em 0; font-size:1.04em; color:#226;">
+      <div>Super Beginner: {Math.round(runningTimeByLevel.superbeginner/360)/10} hours</div>
+      <div>Beginner: {Math.round(runningTimeByLevel.beginner/360)/10} hours</div>
+      <div>Intermediate: {Math.round(runningTimeByLevel.intermediate/360)/10} hours</div>
+      <div>Advanced: {Math.round(runningTimeByLevel.advanced/360)/10} hours</div>
+      <div>Not Yet Rated: {Math.round(runningTimeByLevel.notyet/360)/10} hours</div>
+    </div>
+  {/if}
+
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th>Channel</th>
+        <th>Playlists</th>
+        <th>Videos</th>
+        <th style="width:260px;"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {#each channels as chan}
+        <tr>
+          <td>
+            <img class="channel-thumb" src={chan.thumbnail} alt={chan.name} />
+            <span style="font-weight:600;">{chan.name}</span>
+          </td>
+          <td>
+            <a style="color:#2e9be6;cursor:pointer;font-weight:600;text-decoration:underline;"
+              on:click={() => togglePlaylistsFor(chan.id)}>
+              {chan.playlists_count}
+              {showPlaylistsFor === chan.id ? '▲' : '▼'}
+            </a>
+          </td>
+          <td>{chan.videos_count}</td>
+          <td>
+            <select bind:value={chan._newLevel}>
+              {#each levels as lvl}
+                <option value={lvl.value}>{lvl.label}</option>
+              {/each}
+            </select>
+            <button on:click={() => setChannelLevel(chan.id, chan._newLevel)} disabled={!chan._newLevel}>Set Level</button>
+            <button style="background:#bbb;" on:click={() => deleteChannel(chan.id)} disabled={!!deleting[chan.id]}>Delete</button>
+          </td>
+        </tr>
+        {#if showPlaylistsFor === chan.id}
+          <tr class="playlist-row">
+            <td colspan="4" style="padding-left:3em;">
+              {#if playlistsLoading}
+                Loading playlists…
+              {:else if playlists.length === 0}
+                No playlists.
+              {:else}
+                <table style="width:90%;margin:0.8em 0;font-size:0.99em;">
+                  <thead>
+                    <tr>
+                      <th>Playlist</th>
+                      <th>Videos</th>
+                      <th>Set Level</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {#each playlists as pl}
+                      <tr>
+                        <td>{pl.title}</td>
+                        <td>{pl.videos_count}</td>
+                        <td>
+                          <select bind:value={pl._newLevel}>
+                            {#each levels as lvl}
+                              <option value={lvl.value}>{lvl.label}</option>
+                            {/each}
+                          </select>
+                          <button on:click={() => setPlaylistLevel(pl.id, pl._newLevel)} disabled={!pl._newLevel}>Set Level</button>
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              {/if}
+            </td>
+          </tr>
+        {/if}
+      {/each}
+      {#if channels.length === 0}
+        <tr>
+          <td colspan="4" style="text-align:center;color:#999;">No channels found.</td>
+        </tr>
+      {/if}
+    </tbody>
+  </table>
+</div>
+<script>
+  import { supabase } from '$lib/supabaseClient';
+  import { page } from '$app/stores';
+  import { onMount } from 'svelte';
+
+  let videos = [];
+  let playlists = [];
+  let playlistThumbs = {};
+  let playlistLevels = {};
+  let channel = null;
+  let loading = true;
+  let activeTab = 'videos';
+
+  $: id = $page.params.id;
+
+  function difficultyLabel(level) {
+    switch (level) {
+      case 'superbeginner': return 'Super Beginner';
+      case 'beginner': return 'Beginner';
+      case 'intermediate': return 'Intermediate';
+      case 'advanced': return 'Advanced';
+      default: return 'Not Yet Rated';
+    }
+  }
+  function difficultyColor(level) {
+    switch (level) {
+      case 'superbeginner': return '#44c366';
+      case 'beginner': return '#2e9be6';
+      case 'intermediate': return '#f9c846';
+      case 'advanced': return '#e93c2f';
+      default: return '#bbb';
+    }
+  }
+  function getBestThumbnail(video) {
+    if (video?.thumbnail) return video.thumbnail;
+    if (video?.id) return `https://img.youtube.com/vi/${video.id}/hqdefault.jpg`;
+    return '/images/no_thumb_nail.png';
+  }
+
+  // Fetch thumbnail and level for each playlist (from its first video)
+  async function fetchPlaylistExtras(pls) {
+    const thumbs = {};
+    const levels = {};
+    for (const pl of pls) {
+      const { data: vids } = await supabase
+        .from('videos')
+        .select('id, thumbnail, level')
+        .eq('playlist_id', pl.id)
+        .order('playlist_position', { ascending: true })
+        .limit(1);
+      if (vids && vids.length > 0) {
+        thumbs[pl.id] = getBestThumbnail(vids[0]);
+        levels[pl.id] = vids[0].level;
+      } else {
+        thumbs[pl.id] = '/images/no_thumb_nail.png';
+        levels[pl.id] = 'notyet';
+      }
+    }
+    playlistThumbs = thumbs;
+    playlistLevels = levels;
+  }
+
+  onMount(async () => {
+    loading = true;
+
+    // Get channel info
+    const { data: ch } = await supabase.from('channels').select('*').eq('id', id).maybeSingle();
+    channel = ch;
+
+    // Get videos for this channel (filter deleted/private) - limit to 30
+    const { data: vids } = await supabase
+      .from('videos')
+      .select('*, playlist:playlist_id(title)')
+      .eq('channel_id', id)
+      .order('created', { ascending: false })
+      .limit(30);
+    videos = (vids || []).filter(
+      v => v.title !== 'Private video' && v.title !== 'Deleted video' && v.title && v.title !== null
+    );
+
+    // Get playlists for this channel
+    const { data: pls } = await supabase
+      .from('playlists')
+      .select('id, title')
+      .eq('channel_id', id)
+      .order('title', { ascending: true });
+    playlists = pls || [];
+
+    // Get thumbs and levels for all playlists (in parallel)
+    await fetchPlaylistExtras(playlists);
+
+    loading = false;
+  });
+</script>
+
+<style>
+/* (styles as before, no change needed) */
+.page-container {
+  max-width: 1920px;
+  margin: 0 auto;
+  padding: 2rem 2vw 2.5rem 2vw;
+  font-family: Inter, Arial, sans-serif;
+}
+.channel-bar {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  box-shadow: 0 2px 8px #f0f0f0;
+  font-size: 1.12rem;
+  border: 1px solid #efefef;
+  border-radius: 7px;
+  padding: 0.33em 1.8em 0.33em 1em;
+  margin-bottom: 1.8rem;
+  gap: 1.2em;
+}
+.channel-info {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  min-width: 0;
+}
+.channel-avatar {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 22%;
+  background: #f4f4f4;
+  border: 1.3px solid #ececec;
+}
+.channel-bar-details {
+  min-width: 0;
+}
+.channel-bar-name {
+  font-size: 1.13rem;
+  font-weight: 600;
+  color: #191919;
+  line-height: 1.13;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 0.15em;
+}
+.channel-bar-desc {
+  color: #888;
+  font-size: 1em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  line-height: 1.05;
+}
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.1em;
+  margin-left: 1.2em;
+}
+.tab-btn {
+  font-size: 1.09rem;
+  font-weight: 600;
+  color: #888;
+  background: none;
+  border: none;
+  border-bottom: 2.5px solid transparent;
+  padding: 0.35em 1.15em 0.28em 1.15em;
+  margin: 0;
+  cursor: pointer;
+  transition: color 0.13s, border-bottom 0.13s, background 0.13s;
+  border-radius: 0;
+}
+.tab-btn.active {
+  color: #2562e9;
+  border-bottom: 2.5px solid #2562e9;
+  background: #f7fbff;
+}
+.tab-btn:focus {
+  outline: 2px solid #2562e9;
+}
+.section-title {
+  margin: 2.2em 0 1em 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #222;
+  letter-spacing: 0.01em;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1.3rem;
+  margin: 2rem 0;
+}
+.card {
+  background: #fff;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px #e8e8e8;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #ededed;
+}
+.thumb-wrapper {
+  position: relative;
+}
+.thumb {
+  width: 100%;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  background: #eee;
+  min-height: 112px;
+  display: block;
+}
+.card-body {
+  padding: 1rem 1rem 0.7rem 1rem;
+  color: #222;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin-bottom: 0.2em;
+}
+.card-title {
+  font-size: 1.08rem;
+  font-weight: 600;
+  min-height: 2.2em;
+  max-height: 2.3em;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  flex: 1;
+}
+.length-inline {
+  color: #fff;
+  background: #333;
+  font-size: 0.87em;
+  padding: 0.12em 0.7em;
+  border-radius: 9px;
+  margin-left: 0.2em;
+  font-weight: 500;
+  opacity: 0.92;
+}
+.card-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  margin-top: 0.6em;
+  font-size: 1em;
+}
+.badge {
+  display: inline-block;
+  font-size: 0.89em;
+  font-weight: 600;
+  padding: 0.18em 0.7em;
+  border-radius: 4px;
+  margin-right: 0.5em;
+  color: #fff;
+  background: #bbb;
+  letter-spacing: 0.01em;
+  border: 1.5px solid transparent;
+  text-shadow: 0 1px 4px #0001;
+  white-space: nowrap;
+}
+.meta-link {
+  color: #252525;
+  font-size: 0.97em;
+  text-decoration: none;
+  background: #f6f6f6;
+  border-radius: 3px;
+  padding: 0.12em 0.55em;
+  margin-right: 0.18em;
+  font-weight: 500;
+  transition: background 0.13s, color 0.13s;
+}
+.meta-link:hover {
+  background: #e4e4e4;
+  color: #e93c2f;
+}
+</style>
+
+<div class="page-container">
+  <div class="channel-bar">
+    <div class="channel-info">
+      <img class="channel-avatar"
+        src={channel?.thumbnail || '/images/no_thumb_nail.png'}
+        alt="Channel avatar"
+        loading="lazy"
+        on:error={e => e.target.src = '/images/no_thumb_nail.png'}
+      />
+      <div class="channel-bar-details">
+        <div class="channel-bar-name">{channel?.name || id}</div>
+        {#if channel?.description}
+          <div class="channel-bar-desc">{channel.description}</div>
+        {/if}
+      </div>
+    </div>
+    <div class="tabs">
+      <button
+        class="tab-btn {activeTab === 'videos' ? 'active' : ''}"
+        on:click={() => activeTab = 'videos'}>
+        Videos
+      </button>
+      <button
+        class="tab-btn {activeTab === 'playlists' ? 'active' : ''}"
+        on:click={() => activeTab = 'playlists'}>
+        Playlists
+      </button>
+    </div>
+  </div>
+
+  {#if activeTab === 'videos'}
+    <div class="section-title">Videos</div>
+    {#if loading}
+      <p>Loading…</p>
+    {:else if videos.length === 0}
+      <p>No videos for this channel.</p>
+    {:else}
+      <div class="grid">
+        {#each videos as video}
+          <div class="card">
+            <a href={`/video/${video.id}`}>
+              <span class="thumb-wrapper">
+                <img
+                  class="thumb"
+                  src={getBestThumbnail(video)}
+                  alt={video.title}
+                  loading="lazy"
+                  on:error={e => e.target.src = '/images/no_thumb_nail.png'}
+                />
+              </span>
+            </a>
+            <div class="card-body">
+              <div class="card-title-row">
+                <span class="card-title">{video.title}</span>
+                {#if video.length}
+                  <span class="length-inline">{video.length}</span>
+                {/if}
+              </div>
+              <div class="card-meta">
+                <span class="badge" style="background:{difficultyColor(video.level)};">
+                  {difficultyLabel(video.level)}
+                </span>
+                {#if video.playlist_id}
+                  <a class="meta-link" href={`/playlist/${video.playlist_id}`}>
+                    {video.playlist?.title ?? ""}
+                  </a>
+                {/if}
+              </div>
+            </div>
+          </div>
+        {/each}
+      </div>
+    {/if}
+  {:else if activeTab === 'playlists'}
+    <div class="section-title">Playlists</div>
+    {#if loading}
+      <p>Loading…</p>
+    {:else if playlists.length === 0}
+      <p style="color:#888;">No playlists for this channel.</p>
+    {:else}
+      <div class="grid">
+        {#each playlists as pl}
+          <div class="card">
+            <a href={`/playlist/${pl.id}`}>
+              <span class="thumb-wrapper">
+                <img
+                  class="thumb"
+                  src={playlistThumbs[pl.id] || '/images/no_thumb_nail.png'}
+                  alt={pl.title}
+                  loading="lazy"
+                  on:error={e => e.target.src = '/images/no_thumb_nail.png'}
+                />
+              </span>
+            </a>
+            <div class="card-body">
+              <div class="card-title-row">
+                <span class="card-title">{pl.title}</span>
+              </div>
+              <div class="card-meta">
+                <span class="badge" style="background:{difficultyColor(playlistLevels[pl.id])};">
+                  {difficultyLabel(playlistLevels[pl.id])}
+                </span>
+              </div>
+            </div>
+          </div>
+        {/each}
+      </div>
+    {/if}
+  {/if}
+</div>
+<script>
+  import NavBar from '$lib/NavBar.svelte';
+</script>
+<NavBar />
+<slot />
+<script>
+  import { supabase } from '$lib/supabaseClient';
+  import { goto } from '$app/navigation';
+
+  let email = '';
+  let password = '';
+  let message = '';
+
+  async function login() {
+    message = '';
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+    if (error) {
+      message = error.message;
+    } else {
+      message = 'Login successful! Redirecting…';
+      setTimeout(() => goto('/profile'), 1200);
+    }
+  }
+</script>
+
+<style>
+.auth-container {
+  max-width: 430px;
+  margin: 3rem auto;
+  background: #fff;
+  border-radius: 13px;
+  border: 1px solid #ececec;
+  box-shadow: 0 2px 12px #ececec;
+  padding: 2.1rem 2rem 1.4rem 2rem;
+  text-align: center;
+}
+input[type="email"],
+input[type="password"] {
+  width: 100%;
+  padding: 0.8em 1em;
+  margin-bottom: 1em;
+  border: 1px solid #ececec;
+  border-radius: 8px;
+  background: #fafafa;
+  font-size: 1.06rem;
+  color: #181818;
+}
+button {
+  width: 100%;
+  padding: 0.7em 0;
+  font-size: 1.09rem;
+  font-weight: 600;
+  background: #e93c2f;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  margin-top: 0.3em;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+button:hover { background: #b8271b; }
+.message {
+  margin-top: 1em;
+  color: #0b9203;
+  font-size: 1.04rem;
+  min-height: 1.5em;
+}
+</style>
+
+<div class="auth-container">
+  <h2>Log In</h2>
+  <input type="email" bind:value={email} placeholder="Email" autocomplete="email" />
+  <input type="password" bind:value={password} placeholder="Password" autocomplete="current-password" />
+  <button on:click={login}>Log In</button>
+  <div class="message">{message}</div>
+  <div style="margin-top:1em; color:#888;">
+    Don't have an account?
+    <a href="/signup" style="color:#e93c2f;">Sign Up</a>
+  </div>
+</div>
+ <script>
+	import { supabase } from '$lib/supabaseClient';
+	import { onMount } from 'svelte';
+
+	// --- CONFIG ---
+	const levels = [
+		{ value: 'superbeginner', label: 'Super Beginner', color: '#44c366' },
+		{ value: 'beginner', label: 'Beginner', color: '#2e9be6' },
+		{ value: 'intermediate', label: 'Intermediate', color: '#f9c846' },
+		{ value: 'advanced', label: 'Advanced', color: '#e93c2f' }
+	];
+	const sortChoices = [
+		{ value: 'random', label: 'Random' },
+		{ value: 'easy', label: 'Easy' },
+		{ value: 'hard', label: 'Hard' },
+		{ value: 'long', label: 'Long' },
+		{ value: 'short', label: 'Short' },
+		{ value: 'new', label: 'New' },
+		{ value: 'old', label: 'Old' }
+	];
+
+	// --- STATE ---
+	let allVideos = [];
+	let videos = [];
+	let loading = false;
+	let errorMsg = '';
+	const pageSize = 30;
+	let allLoaded = false;
+	let selectedLevels = new Set(levels.map((l) => l.value));
+	let showLevelDropdown = false;
+	let showSortDropdown = false;
+	let sortBy = 'random';
+	let hideWatched = false;
+	let watchedIds = new Set();
+
+  
+
+	// SEARCH STATE
+	let searchOpen = false;
+	let searchTerm = '';
+
+	// --- UTILS ---
+	function difficultyLabel(level) {
+		const found = levels.find((l) => l.value === level);
+		return found ? found.label : 'Not Yet Rated';
+	}
+	function difficultyColor(level) {
+		return levels.find((l) => l.value === level)?.color ?? '#bbb';
+	}
+	function formatLength(sec) {
+		if (!sec || isNaN(sec)) return '';
+		const h = Math.floor(sec / 3600);
+		const m = Math.floor((sec % 3600) / 60);
+		const s = sec % 60;
+		return h > 0
+			? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+			: `${m}:${String(s).padStart(2, '0')}`;
+	}
+	function getBestThumbnail(video) {
+		if (video.thumbnail) return video.thumbnail;
+		if (video.id) return `https://img.youtube.com/vi/${video.id}/hqdefault.jpg`;
+		return '/images/no_thumb_nail.png';
+	}
+	function levelOrder(level) {
+		return ['superbeginner', 'beginner', 'intermediate', 'advanced'].indexOf(level);
+	}
+	function shuffleArray(array) {
+		let arr = [...array];
+		for (let i = arr.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[arr[i], arr[j]] = [arr[j], arr[i]];
+		}
+		return arr;
+	}
+
+	// --- SEARCH ---
+	function toggleSearch() {
+		searchOpen = !searchOpen;
+		if (!searchOpen) {
+			searchTerm = '';
+			updateGrid();
+		}
+	}
+	function handleSearchInput(event) {
+		searchTerm = event.target.value;
+		updateGrid();
+	}
+
+	// --- FILTER/SORT LOGIC ---
+	function filterAndSort(input) {
+		let filtered = input.filter(
+			(v) =>
+				v.title !== 'Private video' &&
+				v.title !== 'Deleted video' &&
+				v.title &&
+				v.title !== null &&
+				selectedLevels.has(v.level)
+		);
+		if (hideWatched) {
+			filtered = filtered.filter((v) => !watchedIds.has(String(v.id)));
+		}
+		// SEARCH FILTER
+		if (searchTerm && searchTerm.trim() !== '') {
+			const s = searchTerm.trim().toLowerCase();
+			filtered = filtered.filter(
+				(v) =>
+					(v.title && v.title.toLowerCase().includes(s)) ||
+					(v.channel?.name && v.channel.name.toLowerCase().includes(s)) ||
+					(v.channel_name && v.channel_name.toLowerCase().includes(s))
+			);
+		}
+		if (sortBy === 'random') {
+			return shuffleArray(filtered);
+		} else if (sortBy === 'easy') {
+			return filtered.sort((a, b) => levelOrder(a.level) - levelOrder(b.level));
+		} else if (sortBy === 'hard') {
+			return filtered.sort((a, b) => levelOrder(b.level) - levelOrder(a.level));
+		} else if (sortBy === 'long') {
+			return filtered.sort((a, b) => (b.length || 0) - (a.length || 0));
+		} else if (sortBy === 'short') {
+			return filtered.sort((a, b) => (a.length || 0) - (b.length || 0));
+		} else if (sortBy === 'new') {
+			return filtered.sort((a, b) => new Date(b.published) - new Date(a.published));
+		} else if (sortBy === 'old') {
+			return filtered.sort((a, b) => new Date(a.published) - new Date(b.published));
+		}
+		return filtered;
+	}
+
+	// --- DATA LOAD ---
+	async function loadWatchedIds() {
+		const {
+			data: { session }
+		} = await supabase.auth.getSession();
+		if (session?.user) {
+			const { data } = await supabase
+				.from('watch_sessions')
+				.select('video_id')
+				.eq('user_id', session.user.id);
+			watchedIds = new Set((data ?? []).map((x) => String(x.video_id)));
+		} else {
+			watchedIds = new Set();
+		}
+	}
+
+	async function loadVideos({ reset = false } = {}) {
+		if (loading || allLoaded) return;
+		loading = true;
+		errorMsg = '';
+		if (reset) {
+			const { data, error } = await supabase
+				.from('videos')
+				.select('*, playlist:playlist_id(title), channel:channel_id(name)')
+				.limit(2000);
+			if (error) errorMsg = error.message;
+			else if (data && data.length > 0) {
+				allVideos = data;
+				updateGrid();
+			} else {
+				videos = [];
+				allLoaded = true;
+			}
+			loading = false;
+			return;
+		}
+		// Lazy load (append next page)
+		const alreadyShown = new Set(videos.map((v) => v.id));
+		const unseen = filterAndSort(allVideos).filter((v) => !alreadyShown.has(v.id));
+		if (unseen.length === 0) {
+			allLoaded = true;
+			loading = false;
+			return;
+		}
+		const nextBatch = unseen.slice(0, pageSize);
+		videos = [...videos, ...nextBatch];
+		if (videos.length >= filterAndSort(allVideos).length) allLoaded = true;
+		loading = false;
+	}
+
+	function updateGrid() {
+		videos = filterAndSort(allVideos).slice(0, pageSize);
+		allLoaded = videos.length >= filterAndSort(allVideos).length;
+	}
+
+	function handleScroll() {
+		if (allLoaded || loading) return;
+		const scrollPosition = window.innerHeight + window.scrollY;
+		const docHeight = document.body.offsetHeight;
+		if (docHeight - scrollPosition < 500) {
+			loadVideos();
+		}
+	}
+
+	// --- CONTROLS HANDLERS ---
+	function toggleLevel(level) {
+		if (selectedLevels.has(level)) {
+			selectedLevels.delete(level);
+		} else {
+			selectedLevels.add(level);
+		}
+		updateGrid();
+	}
+	function allLevelsSelected() {
+		return selectedLevels.size === levels.length;
+	}
+	function toggleAllLevels() {
+		if (allLevelsSelected()) {
+			selectedLevels = new Set();
+		} else {
+			selectedLevels = new Set(levels.map((l) => l.value));
+		}
+		updateGrid();
+	}
+	function handleSortSelect(value) {
+		sortBy = value;
+		showSortDropdown = false;
+		updateGrid();
+	}
+	function handleLevelDropdownToggle() {
+		showLevelDropdown = !showLevelDropdown;
+	}
+	function handleSortDropdownToggle() {
+		showSortDropdown = !showSortDropdown;
+	}
+
+	// Dropdown close on outside click
+	function handleClickOutside(node, cb) {
+		const onClick = (e) => {
+			if (!node.contains(e.target)) cb();
+		};
+		document.addEventListener('mousedown', onClick);
+		return { destroy: () => document.removeEventListener('mousedown', onClick) };
+	}
+
+	onMount(async () => {
+		await loadWatchedIds();
+		await loadVideos({ reset: true });
+		updateGrid();
+		window.addEventListener('scroll', handleScroll);
+		return () => window.removeEventListener('scroll', handleScroll);
+	});
+</script>
+
+<div class="page-container">
+	<!-- Controls Bar -->
+	<div class="controls-bar">
+		<div class="controls-left">
+			<!-- Sort By Dropdown -->
+			<div class="dropdown" use:handleClickOutside={() => (showSortDropdown = false)}>
+				<button
+					class="dropdown-btn"
+					aria-expanded={showSortDropdown}
+					on:click={handleSortDropdownToggle}
+					type="button"
+				>
+					Sort by
+					<svg width="12" height="9" style="margin-left:7px;" fill="none">
+						<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+					</svg>
+				</button>
+				{#if showSortDropdown}
+					<div class="dropdown-content">
+						{#each sortChoices as opt}
+							<div
+								style="padding:0.32em 0.2em;cursor:pointer;"
+								on:click={() => handleSortSelect(opt.value)}
+							>
+								{opt.label}
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
+			<!-- Levels Dropdown -->
+			<div class="dropdown" use:handleClickOutside={() => (showLevelDropdown = false)}>
+				<button
+					class="dropdown-btn"
+					aria-expanded={showLevelDropdown}
+					on:click={handleLevelDropdownToggle}
+					type="button"
+				>
+					Levels
+					<svg width="12" height="9" style="margin-left:7px;" fill="none">
+						<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+					</svg>
+				</button>
+				{#if showLevelDropdown}
+					<div class="dropdown-content">
+						<div style="margin-bottom:0.5em;font-size:1em;font-weight:600;">Include</div>
+						<div class="levels-list">
+							{#each levels as lvl}
+								<label class="level-checkbox">
+									<input
+										type="checkbox"
+										checked={selectedLevels.has(lvl.value)}
+										on:change={() => toggleLevel(lvl.value)}
+									/>
+									<span>{lvl.label}</span>
+								</label>
+							{/each}
+						</div>
+						<div style="margin-top:0.4em;">
+							<button
+								style="font-size:0.97em;color:#176cda;background:none;border:none;cursor:pointer;"
+								on:click={toggleAllLevels}
+							>
+								{allLevelsSelected() ? 'Clear all' : 'Select all'}
+							</button>
+						</div>
+					</div>
+				{/if}
+			</div>
+		</div>
+
+		<!-- Controls Right: Hide Watched FIRST, then Search -->
+		<div class="controls-right" style="display:flex;align-items:center;gap:1.1em;">
+			<!-- Hide Watched Switch -->
+			<div class="switch-bar">
+				<label class="switch-label">
+					<input type="checkbox" bind:checked={hideWatched} on:change={updateGrid} />
+					<span class="switch-slider"></span>
+					Hide watched
+				</label>
+			</div>
+			<!-- Search Toggle & Field -->
+			<div class="search-bar-container" style="display:flex;align-items:center;gap:0.7em;">
+				<button
+					class="search-toggle"
+					title="Search"
+					on:click={toggleSearch}
+					aria-label="Search"
+					style="background:none;border:none;cursor:pointer;display:flex;align-items:center;padding:0.3em;"
+				>
+					<svg width="22" height="22" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="10" cy="10" r="7"></circle>
+						<line x1="16" y1="16" x2="21" y2="21"></line>
+					</svg>
+				</button>
+				{#if searchOpen}
+					<input
+						type="text"
+						class="search-input"
+						placeholder="Search videos…"
+						bind:value={searchTerm}
+						on:input={handleSearchInput}
+						style="padding:0.4em 1em;font-size:1em;border:1.2px solid #ececec;border-radius:10px;min-width:180px;transition:width 0.2s;"
+						autofocus
+					/>
+				{/if}
+			</div>
+		</div>
+	</div>
+
+	<!-- Videos Grid -->
+	<div class="grid">
+		{#each videos as video}
+			<div class="card">
+				<a href={`/video/${video.id}`}>
+					<span class="thumb-wrapper">
+						<img
+							class="thumb"
+							src={getBestThumbnail(video)}
+							alt={video.title}
+							loading="lazy"
+							on:error={(e) => (e.target.src = '/images/no_thumb_nail.png')}
+						/>
+					</span>
+				</a>
+				<div class="card-body">
+					<div class="card-title-row">
+						<span class="card-title">{video.title}</span>
+						{#if video.length}
+							<span class="length-inline">{formatLength(video.length)}</span>
+						{/if}
+					</div>
+					<div class="card-meta">
+						<span class="badge" style="background:{difficultyColor(video.level)};">
+							{difficultyLabel(video.level)}
+						</span>
+						<a class="meta-link" href={`/channel/${video.channel_id}`}>
+							{video.channel?.name ?? video.channel_name ?? 'Unknown Channel'}
+						</a>
+						{#if video.playlist_id}
+							<a class="meta-link" href={`/playlist/${video.playlist_id}`}>
+								{video.playlist?.title ?? ''}
+							</a>
+						{/if}
+					</div>
+				</div>
+			</div>
+		{/each}
+	</div>
+
+	{#if loading}
+		<p style="text-align:center;margin:2em 0;">Loading…</p>
+	{:else if allLoaded && videos.length > 0}
+		<p style="text-align:center;color:#888;">No more videos to load.</p>
+	{:else if videos.length === 0}
+		<p style="text-align:center;margin:2em 0;">No videos found.</p>
+	{/if}
+</div>
+
+
+
+<style>
+	.page-container {
+		max-width: 1920px;
+		margin: 0 auto;
+		padding: 2rem 2vw 2.5rem 2vw;
+		font-family: Inter, Arial, sans-serif;
+	}
+	.controls-bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1.2em;
+		max-width: 1380px;
+		margin: 0 0 1.5em 0;
+		margin-left: auto;
+		margin-right: auto;
+		background: #f7f7fb;
+		padding: 0.7em 1.5em 0.7em 1.2em;
+		border-radius: 18px;
+		border: 1.7px solid #ececec;
+		box-shadow: 0 2px 16px #ececec60;
+	}
+	.controls-left {
+		display: flex;
+		align-items: center;
+		gap: 1.2em;
+	}
+	.controls-right {
+		margin-left: auto;
+		display: flex;
+		align-items: center;
+	}
+	@media (max-width: 900px) {
+		.controls-bar {
+			flex-direction: column;
+			align-items: stretch;
+			padding: 0.7em 0.8em;
+		}
+		.controls-left,
+		.controls-right {
+			margin-left: 0;
+			justify-content: flex-start;
+		}
+		.controls-right {
+			justify-content: flex-end;
+			margin-top: 0.7em;
+		}
+	}
+	.dropdown {
+		position: relative;
+		min-width: 120px;
+	}
+	.dropdown-btn {
+		padding: 0.42em 1.1em;
+		font-size: 1.05em;
+		border-radius: 12px;
+		border: 1.2px solid #ececec;
+		background: #f9f9f9;
+		color: #1d1d1d;
+		font-weight: 600;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		gap: 0.5em;
+		min-width: 110px;
+		transition:
+			border 0.11s,
+			background 0.11s;
+	}
+	.dropdown-btn[aria-expanded='true'] {
+		background: #f1f5fb;
+		border: 1.2px solid #bbb;
+	}
+	.dropdown-content {
+		position: absolute;
+		z-index: 10;
+		background: #fff;
+		border: 1.3px solid #e8e8e8;
+		border-radius: 8px;
+		box-shadow: 0 2px 18px #eee;
+		min-width: 180px;
+		padding: 0.8em 0.6em;
+		top: 110%;
+		left: 0;
+		font-size: 1em;
+	}
+	.levels-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.6em;
+		margin: 0.3em 0 0.4em 0;
+	}
+	.level-checkbox {
+		display: flex;
+		align-items: center;
+		gap: 0.6em;
+		font-size: 1.03em;
+	}
+	.switch-bar {
+		display: flex;
+		align-items: center;
+	}
+	.switch-label {
+		display: flex;
+		align-items: center;
+		cursor: pointer;
+		font-size: 1em;
+		font-weight: 500;
+		color: #1d1d1d;
+		gap: 0.4em;
+		background: #f9f9f9;
+		border-radius: 8px;
+		padding: 0.33em 0.7em 0.33em 0.33em;
+		border: 1px solid #ececec;
+		user-select: none;
+	}
+	.switch-label input {
+		display: none;
+	}
+	.switch-slider {
+		width: 34px;
+		height: 20px;
+		background: #e8e8e8;
+		border-radius: 12px;
+		position: relative;
+		transition: background 0.13s;
+		margin-right: 0.35em;
+	}
+	.switch-label input:checked + .switch-slider {
+		background: #26890d;
+	}
+	.switch-slider::before {
+		content: '';
+		position: absolute;
+		width: 15px;
+		height: 15px;
+		left: 2.2px;
+		top: 2.2px;
+		background: #fff;
+		border-radius: 50%;
+		transition: transform 0.13s;
+	}
+	.switch-label input:checked + .switch-slider::before {
+		transform: translateX(14px);
+	}
+	.grid {
+		display: grid;
+		grid-template-columns: repeat(5, 1fr);
+		gap: 1.3rem;
+		margin: 2rem 0;
+	}
+	.card {
+		background: #fff;
+		border-radius: 6px;
+		overflow: hidden;
+		box-shadow: 0 2px 12px #e8e8e8;
+		display: flex;
+		flex-direction: column;
+		border: 1px solid #ededed;
+	}
+	.thumb-wrapper {
+		position: relative;
+	}
+	.thumb {
+		width: 100%;
+		aspect-ratio: 16/9;
+		object-fit: cover;
+		background: #eee;
+		min-height: 112px;
+		display: block;
+	}
+	.card-body {
+		padding: 1rem 1rem 0.7rem 1rem;
+		color: #222;
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+	}
+	.card-title-row {
+		display: flex;
+		align-items: center;
+		gap: 0.6em;
+		margin-bottom: 0.2em;
+	}
+	.card-title {
+		font-size: 1.08rem;
+		font-weight: 600;
+		min-height: 2.2em;
+		max-height: 2.3em;
+		overflow: hidden;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		flex: 1;
+	}
+	.length-inline {
+		color: #fff;
+		background: #333;
+		font-size: 0.87em;
+		padding: 0.12em 0.7em;
+		border-radius: 9px;
+		margin-left: 0.2em;
+		font-weight: 500;
+		opacity: 0.92;
+	}
+	.card-meta {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.5em;
+		margin-top: 0.6em;
+		font-size: 1em;
+	}
+	.badge {
+		display: inline-block;
+		font-size: 0.89em;
+		font-weight: 600;
+		padding: 0.18em 0.7em;
+		border-radius: 4px;
+		margin-right: 0.5em;
+		color: #fff;
+		background: #bbb;
+		letter-spacing: 0.01em;
+		border: 1.5px solid transparent;
+		text-shadow: 0 1px 4px #0001;
+		white-space: nowrap;
+	}
+	.meta-link {
+		color: #252525;
+		font-size: 0.97em;
+		text-decoration: none;
+		background: #f6f6f6;
+		border-radius: 3px;
+		padding: 0.12em 0.55em;
+		margin-right: 0.18em;
+		font-weight: 500;
+		transition:
+			background 0.13s,
+			color 0.13s;
+	}
+	.meta-link:hover {
+		background: #e4e4e4;
+		color: #e93c2f;
+	}
+  .search-bar-container {
+	position: relative;
+}
+.search-toggle svg {
+	transition: stroke 0.15s;
+}
+.search-toggle:hover svg {
+	stroke: #2e9be6;
+}
+.search-input {
+	transition: width 0.2s;
+	width: 180px;
+	max-width: 50vw;
+	margin-left: 0.4em;
+}
+@media (max-width: 600px) {
+	.search-input {
+		width: 110px;
+		font-size: 0.96em;
+	}
+}
+	@media (max-width: 1200px) {
+		.grid {
+			grid-template-columns: repeat(3, 1fr);
+		}
+	}
+	@media (max-width: 900px) {
+		.controls-bar {
+			flex-direction: column;
+			align-items: stretch;
+			padding: 0.7em 0.8em;
+		}
+		.controls-left,
+		.controls-right {
+			margin-left: 0;
+			justify-content: flex-start;
+		}
+		.controls-right {
+			justify-content: flex-end;
+			margin-top: 0.7em;
+		}
+	}
+	@media (max-width: 800px) {
+		.grid {
+			grid-template-columns: repeat(1, 1fr);
+		}
+	}
+</style>
+<script>
+  import { supabase } from '$lib/supabaseClient';
+  import { page } from '$app/stores';
+  import { onMount } from 'svelte';
+
+  let videos = [];
+  let playlist = null;
+  let loading = true;
+  let currentIndex = 0;
+
+  $: id = $page.params.id;
+  $: currentVideo = videos[currentIndex];
+
+  function getBestThumbnail(video) {
+    if (video?.thumbnail) return video.thumbnail;
+    if (video?.id) return `https://img.youtube.com/vi/${video.id}/hqdefault.jpg`;
+    return '/images/no_thumb_nail.png';
+  }
+
+  onMount(async () => {
+    loading = true;
+    // Get playlist info
+    const { data: pl } = await supabase.from('playlists').select('*').eq('id', id).maybeSingle();
+    playlist = pl;
+    // Get videos for this playlist, order by playlist_position ASC (not by created!)
+    const { data } = await supabase
+      .from('videos')
+      .select('*, channel:channel_id(name)')
+      .eq('playlist_id', id)
+      .order('playlist_position', { ascending: true });
+    videos = (data || []).filter(v => v.title !== 'Private video' && v.title !== 'Deleted video' && v.title);
+    loading = false;
+  });
+
+  // Handler for clicking on a sidebar video
+  function playVideo(idx) {
+    currentIndex = idx;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+</script>
+
+<style>
+.page-container {
+  max-width: 1920px;
+  margin: 0 auto;
+  padding: 2rem 2vw 2.5rem 2vw;
+  font-family: Inter, Arial, sans-serif;
+}
+.player-layout {
+  display: flex;
+  gap: 2.2rem;
+  align-items: flex-start;
+  margin-top: 1.5em;
+}
+.player-main {
+  flex: 4;
+  min-width: 0;
+}
+.player-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 0.45em;
+}
+.player-yt {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: #eee;
+  border-radius: 10px;
+  border: 1.5px solid #eee;
+  margin-bottom: 0.7em;
+}
+.player-meta {
+  margin: 0.8em 0 0.3em 0;
+  color: #777;
+  font-size: 1.03em;
+  display: flex;
+  gap: 1.1em;
+  align-items: center;
+}
+.sidebar {
+  flex: 1.6;
+  min-width: 280px;
+  max-width: 350px;
+  background: #fafafd;
+  border-radius: 9px;
+  border: 1.2px solid #f0f0f0;
+  padding: 0.8em 0.7em 0.8em 0.7em;
+  box-shadow: 0 2px 14px #f1f1f1;
+  overflow-y: auto;
+  max-height: 72vh;
+}
+.sidebar-title {
+  font-weight: 600;
+  font-size: 1.09em;
+  color: #355;
+  margin-bottom: 0.6em;
+  margin-left: 0.18em;
+}
+.sidebar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  padding: 0.38em 0.15em;
+  border-radius: 7px;
+  margin-bottom: 0.12em;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.sidebar-item.active,
+.sidebar-item:hover {
+  background: #e8f0ff;
+}
+.sidebar-thumb {
+  width: 54px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #eee;
+  border: 1px solid #eaeaea;
+  flex-shrink: 0;
+}
+.sidebar-title-txt {
+  font-size: 1.01em;
+  color: #222;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+@media (max-width: 1024px) {
+  .player-layout { flex-direction: column; gap: 1.5rem; }
+  .sidebar { max-width: 100%; width: 100%; min-width: 0; }
+}
+</style>
+
+<div class="page-container">
+  <h2 style="margin:2.2em 0 1em 0;">Playlist: {playlist?.title || id}</h2>
+
+  {#if loading}
+    <p>Loading…</p>
+  {:else if videos.length === 0}
+    <p>No videos for this playlist.</p>
+  {:else}
+    <div class="player-layout">
+      <div class="player-main">
+        <div class="player-title">{currentVideo?.title}</div>
+        <iframe
+          class="player-yt"
+          src={"https://www.youtube.com/embed/" + currentVideo?.id + "?autoplay=1"}
+          frameborder="0"
+          allow="autoplay; encrypted-media"
+          allowfullscreen
+        ></iframe>
+        <div class="player-meta">
+          <span>{currentVideo?.channel?.name || "Unknown Channel"}</span>
+          {#if currentVideo?.playlist_position !== null}
+            <span>#{currentVideo.playlist_position + 1} in playlist</span>
+          {/if}
+        </div>
+      </div>
+      <aside class="sidebar">
+        <div class="sidebar-title">Playlist videos</div>
+        <ul class="sidebar-list">
+          {#each videos as v, idx}
+            <li
+              class="sidebar-item {currentIndex === idx ? 'active' : ''}"
+              on:click={() => playVideo(idx)}
+            >
+              <img class="sidebar-thumb" src={getBestThumbnail(v)} alt={v.title} loading="lazy" />
+              <span class="sidebar-title-txt">{v.title}</span>
+            </li>
+          {/each}
+        </ul>
+      </aside>
+    </div>
+  {/if}
+</div>
+<script>
+	import { onMount } from 'svelte';
+	import { supabase } from '$lib/supabaseClient';
+
+	let user = null;
+	let myVideos = [];
+	let watchedVideos = [];
+	let email = '';
+	let newEmail = '';
+	let newPassword = '';
+	let message = '';
+	let watchTime = 0;
+	let todayWatchTime = 0;
+	let activityDays = [];
+	let streak = 0;
+
+	function formatMinutes(seconds) {
+		if (!seconds) return '0 min';
+		const m = Math.round(seconds / 60);
+		return m > 0 ? `${m} min` : `${seconds} sec`;
+	}
+
+	function barColor(mins) {
+		if (mins >= 120) return '#e93c2f';
+		if (mins >= 60) return '#44c366';
+		if (mins >= 30) return '#f9c846';
+		if (mins >= 10) return '#f7ed85';
+		if (mins > 0) return '#b7f6ed';
+		return '#ececec';
+	}
+
+	async function fetchRecentActivity() {
+		if (!user) return;
+		const today = new Date();
+		const dates = [];
+		for (let i = 13; i >= 0; i--) {
+			const d = new Date(today);
+			d.setDate(today.getDate() - i);
+			dates.push(d.toISOString().slice(0, 10));
+		}
+		const fromDate = dates[0];
+		const toDate = dates[dates.length - 1];
+		let { data: sessions } = await supabase
+			.from('watch_sessions')
+			.select('date,seconds')
+			.eq('user_id', user.id)
+			.gte('date', fromDate)
+			.lte('date', toDate);
+
+		const map = {};
+		(sessions || []).forEach((s) => {
+			map[s.date] = (map[s.date] || 0) + (s.seconds || 0);
+		});
+		activityDays = dates.map((date) => ({
+			date,
+			mins: Math.round((map[date] || 0) / 60)
+		}));
+
+		streak = 0;
+		for (let i = activityDays.length - 1; i >= 0; i--) {
+			if (activityDays[i].mins > 0) streak++;
+			else break;
+		}
+	}
+
+	onMount(async () => {
+		const {
+			data: { session }
+		} = await supabase.auth.getSession();
+		if (session?.user) {
+			user = session.user;
+			email = user.email;
+			newEmail = email;
+
+			// Fetch user's videos
+			let { data: videos } = await supabase
+				.from('videos')
+				.select('*')
+				.eq('added_by', user.id)
+				.order('created', { ascending: false });
+			myVideos = videos || [];
+
+			// --- Total watch time ---
+			let { data: allSessions } = await supabase
+				.from('watch_sessions')
+				.select('seconds')
+				.eq('user_id', user.id);
+			watchTime = (allSessions ?? []).reduce((acc, s) => acc + (s.seconds || 0), 0);
+
+			// --- Today's watch time ---
+			const today = new Date().toISOString().slice(0, 10);
+			let { data: todaySessions } = await supabase
+				.from('watch_sessions')
+				.select('seconds')
+				.eq('user_id', user.id)
+				.eq('date', today);
+			todayWatchTime = (todaySessions ?? []).reduce((acc, s) => acc + (s.seconds || 0), 0);
+
+			// --- Recent activity and streak ---
+			await fetchRecentActivity();
+
+			// --- Fetch watched videos ---
+			let { data: watchedSessions } = await supabase
+				.from('watch_sessions')
+				.select('video_id, date')
+				.eq('user_id', user.id);
+
+			const videoMap = {};
+			for (const ws of watchedSessions ?? []) {
+				if (ws.video_id && ws.date) {
+					if (!videoMap[ws.video_id] || ws.date > videoMap[ws.video_id]) {
+						videoMap[ws.video_id] = ws.date;
+					}
+				}
+			}
+			const videoIds = Object.keys(videoMap);
+
+			if (videoIds.length) {
+				let { data: vids } = await supabase.from('videos').select('*').in('id', videoIds);
+
+				watchedVideos = (vids || [])
+					.map((v) => ({
+						...v,
+						lastWatched: videoMap[v.id]
+					}))
+					.sort((a, b) => (b.lastWatched || '').localeCompare(a.lastWatched || ''));
+			} else {
+				watchedVideos = [];
+			}
+		}
+	});
+
+	async function updateEmail() {
+		message = '';
+		if (!newEmail || newEmail === email) {
+			message = 'No change.';
+			return;
+		}
+		const { error } = await supabase.auth.updateUser({ email: newEmail });
+		if (error) {
+			message = error.message;
+		} else {
+			message = 'Email updated! Please check your inbox to confirm.';
+			email = newEmail;
+		}
+	}
+
+	async function updatePassword() {
+		message = '';
+		if (!newPassword) {
+			message = 'Password cannot be empty.';
+			return;
+		}
+		const { error } = await supabase.auth.updateUser({ password: newPassword });
+		if (error) {
+			message = error.message;
+		} else {
+			message = 'Password updated!';
+			newPassword = '';
+		}
+	}
+</script>
+
+{#if !user}
+	<div class="profile-main" style="text-align:center;">
+		<div style="margin:2em 0;">
+			Not logged in.<br /><a href="/login" class="video-link">Login here</a>
+		</div>
+	</div>
+{:else}
+	<div class="profile-main">
+		<div class="section-title">Progress</div>
+
+		<!-- Stats and graph at the top -->
+		<div class="stats-row"><b>Total watch time:</b> {formatMinutes(watchTime)}</div>
+		<div class="stats-row"><b>Today's watch time:</b> {formatMinutes(todayWatchTime)}</div>
+		<div class="streak-row">
+			🔥 <b>Streak:</b>
+			{streak} day{streak === 1 ? '' : 's'} active
+		</div>
+
+		<div style="font-size:0.98em; color:#888; margin-bottom:0.2em;">
+			Minutes watched per day (last 14 days)
+		</div>
+		<div class="activity-bar-graph">
+			{#each activityDays as d, i}
+				<div
+					class="activity-bar {i === activityDays.length - 1 ? 'activity-bar-today' : ''}"
+					style="height:{Math.min(d.mins, 120) / 1.2}px; background:{barColor(d.mins)}"
+					title={`Date: ${d.date}\n${d.mins} min`}
+				></div>
+			{/each}
+		</div>
+		<div class="activity-labels">
+			{#each activityDays as d, i}
+				<div style="width:24px; text-align:center">
+					{i % 2 === 0 ? d.date.slice(5) : ''}
+				</div>
+			{/each}
+		</div>
+		<div style="font-size:0.87em; color:#aaa; margin-top:0.2em;">Days (oldest &rarr; today)</div>
+
+		<!-- HISTORY: Horizontal row, scrollable, front-page cards, no last watched, no length -->
+		<div class="history-section">
+			<div class="history-header">
+				<span class="section-title" style="margin:0;">History</span>
+				<a href="/history" class="view-all-link">View all</a>
+			</div>
+			{#if watchedVideos.length === 0}
+				<div>No videos watched yet.</div>
+			{:else}
+				<div class="history-scroll-row">
+					{#each watchedVideos.slice(0, 15) as v}
+						<a href={`/video/${v.id}`} class="ci-card">
+							<span class="ci-thumb-link">
+								<img
+									class="ci-thumb-img"
+									src={v.thumbnail || '/no_thumb_nail.png'}
+									alt="Video thumbnail"
+								/>
+							</span>
+							<div class="ci-card-info">
+								<span class="ci-badge {v.level}">{v.level}</span>
+								<span class="ci-title" title={v.title}>{v.title}</span>
+								<div class="ci-channel">{v.channel_name}</div>
+							</div>
+						</a>
+					{/each}
+				</div>
+			{/if}
+		</div>
+
+		<!-- MY VIDEOS: Horizontal row, scrollable, matches History section -->
+		<div class="history-section">
+			<div class="history-header">
+				<span class="section-title" style="margin:0;">My Videos</span>
+				<a href="/my-videos" class="view-all-link">View all</a>
+			</div>
+			{#if myVideos.length === 0}
+				<div>No videos added yet.</div>
+			{:else}
+				<div class="history-scroll-row">
+					{#each myVideos.slice(0, 15) as v}
+						<a href={`/video/${v.id}`} class="ci-card">
+							<span class="ci-thumb-link">
+								<img
+									class="ci-thumb-img"
+									src={v.thumbnail || '/no_thumb_nail.png'}
+									alt="Video thumbnail"
+								/>
+							</span>
+							<div class="ci-card-info">
+								<span class="ci-badge {v.level}">{v.level}</span>
+								<span class="ci-title" title={v.title}>{v.title}</span>
+								<div class="ci-channel">{v.channel_name}</div>
+							</div>
+						</a>
+					{/each}
+				</div>
+			{/if}
+		</div>
+
+		<div class="section-title">Account</div>
+		<div class="profile-row"><b>Email:</b> {email}</div>
+		<div>
+			<input type="email" bind:value={newEmail} placeholder="New email" autocomplete="email" />
+			<button on:click={updateEmail}>Change Email</button>
+		</div>
+		<div>
+			<input
+				type="password"
+				bind:value={newPassword}
+				placeholder="New password"
+				autocomplete="new-password"
+			/>
+			<button on:click={updatePassword}>Change Password</button>
+		</div>
+		<div class="message">{message}</div>
+	</div>
+{/if}
+
+<style>
+	.profile-main {
+		max-width: 1200px;
+		margin: 2.2rem auto 0 auto;
+		padding: 2rem 3vw 2.3rem 3vw;
+		background: #fff;
+		border-radius: 14px;
+		border: 1px solid #ececec;
+		box-shadow: 0 2px 12px #ececec;
+	}
+	.section-title {
+		color: #181818;
+		font-size: 1.25rem;
+		font-weight: bold;
+		margin: 1.7em 0 1em 0;
+		letter-spacing: 0.3px;
+	}
+	.stats-row {
+		color: #222;
+		font-size: 1.07em;
+		margin-bottom: 0.7em;
+	}
+	.streak-row {
+		font-size: 1em;
+		color: #2562e9;
+		margin-bottom: 0.7em;
+		font-weight: 500;
+	}
+	.activity-bar-graph {
+		display: flex;
+		gap: 8px;
+		align-items: end;
+		margin: 1.1em 0 0.2em 0;
+		height: 54px;
+	}
+	.activity-bar {
+		width: 24px;
+		border-radius: 5px 5px 2px 2px;
+		background: #ececec;
+		position: relative;
+		transition:
+			height 0.2s,
+			background 0.2s;
+		display: flex;
+		align-items: flex-end;
+		justify-content: center;
+		cursor: pointer;
+	}
+	.activity-bar-today {
+		outline: 2px solid #2562e9;
+		box-shadow: 0 0 0 2px #e8e8fa;
+	}
+	.activity-labels {
+		display: flex;
+		gap: 8px;
+		margin-top: 3px;
+		font-size: 0.91em;
+		color: #888;
+		justify-content: start;
+	}
+	.profile-row {
+		margin-bottom: 1.3em;
+	}
+	input[type='email'],
+	input[type='password'] {
+		width: 100%;
+		padding: 0.7em 1em;
+		font-size: 1.07rem;
+		border: 1px solid #ececec;
+		border-radius: 8px;
+		background: #fafafa;
+		margin-bottom: 0.9em;
+		color: #181818;
+	}
+	button {
+		padding: 0.6em 1.7em;
+		font-size: 1.04rem;
+		background: #e93c2f;
+		color: #fff;
+		border: none;
+		border-radius: 8px;
+		cursor: pointer;
+		font-weight: 600;
+		margin-right: 1em;
+		margin-bottom: 0.5em;
+		transition: background 0.18s;
+	}
+	button:hover {
+		background: #b8271b;
+	}
+	.message {
+		color: #26890d;
+		margin-bottom: 1em;
+		min-height: 1.5em;
+	}
+
+	/* ----------- HISTORY (watched videos row) ----------- */
+	.history-section {
+		margin-top: 2.2em;
+	}
+	.history-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 1em;
+	}
+	.view-all-link {
+		font-size: 1em;
+		color: #2562e9;
+		text-decoration: none;
+		font-weight: 500;
+	}
+	.history-scroll-row {
+		display: flex;
+		flex-direction: row;
+		gap: 24px;
+		overflow-x: auto;
+		padding-bottom: 2px;
+		margin-bottom: 2em;
+		scrollbar-width: thin;
+	}
+	.history-scroll-row::-webkit-scrollbar {
+		height: 8px;
+		background: #f3f3f3;
+	}
+	.history-scroll-row::-webkit-scrollbar-thumb {
+		background: #dcdcdc;
+		border-radius: 8px;
+	}
+
+	.ci-card {
+		background: #fff;
+		border-radius: 14px;
+		box-shadow: 0 2px 10px #ececec;
+		min-width: 196px;
+		max-width: 196px;
+		flex: 0 0 196px;
+		display: flex;
+		flex-direction: column;
+		text-align: left;
+		padding: 0;
+		cursor: pointer;
+		transition: box-shadow 0.18s;
+		font-family: Inter, Arial, sans-serif;
+	}
+	.ci-card:hover {
+		box-shadow: 0 6px 32px #e93c2f22;
+	}
+
+	.ci-thumb-link {
+		display: block;
+		border-radius: 14px 14px 0 0;
+		overflow: hidden;
+	}
+	.ci-thumb-img {
+		width: 100%;
+		aspect-ratio: 16/9;
+		object-fit: cover;
+		background: #f3f3f3;
+	}
+
+	.ci-card-info {
+		padding: 0.8em 1em 1.1em 1em;
+	}
+	.ci-title {
+		font-weight: 600;
+		font-size: 1.07em;
+		margin: 0.24em 0 0.09em 0;
+		color: #222;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.ci-badge {
+		border-radius: 8px;
+		padding: 0.1em 0.48em;
+		font-size: 0.87em;
+		font-weight: 500;
+		color: #fff;
+		background: #e93c2f;
+		margin-bottom: 0.1em;
+		text-transform: capitalize;
+		display: inline-block;
+		margin-right: 0.4em;
+	}
+	.ci-badge.Superbeginner {
+		background: #2e9be6;
+	}
+	.ci-badge.Beginner {
+		background: #44c366;
+	}
+	.ci-badge.Intermediate {
+		background: #e93c2f;
+	}
+	.ci-badge.Advanced {
+		background: #f9c846;
+		color: #181818;
+	}
+	.ci-channel {
+		font-size: 0.92em;
+		color: #888;
+		margin-top: 0.11em;
+	}
+
+	.card-history {
+		background: #fff;
+		border-radius: 15px;
+		box-shadow: 0 2px 8px #ececec;
+		min-width: 180px;
+		max-width: 180px;
+		flex: 0 0 180px;
+		display: flex;
+		flex-direction: column;
+		align-items: stretch;
+		text-align: left;
+		transition: box-shadow 0.13s;
+		cursor: pointer;
+		padding: 0;
+	}
+	.card-history:hover {
+		box-shadow: 0 6px 28px #e93c2f20;
+	}
+	.card-thumb-link {
+		display: block;
+		border-radius: 15px 15px 0 0;
+		overflow: hidden;
+	}
+	.card-thumb-img {
+		width: 100%;
+		aspect-ratio: 16/9;
+		object-fit: cover;
+		background: #f3f3f3;
+	}
+	.card-info {
+		padding: 0.67em 0.82em 1em 0.82em;
+	}
+	.card-title {
+		font-weight: 600;
+		font-size: 1em;
+		margin: 0.22em 0 0.12em 0;
+		color: #232323;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.card-badge {
+		border-radius: 8px;
+		padding: 0.11em 0.6em;
+		font-size: 0.83em;
+		font-weight: 500;
+		color: #fff;
+		background: #e93c2f;
+		margin-right: 0.36em;
+		text-transform: capitalize;
+	}
+	.card-badge.Superbeginner {
+		background: #2e9be6;
+	}
+	.card-badge.Beginner {
+		background: #44c366;
+	}
+	.card-badge.Intermediate {
+		background: #e93c2f;
+	}
+	.card-badge.Advanced {
+		background: #f9c846;
+		color: #181818;
+	}
+	.card-channel {
+		font-size: 0.91em;
+		color: #868686;
+	}
+	@media (max-width: 600px) {
+		.card-history,
+		.history-scroll-row {
+			min-width: 150px;
+			max-width: 150px;
+		}
+		.card-thumb-img {
+			aspect-ratio: 16/9;
+		}
+	}
+</style>
+<script>
+  import { supabase } from '$lib/supabaseClient';
+
+  let email = '';
+  let password = '';
+  let message = '';
+
+  async function signup() {
+    message = '';
+    const { error } = await supabase.auth.signUp({
+      email,
+      password
+    });
+    if (error) {
+      message = error.message;
+    } else {
+      message = 'Signup successful! Check your email to confirm.';
+    }
+  }
+</script>
+
+<style>
+.auth-container {
+  max-width: 430px;
+  margin: 3rem auto;
+  background: #fff;
+  border-radius: 13px;
+  border: 1px solid #ececec;
+  box-shadow: 0 2px 12px #ececec;
+  padding: 2.1rem 2rem 1.4rem 2rem;
+  text-align: center;
+}
+input[type="email"],
+input[type="password"] {
+  width: 100%;
+  padding: 0.8em 1em;
+  margin-bottom: 1em;
+  border: 1px solid #ececec;
+  border-radius: 8px;
+  background: #fafafa;
+  font-size: 1.06rem;
+  color: #181818;
+}
+button {
+  width: 100%;
+  padding: 0.7em 0;
+  font-size: 1.09rem;
+  font-weight: 600;
+  background: #e93c2f;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  margin-top: 0.3em;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+button:hover { background: #b8271b; }
+.message {
+  margin-top: 1em;
+  color: #0b9203;
+  font-size: 1.04rem;
+  min-height: 1.5em;
+}
+</style>
+
+<div class="auth-container">
+  <h2>Sign Up</h2>
+  <input type="email" bind:value={email} placeholder="Email" autocomplete="email" />
+  <input type="password" bind:value={password} placeholder="Password" autocomplete="new-password" />
+  <button on:click={signup}>Sign Up</button>
+  <div class="message">{message}</div>
+  <div style="margin-top:1em; color:#888;">
+    Already have an account?
+    <a href="/login" style="color:#e93c2f;">Log In</a>
+  </div>
+</div>
+<script>
+  import { onMount, onDestroy } from 'svelte';
+  import { supabase } from '$lib/supabaseClient';
+  import { page } from '$app/stores';
+
+  let video = null;
+  let suggestions = [];
+  let loading = true;
+  let user = null;
+
+  $: id = $page.params.id;
+
+  // --- Player tracking
+  let player;
+  let ytReady = false;
+  let pollingInterval = null;
+  let lastTime = 0;
+  let watchSeconds = 0;
+  let markedAsWatched = false;
+
+  // --- YT API Ready ---
+  function onYouTubeIframeAPIReady() {
+    ytReady = true;
+    initPlayer();
+  }
+
+  function initPlayer() {
+    if (player || !document.getElementById('yt-player')) return;
+    player = new window.YT.Player('yt-player', {
+      events: { 'onStateChange': onPlayerStateChange }
+    });
+  }
+
+  function startWatchTimer() {
+    if (!pollingInterval && player) {
+      lastTime = player.getCurrentTime?.() || 0;
+      pollingInterval = setInterval(async () => {
+        const currentTime = player.getCurrentTime?.() || 0;
+        let delta = currentTime - lastTime;
+        if (delta < 0) delta = 0;
+        if (delta > 5) delta = 1;
+        watchSeconds += delta;
+        lastTime = currentTime;
+
+        // Calculate percent watched
+        const duration = player.getDuration?.() || 1;
+        const percentWatched = Math.max(currentTime, watchSeconds) / duration;
+
+        if (!markedAsWatched && percentWatched >= 0.9 && user) {
+          markedAsWatched = true; // So we only do it once per view
+          await saveWatchSession(duration);
+        }
+      }, 1000);
+    }
+  }
+
+  function stopWatchTimer() {
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      pollingInterval = null;
+    }
+  }
+
+  async function saveWatchSession(duration) {
+    const today = new Date().toISOString().slice(0, 10);
+    await supabase.from('watch_sessions').upsert({
+      user_id: user.id,
+      video_id: id,
+      seconds: duration, // Save as "fully watched"
+      date: today
+    }, { onConflict: ['user_id', 'video_id', 'date'] });
+  }
+
+  function onPlayerStateChange(event) {
+    if (event.data === 1) startWatchTimer(); // Playing
+    else stopWatchTimer(); // Paused/Ended
+  }
+
+  onDestroy(() => stopWatchTimer());
+
+  // --- onMount logic
+  onMount(async () => {
+    const { data: sess } = await supabase.auth.getSession();
+    user = sess.session?.user ?? null;
+
+    // Fetch video
+    const { data: vid } = await supabase
+      .from('videos')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    video = vid;
+
+    // Fetch sidebar suggestions
+    const { data: suggs } = await supabase
+      .from('videos')
+      .select('*')
+      .order('created', { ascending: false })
+      .neq('id', id)
+      .limit(8);
+    suggestions = suggs || [];
+    loading = false;
+
+    // YouTube API
+    window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+    if (!window.YT) {
+      const tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.body.appendChild(tag);
+    } else {
+      ytReady = true;
+      initPlayer();
+    }
+  });
+
+  // --- Formatting helpers
+  function formatVideoDuration(sec) {
+    sec = Math.round(sec);
+    if (isNaN(sec) || sec <= 0) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function badgeProps(level) {
+    if (!level) return { label: "Not Yet Rated", color: "#d4d4d4", text: "#888" };
+    switch (level.trim().toLowerCase()) {
+      case "superbeginner":
+      case "super beginner":   return { label: "Super Beginner", color: "#16a800", text: "#fff" };
+      case "beginner":         return { label: "Beginner",       color: "#2f6ae9", text: "#fff" };
+      case "intermediate":     return { label: "Intermediate",   color: "#f9ae17", text: "#fff" };
+      case "advanced":         return { label: "Advanced",       color: "#7d2fe9", text: "#fff" };
+      default:                 return { label: "Not Yet Rated",  color: "#d4d4d4", text: "#888" };
+    }
+  }
+</script>
+
+<style>
+:global(html) {
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  background: #f6f7fa;
+}
+.player-youtube-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 38px;
+  max-width: 1700px;
+  margin: 0 auto;
+  padding: 48px 0 36px 42px;
+  background: #f6f7fa;
+  min-height: 100vh;
+}
+@media (max-width: 1200px) {
+  .player-youtube-layout { flex-direction: column; gap: 26px; padding: 36px 0 26px 0; }
+}
+.player-main-left {
+  width: 960px;
+  min-width: 0;
+  flex: 1 1 960px;
+  margin-right: 12px;
+}
+@media (max-width: 1200px) {
+  .player-main-left { width: 100%; margin-right: 0; }
+}
+.player-embed {
+  width: 100%;
+  aspect-ratio: 16/9;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 2px 24px #e0e0e0;
+  margin-bottom: 22px;
+  border: 1.7px solid #ededed;
+}
+.player-title {
+  color: #1a1a1a;
+  font-size: 1.38rem;
+  font-weight: 800;
+  line-height: 1.21;
+  margin-bottom: 11px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.7em;
+  max-height: 2.7em;
+}
+.player-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  margin-bottom: 10px;
+}
+.player-diff-badge {
+  font-size: 0.98em;
+  font-weight: 700;
+  padding: 0.22em 1.04em;
+  border-radius: 13px;
+  letter-spacing: 0.01em;
+  display: inline-block;
+  white-space: nowrap;
+  border: none;
+  box-shadow: 0 1px 4px #e0e0e0;
+}
+.player-channel {
+  font-size: 1.04rem;
+  color: #777;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+.player-duration {
+  font-size: 0.96em;
+  color: #adadad;
+  margin-left: auto;
+  margin-right: 0;
+}
+.suggestions-sidebar {
+  width: 370px;
+  min-width: 310px;
+  max-width: 400px;
+  padding-right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+@media (max-width: 1200px) {
+  .suggestions-sidebar {
+    width: 100%;
+    min-width: 0;
+    max-width: unset;
+    padding-right: 0;
+    flex-direction: row;
+    overflow-x: auto;
+  }
+}
+.suggest-card {
+  display: flex;
+  flex-direction: row;
+  gap: 0.9em;
+  background: #fff;
+  border-radius: 11px;
+  overflow: hidden;
+  border: 1.1px solid #ededed;
+  transition: box-shadow 0.13s, transform 0.09s, background 0.13s;
+  cursor: pointer;
+  min-width: 0;
+  box-shadow: 0 2px 10px #eaeaea40;
+  text-decoration: none;
+  align-items: flex-start;
+  height: 87px;
+}
+.suggest-card:hover {
+  background: #f8f8fd;
+  box-shadow: 0 6px 18px #e93c2f09;
+  transform: translateY(-1.5px) scale(1.015);
+}
+.suggest-thumb-wrap {
+  position: relative;
+  width: 154px;
+  min-width: 154px;
+  height: 87px;
+  display: flex;
+}
+.suggest-thumb {
+  width: 154px;
+  height: 87px;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  background: #ededed;
+  border-radius: 11px 0 0 11px;
+  display: block;
+}
+.suggest-thumb-duration {
+  position: absolute;
+  right: 0.6em;
+  bottom: 0.52em;
+  background: #111a;
+  color: #fff;
+  font-size: 0.91em;
+  font-weight: 600;
+  padding: 0.09em 0.53em;
+  border-radius: 5px;
+  opacity: 0.79;
+  z-index: 2;
+  user-select: none;
+  pointer-events: none;
+}
+.suggest-body {
+  flex: 1;
+  padding: 0.51em 0.6em 0.33em 0.12em;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  color: #232323;
+}
+.suggest-title {
+  font-size: 1.01rem;
+  font-weight: 700;
+  color: #232323;
+  line-height: 1.14;
+  margin-bottom: 0.12em;
+  max-height: 2.2em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.suggest-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+.suggest-diff-badge {
+  font-size: 0.84em;
+  font-weight: 700;
+  padding: 0.17em 0.75em;
+  border-radius: 8px;
+  letter-spacing: 0.01em;
+  display: inline-block;
+  white-space: nowrap;
+  border: none;
+  box-shadow: 0 1px 4px #e0e0e0;
+}
+.suggest-channel {
+  color: #777;
+  font-size: 0.91rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90px;
+}
+</style>
+
+{#if loading}
+  <p style="text-align:center; color:#aaa; margin-top:3rem;">Loading…</p>
+{:else if !video}
+  <p style="text-align:center; color:#aaa; margin-top:3rem;">Video not found.</p>
+{:else}
+  <div class="player-youtube-layout">
+    <main class="player-main-left">
+      <div class="player-embed">
+        <iframe
+          id="yt-player"
+          width="100%"
+          height="100%"
+          src={`https://www.youtube.com/embed/${video.id}?enablejsapi=1`}
+          title={video.title}
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen
+        ></iframe>
+      </div>
+      <div class="player-title">{video.title}</div>
+      <div class="player-meta-row">
+        <span
+          class="player-diff-badge"
+          style="background: {badgeProps(video.level).color}; color: {badgeProps(video.level).text};"
+        >{badgeProps(video.level).label}</span>
+        <span class="player-channel">{video.channel_name}</span>
+        {#if video.length}
+          <span class="player-duration">{formatVideoDuration(video.length)}</span>
+        {/if}
+      </div>
+    </main>
+    <aside class="suggestions-sidebar">
+      {#each suggestions as v}
+        <a class="suggest-card" href={`/video/${v.id}`}>
+          <span class="suggest-thumb-wrap">
+            <img
+              class="suggest-thumb"
+              src={`https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`}
+              alt={v.title}
+              on:error="{(e) => e.target.src='https://placehold.co/120x67?text=No+Thumb'}"
+            />
+            {#if v.length}
+              <span class="suggest-thumb-duration">
+                {formatVideoDuration(v.length)}
+              </span>
+            {/if}
+          </span>
+          <div class="suggest-body">
+            <div class="suggest-title">{v.title}</div>
+            <div class="suggest-meta-row">
+              <span
+                class="suggest-diff-badge"
+                style="background: {badgeProps(v.level).color}; color: {badgeProps(v.level).text};"
+              >{badgeProps(v.level).label}</span>
+              <span class="suggest-channel">{v.channel_name}</span>
+            </div>
+          </div>
+        </a>
+      {/each}
+    </aside>
+  </div>
+{/if}
