@@ -4,6 +4,7 @@
 
   let user = null;
   let myVideos = [];
+  let watchedVideos = [];
   let email = '';
   let newEmail = '';
   let newPassword = '';
@@ -30,7 +31,7 @@
 
   async function fetchRecentActivity() {
     if (!user) return;
-    // Get last 14 days
+    // Last 14 days
     const today = new Date();
     const dates = [];
     for (let i = 13; i >= 0; i--) {
@@ -38,7 +39,6 @@
       d.setDate(today.getDate() - i);
       dates.push(d.toISOString().slice(0, 10));
     }
-    // Query all sessions in that range
     const fromDate = dates[0];
     const toDate = dates[dates.length - 1];
     let { data: sessions } = await supabase
@@ -58,7 +58,7 @@
       mins: Math.round((map[date] || 0) / 60)
     }));
 
-    // Compute streak (count backward from today until a zero is found)
+    // Streak
     streak = 0;
     for (let i = activityDays.length - 1; i >= 0; i--) {
       if (activityDays[i].mins > 0) streak++;
@@ -81,7 +81,7 @@
         .order('created', { ascending: false });
       myVideos = videos || [];
 
-      // --- Fetch total watch time (from watch_sessions) ---
+      // --- Total watch time ---
       let { data: allSessions } = await supabase
         .from('watch_sessions')
         .select('seconds')
@@ -99,6 +99,40 @@
 
       // --- Recent activity and streak ---
       await fetchRecentActivity();
+
+      // --- Fetch watched videos ---
+      let { data: watchedSessions } = await supabase
+        .from('watch_sessions')
+        .select('video_id, date')
+        .eq('user_id', user.id);
+
+      // Use latest date per video for sorting
+      const videoMap = {};
+      for (const ws of watchedSessions ?? []) {
+        if (ws.video_id && ws.date) {
+          if (!videoMap[ws.video_id] || ws.date > videoMap[ws.video_id]) {
+            videoMap[ws.video_id] = ws.date;
+          }
+        }
+      }
+      const videoIds = Object.keys(videoMap);
+
+      if (videoIds.length) {
+        let { data: vids } = await supabase
+          .from('videos')
+          .select('*')
+          .in('id', videoIds);
+
+        // Attach last watched date for sorting
+        watchedVideos = (vids || []).map(v => ({
+          ...v,
+          lastWatched: videoMap[v.id]
+        }))
+        // Sort by most recent watch
+        .sort((a, b) => (b.lastWatched || '').localeCompare(a.lastWatched || ''));
+      } else {
+        watchedVideos = [];
+      }
     }
   });
 
@@ -226,6 +260,101 @@ button:hover {
   margin-bottom: 1em;
   min-height: 1.5em;
 }
+.history-section {
+  margin-top: 2.2em;
+}
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1em;
+}
+.view-all-link {
+  font-size: 1em;
+  color: #2562e9;
+  text-decoration: none;
+  font-weight: 500;
+}
+.history-scroll {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-color: #e93c2f #ececec;
+}
+.video-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px #ececec;
+  min-width: 260px;
+  max-width: 260px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.15s;
+}
+.video-card:hover {
+  box-shadow: 0 4px 24px #e93c2f33;
+}
+.thumb-link {
+  display: block;
+  border-radius: 16px 16px 0 0;
+  overflow: hidden;
+}
+.thumbnail {
+  width: 100%;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+}
+.video-info {
+  padding: 0.8em 1em 1em 1em;
+}
+.video-title {
+  font-weight: 600;
+  font-size: 1.01em;
+  margin-bottom: 0.4em;
+  color: #1b2028;
+  line-height: 1.22;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.video-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin-bottom: 0.2em;
+}
+.badge {
+  border-radius: 9px;
+  padding: 0.17em 0.7em;
+  font-size: 0.89em;
+  font-weight: 500;
+  color: #fff;
+  background: #e93c2f;
+  text-transform: capitalize;
+}
+.badge.Superbeginner { background: #2e9be6; }
+.badge.Beginner { background: #44c366; }
+.badge.Intermediate { background: #e93c2f; }
+.badge.Advanced { background: #f9c846; color: #181818; }
+.video-length {
+  background: #ececec;
+  color: #333;
+  border-radius: 7px;
+  font-size: 0.91em;
+  padding: 0.09em 0.7em;
+  margin-left: 0.1em;
+}
+.video-channel {
+  font-size: 0.94em;
+  color: #666;
+}
+.watched-date {
+  font-size: 0.89em;
+  color: #aaa;
+  margin-top: 0.22em;
+}
 .videos-list {
   margin-top: 1em;
   padding-left: 0;
@@ -280,6 +409,36 @@ button:hover {
       {/each}
     </div>
     <div style="font-size:0.87em; color:#aaa; margin-top:0.2em;">Days (oldest &rarr; today)</div>
+
+    <!-- Dreaming Spanish style Watched Videos -->
+    <div class="history-section">
+      <div class="history-header">
+        <span class="section-title" style="margin:0;">History</span>
+        <a href="/history" class="view-all-link">View all</a>
+      </div>
+      {#if watchedVideos.length === 0}
+        <div>No videos watched yet.</div>
+      {:else}
+        <div class="history-scroll">
+          {#each watchedVideos.slice(0, 10) as v}
+            <div class="video-card">
+              <a href={`/video/${v.id}`} class="thumb-link">
+                <img class="thumbnail" src={v.thumbnail || '/no_thumb_nail.png'} alt="Video thumbnail" />
+              </a>
+              <div class="video-info">
+                <div class="video-title" title={v.title}>{v.title}</div>
+                <div class="video-meta">
+                  <span class="badge {v.level}">{v.level}</span>
+                  <span class="video-length">{formatMinutes(v.length)}</span>
+                </div>
+                <div class="video-channel">{v.channel_name}</div>
+                <div class="watched-date">Last watched: {v.lastWatched}</div>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </div>
 
     <div class="section-title">My Videos</div>
     {#if myVideos.length === 0}
