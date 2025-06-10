@@ -10,6 +10,75 @@
 
   $: id = $page.params.id;
 
+  // --- Player tracking
+  let player;
+  let ytReady = false;
+  let pollingInterval = null;
+  let lastTime = 0;
+  let watchSeconds = 0;
+  let markedAsWatched = false;
+
+  // --- YT API Ready ---
+  function onYouTubeIframeAPIReady() {
+    ytReady = true;
+    initPlayer();
+  }
+
+  function initPlayer() {
+    if (player || !document.getElementById('yt-player')) return;
+    player = new window.YT.Player('yt-player', {
+      events: { 'onStateChange': onPlayerStateChange }
+    });
+  }
+
+  function startWatchTimer() {
+    if (!pollingInterval && player) {
+      lastTime = player.getCurrentTime?.() || 0;
+      pollingInterval = setInterval(async () => {
+        const currentTime = player.getCurrentTime?.() || 0;
+        let delta = currentTime - lastTime;
+        if (delta < 0) delta = 0;
+        if (delta > 5) delta = 1;
+        watchSeconds += delta;
+        lastTime = currentTime;
+
+        // Calculate percent watched
+        const duration = player.getDuration?.() || 1;
+        const percentWatched = Math.max(currentTime, watchSeconds) / duration;
+
+        if (!markedAsWatched && percentWatched >= 0.9 && user) {
+          markedAsWatched = true; // So we only do it once per view
+          await saveWatchSession(duration);
+        }
+      }, 1000);
+    }
+  }
+
+  function stopWatchTimer() {
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      pollingInterval = null;
+    }
+  }
+
+  async function saveWatchSession(duration) {
+    const today = new Date().toISOString().slice(0, 10);
+    await supabase.from('watch_sessions').upsert({
+      user_id: user.id,
+      video_id: id,
+      seconds: duration, // Save as "fully watched"
+      date: today
+    }, { onConflict: ['user_id', 'video_id', 'date'] });
+  }
+
+  function onPlayerStateChange(event) {
+    if (event.data === 1) startWatchTimer(); // Playing
+    else stopWatchTimer(); // Paused/Ended
+  }
+
+  onDestroy(() => stopWatchTimer());
+
+  // --- onMount logic
   onMount(async () => {
     const { data: sess } = await supabase.auth.getSession();
     user = sess.session?.user ?? null;
@@ -32,7 +101,7 @@
     suggestions = suggs || [];
     loading = false;
 
-    // Watch tracking (optional)
+    // YouTube API
     window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
     if (!window.YT) {
       const tag = document.createElement('script');
@@ -40,71 +109,11 @@
       document.body.appendChild(tag);
     } else {
       ytReady = true;
+      initPlayer();
     }
   });
 
-  // Watch time tracking
-  let player;
-  let ytReady = false;
-  let watchSeconds = 0;
-  let pollingInterval = null;
-  let lastTime = 0;
-
-  function onYouTubeIframeAPIReady() {
-    ytReady = true;
-    initPlayer();
-  }
-
-  $: if (ytReady && !player) initPlayer();
-
-  function initPlayer() {
-    if (player || !document.getElementById('yt-player')) return;
-    player = new window.YT.Player('yt-player', {
-      events: { 'onStateChange': onPlayerStateChange }
-    });
-  }
-
-  function startWatchTimer() {
-    if (!pollingInterval && player) {
-      lastTime = player.getCurrentTime?.() || 0;
-      pollingInterval = setInterval(() => {
-        const currentTime = player.getCurrentTime?.() || 0;
-        let delta = currentTime - lastTime;
-        if (delta < 0) delta = 0;
-        if (delta > 5) delta = 1;
-        watchSeconds += delta;
-        lastTime = currentTime;
-        if (Math.floor(watchSeconds) % 5 === 0) saveWatchTime();
-      }, 1000);
-    }
-  }
-
-  function stopWatchTimer() {
-    if (pollingInterval) {
-      clearInterval(pollingInterval);
-      pollingInterval = null;
-      saveWatchTime();
-    }
-  }
-
-  async function saveWatchTime() {
-    if (!user) return;
-    const today = new Date().toISOString().slice(0, 10);
-    await supabase.from('watch_sessions').upsert({
-      user_id: user.id,
-      video_id: id,
-      seconds: Math.floor(watchSeconds),
-      date: today
-    }, { onConflict: ['user_id', 'video_id', 'date'] });
-  }
-
-  function onPlayerStateChange(event) {
-    if (event.data === 1) startWatchTimer();
-    else stopWatchTimer();
-  }
-
-  onDestroy(() => stopWatchTimer());
-
+  // --- Formatting helpers
   function formatVideoDuration(sec) {
     sec = Math.round(sec);
     if (isNaN(sec) || sec <= 0) return '0:00';
@@ -131,8 +140,6 @@
   font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
   background: #f6f7fa;
 }
-
-/* --- Layout --- */
 .player-youtube-layout {
   display: flex;
   align-items: flex-start;
@@ -143,12 +150,9 @@
   background: #f6f7fa;
   min-height: 100vh;
 }
-
 @media (max-width: 1200px) {
   .player-youtube-layout { flex-direction: column; gap: 26px; padding: 36px 0 26px 0; }
 }
-
-/* --- Main video --- */
 .player-main-left {
   width: 960px;
   min-width: 0;
@@ -158,7 +162,6 @@
 @media (max-width: 1200px) {
   .player-main-left { width: 100%; margin-right: 0; }
 }
-
 .player-embed {
   width: 100%;
   aspect-ratio: 16/9;
@@ -168,7 +171,6 @@
   margin-bottom: 22px;
   border: 1.7px solid #ededed;
 }
-
 .player-title {
   color: #1a1a1a;
   font-size: 1.38rem;
@@ -182,7 +184,6 @@
   min-height: 2.7em;
   max-height: 2.7em;
 }
-
 .player-meta-row {
   display: flex;
   align-items: center;
@@ -215,8 +216,6 @@
   margin-left: auto;
   margin-right: 0;
 }
-
-/* --- Sidebar (suggestions) --- */
 .suggestions-sidebar {
   width: 370px;
   min-width: 310px;
@@ -226,7 +225,6 @@
   flex-direction: column;
   gap: 13px;
 }
-
 @media (max-width: 1200px) {
   .suggestions-sidebar {
     width: 100%;
@@ -237,7 +235,6 @@
     overflow-x: auto;
   }
 }
-
 .suggest-card {
   display: flex;
   flex-direction: row;
@@ -290,7 +287,6 @@
   user-select: none;
   pointer-events: none;
 }
-
 .suggest-body {
   flex: 1;
   padding: 0.51em 0.6em 0.33em 0.12em;

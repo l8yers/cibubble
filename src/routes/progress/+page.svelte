@@ -169,9 +169,9 @@
 
 <style>
 .profile-main {
-  max-width: 730px;
+  max-width: 1200px;
   margin: 2.2rem auto 0 auto;
-  padding: 2rem 2vw 2.3rem 2vw;
+  padding: 2rem 3vw 2.3rem 3vw;
   background: #fff;
   border-radius: 14px;
   border: 1px solid #ececec;
@@ -275,19 +275,29 @@ button:hover {
   text-decoration: none;
   font-weight: 500;
 }
-.history-scroll {
-  display: flex;
-  gap: 20px;
-  overflow-x: auto;
-  padding-bottom: 8px;
-  scrollbar-color: #e93c2f #ececec;
+.history-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 18px;
+  margin-bottom: 1em;
+}
+@media (max-width: 1100px) {
+  .history-grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 900px) {
+  .history-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 700px) {
+  .history-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 500px) {
+  .history-grid { grid-template-columns: 1fr; }
 }
 .video-card {
   background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px #ececec;
-  min-width: 260px;
-  max-width: 260px;
+  border-radius: 12px;
+  box-shadow: 0 1.5px 7px #ececec;
+  min-width: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -298,7 +308,7 @@ button:hover {
 }
 .thumb-link {
   display: block;
-  border-radius: 16px 16px 0 0;
+  border-radius: 12px 12px 0 0;
   overflow: hidden;
 }
 .thumbnail {
@@ -307,14 +317,14 @@ button:hover {
   object-fit: cover;
 }
 .video-info {
-  padding: 0.8em 1em 1em 1em;
+  padding: 0.5em 0.8em 0.8em 0.8em;
 }
 .video-title {
-  font-weight: 600;
-  font-size: 1.01em;
-  margin-bottom: 0.4em;
+  font-weight: 500;
+  font-size: 0.99em;
+  margin-bottom: 0.3em;
   color: #1b2028;
-  line-height: 1.22;
+  line-height: 1.18;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -322,13 +332,13 @@ button:hover {
 .video-meta {
   display: flex;
   align-items: center;
-  gap: 0.6em;
-  margin-bottom: 0.2em;
+  gap: 0.4em;
+  margin-bottom: 0.1em;
 }
 .badge {
-  border-radius: 9px;
-  padding: 0.17em 0.7em;
-  font-size: 0.89em;
+  border-radius: 8px;
+  padding: 0.10em 0.45em;
+  font-size: 0.81em;
   font-weight: 500;
   color: #fff;
   background: #e93c2f;
@@ -341,19 +351,19 @@ button:hover {
 .video-length {
   background: #ececec;
   color: #333;
-  border-radius: 7px;
-  font-size: 0.91em;
-  padding: 0.09em 0.7em;
+  border-radius: 6px;
+  font-size: 0.83em;
+  padding: 0.04em 0.6em;
   margin-left: 0.1em;
 }
 .video-channel {
-  font-size: 0.94em;
+  font-size: 0.89em;
   color: #666;
 }
 .watched-date {
-  font-size: 0.89em;
+  font-size: 0.81em;
   color: #aaa;
-  margin-top: 0.22em;
+  margin-top: 0.17em;
 }
 .videos-list {
   margin-top: 1em;
@@ -410,7 +420,7 @@ button:hover {
     </div>
     <div style="font-size:0.87em; color:#aaa; margin-top:0.2em;">Days (oldest &rarr; today)</div>
 
-    <!-- Dreaming Spanish style Watched Videos -->
+    <!-- Watched Videos (as a 5-wide compact grid) -->
     <div class="history-section">
       <div class="history-header">
         <span class="section-title" style="margin:0;">History</span>
@@ -419,8 +429,8 @@ button:hover {
       {#if watchedVideos.length === 0}
         <div>No videos watched yet.</div>
       {:else}
-        <div class="history-scroll">
-          {#each watchedVideos.slice(0, 10) as v}
+        <div class="history-grid">
+          {#each watchedVideos.slice(0, 15) as v}
             <div class="video-card">
               <a href={`/video/${v.id}`} class="thumb-link">
                 <img class="thumbnail" src={v.thumbnail || '/no_thumb_nail.png'} alt="Video thumbnail" />
