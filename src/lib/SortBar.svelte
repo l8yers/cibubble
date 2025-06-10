@@ -1,6 +1,5 @@
 <script>
   import { Sparkles, BarChart3, Search } from 'lucide-svelte';
-
   export let levels = [];
   export let sortChoices = [];
   export let selectedLevels;
@@ -19,6 +18,7 @@
   export let handleSearchInput;
   export let hideWatched;
   export let updateGrid;
+  export let clearSearch = () => {};
 </script>
 
 <div class="controls-bar">
@@ -42,7 +42,6 @@
         </div>
       {/if}
     </div>
-
     <!-- Levels Dropdown -->
     <div class="dropdown">
       <button class="dropdown-btn" aria-expanded={showLevelDropdown} on:click={handleLevelDropdownToggle} type="button">
@@ -77,7 +76,7 @@
       <label class="switch-label">
         <input type="checkbox" bind:checked={hideWatched} on:change={updateGrid} />
         <span class="switch-slider"></span>
-         <span class="switch-text">Hide watched</span>
+        <span class="switch-text">Hide watched</span>
       </label>
     </div>
     <div class="search-bar-container">
@@ -90,6 +89,15 @@
           on:input={handleSearchInput}
           autofocus
         />
+        {#if searchTerm}
+          <button
+            class="clear-search"
+            on:click={clearSearch}
+            title="Clear search"
+            aria-label="Clear search"
+            tabindex="0"
+          >×</button>
+        {/if}
       {/if}
       <button
         class="search-toggle"
@@ -201,7 +209,7 @@
   font-weight: 600;
   letter-spacing: 0.03em;
   font-family: inherit;
-  color: #1d1d1d; /* Or whatever your dropdown text is */
+  color: #1d1d1d;
   margin-left: 0.3em;
 }
 .switch-label input {
@@ -244,8 +252,28 @@
   transition: width 0.2s, opacity 0.2s;
   width: 180px;
   max-width: 50vw;
-  order: -1; /* This keeps the input to the *left* of the button */
+  order: -1;
   margin-right: 0.3em;
+  opacity: 1;
+}
+.clear-search {
+  border: none;
+  background: transparent;
+  color: #888;
+  font-size: 1.7em;
+  cursor: pointer;
+  position: absolute;
+  right: 3.2em;
+  top: 50%;
+  transform: translateY(-54%);
+  padding: 0 0.16em;
+  line-height: 1;
+  opacity: 0.8;
+  transition: color 0.18s;
+}
+.clear-search:hover,
+.clear-search:focus-visible {
+  color: #fd2b22;
   opacity: 1;
 }
 .search-toggle {
