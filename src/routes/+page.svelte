@@ -28,6 +28,8 @@
   let showLevelDropdown = false;
   let showSortDropdown = false;
   let sortBy = 'random';
+  let hideWatched = false;
+  let watchedIds = new Set();
 
   // --- UTILS ---
   function difficultyLabel(level) {
@@ -72,6 +74,9 @@
       v.title !== null &&
       (selectedLevels.has(v.level))
     );
+    if (hideWatched) {
+      filtered = filtered.filter(v => !watchedIds.has(String(v.id)));
+    }
     if (sortBy === 'random') {
       return shuffleArray(filtered);
     } else if (sortBy === 'easy') {
@@ -87,6 +92,19 @@
   }
 
   // --- DATA LOAD ---
+  async function loadWatchedIds() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const { data } = await supabase
+        .from('watch_sessions')
+        .select('video_id')
+        .eq('user_id', session.user.id);
+      watchedIds = new Set((data ?? []).map(x => String(x.video_id)));
+    } else {
+      watchedIds = new Set();
+    }
+  }
+
   async function loadVideos({ reset = false } = {}) {
     if (loading || allLoaded) return;
     loading = true;
@@ -95,7 +113,7 @@
       const { data, error } = await supabase
         .from('videos')
         .select('*, playlist:playlist_id(title), channel:channel_id(name)')
-        .limit(2000); // Load big batch for client-side
+        .limit(2000);
       if (error) errorMsg = error.message;
       else if (data && data.length > 0) {
         allVideos = data;
@@ -122,7 +140,6 @@
   }
 
   function updateGrid() {
-    // Reset & reload with new filters/sort
     videos = filterAndSort(allVideos).slice(0, pageSize);
     allLoaded = videos.length >= filterAndSort(allVideos).length;
   }
@@ -175,15 +192,16 @@
     return { destroy: () => document.removeEventListener('mousedown', onClick) };
   }
 
-  onMount(() => {
-    loadVideos({ reset: true });
+  onMount(async () => {
+    await loadWatchedIds();
+    await loadVideos({ reset: true });
+    updateGrid();
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   });
 </script>
 
 <style>
-/* ...[same styles as before, no changes needed]... */
 .page-container {
   max-width: 1920px;
   margin: 0 auto;
@@ -192,13 +210,44 @@
 }
 .controls-bar {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
   gap: 1.2em;
-  margin: 0 0 1.5em 0;
   max-width: 1380px;
+  margin: 0 0 1.5em 0;
   margin-left: auto;
   margin-right: auto;
+  background: #f7f7fb;
+  padding: 0.7em 1.5em 0.7em 1.2em;
+  border-radius: 18px;
+  border: 1.7px solid #ececec;
+  box-shadow: 0 2px 16px #ececec60;
+}
+.controls-left {
+  display: flex;
+  align-items: center;
+  gap: 1.2em;
+}
+.controls-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+@media (max-width: 900px) {
+  .controls-bar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0.7em 0.8em;
+  }
+  .controls-left,
+  .controls-right {
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+  .controls-right {
+    justify-content: flex-end;
+    margin-top: 0.7em;
+  }
 }
 .dropdown {
   position: relative;
@@ -207,7 +256,7 @@
 .dropdown-btn {
   padding: 0.42em 1.1em;
   font-size: 1.05em;
-  border-radius: 6px;
+  border-radius: 12px;
   border: 1.2px solid #ececec;
   background: #f9f9f9;
   color: #1d1d1d;
@@ -248,12 +297,52 @@
   gap: 0.6em;
   font-size: 1.03em;
 }
-.level-dot {
-  width: 17px;
-  height: 17px;
-  border-radius: 9px;
-  margin-right: 0.4em;
-  display: inline-block;
+.switch-bar {
+  display: flex;
+  align-items: center;
+}
+.switch-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 1em;
+  font-weight: 500;
+  color: #1d1d1d;
+  gap: 0.4em;
+  background: #f9f9f9;
+  border-radius: 8px;
+  padding: 0.33em 0.7em 0.33em 0.33em;
+  border: 1px solid #ececec;
+  user-select: none;
+}
+.switch-label input {
+  display: none;
+}
+.switch-slider {
+  width: 34px;
+  height: 20px;
+  background: #e8e8e8;
+  border-radius: 12px;
+  position: relative;
+  transition: background 0.13s;
+  margin-right: 0.35em;
+}
+.switch-label input:checked + .switch-slider {
+  background: #26890d;
+}
+.switch-slider::before {
+  content: '';
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  left: 2.2px;
+  top: 2.2px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.13s;
+}
+.switch-label input:checked + .switch-slider::before {
+  transform: translateX(14px);
 }
 .grid {
   display: grid;
@@ -355,70 +444,102 @@
 @media (max-width: 1200px) {
   .grid { grid-template-columns: repeat(3, 1fr);}
 }
+@media (max-width: 900px) {
+  .controls-bar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0.7em 0.8em;
+  }
+  .controls-left,
+  .controls-right {
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+  .controls-right {
+    justify-content: flex-end;
+    margin-top: 0.7em;
+  }
+}
 @media (max-width: 800px) {
   .grid { grid-template-columns: repeat(1, 1fr);}
-  .controls-bar { flex-direction: column; align-items: stretch;}
 }
 </style>
 
 <div class="page-container">
-  <!-- Controls Bar -->
+  <!-- Selection Controls Bar -->
   <div class="controls-bar">
-    <!-- Sort By Dropdown -->
-    <div class="dropdown" use:handleClickOutside={() => showSortDropdown = false}>
-<button
-  class="dropdown-btn"
-  aria-expanded={showSortDropdown}
-  on:click={handleSortDropdownToggle}
-  type="button"
->
-  Sort by
-  <svg width="12" height="9" style="margin-left:7px;" fill="none"><path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2"/></svg>
-</button>
-      {#if showSortDropdown}
-        <div class="dropdown-content">
-          {#each sortChoices as opt}
-            <div style="padding:0.32em 0.2em;cursor:pointer;" on:click={() => handleSortSelect(opt.value)}>
-              {opt.label}
-            </div>
-          {/each}
-        </div>
-      {/if}
-    </div>
-
-    <!-- Levels Dropdown -->
-    <div class="dropdown" use:handleClickOutside={() => showLevelDropdown = false}>
-      <button
-        class="dropdown-btn"
-        aria-expanded={showLevelDropdown}
-        on:click={handleLevelDropdownToggle}
-        type="button"
-      >
-        Levels
-        <svg width="12" height="9" style="margin-left:7px;" fill="none"><path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2"/></svg>
-      </button>
-      {#if showLevelDropdown}
-        <div class="dropdown-content">
-          <div style="margin-bottom:0.5em;font-size:1em;font-weight:600;">Include</div>
-          <div class="levels-list">
-            {#each levels as lvl}
-              <label class="level-checkbox">
-                <input
-                  type="checkbox"
-                  checked={selectedLevels.has(lvl.value)}
-                  on:change={() => toggleLevel(lvl.value)}
-                />
-                <span>{lvl.label}</span>
-              </label>
+    <div class="controls-left">
+      <!-- Sort By Dropdown -->
+      <div class="dropdown" use:handleClickOutside={() => showSortDropdown = false}>
+        <button
+          class="dropdown-btn"
+          aria-expanded={showSortDropdown}
+          on:click={handleSortDropdownToggle}
+          type="button"
+        >
+          Sort by
+          <svg width="12" height="9" style="margin-left:7px;" fill="none">
+            <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2"/>
+          </svg>
+        </button>
+        {#if showSortDropdown}
+          <div class="dropdown-content">
+            {#each sortChoices as opt}
+              <div style="padding:0.32em 0.2em;cursor:pointer;" on:click={() => handleSortSelect(opt.value)}>
+                {opt.label}
+              </div>
             {/each}
           </div>
-          <div style="margin-top:0.4em;">
-            <button style="font-size:0.97em;color:#176cda;background:none;border:none;cursor:pointer;" on:click={toggleAllLevels}>
-              {allLevelsSelected() ? "Clear all" : "Select all"}
-            </button>
+        {/if}
+      </div>
+
+      <!-- Levels Dropdown -->
+      <div class="dropdown" use:handleClickOutside={() => showLevelDropdown = false}>
+        <button
+          class="dropdown-btn"
+          aria-expanded={showLevelDropdown}
+          on:click={handleLevelDropdownToggle}
+          type="button"
+        >
+          Levels
+          <svg width="12" height="9" style="margin-left:7px;" fill="none">
+            <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2"/>
+          </svg>
+        </button>
+        {#if showLevelDropdown}
+          <div class="dropdown-content">
+            <div style="margin-bottom:0.5em;font-size:1em;font-weight:600;">Include</div>
+            <div class="levels-list">
+              {#each levels as lvl}
+                <label class="level-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={selectedLevels.has(lvl.value)}
+                    on:change={() => toggleLevel(lvl.value)}
+                  />
+                  <span>{lvl.label}</span>
+                </label>
+              {/each}
+            </div>
+            <div style="margin-top:0.4em;">
+              <button style="font-size:0.97em;color:#176cda;background:none;border:none;cursor:pointer;" on:click={toggleAllLevels}>
+                {allLevelsSelected() ? "Clear all" : "Select all"}
+              </button>
+            </div>
           </div>
-        </div>
-      {/if}
+        {/if}
+      </div>
+    </div>
+
+    <!-- Hide Watched Switch (right side) -->
+    <div class="controls-right">
+      <div class="switch-bar">
+        <label class="switch-label">
+          <input type="checkbox" bind:checked={hideWatched} on:change={updateGrid} />
+          <span class="switch-slider"></span>
+          Hide watched
+        </label>
+      </div>
     </div>
   </div>
 
