@@ -366,15 +366,15 @@
   <div class="controls-bar">
     <!-- Sort By Dropdown -->
     <div class="dropdown" use:handleClickOutside={() => showSortDropdown = false}>
-      <button
-        class="dropdown-btn"
-        aria-expanded={showSortDropdown}
-        on:click={handleSortDropdownToggle}
-        type="button"
-      >
-        Sort by: <b style="margin-left:0.3em;">{sortChoices.find(o => o.value === sortBy)?.label}</b>
-        <svg width="12" height="9" style="margin-left:7px;" fill="none"><path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2"/></svg>
-      </button>
+<button
+  class="dropdown-btn"
+  aria-expanded={showSortDropdown}
+  on:click={handleSortDropdownToggle}
+  type="button"
+>
+  Sort by
+  <svg width="12" height="9" style="margin-left:7px;" fill="none"><path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2"/></svg>
+</button>
       {#if showSortDropdown}
         <div class="dropdown-content">
           {#each sortChoices as opt}
@@ -408,7 +408,6 @@
                   checked={selectedLevels.has(lvl.value)}
                   on:change={() => toggleLevel(lvl.value)}
                 />
-                <span class="level-dot" style="background:{lvl.color}"></span>
                 <span>{lvl.label}</span>
               </label>
             {/each}
