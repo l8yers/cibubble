@@ -26,7 +26,7 @@
     <!-- Sort Dropdown -->
     <div class="dropdown">
       <button class="dropdown-btn" aria-expanded={showSortDropdown} on:click={handleSortDropdownToggle} type="button">
-        <Sparkles size={18} style="margin-right:7px; vertical-align:-3px; color:#2e9be6;" />
+        <Sparkles size={18} style="margin-right:7px;vertical-align:-3px;color:#2e9be6;" />
         Sort by
         <svg width="12" height="9" style="margin-left:7px;" fill="none">
           <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
@@ -46,7 +46,7 @@
     <!-- Levels Dropdown -->
     <div class="dropdown">
       <button class="dropdown-btn" aria-expanded={showLevelDropdown} on:click={handleLevelDropdownToggle} type="button">
-        <BarChart3 size={18} style="margin-right:7px; vertical-align:-3px; color:#44c366;" />
+        <BarChart3 size={18} style="margin-right:7px;vertical-align:-3px;color:#44c366;" />
         Levels
         <svg width="12" height="9" style="margin-left:7px;" fill="none">
           <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
@@ -77,7 +77,7 @@
       <label class="switch-label">
         <input type="checkbox" bind:checked={hideWatched} on:change={updateGrid} />
         <span class="switch-slider"></span>
-        Hide watched
+         <span class="switch-text">Hide watched</span>
       </label>
     </div>
     <div class="search-bar-container">
@@ -97,7 +97,7 @@
         on:click={toggleSearch}
         aria-label="Search"
       >
-        <Search size={22} />
+        <Search size={22} style="color:#2e9be6;" />
       </button>
     </div>
   </div>
@@ -116,8 +116,8 @@
   border-radius: 18px;
   border: 1.7px solid #ececec;
   box-shadow: 0 2px 16px #ececec60;
+  position: relative;
   overflow-x: visible;
-    position: relative;
 }
 .controls-left {
   display: flex;
@@ -155,7 +155,7 @@
 }
 .dropdown-content {
   position: absolute;
-  z-index: 10;
+  z-index: 1000;
   background: #fff;
   border: 1.3px solid #e8e8e8;
   border-radius: 8px;
@@ -196,6 +196,14 @@
   border: 1px solid #ececec;
   user-select: none;
 }
+.switch-label .switch-text {
+  font-size: 1.05em;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  font-family: inherit;
+  color: #1d1d1d; /* Or whatever your dropdown text is */
+  margin-left: 0.3em;
+}
 .switch-label input {
   display: none;
 }
@@ -203,13 +211,13 @@
   width: 34px;
   height: 20px;
   background: #e8e8e8;
-  border-radius: 12px;
+  border-radius: 8px;
   position: relative;
   transition: background 0.13s;
   margin-right: 0.35em;
 }
 .switch-label input:checked + .switch-slider {
-  background: #26890d;
+  background: #fd2b23;
 }
 .switch-slider::before {
   content: '';
@@ -249,6 +257,12 @@
   align-items: center;
   padding: 0.3em;
   margin-left: 0;
+  border-radius: 50%;
+  transition: background 0.18s;
+}
+.search-toggle:hover,
+.search-toggle:focus-visible {
+  background: #e5f2fd;
 }
 .search-toggle svg {
   transition: stroke 0.15s;
