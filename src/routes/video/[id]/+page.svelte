@@ -7,81 +7,137 @@
   let suggestions = [];
   let loading = true;
   let user = null;
-
   $: id = $page.params.id;
 
-  // --- Player tracking
-  let player;
-  let ytReady = false;
+  // --- Tracking state
+  let player, ytReady = false;
   let pollingInterval = null;
   let lastTime = 0;
   let watchSeconds = 0;
   let markedAsWatched = false;
+  let lastSavedSeconds = 0;
+  let playerReady = false, userReady = false;
+  let flushOnUnload = false;
 
-  // --- YT API Ready ---
+  // --- YouTube API Ready and Player
   function onYouTubeIframeAPIReady() {
     ytReady = true;
     initPlayer();
   }
-
   function initPlayer() {
     if (player || !document.getElementById('yt-player')) return;
     player = new window.YT.Player('yt-player', {
-      events: { 'onStateChange': onPlayerStateChange }
+      events: {
+        'onReady': () => { playerReady = true; maybeStartPolling(); },
+        'onStateChange': onPlayerStateChange
+      }
     });
   }
-
-  function startWatchTimer() {
-    if (!pollingInterval && player) {
-      lastTime = player.getCurrentTime?.() || 0;
-      pollingInterval = setInterval(async () => {
-        const currentTime = player.getCurrentTime?.() || 0;
-        let delta = currentTime - lastTime;
-        if (delta < 0) delta = 0;
-        if (delta > 5) delta = 1;
-        watchSeconds += delta;
-        lastTime = currentTime;
-
-        // Calculate percent watched
-        const duration = player.getDuration?.() || 1;
-        const percentWatched = Math.max(currentTime, watchSeconds) / duration;
-
-        if (!markedAsWatched && percentWatched >= 0.9 && user) {
-          markedAsWatched = true; // So we only do it once per view
-          await saveWatchSession(duration);
-        }
-      }, 1000);
+  function maybeStartPolling() {
+    if (!pollingInterval && player && playerReady && userReady) {
+      startWatchTimer();
     }
+  }
+
+  // --- Bulletproof Timer/Logging ---
+  function startWatchTimer() {
+    lastTime = player.getCurrentTime?.() || 0;
+    pollingInterval = setInterval(async () => {
+      if (!user || !player) return;
+      const currentTime = player.getCurrentTime?.() || 0;
+      let delta = currentTime - lastTime;
+      if (delta < 0) delta = 0;
+      if (delta > 5) delta = 1;
+      watchSeconds += delta;
+      lastTime = currentTime;
+
+      // Save every 8s or if significant jump
+      if (Math.floor(watchSeconds / 8) > Math.floor(lastSavedSeconds / 8) || watchSeconds - lastSavedSeconds >= 8) {
+        await savePartialWatchSession(Math.floor(watchSeconds));
+        lastSavedSeconds = watchSeconds;
+      }
+
+      // Save full duration if 90% watched (either by time or currentTime)
+      const duration = player.getDuration?.() || 1;
+      const percentWatched = Math.max(currentTime, watchSeconds) / duration;
+      if (!markedAsWatched && percentWatched >= 0.9 && user) {
+        markedAsWatched = true;
+        await saveWatchSession(duration);
+      }
+    }, 1200); // 1.2s interval to avoid exact overlapping with 1s YouTube polling
+    console.log("Watch polling started");
   }
 
   function stopWatchTimer() {
     if (pollingInterval) {
       clearInterval(pollingInterval);
       pollingInterval = null;
+      // Always final flush
+      flushProgress();
+    }
+  }
+
+  async function savePartialWatchSession(seconds) {
+    if (!user) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const { error } = await supabase.from('watch_sessions').upsert({
+      user_id: user.id,
+      video_id: id,
+      seconds: Math.max(1, seconds),
+      date: today
+    }, { onConflict: ['user_id', 'video_id', 'date'] });
+    if (error) {
+      console.error("Partial watch session save error:", error);
+    } else {
+      console.log("Partial progress saved:", seconds, "seconds");
     }
   }
 
   async function saveWatchSession(duration) {
+    if (!user) return;
     const today = new Date().toISOString().slice(0, 10);
-    await supabase.from('watch_sessions').upsert({
+    const { error } = await supabase.from('watch_sessions').upsert({
       user_id: user.id,
       video_id: id,
-      seconds: duration, // Save as "fully watched"
+      seconds: Math.max(1, Math.round(duration)),
       date: today
     }, { onConflict: ['user_id', 'video_id', 'date'] });
+    if (error) {
+      console.error("Watch session save error:", error);
+    } else {
+      console.log("Video completed, saved as fully watched:", duration, "seconds");
+    }
+  }
+
+  function flushProgress() {
+    if (user && watchSeconds > lastSavedSeconds) {
+      savePartialWatchSession(Math.floor(watchSeconds));
+      lastSavedSeconds = watchSeconds;
+    }
   }
 
   function onPlayerStateChange(event) {
-    if (event.data === 1) startWatchTimer(); // Playing
-    else stopWatchTimer(); // Paused/Ended
+    stopWatchTimer();
+    if (event.data === 1) { // Playing
+      maybeStartPolling();
+    }
+    // On pause/end/buffering, always flush
+    if ([0, 2, 3].includes(event.data)) {
+      flushProgress();
+    }
   }
 
-  onDestroy(() => stopWatchTimer());
+  // --- Handle unload/tab close, always flush
+  function handleBeforeUnload() {
+    flushProgress();
+    flushOnUnload = true;
+  }
 
-  // --- onMount logic
   onMount(async () => {
+    // Load user
     const { data: sess } = await supabase.auth.getSession();
     user = sess.session?.user ?? null;
+    userReady = !!user;
 
     // Fetch video
     const { data: vid } = await supabase
@@ -91,7 +147,7 @@
       .maybeSingle();
     video = vid;
 
-    // Fetch sidebar suggestions
+    // Fetch suggestions (sidebar)
     const { data: suggs } = await supabase
       .from('videos')
       .select('*')
@@ -101,7 +157,7 @@
     suggestions = suggs || [];
     loading = false;
 
-    // YouTube API
+    // YouTube API loader
     window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
     if (!window.YT) {
       const tag = document.createElement('script');
@@ -111,9 +167,18 @@
       ytReady = true;
       initPlayer();
     }
+
+    // Always flush on tab close/page leave
+    window.addEventListener('beforeunload', handleBeforeUnload);
   });
 
-  // --- Formatting helpers
+  onDestroy(() => {
+    stopWatchTimer();
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+    if (!flushOnUnload) flushProgress();
+  });
+
+  // --- UI formatting
   function formatVideoDuration(sec) {
     sec = Math.round(sec);
     if (isNaN(sec) || sec <= 0) return '0:00';
@@ -121,7 +186,6 @@
     const s = sec % 60;
     return m + ':' + (s < 10 ? '0' : '') + s;
   }
-
   function badgeProps(level) {
     if (!level) return { label: "Not Yet Rated", color: "#d4d4d4", text: "#888" };
     switch (level.trim().toLowerCase()) {
