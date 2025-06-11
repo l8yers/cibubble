@@ -32,7 +32,6 @@
   let allSearchLoaded = false;
 
   const levels = [
-    { value: 'superbeginner', label: 'Super Beginner' },
     { value: 'beginner', label: 'Beginner' },
     { value: 'intermediate', label: 'Intermediate' },
     { value: 'advanced', label: 'Advanced' }

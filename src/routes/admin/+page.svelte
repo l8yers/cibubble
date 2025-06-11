@@ -1,7 +1,7 @@
 <script>
   import { supabase } from '$lib/supabaseClient';
 
-  // -- Country & Tag master lists --
+  // --- Master lists ---
   const countryOptions = [
     "Argentina","Canary Islands","Chile","Colombia","Costa Rica","Cuba",
     "Dominican Republic","Ecuador","El Salvador","Equatorial Guinea",
@@ -15,6 +15,16 @@
     "Native Show","Education","Sports","Current Events"
   ];
 
+  const levels = [
+    { value: '', label: 'Set Level' },
+    { value: 'superbeginner', label: 'Super Beginner' },
+    { value: 'beginner', label: 'Beginner' },
+    { value: 'intermediate', label: 'Intermediate' },
+    { value: 'advanced', label: 'Advanced' },
+    { value: 'notyet', label: 'Not Yet Rated' }
+  ];
+
+  // --- State ---
   let url = '';
   let message = '';
   let importing = false;
@@ -25,17 +35,36 @@
   let showPlaylistsFor = null;
   let playlists = [];
   let playlistsLoading = false;
-  const levels = [
-    { value: '', label: 'Set Level' },
-    { value: 'superbeginner', label: 'Super Beginner' },
-    { value: 'beginner', label: 'Beginner' },
-    { value: 'intermediate', label: 'Intermediate' },
-    { value: 'advanced', label: 'Advanced' },
-    { value: 'notyet', label: 'Not Yet Rated' }
-  ];
+  let adminStats = {
+    videos: 0,
+    channels: 0,
+    playlists: 0,
+    runningTime: 0,
+    byLevel: {
+      superbeginner: 0,
+      beginner: 0,
+      intermediate: 0,
+      advanced: 0,
+      notyet: 0
+    },
+    timeByLevel: {
+      superbeginner: 0,
+      beginner: 0,
+      intermediate: 0,
+      advanced: 0,
+      notyet: 0
+    }
+  };
 
-  // -- ADMIN ACTIONS --
+  // --- Helpers ---
+  function formatTime(sec) {
+    // If your "length" is in minutes, change to: let h = Math.floor(sec / 60); let m = sec % 60;
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    return `${h}h ${m}m`;
+  }
 
+  // --- Admin Actions ---
   async function importChannel() {
     message = '';
     importing = true;
@@ -84,7 +113,6 @@
     await refresh();
   }
 
-  // Playlists per channel
   async function togglePlaylistsFor(channelId) {
     if (showPlaylistsFor === channelId) {
       showPlaylistsFor = null;
@@ -143,14 +171,12 @@
     );
   }
 
-  // Update country for a channel
   async function setChannelCountry(channelId, country) {
     await supabase.from('channels').update({ country }).eq('id', channelId);
     message = '✅ Country updated';
     await refresh();
   }
 
-  // Update tags for a channel (stored as comma-separated list)
   async function setChannelTags(chan) {
     if (!chan._tagsSet) return;
     // Add new tags to tagOptions if needed (UI only, not master table here)
@@ -165,9 +191,10 @@
     await refresh();
   }
 
-  // --- REFRESH DATA ---
+  // --- REFRESH DATA & STATS ---
   async function refresh() {
     refreshing = true;
+    // Channels for table
     let { data, error } = await supabase.from('channels').select('*');
     if (error) {
       message = error.message;
@@ -182,6 +209,62 @@
       _tagsDirty: false,
       _newLevel: ""
     }));
+
+    // --- Stats ---
+    // Counts
+    const { count: videosCount } = await supabase.from('videos').select('id', { count: 'exact', head: true });
+    const { count: playlistsCount } = await supabase.from('playlists').select('id', { count: 'exact', head: true });
+    const { count: channelsCount } = await supabase.from('channels').select('id', { count: 'exact', head: true });
+
+    // Totals by level and time by level
+    let byLevel = {
+      superbeginner: 0,
+      beginner: 0,
+      intermediate: 0,
+      advanced: 0,
+      notyet: 0
+    };
+    let timeByLevel = {
+      superbeginner: 0,
+      beginner: 0,
+      intermediate: 0,
+      advanced: 0,
+      notyet: 0
+    };
+
+    for (const lvl of Object.keys(byLevel)) {
+      const eqLevel = lvl === 'notyet' ? '' : lvl;
+      // Count
+      const { count } = await supabase
+        .from('videos')
+        .select('id', { count: 'exact', head: true })
+        .eq('level', eqLevel);
+      byLevel[lvl] = count || 0;
+      // Total time
+      const { data: levelVids } = await supabase.from('videos').select('length').eq('level', eqLevel);
+      if (levelVids) {
+        timeByLevel[lvl] = levelVids.reduce((sum, v) => sum + (v.length || 0), 0);
+      } else {
+        timeByLevel[lvl] = 0;
+      }
+    }
+
+    // Running time (all)
+    const { data: vidsTime } = await supabase.from('videos').select('length');
+    let runningTime = 0;
+    if (vidsTime) {
+      runningTime = vidsTime.reduce((sum, v) => sum + (v.length || 0), 0);
+    }
+
+    adminStats = {
+      videos: videosCount || 0,
+      playlists: playlistsCount || 0,
+      channels: channelsCount || 0,
+      runningTime,
+      byLevel,
+      timeByLevel
+    };
+
     refreshing = false;
   }
 
@@ -211,6 +294,30 @@ select, .tag-input { margin-top: 0.4em; }
 
 <div class="admin-main">
   <h2 style="margin-bottom:1.6em;">CIBUBBLE Admin Tools</h2>
+
+  <!-- --- Admin Totals Bar --- -->
+  <div style="margin: 0 0 1.2em 0; padding: 0.8em 1.3em; background: #faf6f4; border-radius: 7px; display: flex; flex-wrap: wrap; gap: 2.2em; font-size:1.1em; color:#e93c2f;">
+    <div><b>Videos:</b> {adminStats.videos}</div>
+    <div><b>Channels:</b> {adminStats.channels}</div>
+    <div><b>Playlists:</b> {adminStats.playlists}</div>
+    <div><b>Total Time:</b> {formatTime(adminStats.runningTime)}</div>
+    <div>
+      <b>Super Beginner:</b> {adminStats.byLevel.superbeginner} &nbsp;|&nbsp;
+      <b>Beginner:</b> {adminStats.byLevel.beginner} &nbsp;|&nbsp;
+      <b>Intermediate:</b> {adminStats.byLevel.intermediate} &nbsp;|&nbsp;
+      <b>Advanced:</b> {adminStats.byLevel.advanced} &nbsp;|&nbsp;
+      <b>Not Yet:</b> {adminStats.byLevel.notyet}
+    </div>
+    <div style="width:100%;font-size:0.97em;color:#d14e17;margin-top:0.5em;">
+      <b>Time by Level:</b>
+      Super Beginner: {formatTime(adminStats.timeByLevel.superbeginner)} &nbsp;|&nbsp;
+      Beginner: {formatTime(adminStats.timeByLevel.beginner)} &nbsp;|&nbsp;
+      Intermediate: {formatTime(adminStats.timeByLevel.intermediate)} &nbsp;|&nbsp;
+      Advanced: {formatTime(adminStats.timeByLevel.advanced)} &nbsp;|&nbsp;
+      Not Yet: {formatTime(adminStats.timeByLevel.notyet)}
+    </div>
+  </div>
+
   <div class="row">
     <input type="text" placeholder="Paste YouTube channel link or @handle…" bind:value={url} />
     <button on:click={importChannel} disabled={!url || importing}>{importing ? 'Importing…' : 'Import Channel'}</button>
