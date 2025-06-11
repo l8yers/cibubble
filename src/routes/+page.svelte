@@ -1,4 +1,5 @@
 <script>
+  import { browser } from '$app/environment';
   import { onMount, onDestroy } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import VideoGrid from '$lib/VideoGrid.svelte';
