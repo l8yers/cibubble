@@ -1,4 +1,5 @@
 <script>
+  import { onMount, onDestroy } from 'svelte';
   import { Sparkles, BarChart3, Search, Globe, Tag } from 'lucide-svelte';
 
   export let levels = [];
@@ -30,12 +31,41 @@
   export let handleSearchInput;
   export let hideWatched;
   export let updateGrid;
+
+  // Dropdown refs for outside click detection
+  let sortDropdownRef;
+  let levelsDropdownRef;
+  let tagDropdownRef;
+  let countryDropdownRef;
+
+  function handleDocumentClick(event) {
+    if (showSortDropdown && sortDropdownRef && !sortDropdownRef.contains(event.target)) {
+      showSortDropdown = false;
+    }
+    if (showLevelDropdown && levelsDropdownRef && !levelsDropdownRef.contains(event.target)) {
+      showLevelDropdown = false;
+    }
+    if (showTagDropdown && tagDropdownRef && !tagDropdownRef.contains(event.target)) {
+      showTagDropdown = false;
+    }
+    if (showCountryDropdown && countryDropdownRef && !countryDropdownRef.contains(event.target)) {
+      showCountryDropdown = false;
+    }
+  }
+
+  onMount(() => {
+    document.addEventListener('click', handleDocumentClick);
+  });
+
+  onDestroy(() => {
+    document.removeEventListener('click', handleDocumentClick);
+  });
 </script>
 
 <div class="controls-bar">
   <div class="controls-left">
     <!-- Sort Dropdown -->
-    <div class="dropdown">
+    <div class="dropdown" bind:this={sortDropdownRef}>
       <button class="dropdown-btn" aria-expanded={showSortDropdown} on:click={handleSortDropdownToggle} type="button">
         <Sparkles size={18} style="margin-right:7px;vertical-align:-3px;color:#2e9be6;" />
         Sort by
@@ -55,7 +85,7 @@
     </div>
 
     <!-- Levels Dropdown -->
-    <div class="dropdown">
+    <div class="dropdown" bind:this={levelsDropdownRef}>
       <button class="dropdown-btn" aria-expanded={showLevelDropdown} on:click={handleLevelDropdownToggle} type="button">
         <BarChart3 size={18} style="margin-right:7px;vertical-align:-3px;color:#44c366;" />
         Levels
@@ -84,7 +114,7 @@
     </div>
 
     <!-- Tags Dropdown -->
-    <div class="dropdown">
+    <div class="dropdown" bind:this={tagDropdownRef}>
       <button class="dropdown-btn" aria-expanded={showTagDropdown} on:click={toggleTagDropdown} type="button">
         <Tag size={18} style="margin-right:7px;vertical-align:-3px;color:#f2a02b;" />
         Tags
@@ -112,7 +142,7 @@
     </div>
 
     <!-- Countries Dropdown -->
-    <div class="dropdown">
+    <div class="dropdown" bind:this={countryDropdownRef}>
       <button class="dropdown-btn" aria-expanded={showCountryDropdown} on:click={toggleCountryDropdown} type="button">
         <Globe size={18} style="margin-right:7px;vertical-align:-3px;color:#c367f2;" />
         Countries
@@ -306,35 +336,31 @@
     gap: 0.7em;
   }
   .search-input {
-  transition:
-    width 0.2s,
-    opacity 0.2s,
-    box-shadow 0.13s,
-    border 0.13s;
-  width: 180px;
-  max-width: 50vw;
-  order: -1;
-  margin-right: 0.3em;
-  opacity: 1;
-
-  /* Add these for design consistency */
-  font-size: 1.05em;
-  border-radius: 12px;
-  border: 1.2px solid #ececec;
-  background: #f9f9f9;
-  color: #1d1d1d;
-  font-weight: 500;
-  padding: 0.42em 1.1em;
-  box-shadow: 0 2px 8px #ececec60;
-  outline: none;
-}
-
-.search-input:focus {
-  border: 1.2px solid #bbb;
-  background: #f1f5fb;
-  box-shadow: 0 2px 16px #bbb2;
-}
-
+    transition:
+      width 0.2s,
+      opacity 0.2s,
+      box-shadow 0.13s,
+      border 0.13s;
+    width: 180px;
+    max-width: 50vw;
+    order: -1;
+    margin-right: 0.3em;
+    opacity: 1;
+    font-size: 1.05em;
+    border-radius: 12px;
+    border: 1.2px solid #ececec;
+    background: #f9f9f9;
+    color: #1d1d1d;
+    font-weight: 500;
+    padding: 0.42em 1.1em;
+    box-shadow: 0 2px 8px #ececec60;
+    outline: none;
+  }
+  .search-input:focus {
+    border: 1.2px solid #bbb;
+    background: #f1f5fb;
+    box-shadow: 0 2px 16px #bbb2;
+  }
   .search-toggle {
     z-index: 2;
     background: none;
