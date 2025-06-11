@@ -145,13 +145,17 @@
     </div>
   </div>
   <div class="controls-right">
-    <div class="switch-bar">
-      <label class="switch-label">
-        <input type="checkbox" bind:checked={hideWatched} on:change={updateGrid} />
-        <span class="switch-slider"></span>
-        <span class="switch-text">Hide watched</span>
-      </label>
-    </div>
+    <button
+      class="dropdown-btn hide-watched-btn"
+      type="button"
+      aria-pressed={hideWatched}
+      on:click={() => {
+        hideWatched = !hideWatched;
+        updateGrid();
+      }}>
+      <span class="switch-slider {hideWatched ? 'checked' : ''}"></span>
+      <span class="switch-label-text">Hide watched</span>
+    </button>
     <div class="search-bar-container">
       {#if searchOpen}
         <input
@@ -175,199 +179,184 @@
   </div>
 </div>
 
-
-
 <style>
-	.controls-bar {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1.2em;
-		max-width: 1380px;
-		margin: 0.5em auto 2em auto;
-		background: #f7f7fb;
-		padding: 0.7em 1.5em 0.7em 1.2em;
-		border-radius: 18px;
-		border: 1.7px solid #ececec;
-		box-shadow: 0 2px 16px #ececec60;
-		position: relative;
-		overflow-x: visible;
-	}
-	.controls-left {
-		display: flex;
-		align-items: center;
-		gap: 1.2em;
-	}
-	.controls-right {
-		margin-left: auto;
-		display: flex;
-		align-items: center;
-		gap: 1.1em;
-	}
-	.dropdown {
-		position: relative;
-		min-width: 120px;
-	}
-	.dropdown-btn {
-		padding: 0.42em 1.1em;
-		font-size: 1.05em;
-		border-radius: 12px;
-		border: 1.2px solid #ececec;
-		background: #f9f9f9;
-		color: #1d1d1d;
-		font-weight: 600;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		gap: 0.5em;
-		min-width: 110px;
-		transition:
-			border 0.11s,
-			background 0.11s;
-	}
-	.dropdown-btn[aria-expanded='true'] {
-		background: #f1f5fb;
-		border: 1.2px solid #bbb;
-	}
-	.dropdown-content {
-		position: absolute;
-		z-index: 1000;
-		background: #fff;
-		border: 1.3px solid #e8e8e8;
-		border-radius: 8px;
-		box-shadow: 0 2px 18px #eee;
-		min-width: 180px;
-		padding: 0.8em 0.6em;
-		top: 110%;
-		left: 0;
-		font-size: 1em;
-	}
-	.levels-list {
-		display: flex;
-		flex-direction: column;
-		gap: 0.6em;
-		margin: 0.3em 0 0.4em 0;
-	}
-	.level-checkbox {
-		display: flex;
-		align-items: center;
-		gap: 0.6em;
-		font-size: 1.03em;
-	}
-	.switch-bar {
-		display: flex;
-		align-items: center;
-	}
-	.switch-label {
-		display: flex;
-		align-items: center;
-		cursor: pointer;
-		font-size: 1em;
-		font-weight: 500;
-		color: #1d1d1d;
-		gap: 0.4em;
-		background: #f9f9f9;
-		border-radius: 8px;
-		padding: 0.33em 0.7em 0.33em 0.33em;
-		border: 1px solid #ececec;
-		user-select: none;
-	}
-	.switch-label .switch-text {
-		font-size: 1.05em;
-		font-weight: 600;
-		letter-spacing: 0.03em;
-		font-family: inherit;
-		color: #1d1d1d; /* Or whatever your dropdown text is */
-		margin-left: 0.3em;
-	}
-	.switch-label input {
-		display: none;
-	}
-	.switch-slider {
-		width: 34px;
-		height: 20px;
-		background: #e8e8e8;
-		border-radius: 8px;
-		position: relative;
-		transition: background 0.13s;
-		margin-right: 0.35em;
-	}
-	.switch-label input:checked + .switch-slider {
-		background: #fd2b23;
-	}
-	.switch-slider::before {
-		content: '';
-		position: absolute;
-		width: 15px;
-		height: 15px;
-		left: 2.2px;
-		top: 2.2px;
-		background: #fff;
-		border-radius: 50%;
-		transition: transform 0.13s;
-	}
-	.switch-label input:checked + .switch-slider::before {
-		transform: translateX(14px);
-	}
-	/* --- Search Bar --- */
-	.search-bar-container {
-		display: flex;
-		align-items: center;
-		position: relative;
-		gap: 0.7em;
-	}
-	.search-input {
-		transition:
-			width 0.2s,
-			opacity 0.2s;
-		width: 180px;
-		max-width: 50vw;
-		order: -1; /* This keeps the input to the *left* of the button */
-		margin-right: 0.3em;
-		opacity: 1;
-	}
-	.search-toggle {
-		z-index: 2;
-		background: none;
-		border: none;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		padding: 0.3em;
-		margin-left: 0;
-		border-radius: 50%;
-		transition: background 0.18s;
-	}
-	.search-toggle:hover,
-	.search-toggle:focus-visible {
-		background: #e5f2fd;
-	}
-	.search-toggle svg {
-		transition: stroke 0.15s;
-	}
-	.search-toggle:hover svg {
-		stroke: #2e9be6;
-	}
-	@media (max-width: 900px) {
-		.controls-bar {
-			flex-direction: column;
-			align-items: stretch;
-			padding: 0.7em 0.8em;
-		}
-		.controls-left,
-		.controls-right {
-			margin-left: 0;
-			justify-content: flex-start;
-		}
-		.controls-right {
-			justify-content: flex-end;
-			margin-top: 0.7em;
-		}
-	}
-	@media (max-width: 600px) {
-		.search-input {
-			width: 110px;
-			font-size: 0.96em;
-		}
-	}
+  .controls-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.2em;
+    max-width: 1380px;
+    margin: 0.5em auto 2em auto;
+    background: #f7f7fb;
+    padding: 0.7em 1.5em 0.7em 1.2em;
+    border-radius: 18px;
+    border: 1.7px solid #ececec;
+    box-shadow: 0 2px 16px #ececec60;
+    position: relative;
+    overflow-x: visible;
+  }
+  .controls-left {
+    display: flex;
+    align-items: center;
+    gap: 1.2em;
+  }
+  .controls-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 1.1em;
+  }
+  .dropdown {
+    position: relative;
+    min-width: 120px;
+  }
+  .dropdown-btn {
+    padding: 0.42em 1.1em;
+    font-size: 1.05em;
+    border-radius: 12px;
+    border: 1.2px solid #ececec;
+    background: #f9f9f9;
+    color: #1d1d1d;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.65em;
+    min-width: 110px;
+    transition:
+      border 0.11s,
+      background 0.11s;
+  }
+  .dropdown-btn[aria-expanded='true'],
+  .dropdown-btn[aria-pressed='true'] {
+    background: #f1f5fb;
+    border: 1.2px solid #bbb;
+  }
+  .hide-watched-btn[aria-pressed="true"] {
+    background: #fbecec;
+    border: 1.2px solid #fd2b23;
+    color: #fd2b23;
+  }
+  .hide-watched-btn .switch-slider {
+    width: 36px;
+    height: 20px;
+    background: #e8e8e8;
+    border-radius: 8px;
+    position: relative;
+    display: inline-block;
+    transition: background 0.13s;
+    margin-right: 0.65em;
+    vertical-align: middle;
+  }
+  .hide-watched-btn .switch-slider::before {
+    content: '';
+    position: absolute;
+    width: 15px;
+    height: 15px;
+    left: 2.2px;
+    top: 2.2px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.13s;
+    box-shadow: 0 1px 2px #0002;
+  }
+  .hide-watched-btn[aria-pressed="true"] .switch-slider {
+    background: #fd2b23;
+  }
+  .hide-watched-btn[aria-pressed="true"] .switch-slider::before {
+    transform: translateX(14px);
+  }
+  .switch-label-text {
+    font-size: 1.05em;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    font-family: inherit;
+    color: inherit;
+  }
+  .dropdown-content {
+    position: absolute;
+    z-index: 1000;
+    background: #fff;
+    border: 1.3px solid #e8e8e8;
+    border-radius: 8px;
+    box-shadow: 0 2px 18px #eee;
+    min-width: 180px;
+    padding: 0.8em 0.6em;
+    top: 110%;
+    left: 0;
+    font-size: 1em;
+  }
+  .levels-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6em;
+    margin: 0.3em 0 0.4em 0;
+  }
+  .level-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    font-size: 1.03em;
+  }
+  /* --- Search Bar --- */
+  .search-bar-container {
+    display: flex;
+    align-items: center;
+    position: relative;
+    gap: 0.7em;
+  }
+  .search-input {
+    transition:
+      width 0.2s,
+      opacity 0.2s;
+    width: 180px;
+    max-width: 50vw;
+    order: -1; /* This keeps the input to the *left* of the button */
+    margin-right: 0.3em;
+    opacity: 1;
+  }
+  .search-toggle {
+    z-index: 2;
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 0.3em;
+    margin-left: 0;
+    border-radius: 50%;
+    transition: background 0.18s;
+  }
+  .search-toggle:hover,
+  .search-toggle:focus-visible {
+    background: #e5f2fd;
+  }
+  .search-toggle svg {
+    transition: stroke 0.15s;
+  }
+  .search-toggle:hover svg {
+    stroke: #2e9be6;
+  }
+  @media (max-width: 900px) {
+    .controls-bar {
+      flex-direction: column;
+      align-items: stretch;
+      padding: 0.7em 0.8em;
+    }
+    .controls-left,
+    .controls-right {
+      margin-left: 0;
+      justify-content: flex-start;
+    }
+    .controls-right {
+      justify-content: flex-end;
+      margin-top: 0.7em;
+    }
+  }
+  @media (max-width: 600px) {
+    .search-input {
+      width: 110px;
+      font-size: 0.96em;
+    }
+  }
 </style>
