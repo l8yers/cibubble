@@ -9,7 +9,6 @@
     "Paraguay","Peru","Puerto Rico","Spain","United States","Uruguay","Venezuela"
   ];
 
-  // This should match the SortBar, update as you add tags.
   let tagOptions = [
     "For Learners","Kids Show","Dubbed Show","Videogames","News","History","Science",
     "Travel","Lifestyle","Personal Development","Cooking","Music","Comedy",
@@ -26,9 +25,6 @@
   let showPlaylistsFor = null;
   let playlists = [];
   let playlistsLoading = false;
-  let runningTimeByLevel = {
-    superbeginner: 0, beginner: 0, intermediate: 0, advanced: 0, notyet: 0
-  };
   const levels = [
     { value: '', label: 'Set Level' },
     { value: 'superbeginner', label: 'Super Beginner' },
@@ -104,11 +100,29 @@
     if (!error) {
       playlists = await Promise.all(
         (data || []).map(async (pl) => {
+          // Fetch levels of all videos in this playlist
+          const { data: vids } = await supabase
+            .from('videos')
+            .select('level')
+            .eq('playlist_id', pl.id);
+
+          let currentLevel = '';
+          if (vids && vids.length > 0) {
+            const levelsArr = vids.map(v => v.level || '');
+            const uniqueLevels = Array.from(new Set(levelsArr));
+            if (uniqueLevels.length === 1) {
+              currentLevel = uniqueLevels[0] || '';
+            } else {
+              currentLevel = 'mixed';
+            }
+          } else {
+            currentLevel = '';
+          }
           const { count: videos_count } = await supabase
             .from('videos')
             .select('id', { count: 'exact', head: true })
             .eq('playlist_id', pl.id);
-          return { ...pl, videos_count, _newLevel: '' };
+          return { ...pl, videos_count, _newLevel: '', currentLevel };
         })
       );
     } else {
@@ -121,7 +135,12 @@
     if (!level) return;
     await supabase.from('videos').update({ level }).eq('playlist_id', playlistId);
     message = `✅ All videos for this playlist set to "${levels.find(l => l.value === level)?.label}"`;
-    if (showPlaylistsFor) togglePlaylistsFor(showPlaylistsFor);
+    // Update only that playlist's currentLevel in the UI, clear its _newLevel
+    playlists = playlists.map(pl =>
+      pl.id === playlistId
+        ? { ...pl, currentLevel: level, _newLevel: '' }
+        : pl
+    );
   }
 
   // Update country for a channel
@@ -163,7 +182,6 @@
       _tagsDirty: false,
       _newLevel: ""
     }));
-    // (Optionally update running time stats, left out for brevity)
     refreshing = false;
   }
 
@@ -185,6 +203,9 @@ select, .tag-input { margin-top: 0.4em; }
 .channel-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; margin-right: 1.1em; border: 1.5px solid #eee;}
 .chip { background:#f7f7fb;border-radius:6px;padding:2px 7px 2px 5px;display:inline-flex;align-items:center;cursor:pointer;margin-right:5px;font-size:0.98em;}
 .chip input[type="checkbox"] { margin-right: 3px;}
+/* Playlist UI styles */
+.playlist-table { width:100%; margin-top:1em; background:none; font-size:0.98em;}
+.playlist-table th, .playlist-table td { padding: 0.55em 0.6em; border-bottom: 1px solid #f4f4fa; text-align:left;}
 @media (max-width: 700px) {.admin-main { padding: 1.3em 0.3em;} .admin-table th, .admin-table td { font-size: 0.97em; padding: 0.6em;}}
 </style>
 
@@ -206,7 +227,7 @@ select, .tag-input { margin-top: 0.4em; }
         <th>Channel</th>
         <th>Country</th>
         <th>Tags</th>
-        <th style="width:280px;">Level / Actions</th>
+        <th style="width:320px;">Level / Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -266,6 +287,7 @@ select, .tag-input { margin-top: 0.4em; }
               >Save</button>
             </div>
           </td>
+          <!-- Level / Actions -->
           <td>
             <select bind:value={chan._newLevel}>
               {#each levels as lvl}
@@ -274,8 +296,63 @@ select, .tag-input { margin-top: 0.4em; }
             </select>
             <button on:click={() => setChannelLevel(chan.id, chan._newLevel)} disabled={!chan._newLevel}>Set Level</button>
             <button style="background:#bbb;" on:click={() => deleteChannel(chan.id)} disabled={!!deleting[chan.id]}>Delete</button>
+            <button
+              style="background:#eee;color:#222;margin-left:1em"
+              on:click={() => togglePlaylistsFor(chan.id)}
+            >
+              {showPlaylistsFor === chan.id ? "Hide Playlists" : "Show Playlists"}
+            </button>
           </td>
         </tr>
+        {#if showPlaylistsFor === chan.id}
+          <tr>
+            <td colspan="4" style="background:#f9f9fc; padding:1.3em 2em;">
+              {#if playlistsLoading}
+                <div>Loading playlists…</div>
+              {:else if playlists.length === 0}
+                <div>No playlists found for this channel.</div>
+              {:else}
+                <table class="playlist-table">
+                  <thead>
+                    <tr>
+                      <th>Playlist</th>
+                      <th>Videos</th>
+                      <th>Set Level</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {#each playlists as pl}
+                      <tr>
+                        <td>{pl.title}</td>
+                        <td>{pl.videos_count}</td>
+                        <td>
+                          <select bind:value={pl._newLevel}>
+                            <option value="">
+                              -- 
+                              {pl.currentLevel === '' ? 'Not Set'
+                                : pl.currentLevel === 'mixed' ? 'Mixed'
+                                : levels.find(lvl => lvl.value === pl.currentLevel)?.label || pl.currentLevel
+                              }
+                              --
+                            </option>
+                            {#each levels as lvl}
+                              <option value={lvl.value}>{lvl.label}</option>
+                            {/each}
+                          </select>
+                          <button
+                            style="margin-left:0.6em"
+                            on:click={() => setPlaylistLevel(pl.id, pl._newLevel)}
+                            disabled={!pl._newLevel}
+                          >Set</button>
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              {/if}
+            </td>
+          </tr>
+        {/if}
       {/each}
       {#if channels.length === 0}
         <tr>
