@@ -54,61 +54,134 @@
   }
 </script>
 
+{#if loading}
+  <p style="text-align:center; color:#aaa; margin-top:3rem;">Loading…</p>
+{:else if !video}
+  <p style="text-align:center; color:#aaa; margin-top:3rem;">Video not found.</p>
+{:else}
+  <div class="player-page-bg">
+    <div class="player-flex">
+      <main class="player-main">
+        <div class="player-embed">
+          <iframe
+            id="yt-player"
+            width="100%"
+            height="100%"
+            src={`https://www.youtube.com/embed/${video.id}?enablejsapi=1`}
+            title={video.title}
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+          ></iframe>
+          {#if user}
+            <VideoWatchTracker videoId={video.id} videoDuration={video.length} userId={user.id} />
+          {/if}
+        </div>
+        <div class="player-title">{video.title}</div>
+        <div class="player-meta-row">
+          <span
+            class="player-diff-badge"
+            style="background: {badgeProps(video.level).color}; color: {badgeProps(video.level).text};"
+          >{badgeProps(video.level).label}</span>
+          <span class="player-channel">{video.channel_name}</span>
+          {#if video.length}
+            <span class="player-duration">{formatVideoDuration(video.length)}</span>
+          {/if}
+        </div>
+      </main>
+      <aside class="player-suggestions">
+        <div class="player-suggestions-label">More Videos</div>
+        <div class="player-suggestions-list">
+          {#each suggestions as v}
+            <a class="suggest-card" href={`/video/${v.id}`}>
+              <span class="suggest-thumb-wrap">
+                <img
+                  class="suggest-thumb"
+                  src={`https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`}
+                  alt={v.title}
+                  on:error="{(e) => e.target.src='https://placehold.co/120x67?text=No+Thumb'}"
+                />
+                {#if v.length}
+                  <span class="suggest-thumb-duration">
+                    {formatVideoDuration(v.length)}
+                  </span>
+                {/if}
+              </span>
+              <div class="suggest-body">
+                <div class="suggest-title">{v.title}</div>
+                <div class="suggest-meta-row">
+                  <span
+                    class="suggest-diff-badge"
+                    style="background: {badgeProps(v.level).color}; color: {badgeProps(v.level).text};"
+                  >{badgeProps(v.level).label}</span>
+                  <span class="suggest-channel">{v.channel_name}</span>
+                </div>
+              </div>
+            </a>
+          {/each}
+        </div>
+      </aside>
+    </div>
+  </div>
+{/if}
+
 <style>
-:global(html) {
-  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
-  background: #f6f7fa;
-}
-.player-youtube-layout {
-  display: flex;
-  align-items: flex-start;
-  gap: 38px;
-  max-width: 1700px;
-  margin: 0 auto;
-  padding: 48px 0 36px 42px;
-  background: #f6f7fa;
+/* BG same as front page */
+.player-page-bg {
+  background: var(--bg-main, #fff);
   min-height: 100vh;
+  padding-top: 0;
+  width: 100vw;
 }
-@media (max-width: 1200px) {
-  .player-youtube-layout { flex-direction: column; gap: 26px; padding: 36px 0 26px 0; }
+
+/* Layout similar to YouTube and your home page */
+.player-flex {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 28px 0 0 0;
+  gap: 40px;
 }
-.player-main-left {
-  width: 960px;
+
+.player-main {
+  flex: 1 1 0;
+  max-width: 970px;
   min-width: 0;
-  flex: 1 1 960px;
-  margin-right: 12px;
+  display: flex;
+  flex-direction: column;
 }
-@media (max-width: 1200px) {
-  .player-main-left { width: 100%; margin-right: 0; }
-}
+
 .player-embed {
   width: 100%;
   aspect-ratio: 16/9;
   border-radius: 16px;
   background: #fff;
-  box-shadow: 0 2px 24px #e0e0e0;
-  margin-bottom: 22px;
+  box-shadow: 0 2px 16px #ececec60;
+  margin-bottom: 18px;
   border: 1.7px solid #ededed;
-}
-.player-title {
-  color: #1a1a1a;
-  font-size: 1.38rem;
-  font-weight: 800;
-  line-height: 1.21;
-  margin-bottom: 11px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
   overflow: hidden;
-  min-height: 2.7em;
-  max-height: 2.7em;
 }
+
+.player-title {
+  color: var(--text-main, #1a1a1a);
+  font-size: 1.36rem;
+  font-weight: 800;
+  line-height: 1.22;
+  margin-bottom: 8px;
+  max-width: 95vw;
+  overflow-wrap: anywhere;
+}
+
 .player-meta-row {
   display: flex;
   align-items: center;
-  gap: 0.7em;
+  gap: 0.8em;
   margin-bottom: 10px;
 }
+
 .player-diff-badge {
   font-size: 0.98em;
   font-weight: 700;
@@ -121,8 +194,8 @@
   box-shadow: 0 1px 4px #e0e0e0;
 }
 .player-channel {
-  font-size: 1.04rem;
-  color: #777;
+  font-size: 1.05rem;
+  color: #666;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -130,30 +203,36 @@
   max-width: 180px;
 }
 .player-duration {
-  font-size: 0.96em;
+  font-size: 0.98em;
   color: #adadad;
   margin-left: auto;
-  margin-right: 0;
 }
-.suggestions-sidebar {
+
+.player-suggestions {
   width: 370px;
-  min-width: 310px;
+  min-width: 280px;
   max-width: 400px;
-  padding-right: 24px;
+  padding-top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+}
+
+.player-suggestions-label {
+  font-size: 1.09em;
+  font-weight: 600;
+  color: var(--text-secondary, #666);
+  margin-bottom: 10px;
+  margin-top: 2px;
+  letter-spacing: 0.02em;
+}
+.player-suggestions-list {
   display: flex;
   flex-direction: column;
   gap: 13px;
 }
-@media (max-width: 1200px) {
-  .suggestions-sidebar {
-    width: 100%;
-    min-width: 0;
-    max-width: unset;
-    padding-right: 0;
-    flex-direction: row;
-    overflow-x: auto;
-  }
-}
+
+/* Suggestions list (matching home) */
 .suggest-card {
   display: flex;
   flex-direction: row;
@@ -161,11 +240,11 @@
   background: #fff;
   border-radius: 11px;
   overflow: hidden;
-  border: 1.1px solid #ededed;
+  border: 1.1px solid #ececec;
   transition: box-shadow 0.13s, transform 0.09s, background 0.13s;
   cursor: pointer;
   min-width: 0;
-  box-shadow: 0 2px 10px #eaeaea40;
+  box-shadow: 0 2px 9px #eaeaea40;
   text-decoration: none;
   align-items: flex-start;
   height: 87px;
@@ -253,71 +332,21 @@
   text-overflow: ellipsis;
   max-width: 90px;
 }
-</style>
 
-{#if loading}
-  <p style="text-align:center; color:#aaa; margin-top:3rem;">Loading…</p>
-{:else if !video}
-  <p style="text-align:center; color:#aaa; margin-top:3rem;">Video not found.</p>
-{:else}
-  <div class="player-youtube-layout">
-    <main class="player-main-left">
-      <div class="player-embed">
-        <iframe
-          id="yt-player"
-          width="100%"
-          height="100%"
-          src={`https://www.youtube.com/embed/${video.id}?enablejsapi=1`}
-          title={video.title}
-          frameborder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowfullscreen
-        ></iframe>
-        {#if user}
-          <!-- Robust tracker: only appears if user is logged in -->
-          <VideoWatchTracker videoId={video.id} videoDuration={video.length} userId={user.id} />
-        {/if}
-      </div>
-      <div class="player-title">{video.title}</div>
-      <div class="player-meta-row">
-        <span
-          class="player-diff-badge"
-          style="background: {badgeProps(video.level).color}; color: {badgeProps(video.level).text};"
-        >{badgeProps(video.level).label}</span>
-        <span class="player-channel">{video.channel_name}</span>
-        {#if video.length}
-          <span class="player-duration">{formatVideoDuration(video.length)}</span>
-        {/if}
-      </div>
-    </main>
-    <aside class="suggestions-sidebar">
-      {#each suggestions as v}
-        <a class="suggest-card" href={`/video/${v.id}`}>
-          <span class="suggest-thumb-wrap">
-            <img
-              class="suggest-thumb"
-              src={`https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`}
-              alt={v.title}
-              on:error="{(e) => e.target.src='https://placehold.co/120x67?text=No+Thumb'}"
-            />
-            {#if v.length}
-              <span class="suggest-thumb-duration">
-                {formatVideoDuration(v.length)}
-              </span>
-            {/if}
-          </span>
-          <div class="suggest-body">
-            <div class="suggest-title">{v.title}</div>
-            <div class="suggest-meta-row">
-              <span
-                class="suggest-diff-badge"
-                style="background: {badgeProps(v.level).color}; color: {badgeProps(v.level).text};"
-              >{badgeProps(v.level).label}</span>
-              <span class="suggest-channel">{v.channel_name}</span>
-            </div>
-          </div>
-        </a>
-      {/each}
-    </aside>
-  </div>
-{/if}
+@media (max-width: 1200px) {
+  .player-flex {
+    flex-direction: column;
+    gap: 20px;
+    max-width: 99vw;
+    padding: 0 2vw;
+  }
+  .player-main { width: 100%; max-width: unset; }
+  .player-suggestions { width: 100%; max-width: unset; flex-direction: row; gap: 1rem; }
+  .player-suggestions-list { flex-direction: row; gap: 1.1rem; overflow-x: auto; }
+}
+@media (max-width: 700px) {
+  .player-main, .player-suggestions { padding: 0; }
+  .suggest-card { height: 62px; }
+  .suggest-thumb, .suggest-thumb-wrap { width: 95px; min-width: 95px; height: 62px; }
+}
+</style>
