@@ -18,14 +18,14 @@
         loading="lazy"
         on:error={(e) => e.target.src = '/images/no_thumb_nail.png'}
       />
+      {#if video.length}
+        <span class="length-inline">{formatLength(video.length)}</span>
+      {/if}
     </span>
   </a>
   <div class="card-body">
     <div class="card-title-row">
       <span class="card-title">{video.title}</span>
-      {#if video.length}
-        <span class="length-inline">{formatLength(video.length)}</span>
-      {/if}
     </div>
     <div class="card-meta">
       <span class="badge" style="background:{difficultyColor(video.level)};">
@@ -69,9 +69,12 @@
   flex-direction: column;
   border: 1px solid #ededed;
 }
+
 .thumb-wrapper {
   position: relative;
+  display: block;
 }
+
 .thumb {
   width: 100%;
   aspect-ratio: 16/9;
@@ -79,7 +82,30 @@
   background: #eee;
   min-height: 112px;
   display: block;
+  position: relative;
+  z-index: 1;
 }
+
+/* Duration label inside thumbnail, bottom right, always on top */
+.length-inline {
+  position: absolute;
+  right: 0.55em;
+  bottom: 0.55em;
+  color: #fff;
+  background: #222c;
+  font-size: 0.97em;
+  padding: 0.14em 0.66em;
+  border-radius: 6px;
+  font-weight: 500;
+  opacity: 0.96;
+  box-shadow: 0 1px 4px #0002;
+  z-index: 9;
+  pointer-events: none;
+  max-width: 85%;
+  text-align: right;
+  white-space: nowrap;
+}
+
 .card-body {
   padding: 1rem 1rem 0.7rem 1rem;
   color: #222;
@@ -103,16 +129,6 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   flex: 1;
-}
-.length-inline {
-  color: #fff;
-  background: #333;
-  font-size: 0.87em;
-  padding: 0.12em 0.7em;
-  border-radius: 9px;
-  margin-left: 0.2em;
-  font-weight: 500;
-  opacity: 0.92;
 }
 .card-meta {
   display: flex;

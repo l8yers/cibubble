@@ -1,0 +1,3082 @@
+<script>
+  import { onMount, onDestroy } from 'svelte';
+  import { supabase } from '$lib/supabaseClient';
+  import VideoGrid from '$lib/components/VideoGrid.svelte';
+  import SortBar from '$lib/components/SortBar.svelte';
+  import * as utils from '$lib/utils.js';
+  import '../app.css';
+
+  let videos = [];
+  let allVideos = [];
+  let loading = false;
+  let errorMsg = '';
+  const pageSize = 30;
+  let allLoaded = false;
+
+  let selectedChannel = "";
+  let selectedPlaylist = "";
+
+  let selectedLevels = new Set(['superbeginner', 'beginner', 'intermediate', 'advanced']);
+  let sortBy = 'random';
+  let selectedCountry = "";
+  let selectedTags = new Set();
+  let hideWatched = false;
+  let watchedIds = new Set();
+  let searchTerm = '';
+  let searchOpen = false;
+
+  let searchResults = [];
+  let searchPage = 1;
+  let searching = false;
+  let searchError = '';
+  let allSearchLoaded = false;
+
+  const levels = [
+    { value: 'superbeginner', label: 'Super Beginner' },
+    { value: 'beginner', label: 'Beginner' },
+    { value: 'intermediate', label: 'Intermediate' },
+    { value: 'advanced', label: 'Advanced' }
+  ];
+  const sortChoices = [
+    { value: 'random', label: 'Random' },
+    { value: 'easy', label: 'Easy' },
+    { value: 'hard', label: 'Hard' },
+    { value: 'long', label: 'Long' },
+    { value: 'short', label: 'Short' },
+    { value: 'new', label: 'New' },
+    { value: 'old', label: 'Old' }
+  ];
+  let countryOptions = [
+    "Spain", "Mexico", "Argentina", "Colombia", "Chile", "Various", "Peru",
+    "Guatemala", "Uruguay", "Dominican Republic", "Venezuela", "Costa Rica", "Cuba", "Ecuador", "Paraguay", "Panama", "Canary Islands", "Italy", "Puerto Rico", "Equatorial Guinea", "DUBS", "Not Native Speaker", "AI Voice", "Latin America"
+  ].sort();
+  let tagOptions = [
+    "For Learners", "Kids Show", "Dubbed Show", "Videogames", "News", "History", "Science", "Travel", "Lifestyle", "Personal Development", "Cooking", "Music", "Comedy", "Native Show", "Education", "Sports", "Current Events"
+  ].sort();
+
+  function filterAndSort(input) {
+    let filtered = input;
+    if (selectedChannel) filtered = filtered.filter(v => v.channel_name === selectedChannel);
+    if (selectedPlaylist) filtered = filtered.filter(v => v.playlist?.title === selectedPlaylist);
+    filtered = filtered.filter(
+      v => v.title && v.title !== 'Private video' && v.title !== 'Deleted video' && selectedLevels.has(v.level)
+    );
+    if (hideWatched) filtered = filtered.filter(v => !watchedIds.has(String(v.id)));
+    if (selectedCountry) {
+      filtered = filtered.filter(v =>
+        (v.channel?.country || "").trim().toLowerCase() === selectedCountry.trim().toLowerCase()
+      );
+    }
+    if (selectedTags.size > 0) {
+      filtered = filtered.filter(v => {
+        const tags = (v.channel?.tags || "")
+          .split(",")
+          .map(t => t.trim().toLowerCase())
+          .filter(Boolean);
+        for (let tag of selectedTags) {
+          if (tags.includes(tag.toLowerCase())) return true;
+        }
+        return false;
+      });
+    }
+    if (sortBy === 'random') return utils.shuffleArray(filtered);
+    if (sortBy === 'easy') return filtered.sort((a, b) => utils.levelOrder(a.level) - utils.levelOrder(b.level));
+    if (sortBy === 'hard') return filtered.sort((a, b) => utils.levelOrder(b.level) - utils.levelOrder(a.level));
+    if (sortBy === 'long') return filtered.sort((a, b) => (b.length || 0) - (a.length || 0));
+    if (sortBy === 'short') return filtered.sort((a, b) => (a.length || 0) - (b.length || 0));
+    if (sortBy === 'new') return filtered.sort((a, b) => new Date(b.published) - new Date(a.published));
+    if (sortBy === 'old') return filtered.sort((a, b) => new Date(a.published) - new Date(b.published));
+    return filtered;
+  }
+
+  function updateGrid() {
+    videos = filterAndSort(allVideos).slice(0, pageSize);
+    allLoaded = videos.length >= filterAndSort(allVideos).length;
+  }
+
+  // Filter "chips" logic
+  function filterByChannel(channelName) {
+    selectedChannel = channelName;
+    updateGrid();
+  }
+  function clearChannelFilter() {
+    selectedChannel = "";
+    updateGrid();
+  }
+  function filterByPlaylist(playlistTitle) {
+    selectedPlaylist = playlistTitle;
+    updateGrid();
+  }
+  function clearPlaylistFilter() {
+    selectedPlaylist = "";
+    updateGrid();
+  }
+
+  // --- SEARCH handling (search term is parent state, bar only emits) ---
+  let searchTimeout;
+  function handleSearchInput(val) {
+    searchTerm = val;
+    clearTimeout(searchTimeout);
+    if (searchTerm.trim() === '') {
+      clearSearch();
+      return;
+    }
+    searchTimeout = setTimeout(() => runSearch(1, true), 250);
+  }
+  async function runSearch(page = 1, reset = false) {
+    if (!searchTerm.trim()) return;
+    searching = true;
+    searchError = '';
+    let from = (page - 1) * pageSize;
+    let to = from + pageSize - 1;
+    const { data, error } = await supabase
+      .from('videos')
+      .select('*, playlist:playlist_id(title), channel:channel_id(name,country,tags)')
+      .or(
+        `title.ilike.%${searchTerm}%,channel_name.ilike.%${searchTerm}%`
+      )
+      .range(from, to);
+    if (error) {
+      searchError = error.message;
+      if (reset) searchResults = [];
+    } else {
+      if (reset) {
+        searchResults = data;
+        allSearchLoaded = data.length < pageSize;
+        searchPage = 1;
+      } else {
+        searchResults = [...searchResults, ...data];
+        allSearchLoaded = data.length < pageSize;
+        searchPage = page;
+      }
+    }
+    searching = false;
+  }
+  function clearSearch() {
+    searchTerm = '';
+    searchResults = [];
+    searching = false;
+    searchError = '';
+    allSearchLoaded = false;
+    searchPage = 1;
+    updateGrid();
+  }
+
+  // Scroll pagination for infinite scroll
+  function handleScroll(e) {
+    const el = e.target.scrollingElement || e.target;
+    if (
+      searchTerm &&
+      !allSearchLoaded &&
+      !searching &&
+      el.scrollHeight - el.scrollTop - el.clientHeight < 480
+    ) {
+      runSearch(searchPage + 1, false);
+    }
+    if (
+      !searchTerm &&
+      !allLoaded &&
+      el.scrollHeight - el.scrollTop - el.clientHeight < 480
+    ) {
+      const nextVideos = filterAndSort(allVideos).slice(0, videos.length + pageSize);
+      if (nextVideos.length > videos.length) {
+        videos = nextVideos;
+        allLoaded = videos.length >= filterAndSort(allVideos).length;
+      }
+    }
+  }
+
+  onMount(async () => {
+    loading = true;
+    const { data, error } = await supabase
+      .from('videos')
+      .select('*, playlist:playlist_id(title), channel:channel_id(name,country,tags)')
+      .limit(2000);
+
+    if (error) {
+      errorMsg = error.message;
+    } else if (data && data.length > 0) {
+      allVideos = data;
+      updateGrid();
+    } else {
+      videos = [];
+      allLoaded = true;
+    }
+    loading = false;
+    if (typeof window !== 'undefined') {
+      window.addEventListener('scroll', handleScroll, { passive: true });
+    }
+  });
+
+  onDestroy(() => {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('scroll', handleScroll);
+    }
+  });
+
+  // --- REACT TO SORTBAR PROP CHANGES ---
+  function handleSortBarChange(e) {
+    const {
+      selectedLevels: sL,
+      sortBy: sB,
+      selectedCountry: sC,
+      selectedTags: sT,
+      hideWatched: hW,
+      searchTerm: sTerm,
+      searchOpen: sOpen
+    } = e.detail;
+
+    selectedLevels = sL;
+    sortBy = sB;
+    selectedCountry = sC;
+    selectedTags = sT;
+    hideWatched = hW;
+    searchOpen = sOpen;
+
+    // Handle search - only run API if searchTerm changed
+    if (searchTerm !== sTerm) {
+      searchTerm = sTerm;
+      if (searchTerm.trim() === '') {
+        clearSearch();
+      } else {
+        runSearch(1, true);
+      }
+    }
+    updateGrid();
+  }
+</script>
+
+<div class="page-container">
+  <div class="sortbar-container">
+    <SortBar
+      levels={levels}
+      sortChoices={sortChoices}
+      countryOptions={countryOptions}
+      tagOptions={tagOptions}
+      selectedLevels={selectedLevels}
+      sortBy={sortBy}
+      selectedCountry={selectedCountry}
+      selectedTags={selectedTags}
+      hideWatched={hideWatched}
+      searchTerm={searchTerm}
+      searchOpen={searchOpen}
+      on:change={handleSortBarChange}
+    />
+  </div>
+
+  {#if selectedChannel}
+    <div class="chip-info">
+      <span><b>Filtered by channel:</b> {selectedChannel}</span>
+      <button on:click={clearChannelFilter} class="clear-btn clear-btn--blue">✕ Clear</button>
+    </div>
+  {/if}
+  {#if selectedPlaylist}
+    <div class="chip-warning">
+      <span><b>Filtered by playlist:</b> {selectedPlaylist}</span>
+      <button on:click={clearPlaylistFilter} class="clear-btn clear-btn--purple">✕ Clear</button>
+    </div>
+  {/if}
+
+  {#if searchTerm.trim() !== ''}
+    {#if searching && searchResults.length === 0}
+      <p class="loading-more">Searching…</p>
+    {:else if searchError}
+      <div class="error">{searchError}</div>
+    {:else if searchResults.length === 0}
+      <div class="loading-more text-muted">No videos found.</div>
+    {:else}
+      <VideoGrid
+        videos={searchResults}
+        getBestThumbnail={utils.getBestThumbnail}
+        difficultyColor={utils.difficultyColor}
+        difficultyLabel={utils.difficultyLabel}
+        formatLength={utils.formatLength}
+        filterByChannel={filterByChannel}
+        filterByPlaylist={filterByPlaylist}
+      />
+      {#if !allSearchLoaded}
+        <div class="loading-more">Loading more…</div>
+      {/if}
+    {/if}
+  {:else}
+    {#if loading}
+      <p class="loading-more">Loading videos…</p>
+    {:else if errorMsg}
+      <div class="error">{errorMsg}</div>
+    {:else if videos.length === 0}
+      <div class="loading-more text-muted">No videos match your filters.</div>
+    {:else}
+      <VideoGrid
+        {videos}
+        getBestThumbnail={utils.getBestThumbnail}
+        difficultyColor={utils.difficultyColor}
+        difficultyLabel={utils.difficultyLabel}
+        formatLength={utils.formatLength}
+        filterByChannel={filterByChannel}
+        filterByPlaylist={filterByPlaylist}
+      />
+      {#if !allLoaded}
+        <div class="loading-more">Loading more…</div>
+      {/if}
+    {/if}
+  {/if}
+</div>
+<script>
+  import { supabase } from '$lib/supabaseClient';
+
+  // -- Country & Tag master lists --
+  const countryOptions = [
+    "Argentina","Canary Islands","Chile","Colombia","Costa Rica","Cuba",
+    "Dominican Republic","Ecuador","El Salvador","Equatorial Guinea",
+    "France","Guatemala","Italy","Latin America","Mexico","Panama",
+    "Paraguay","Peru","Puerto Rico","Spain","United States","Uruguay","Venezuela"
+  ];
+
+  // This should match the SortBar, update as you add tags.
+  let tagOptions = [
+    "For Learners","Kids Show","Dubbed Show","Videogames","News","History","Science",
+    "Travel","Lifestyle","Personal Development","Cooking","Music","Comedy",
+    "Native Show","Education","Sports","Current Events"
+  ];
+
+  let url = '';
+  let message = '';
+  let importing = false;
+  let clearing = false;
+  let deleting = {};
+  let channels = [];
+  let refreshing = false;
+  let showPlaylistsFor = null;
+  let playlists = [];
+  let playlistsLoading = false;
+  let runningTimeByLevel = {
+    superbeginner: 0, beginner: 0, intermediate: 0, advanced: 0, notyet: 0
+  };
+  const levels = [
+    { value: '', label: 'Set Level' },
+    { value: 'superbeginner', label: 'Super Beginner' },
+    { value: 'beginner', label: 'Beginner' },
+    { value: 'intermediate', label: 'Intermediate' },
+    { value: 'advanced', label: 'Advanced' },
+    { value: 'notyet', label: 'Not Yet Rated' }
+  ];
+
+  // -- ADMIN ACTIONS --
+
+  async function importChannel() {
+    message = '';
+    importing = true;
+    try {
+      const res = await fetch('/api/add-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      const json = await res.json();
+      if (json.error) message = `❌ ${json.error}`;
+      else message = `✅ Imported channel "${json.channel?.name}". ${json.playlists_count} playlists, ${json.videos_added} videos.`;
+      await refresh();
+    } catch (e) {
+      message = '❌ Import failed.';
+    }
+    importing = false;
+  }
+
+  async function clearDatabase() {
+    if (!confirm('Are you sure? This will delete ALL videos, playlists, and channels!')) return;
+    clearing = true;
+    message = '';
+    await supabase.from('videos').delete().neq('id', '');
+    await supabase.from('playlists').delete().neq('id', '');
+    await supabase.from('channels').delete().neq('id', '');
+    await refresh();
+    message = '✅ Database cleared.';
+    clearing = false;
+  }
+
+  async function deleteChannel(id) {
+    if (!confirm('Delete this channel and ALL its videos/playlists?')) return;
+    deleting[id] = true;
+    await supabase.from('videos').delete().eq('channel_id', id);
+    await supabase.from('playlists').delete().eq('channel_id', id);
+    await supabase.from('channels').delete().eq('id', id);
+    await refresh();
+    deleting[id] = false;
+  }
+
+  async function setChannelLevel(channelId, level) {
+    if (!level) return;
+    await supabase.from('videos').update({ level }).eq('channel_id', channelId);
+    message = `✅ All videos for this channel set to "${levels.find(l => l.value === level)?.label}"`;
+    await refresh();
+  }
+
+  // Playlists per channel
+  async function togglePlaylistsFor(channelId) {
+    if (showPlaylistsFor === channelId) {
+      showPlaylistsFor = null;
+      playlists = [];
+      return;
+    }
+    showPlaylistsFor = channelId;
+    playlistsLoading = true;
+    let { data, error } = await supabase
+      .from('playlists')
+      .select('*')
+      .eq('channel_id', channelId);
+    if (!error) {
+      playlists = await Promise.all(
+        (data || []).map(async (pl) => {
+          const { count: videos_count } = await supabase
+            .from('videos')
+            .select('id', { count: 'exact', head: true })
+            .eq('playlist_id', pl.id);
+          return { ...pl, videos_count, _newLevel: '' };
+        })
+      );
+    } else {
+      playlists = [];
+    }
+    playlistsLoading = false;
+  }
+
+  async function setPlaylistLevel(playlistId, level) {
+    if (!level) return;
+    await supabase.from('videos').update({ level }).eq('playlist_id', playlistId);
+    message = `✅ All videos for this playlist set to "${levels.find(l => l.value === level)?.label}"`;
+    if (showPlaylistsFor) togglePlaylistsFor(showPlaylistsFor);
+  }
+
+  // Update country for a channel
+  async function setChannelCountry(channelId, country) {
+    await supabase.from('channels').update({ country }).eq('id', channelId);
+    message = '✅ Country updated';
+    await refresh();
+  }
+
+  // Update tags for a channel (stored as comma-separated list)
+  async function setChannelTags(chan) {
+    if (!chan._tagsSet) return;
+    // Add new tags to tagOptions if needed (UI only, not master table here)
+    for (const t of chan._tagsSet) {
+      if (!tagOptions.includes(t)) tagOptions = [...tagOptions, t];
+    }
+    await supabase.from('channels').update({
+      tags: Array.from(chan._tagsSet).join(', ')
+    }).eq('id', chan.id);
+    message = '✅ Tags updated';
+    chan._tagsDirty = false;
+    await refresh();
+  }
+
+  // --- REFRESH DATA ---
+  async function refresh() {
+    refreshing = true;
+    let { data, error } = await supabase.from('channels').select('*');
+    if (error) {
+      message = error.message;
+      refreshing = false;
+      return;
+    }
+    channels = (data || []).map(chan => ({
+      ...chan,
+      _country: chan.country || "",
+      _tagsSet: new Set((chan.tags || "").split(",").map(t => t.trim()).filter(Boolean)),
+      _newTag: "",
+      _tagsDirty: false,
+      _newLevel: ""
+    }));
+    // (Optionally update running time stats, left out for brevity)
+    refreshing = false;
+  }
+
+  refresh();
+</script>
+
+<style>
+.admin-main { max-width: 1100px; margin: 2.5rem auto 0 auto; background: #fff; border-radius: 13px; border: 1px solid #ececec; box-shadow: 0 2px 18px #ececec; padding: 2.7rem 2vw 2.5rem 2vw; font-family: Inter, Arial, sans-serif;}
+.row { display: flex; gap: 1em; margin-bottom: 1.5em; align-items: center;}
+input[type="text"], .tag-input { width: 370px; padding: 0.73em 1em; font-size: 1.09rem; border: 1px solid #ececec; border-radius: 7px; background: #fafafa; color: #181818;}
+button { padding: 0.66em 1.6em; font-size: 1.04rem; background: #e93c2f; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; margin-right: 1em; transition: background 0.18s;}
+button[disabled] { background: #e3e3e3; color: #aaa; cursor: default;}
+button:hover:not([disabled]) { background: #b8271b;}
+select, .tag-input { margin-top: 0.4em; }
+.admin-table { width: 100%; margin: 2.2em 0 0 0; border-collapse: collapse; background: #fff; font-size: 1.04em;}
+.admin-table th, .admin-table td { padding: 0.85em 0.8em; border-bottom: 1px solid #f2f2f2; text-align: left;}
+.admin-table th { color: #e93c2f; font-weight: 700;}
+.admin-table td { vertical-align: middle;}
+.channel-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; margin-right: 1.1em; border: 1.5px solid #eee;}
+.chip { background:#f7f7fb;border-radius:6px;padding:2px 7px 2px 5px;display:inline-flex;align-items:center;cursor:pointer;margin-right:5px;font-size:0.98em;}
+.chip input[type="checkbox"] { margin-right: 3px;}
+@media (max-width: 700px) {.admin-main { padding: 1.3em 0.3em;} .admin-table th, .admin-table td { font-size: 0.97em; padding: 0.6em;}}
+</style>
+
+<div class="admin-main">
+  <h2 style="margin-bottom:1.6em;">CIBUBBLE Admin Tools</h2>
+  <div class="row">
+    <input type="text" placeholder="Paste YouTube channel link or @handle…" bind:value={url} />
+    <button on:click={importChannel} disabled={!url || importing}>{importing ? 'Importing…' : 'Import Channel'}</button>
+    <button on:click={refresh} disabled={refreshing}>↻ Refresh</button>
+    <button style="margin-left:auto;" on:click={clearDatabase} disabled={clearing}>Clear Database</button>
+  </div>
+  {#if message}
+    <div style="margin:1em 0 1.2em 0; color:{message.startsWith('✅') ? '#27ae60' : '#c0392b'}; font-weight:500;">{message}</div>
+  {/if}
+
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th>Channel</th>
+        <th>Country</th>
+        <th>Tags</th>
+        <th style="width:280px;">Level / Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {#each channels as chan}
+        <tr>
+          <td>
+            <img class="channel-thumb" src={chan.thumbnail} alt={chan.name} />
+            <span style="font-weight:600;">{chan.name}</span>
+          </td>
+          <!-- Country dropdown -->
+          <td>
+            <select bind:value={chan._country}>
+              <option value="">No Country</option>
+              {#each countryOptions as country}
+                <option value={country}>{country}</option>
+              {/each}
+            </select>
+            <button on:click={() => setChannelCountry(chan.id, chan._country)} disabled={chan.country === chan._country}>
+              Save
+            </button>
+          </td>
+          <!-- Tags multi-select + add -->
+          <td>
+            <div style="display:flex;flex-wrap:wrap;gap:0.3em;">
+              {#each tagOptions as tag}
+                <label class="chip">
+                  <input
+                    type="checkbox"
+                    checked={chan._tagsSet.has(tag)}
+                    on:change={() => {
+                      if (chan._tagsSet.has(tag)) chan._tagsSet.delete(tag);
+                      else chan._tagsSet.add(tag);
+                      chan._tagsDirty = true;
+                    }}
+                  />
+                  <span>{tag}</span>
+                </label>
+              {/each}
+              <input
+                type="text"
+                placeholder="Add tag"
+                style="margin-left:0.5em;width:90px;font-size:0.98em;"
+                bind:value={chan._newTag}
+                on:keydown={(e) => {
+                  if (e.key === 'Enter' && chan._newTag?.trim()) {
+                    chan._tagsSet.add(chan._newTag.trim());
+                    if (!tagOptions.includes(chan._newTag.trim())) tagOptions = [...tagOptions, chan._newTag.trim()];
+                    chan._newTag = "";
+                    chan._tagsDirty = true;
+                  }
+                }}
+              />
+              <button
+                style="margin-left:0.3em;font-size:0.93em;padding:0.4em 1.1em;"
+                on:click={() => setChannelTags(chan)}
+                disabled={!chan._tagsDirty}
+              >Save</button>
+            </div>
+          </td>
+          <td>
+            <select bind:value={chan._newLevel}>
+              {#each levels as lvl}
+                <option value={lvl.value}>{lvl.label}</option>
+              {/each}
+            </select>
+            <button on:click={() => setChannelLevel(chan.id, chan._newLevel)} disabled={!chan._newLevel}>Set Level</button>
+            <button style="background:#bbb;" on:click={() => deleteChannel(chan.id)} disabled={!!deleting[chan.id]}>Delete</button>
+          </td>
+        </tr>
+      {/each}
+      {#if channels.length === 0}
+        <tr>
+          <td colspan="4" style="text-align:center;color:#999;">No channels found.</td>
+        </tr>
+      {/if}
+    </tbody>
+  </table>
+</div>
+<script>
+	import { onMount } from 'svelte';
+	import { supabase } from '$lib/supabaseClient';
+
+	let user = null;
+	let myVideos = [];
+	let watchedVideos = [];
+	let email = '';
+	let newEmail = '';
+	let newPassword = '';
+	let message = '';
+	let watchTime = 0;
+	let todayWatchTime = 0;
+	let activityDays = [];
+	let streak = 0;
+
+	function formatMinutes(seconds) {
+		if (!seconds) return '0 min';
+		const m = Math.round(seconds / 60);
+		return m > 0 ? `${m} min` : `${seconds} sec`;
+	}
+
+	function barColor(mins) {
+		if (mins >= 120) return '#e93c2f';
+		if (mins >= 60) return '#44c366';
+		if (mins >= 30) return '#f9c846';
+		if (mins >= 10) return '#f7ed85';
+		if (mins > 0) return '#b7f6ed';
+		return '#ececec';
+	}
+
+	async function fetchRecentActivity() {
+		if (!user) return;
+		const today = new Date();
+		const dates = [];
+		for (let i = 13; i >= 0; i--) {
+			const d = new Date(today);
+			d.setDate(today.getDate() - i);
+			dates.push(d.toISOString().slice(0, 10));
+		}
+		const fromDate = dates[0];
+		const toDate = dates[dates.length - 1];
+		let { data: sessions } = await supabase
+			.from('watch_sessions')
+			.select('date,seconds')
+			.eq('user_id', user.id)
+			.gte('date', fromDate)
+			.lte('date', toDate);
+
+		const map = {};
+		(sessions || []).forEach((s) => {
+			map[s.date] = (map[s.date] || 0) + (s.seconds || 0);
+		});
+		activityDays = dates.map((date) => ({
+			date,
+			mins: Math.round((map[date] || 0) / 60)
+		}));
+
+		streak = 0;
+		for (let i = activityDays.length - 1; i >= 0; i--) {
+			if (activityDays[i].mins > 0) streak++;
+			else break;
+		}
+	}
+
+	onMount(async () => {
+		const {
+			data: { session }
+		} = await supabase.auth.getSession();
+		if (session?.user) {
+			user = session.user;
+			email = user.email;
+			newEmail = email;
+
+			// Fetch user's videos
+			let { data: videos } = await supabase
+				.from('videos')
+				.select('*')
+				.eq('added_by', user.id)
+				.order('created', { ascending: false });
+			myVideos = videos || [];
+
+			// --- Total watch time ---
+			let { data: allSessions } = await supabase
+				.from('watch_sessions')
+				.select('seconds')
+				.eq('user_id', user.id);
+			watchTime = (allSessions ?? []).reduce((acc, s) => acc + (s.seconds || 0), 0);
+
+			// --- Today's watch time ---
+			const today = new Date().toISOString().slice(0, 10);
+			let { data: todaySessions } = await supabase
+				.from('watch_sessions')
+				.select('seconds')
+				.eq('user_id', user.id)
+				.eq('date', today);
+			todayWatchTime = (todaySessions ?? []).reduce((acc, s) => acc + (s.seconds || 0), 0);
+
+			// --- Recent activity and streak ---
+			await fetchRecentActivity();
+
+			// --- Fetch watched videos ---
+			let { data: watchedSessions } = await supabase
+				.from('watch_sessions')
+				.select('video_id, date')
+				.eq('user_id', user.id);
+
+			const videoMap = {};
+			for (const ws of watchedSessions ?? []) {
+				if (ws.video_id && ws.date) {
+					if (!videoMap[ws.video_id] || ws.date > videoMap[ws.video_id]) {
+						videoMap[ws.video_id] = ws.date;
+					}
+				}
+			}
+			const videoIds = Object.keys(videoMap);
+
+			if (videoIds.length) {
+				let { data: vids } = await supabase.from('videos').select('*').in('id', videoIds);
+
+				watchedVideos = (vids || [])
+					.map((v) => ({
+						...v,
+						lastWatched: videoMap[v.id]
+					}))
+					.sort((a, b) => (b.lastWatched || '').localeCompare(a.lastWatched || ''));
+			} else {
+				watchedVideos = [];
+			}
+		}
+	});
+
+	async function updateEmail() {
+		message = '';
+		if (!newEmail || newEmail === email) {
+			message = 'No change.';
+			return;
+		}
+		const { error } = await supabase.auth.updateUser({ email: newEmail });
+		if (error) {
+			message = error.message;
+		} else {
+			message = 'Email updated! Please check your inbox to confirm.';
+			email = newEmail;
+		}
+	}
+
+	async function updatePassword() {
+		message = '';
+		if (!newPassword) {
+			message = 'Password cannot be empty.';
+			return;
+		}
+		const { error } = await supabase.auth.updateUser({ password: newPassword });
+		if (error) {
+			message = error.message;
+		} else {
+			message = 'Password updated!';
+			newPassword = '';
+		}
+	}
+</script>
+
+{#if !user}
+	<div class="profile-main" style="text-align:center;">
+		<div style="margin:2em 0;">
+			Not logged in.<br /><a href="/login" class="video-link">Login here</a>
+		</div>
+	</div>
+{:else}
+	<div class="profile-main">
+		<div class="section-title">Progress</div>
+
+		<!-- Stats and graph at the top -->
+		<div class="stats-row"><b>Total watch time:</b> {formatMinutes(watchTime)}</div>
+		<div class="stats-row"><b>Today's watch time:</b> {formatMinutes(todayWatchTime)}</div>
+		<div class="streak-row">
+			🔥 <b>Streak:</b>
+			{streak} day{streak === 1 ? '' : 's'} active
+		</div>
+
+		<div style="font-size:0.98em; color:#888; margin-bottom:0.2em;">
+			Minutes watched per day (last 14 days)
+		</div>
+		<div class="activity-bar-graph">
+			{#each activityDays as d, i}
+				<div
+					class="activity-bar {i === activityDays.length - 1 ? 'activity-bar-today' : ''}"
+					style="height:{Math.min(d.mins, 120) / 1.2}px; background:{barColor(d.mins)}"
+					title={`Date: ${d.date}\n${d.mins} min`}
+				></div>
+			{/each}
+		</div>
+		<div class="activity-labels">
+			{#each activityDays as d, i}
+				<div style="width:24px; text-align:center">
+					{i % 2 === 0 ? d.date.slice(5) : ''}
+				</div>
+			{/each}
+		</div>
+		<div style="font-size:0.87em; color:#aaa; margin-top:0.2em;">Days (oldest &rarr; today)</div>
+
+		<!-- HISTORY: Horizontal row, scrollable, front-page cards, no last watched, no length -->
+		<div class="history-section">
+			<div class="history-header">
+				<span class="section-title" style="margin:0;">History</span>
+				<a href="/history" class="view-all-link">View all</a>
+			</div>
+			{#if watchedVideos.length === 0}
+				<div>No videos watched yet.</div>
+			{:else}
+				<div class="history-scroll-row">
+					{#each watchedVideos.slice(0, 15) as v}
+						<a href={`/video/${v.id}`} class="ci-card">
+							<span class="ci-thumb-link">
+								<img
+									class="ci-thumb-img"
+									src={v.thumbnail || '/no_thumb_nail.png'}
+									alt="Video thumbnail"
+								/>
+							</span>
+							<div class="ci-card-info">
+								<span class="ci-badge {v.level}">{v.level}</span>
+								<span class="ci-title" title={v.title}>{v.title}</span>
+								<div class="ci-channel">{v.channel_name}</div>
+							</div>
+						</a>
+					{/each}
+				</div>
+			{/if}
+		</div>
+
+		<!-- MY VIDEOS: Horizontal row, scrollable, matches History section -->
+		<div class="history-section">
+			<div class="history-header">
+				<span class="section-title" style="margin:0;">My Videos</span>
+				<a href="/my-videos" class="view-all-link">View all</a>
+			</div>
+			{#if myVideos.length === 0}
+				<div>No videos added yet.</div>
+			{:else}
+				<div class="history-scroll-row">
+					{#each myVideos.slice(0, 15) as v}
+						<a href={`/video/${v.id}`} class="ci-card">
+							<span class="ci-thumb-link">
+								<img
+									class="ci-thumb-img"
+									src={v.thumbnail || '/no_thumb_nail.png'}
+									alt="Video thumbnail"
+								/>
+							</span>
+							<div class="ci-card-info">
+								<span class="ci-badge {v.level}">{v.level}</span>
+								<span class="ci-title" title={v.title}>{v.title}</span>
+								<div class="ci-channel">{v.channel_name}</div>
+							</div>
+						</a>
+					{/each}
+				</div>
+			{/if}
+		</div>
+
+		<div class="section-title">Account</div>
+		<div class="profile-row"><b>Email:</b> {email}</div>
+		<div>
+			<input type="email" bind:value={newEmail} placeholder="New email" autocomplete="email" />
+			<button on:click={updateEmail}>Change Email</button>
+		</div>
+		<div>
+			<input
+				type="password"
+				bind:value={newPassword}
+				placeholder="New password"
+				autocomplete="new-password"
+			/>
+			<button on:click={updatePassword}>Change Password</button>
+		</div>
+		<div class="message">{message}</div>
+	</div>
+{/if}
+
+<style>
+	.profile-main {
+		max-width: 1200px;
+		margin: 2.2rem auto 0 auto;
+		padding: 2rem 3vw 2.3rem 3vw;
+		background: #fff;
+		border-radius: 14px;
+		border: 1px solid #ececec;
+		box-shadow: 0 2px 12px #ececec;
+	}
+	.section-title {
+		color: #181818;
+		font-size: 1.25rem;
+		font-weight: bold;
+		margin: 1.7em 0 1em 0;
+		letter-spacing: 0.3px;
+	}
+	.stats-row {
+		color: #222;
+		font-size: 1.07em;
+		margin-bottom: 0.7em;
+	}
+	.streak-row {
+		font-size: 1em;
+		color: #2562e9;
+		margin-bottom: 0.7em;
+		font-weight: 500;
+	}
+	.activity-bar-graph {
+		display: flex;
+		gap: 8px;
+		align-items: end;
+		margin: 1.1em 0 0.2em 0;
+		height: 54px;
+	}
+	.activity-bar {
+		width: 24px;
+		border-radius: 5px 5px 2px 2px;
+		background: #ececec;
+		position: relative;
+		transition:
+			height 0.2s,
+			background 0.2s;
+		display: flex;
+		align-items: flex-end;
+		justify-content: center;
+		cursor: pointer;
+	}
+	.activity-bar-today {
+		outline: 2px solid #2562e9;
+		box-shadow: 0 0 0 2px #e8e8fa;
+	}
+	.activity-labels {
+		display: flex;
+		gap: 8px;
+		margin-top: 3px;
+		font-size: 0.91em;
+		color: #888;
+		justify-content: start;
+	}
+	.profile-row {
+		margin-bottom: 1.3em;
+	}
+	input[type='email'],
+	input[type='password'] {
+		width: 100%;
+		padding: 0.7em 1em;
+		font-size: 1.07rem;
+		border: 1px solid #ececec;
+		border-radius: 8px;
+		background: #fafafa;
+		margin-bottom: 0.9em;
+		color: #181818;
+	}
+	button {
+		padding: 0.6em 1.7em;
+		font-size: 1.04rem;
+		background: #e93c2f;
+		color: #fff;
+		border: none;
+		border-radius: 8px;
+		cursor: pointer;
+		font-weight: 600;
+		margin-right: 1em;
+		margin-bottom: 0.5em;
+		transition: background 0.18s;
+	}
+	button:hover {
+		background: #b8271b;
+	}
+	.message {
+		color: #26890d;
+		margin-bottom: 1em;
+		min-height: 1.5em;
+	}
+
+	/* ----------- HISTORY (watched videos row) ----------- */
+	.history-section {
+		margin-top: 2.2em;
+	}
+	.history-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 1em;
+	}
+	.view-all-link {
+		font-size: 1em;
+		color: #2562e9;
+		text-decoration: none;
+		font-weight: 500;
+	}
+	.history-scroll-row {
+		display: flex;
+		flex-direction: row;
+		gap: 24px;
+		overflow-x: auto;
+		padding-bottom: 2px;
+		margin-bottom: 2em;
+		scrollbar-width: thin;
+	}
+	.history-scroll-row::-webkit-scrollbar {
+		height: 8px;
+		background: #f3f3f3;
+	}
+	.history-scroll-row::-webkit-scrollbar-thumb {
+		background: #dcdcdc;
+		border-radius: 8px;
+	}
+
+	.ci-card {
+		background: #fff;
+		border-radius: 14px;
+		box-shadow: 0 2px 10px #ececec;
+		min-width: 196px;
+		max-width: 196px;
+		flex: 0 0 196px;
+		display: flex;
+		flex-direction: column;
+		text-align: left;
+		padding: 0;
+		cursor: pointer;
+		transition: box-shadow 0.18s;
+		font-family: Inter, Arial, sans-serif;
+	}
+	.ci-card:hover {
+		box-shadow: 0 6px 32px #e93c2f22;
+	}
+
+	.ci-thumb-link {
+		display: block;
+		border-radius: 14px 14px 0 0;
+		overflow: hidden;
+	}
+	.ci-thumb-img {
+		width: 100%;
+		aspect-ratio: 16/9;
+		object-fit: cover;
+		background: #f3f3f3;
+	}
+
+	.ci-card-info {
+		padding: 0.8em 1em 1.1em 1em;
+	}
+	.ci-title {
+		font-weight: 600;
+		font-size: 1.07em;
+		margin: 0.24em 0 0.09em 0;
+		color: #222;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.ci-badge {
+		border-radius: 8px;
+		padding: 0.1em 0.48em;
+		font-size: 0.87em;
+		font-weight: 500;
+		color: #fff;
+		background: #e93c2f;
+		margin-bottom: 0.1em;
+		text-transform: capitalize;
+		display: inline-block;
+		margin-right: 0.4em;
+	}
+	.ci-badge.Superbeginner {
+		background: #2e9be6;
+	}
+	.ci-badge.Beginner {
+		background: #44c366;
+	}
+	.ci-badge.Intermediate {
+		background: #e93c2f;
+	}
+	.ci-badge.Advanced {
+		background: #f9c846;
+		color: #181818;
+	}
+	.ci-channel {
+		font-size: 0.92em;
+		color: #888;
+		margin-top: 0.11em;
+	}
+
+	.card-history {
+		background: #fff;
+		border-radius: 15px;
+		box-shadow: 0 2px 8px #ececec;
+		min-width: 180px;
+		max-width: 180px;
+		flex: 0 0 180px;
+		display: flex;
+		flex-direction: column;
+		align-items: stretch;
+		text-align: left;
+		transition: box-shadow 0.13s;
+		cursor: pointer;
+		padding: 0;
+	}
+	.card-history:hover {
+		box-shadow: 0 6px 28px #e93c2f20;
+	}
+	.card-thumb-link {
+		display: block;
+		border-radius: 15px 15px 0 0;
+		overflow: hidden;
+	}
+	.card-thumb-img {
+		width: 100%;
+		aspect-ratio: 16/9;
+		object-fit: cover;
+		background: #f3f3f3;
+	}
+	.card-info {
+		padding: 0.67em 0.82em 1em 0.82em;
+	}
+	.card-title {
+		font-weight: 600;
+		font-size: 1em;
+		margin: 0.22em 0 0.12em 0;
+		color: #232323;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.card-badge {
+		border-radius: 8px;
+		padding: 0.11em 0.6em;
+		font-size: 0.83em;
+		font-weight: 500;
+		color: #fff;
+		background: #e93c2f;
+		margin-right: 0.36em;
+		text-transform: capitalize;
+	}
+	.card-badge.Superbeginner {
+		background: #2e9be6;
+	}
+	.card-badge.Beginner {
+		background: #44c366;
+	}
+	.card-badge.Intermediate {
+		background: #e93c2f;
+	}
+	.card-badge.Advanced {
+		background: #f9c846;
+		color: #181818;
+	}
+	.card-channel {
+		font-size: 0.91em;
+		color: #868686;
+	}
+	@media (max-width: 600px) {
+		.card-history,
+		.history-scroll-row {
+			min-width: 150px;
+			max-width: 150px;
+		}
+		.card-thumb-img {
+			aspect-ratio: 16/9;
+		}
+	}
+</style>
+<script>
+  import { supabase } from '$lib/supabaseClient';
+
+  let email = '';
+  let password = '';
+  let message = '';
+
+  async function signup() {
+    message = '';
+    const { error } = await supabase.auth.signUp({
+      email,
+      password
+    });
+    if (error) {
+      message = error.message;
+    } else {
+      message = 'Signup successful! Check your email to confirm.';
+    }
+  }
+</script>
+
+<style>
+.auth-container {
+  max-width: 430px;
+  margin: 3rem auto;
+  background: #fff;
+  border-radius: 13px;
+  border: 1px solid #ececec;
+  box-shadow: 0 2px 12px #ececec;
+  padding: 2.1rem 2rem 1.4rem 2rem;
+  text-align: center;
+}
+input[type="email"],
+input[type="password"] {
+  width: 100%;
+  padding: 0.8em 1em;
+  margin-bottom: 1em;
+  border: 1px solid #ececec;
+  border-radius: 8px;
+  background: #fafafa;
+  font-size: 1.06rem;
+  color: #181818;
+}
+button {
+  width: 100%;
+  padding: 0.7em 0;
+  font-size: 1.09rem;
+  font-weight: 600;
+  background: #e93c2f;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  margin-top: 0.3em;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+button:hover { background: #b8271b; }
+.message {
+  margin-top: 1em;
+  color: #0b9203;
+  font-size: 1.04rem;
+  min-height: 1.5em;
+}
+</style>
+
+<div class="auth-container">
+  <h2>Sign Up</h2>
+  <input type="email" bind:value={email} placeholder="Email" autocomplete="email" />
+  <input type="password" bind:value={password} placeholder="Password" autocomplete="new-password" />
+  <button on:click={signup}>Sign Up</button>
+  <div class="message">{message}</div>
+  <div style="margin-top:1em; color:#888;">
+    Already have an account?
+    <a href="/login" style="color:#e93c2f;">Log In</a>
+  </div>
+</div>
+<script>
+  import NavBar from '$lib/components/NavBar.svelte';
+</script>
+<NavBar />
+<slot />
+<script>
+  import { supabase } from '$lib/supabaseClient';
+  import { goto } from '$app/navigation';
+
+  let email = '';
+  let password = '';
+  let message = '';
+
+  async function login() {
+    message = '';
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+    if (error) {
+      message = error.message;
+    } else {
+      message = 'Login successful! Redirecting…';
+      setTimeout(() => goto('/profile'), 1200);
+    }
+  }
+</script>
+
+<style>
+.auth-container {
+  max-width: 430px;
+  margin: 3rem auto;
+  background: #fff;
+  border-radius: 13px;
+  border: 1px solid #ececec;
+  box-shadow: 0 2px 12px #ececec;
+  padding: 2.1rem 2rem 1.4rem 2rem;
+  text-align: center;
+}
+input[type="email"],
+input[type="password"] {
+  width: 100%;
+  padding: 0.8em 1em;
+  margin-bottom: 1em;
+  border: 1px solid #ececec;
+  border-radius: 8px;
+  background: #fafafa;
+  font-size: 1.06rem;
+  color: #181818;
+}
+button {
+  width: 100%;
+  padding: 0.7em 0;
+  font-size: 1.09rem;
+  font-weight: 600;
+  background: #e93c2f;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  margin-top: 0.3em;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+button:hover { background: #b8271b; }
+.message {
+  margin-top: 1em;
+  color: #0b9203;
+  font-size: 1.04rem;
+  min-height: 1.5em;
+}
+</style>
+
+<div class="auth-container">
+  <h2>Log In</h2>
+  <input type="email" bind:value={email} placeholder="Email" autocomplete="email" />
+  <input type="password" bind:value={password} placeholder="Password" autocomplete="current-password" />
+  <button on:click={login}>Log In</button>
+  <div class="message">{message}</div>
+  <div style="margin-top:1em; color:#888;">
+    Don't have an account?
+    <a href="/signup" style="color:#e93c2f;">Sign Up</a>
+  </div>
+</div>
+ import { json } from '@sveltejs/kit';
+import { createClient } from '@supabase/supabase-js';
+
+// Server keys for SSR
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || process.env.VITE_YOUTUBE_API_KEY || import.meta.env.VITE_YOUTUBE_API_KEY;
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// --- Duration Parsing Utility ---
+function parseDuration(iso) {
+  // "PT1H2M10S" → seconds
+  const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  return (
+    (parseInt(m?.[1] || 0) * 3600) +
+    (parseInt(m?.[2] || 0) * 60) +
+    (parseInt(m?.[3] || 0))
+  );
+}
+
+// --- Fetch durations for an array of video IDs ---
+async function fetchVideoDurations(videoIds) {
+  let results = [];
+  for (let i = 0; i < videoIds.length; i += 50) {
+    const ids = videoIds.slice(i, i + 50).join(",");
+    const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${YOUTUBE_API_KEY}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.items) {
+      results.push(...data.items.map(v => ({
+        id: v.id,
+        length: parseDuration(v.contentDetails.duration)
+      })));
+    }
+  }
+  // Reduce to { id: length, ... }
+  return results.reduce((acc, v) => ({ ...acc, [v.id]: v.length }), {});
+}
+
+// --- Extracts channel ID or handle from a YouTube URL ---
+function extractChannelIdOrHandle(url) {
+  const channelIdMatch = url.match(/youtube\.com\/channel\/([a-zA-Z0-9_-]+)/);
+  if (channelIdMatch) return { id: channelIdMatch[1], type: "id" };
+  const handleMatch = url.match(/youtube\.com\/@([a-zA-Z0-9_]+)/);
+  if (handleMatch) return { handle: handleMatch[1], type: "handle" };
+  return null;
+}
+
+// --- Robust channel ID resolution for @handles, usernames, etc. ---
+async function getChannelIdFromHandle(handle) {
+  const handleOnly = handle.startsWith('@') ? handle.slice(1) : handle;
+
+  // 1. Try forHandle (new YouTube @handle system)
+  let url = `https://www.googleapis.com/youtube/v3/channels?part=id,snippet,contentDetails&forHandle=${encodeURIComponent(handleOnly)}&key=${YOUTUBE_API_KEY}`;
+  let res = await fetch(url);
+  let data = await res.json();
+
+  if (data.items && data.items.length > 0) {
+    console.log('Found channel via forHandle:', data.items[0].id, data.items[0].snippet.title);
+    return data.items[0].id;
+  } else {
+    console.warn('Channel not found via forHandle:', handleOnly, data);
+  }
+
+  // 2. Try legacy forUsername
+  url = `https://www.googleapis.com/youtube/v3/channels?part=id,snippet,contentDetails&forUsername=${encodeURIComponent(handleOnly)}&key=${YOUTUBE_API_KEY}`;
+  res = await fetch(url);
+  data = await res.json();
+
+  if (data.items && data.items.length > 0) {
+    console.log('Found channel via forUsername:', data.items[0].id, data.items[0].snippet.title);
+    return data.items[0].id;
+  } else {
+    console.warn('Channel not found via forUsername:', handleOnly, data);
+  }
+
+  // 3. Fallback: Search (last resort, not as reliable)
+  url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(handleOnly)}&key=${YOUTUBE_API_KEY}`;
+  res = await fetch(url);
+  data = await res.json();
+
+  if (data.items && data.items.length > 0) {
+    const channelId = data.items[0].snippet.channelId;
+    console.log('Found channel via search:', channelId, data.items[0].snippet.title);
+    return channelId;
+  } else {
+    console.error('Channel not found via any method:', handleOnly, data);
+    return null;
+  }
+}
+
+async function getChannelInfo(channelId) {
+  const url = `https://www.googleapis.com/youtube/v3/channels?part=snippet,contentDetails&id=${channelId}&key=${YOUTUBE_API_KEY}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  if (!data.items || data.items.length === 0) return null;
+  const c = data.items[0];
+  return {
+    id: c.id,
+    name: c.snippet.title,
+    thumbnail: c.snippet.thumbnails?.default?.url || '',
+    description: c.snippet.description,
+    uploadsPlaylistId: c.contentDetails?.relatedPlaylists?.uploads,
+  };
+}
+
+async function getPlaylists(channelId) {
+  let playlists = [];
+  let nextPage = '';
+  do {
+    const url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet&channelId=${channelId}&maxResults=50&pageToken=${nextPage}&key=${YOUTUBE_API_KEY}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.items) playlists.push(...data.items);
+    nextPage = data.nextPageToken || '';
+  } while (nextPage);
+  return playlists.map(pl => ({
+    id: pl.id,
+    channel_id: pl.snippet.channelId,
+    title: pl.snippet.title,
+    thumbnail: pl.snippet.thumbnails?.default?.url || '',
+    description: pl.snippet.description,
+  }));
+}
+
+async function getPlaylistVideos(playlistId) {
+  let videos = [];
+  let nextPage = '';
+  do {
+    const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${playlistId}&maxResults=50&pageToken=${nextPage}&key=${YOUTUBE_API_KEY}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.items) videos.push(...data.items);
+    nextPage = data.nextPageToken || '';
+  } while (nextPage);
+
+  const videoIds = videos.map(v => v.contentDetails.videoId).filter(Boolean);
+  let durations = {};
+  if (videoIds.length) {
+    durations = await fetchVideoDurations(videoIds);
+  }
+
+  return videos.map(v => ({
+    id: v.contentDetails.videoId,
+    title: v.snippet.title,
+    channel_id: v.snippet.channelId,
+    channel_name: v.snippet.channelTitle,
+    thumbnail: v.snippet.thumbnails?.high?.url || v.snippet.thumbnails?.default?.url || '',
+    length: durations[v.contentDetails.videoId] ?? null,
+    playlist_id: playlistId,
+    created: new Date().toISOString(),
+    level: "notyet",
+    playlist_position: v.snippet.position ?? null,
+  }));
+}
+
+async function getAllUploads(uploadsPlaylistId) {
+  const videos = await getPlaylistVideos(uploadsPlaylistId);
+  return videos.map(v => ({ ...v, playlist_id: null }));
+}
+
+// --- MAIN ENTRY POINT ---
+export async function POST({ request }) {
+  try {
+    if (!YOUTUBE_API_KEY) return json({ error: 'Missing YouTube API key' }, { status: 500 });
+
+    const { url } = await request.json();
+    const extracted = extractChannelIdOrHandle(url);
+    if (!extracted) return json({ error: 'Invalid YouTube channel link.' }, { status: 400 });
+
+    let channelId = extracted.id;
+    let resolvedVia = 'direct';
+
+    if (!channelId && extracted.handle) {
+      channelId = await getChannelIdFromHandle(extracted.handle);
+      resolvedVia = 'handle';
+      if (!channelId) {
+        return json({ error: 'Channel not found (handle could not be resolved).' }, { status: 404 });
+      }
+    }
+
+    console.log(`[IMPORT] Importing channel with ID: ${channelId} (via: ${resolvedVia})`);
+
+    // Get channel info
+    const channel = await getChannelInfo(channelId);
+    if (!channel) {
+      console.error(`[IMPORT] Could not fetch channel info for ID: ${channelId}`);
+      return json({ error: 'Could not fetch channel info.' }, { status: 404 });
+    }
+    console.log(`[IMPORT] Fetched channel info: ${channel.id} "${channel.name}"`);
+
+    // Insert/update channel
+    const { error: channelError } = await supabase.from('channels').upsert([{
+      id: channel.id,
+      name: channel.name,
+      thumbnail: channel.thumbnail,
+      description: channel.description
+    }]);
+    if (channelError) {
+      console.error(`[IMPORT] Error upserting channel:`, channelError);
+      return json({ error: 'Failed to upsert channel.' }, { status: 500 });
+    }
+
+    // Get and upsert playlists
+    const playlists = await getPlaylists(channelId);
+    if (playlists.length > 0) {
+      const { error: playlistError } = await supabase.from('playlists').upsert(playlists);
+      if (playlistError) {
+        console.error(`[IMPORT] Error upserting playlists:`, playlistError);
+        return json({ error: 'Failed to upsert playlists.' }, { status: 500 });
+      }
+    }
+
+    // Get all playlist videos (with durations)
+    let playlistVideos = [];
+    for (const pl of playlists) {
+      const vids = await getPlaylistVideos(pl.id);
+      playlistVideos.push(...vids);
+    }
+
+    // Get "uploads" videos (videos not necessarily in playlists)
+    let uploadsVideos = [];
+    if (channel.uploadsPlaylistId) {
+      uploadsVideos = await getAllUploads(channel.uploadsPlaylistId);
+    }
+
+    // Merge playlist videos and uploads, prefer playlist if duplicate id
+    const seen = new Set();
+    const allVideos = [];
+    for (const v of playlistVideos) {
+      if (!seen.has(v.id)) {
+        allVideos.push(v);
+        seen.add(v.id);
+      }
+    }
+    for (const v of uploadsVideos) {
+      if (!seen.has(v.id)) {
+        allVideos.push(v);
+        seen.add(v.id);
+      }
+    }
+
+    // Upsert videos with durations!
+    if (allVideos.length > 0) {
+      const { error: videoError } = await supabase.from('videos').upsert(allVideos.map(v => ({
+        id: v.id,
+        playlist_id: v.playlist_id,
+        channel_id: v.channel_id,
+        title: v.title,
+        channel_name: v.channel_name,
+        thumbnail: v.thumbnail,
+        length: v.length,
+        level: v.level,
+        created: v.created,
+        playlist_position: v.playlist_position
+      })));
+      if (videoError) {
+        console.error(`[IMPORT] Error upserting videos:`, videoError);
+        return json({ error: 'Failed to upsert videos.' }, { status: 500 });
+      }
+    }
+
+    return json({
+      success: true,
+      channel,
+      playlists_count: playlists.length,
+      videos_added: allVideos.length
+    });
+  } catch (err) {
+    console.error("[IMPORT ERROR]", err);
+    return json({ error: err.message || 'Unknown error' }, { status: 500 });
+  }
+}
+<script>
+  import { onMount } from 'svelte';
+  import { supabase } from '$lib/supabaseClient';
+  import { page } from '$app/stores';
+  import VideoWatchTracker from '$lib/components/VideoWatchTracker.svelte';
+
+  let video = null;
+  let suggestions = [];
+  let loading = true;
+  let user = null;
+
+  $: id = $page.params.id;
+
+  onMount(async () => {
+    const { data: sess } = await supabase.auth.getSession();
+    user = sess.session?.user ?? null;
+
+    // Fetch video
+    const { data: vid } = await supabase
+      .from('videos')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    video = vid;
+
+    // Fetch suggestions (sidebar)
+    const { data: suggs } = await supabase
+      .from('videos')
+      .select('*')
+      .order('created', { ascending: false })
+      .neq('id', id)
+      .limit(8);
+    suggestions = suggs || [];
+    loading = false;
+  });
+
+  function formatVideoDuration(sec) {
+    sec = Math.round(sec);
+    if (isNaN(sec) || sec <= 0) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+  function badgeProps(level) {
+    if (!level) return { label: "Not Yet Rated", color: "#d4d4d4", text: "#888" };
+    switch (level.trim().toLowerCase()) {
+      case "superbeginner":
+      case "super beginner":   return { label: "Super Beginner", color: "#16a800", text: "#fff" };
+      case "beginner":         return { label: "Beginner",       color: "#2f6ae9", text: "#fff" };
+      case "intermediate":     return { label: "Intermediate",   color: "#f9ae17", text: "#fff" };
+      case "advanced":         return { label: "Advanced",       color: "#7d2fe9", text: "#fff" };
+      default:                 return { label: "Not Yet Rated",  color: "#d4d4d4", text: "#888" };
+    }
+  }
+</script>
+
+{#if loading}
+  <p style="text-align:center; color:#aaa; margin-top:3rem;">Loading…</p>
+{:else if !video}
+  <p style="text-align:center; color:#aaa; margin-top:3rem;">Video not found.</p>
+{:else}
+  <div class="player-page-bg">
+    <div class="player-flex">
+      <main class="player-main">
+        <div class="player-embed">
+          <iframe
+            id="yt-player"
+            width="100%"
+            height="100%"
+            src={`https://www.youtube.com/embed/${video.id}?enablejsapi=1`}
+            title={video.title}
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+          ></iframe>
+          {#if user}
+            <VideoWatchTracker videoId={video.id} videoDuration={video.length} userId={user.id} />
+          {/if}
+        </div>
+        <div class="player-title">{video.title}</div>
+        <div class="player-meta-row">
+          <span
+            class="player-diff-badge"
+            style="background: {badgeProps(video.level).color}; color: {badgeProps(video.level).text};"
+          >{badgeProps(video.level).label}</span>
+          <span class="player-channel">{video.channel_name}</span>
+          {#if video.length}
+            <span class="player-duration">{formatVideoDuration(video.length)}</span>
+          {/if}
+        </div>
+      </main>
+      <aside class="player-suggestions">
+        <div class="player-suggestions-label">More Videos</div>
+        <div class="player-suggestions-list">
+          {#each suggestions as v}
+            <a class="suggest-card" href={`/video/${v.id}`}>
+              <span class="suggest-thumb-wrap">
+                <img
+                  class="suggest-thumb"
+                  src={`https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`}
+                  alt={v.title}
+                  on:error="{(e) => e.target.src='https://placehold.co/120x67?text=No+Thumb'}"
+                />
+                {#if v.length}
+                  <span class="suggest-thumb-duration">
+                    {formatVideoDuration(v.length)}
+                  </span>
+                {/if}
+              </span>
+              <div class="suggest-body">
+                <div class="suggest-title">{v.title}</div>
+                <div class="suggest-meta-row">
+                  <span
+                    class="suggest-diff-badge"
+                    style="background: {badgeProps(v.level).color}; color: {badgeProps(v.level).text};"
+                  >{badgeProps(v.level).label}</span>
+                  <span class="suggest-channel">{v.channel_name}</span>
+                </div>
+              </div>
+            </a>
+          {/each}
+        </div>
+      </aside>
+    </div>
+  </div>
+{/if}
+
+<style>
+/* BG same as front page */
+.player-page-bg {
+  background: var(--bg-main, #fff);
+  min-height: 100vh;
+  padding-top: 0;
+  width: 100vw;
+}
+
+/* Layout similar to YouTube and your home page */
+.player-flex {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 28px 0 0 0;
+  gap: 40px;
+}
+
+.player-main {
+  flex: 1 1 0;
+  max-width: 970px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.player-embed {
+  width: 100%;
+  aspect-ratio: 16/9;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 2px 16px #ececec60;
+  margin-bottom: 18px;
+  border: 1.7px solid #ededed;
+  overflow: hidden;
+}
+
+.player-title {
+  color: var(--text-main, #1a1a1a);
+  font-size: 1.36rem;
+  font-weight: 800;
+  line-height: 1.22;
+  margin-bottom: 8px;
+  max-width: 95vw;
+  overflow-wrap: anywhere;
+}
+
+.player-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+  margin-bottom: 10px;
+}
+
+.player-diff-badge {
+  font-size: 0.98em;
+  font-weight: 700;
+  padding: 0.22em 1.04em;
+  border-radius: 13px;
+  letter-spacing: 0.01em;
+  display: inline-block;
+  white-space: nowrap;
+  border: none;
+  box-shadow: 0 1px 4px #e0e0e0;
+}
+.player-channel {
+  font-size: 1.05rem;
+  color: #666;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+.player-duration {
+  font-size: 0.98em;
+  color: #adadad;
+  margin-left: auto;
+}
+
+.player-suggestions {
+  width: 370px;
+  min-width: 280px;
+  max-width: 400px;
+  padding-top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+}
+
+.player-suggestions-label {
+  font-size: 1.09em;
+  font-weight: 600;
+  color: var(--text-secondary, #666);
+  margin-bottom: 10px;
+  margin-top: 2px;
+  letter-spacing: 0.02em;
+}
+.player-suggestions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+/* Suggestions list (matching home) */
+.suggest-card {
+  display: flex;
+  flex-direction: row;
+  gap: 0.9em;
+  background: #fff;
+  border-radius: 11px;
+  overflow: hidden;
+  border: 1.1px solid #ececec;
+  transition: box-shadow 0.13s, transform 0.09s, background 0.13s;
+  cursor: pointer;
+  min-width: 0;
+  box-shadow: 0 2px 9px #eaeaea40;
+  text-decoration: none;
+  align-items: flex-start;
+  height: 87px;
+}
+.suggest-card:hover {
+  background: #f8f8fd;
+  box-shadow: 0 6px 18px #e93c2f09;
+  transform: translateY(-1.5px) scale(1.015);
+}
+.suggest-thumb-wrap {
+  position: relative;
+  width: 154px;
+  min-width: 154px;
+  height: 87px;
+  display: flex;
+}
+.suggest-thumb {
+  width: 154px;
+  height: 87px;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  background: #ededed;
+  border-radius: 11px 0 0 11px;
+  display: block;
+}
+.suggest-thumb-duration {
+  position: absolute;
+  right: 0.6em;
+  bottom: 0.52em;
+  background: #111a;
+  color: #fff;
+  font-size: 0.91em;
+  font-weight: 600;
+  padding: 0.09em 0.53em;
+  border-radius: 5px;
+  opacity: 0.79;
+  z-index: 2;
+  user-select: none;
+  pointer-events: none;
+}
+.suggest-body {
+  flex: 1;
+  padding: 0.51em 0.6em 0.33em 0.12em;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  color: #232323;
+}
+.suggest-title {
+  font-size: 1.01rem;
+  font-weight: 700;
+  color: #232323;
+  line-height: 1.14;
+  margin-bottom: 0.12em;
+  max-height: 2.2em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.suggest-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+.suggest-diff-badge {
+  font-size: 0.84em;
+  font-weight: 700;
+  padding: 0.17em 0.75em;
+  border-radius: 8px;
+  letter-spacing: 0.01em;
+  display: inline-block;
+  white-space: nowrap;
+  border: none;
+  box-shadow: 0 1px 4px #e0e0e0;
+}
+.suggest-channel {
+  color: #777;
+  font-size: 0.91rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90px;
+}
+
+@media (max-width: 1200px) {
+  .player-flex {
+    flex-direction: column;
+    gap: 20px;
+    max-width: 99vw;
+    padding: 0 2vw;
+  }
+  .player-main { width: 100%; max-width: unset; }
+  .player-suggestions { width: 100%; max-width: unset; flex-direction: row; gap: 1rem; }
+  .player-suggestions-list { flex-direction: row; gap: 1.1rem; overflow-x: auto; }
+}
+@media (max-width: 700px) {
+  .player-main, .player-suggestions { padding: 0; }
+  .suggest-card { height: 62px; }
+  .suggest-thumb, .suggest-thumb-wrap { width: 95px; min-width: 95px; height: 62px; }
+}
+</style>
+import { createClient } from '@supabase/supabase-js';
+
+export const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
+// place files you want to import through the `$lib` alias in this folder.
+<script>
+  import { supabase } from '$lib/supabaseClient';
+  import { onMount } from 'svelte';
+
+  let user = null;
+
+  // Check session at mount and listen for changes
+  onMount(async () => {
+    // Get current session from localStorage (browser)
+    const { data } = await supabase.auth.getSession();
+    user = data.session?.user ?? null;
+
+    // Listen for login/logout and update user
+    supabase.auth.onAuthStateChange((_event, session) => {
+      user = session?.user ?? null;
+    });
+  });
+
+  async function logout() {
+    await supabase.auth.signOut();
+    user = null;
+    window.location.href = '/';
+  }
+</script>
+
+<style>
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  padding: 0.8em 2vw;
+  border-bottom: 1px solid #ececec;
+}
+.logo-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65em;
+  text-decoration: none;
+}
+.logo-img {
+  height: 3.7em;
+  width: auto;
+  vertical-align: middle;
+}
+.logo-title {
+  font-size: 1.37em;
+  font-weight: bold;
+  letter-spacing: 1px;
+  color: #181818;
+}
+.nav-links {
+  display: flex;
+  gap: 1.6em;
+}
+.nav-link,
+.logout-btn {
+  color: #181818;
+  font-size: 1.08em;
+  font-weight: 600;
+  padding: 0.2em 0.6em;
+  border-radius: 7px;
+  text-decoration: none;
+  transition: background 0.18s, color 0.18s;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.nav-link:hover,
+.logout-btn:hover {
+  background: #f7f7f7;
+  color: #e93c2f;
+}
+.logout-btn {
+  font-family: inherit;
+}
+</style>
+
+<nav class="header">
+  <a href="/" class="logo-row">
+    <img src="/logo.png" alt="CIBUBBLE logo" class="logo-img" />  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="/">Home</a>
+    <a class="nav-link" href="/admin">ADMIN</a>
+        <!-- <a class="nav-link" href="/faq">FAQ</a> -->
+    {#if user}
+      <a class="nav-link" href="/progress">Progress</a>
+      <button class="logout-btn" on:click={logout}>Logout</button>
+    {:else}
+      <a class="nav-link" href="/signup">Sign Up</a>
+      <a class="nav-link" href="/login">Login</a>
+    {/if}
+
+  </div>
+</nav>
+<script>
+  export let video;
+  export let getBestThumbnail;
+  export let difficultyColor;
+  export let difficultyLabel;
+  export let formatLength;
+  export let filterByChannel;
+  export let filterByPlaylist;
+</script>
+
+<div class="card">
+  <a href={`/video/${video.id}`}>
+    <span class="thumb-wrapper">
+      <img
+        class="thumb"
+        src={getBestThumbnail(video)}
+        alt={video.title}
+        loading="lazy"
+        on:error={(e) => e.target.src = '/images/no_thumb_nail.png'}
+      />
+      {#if video.length}
+        <span class="length-inline">{formatLength(video.length)}</span>
+      {/if}
+    </span>
+  </a>
+  <div class="card-body">
+    <div class="card-title-row">
+      <span class="length-inline">TEST</span>
+      <span class="card-title">{video.title}</span>
+    </div>
+    <div class="card-meta">
+      <span class="badge" style="background:{difficultyColor(video.level)};">
+        {difficultyLabel(video.level)}
+      </span>
+      {#if video.channel_name}
+        <span
+          class="meta-link"
+          style="color:#2e9be6;cursor:pointer;"
+          title="Show all videos from this channel"
+          on:click={() => filterByChannel && filterByChannel(video.channel_name)}
+          tabindex="0"
+          role="button"
+        >
+          {video.channel?.name ?? video.channel_name}
+        </span>
+      {/if}
+      {#if video.playlist_id && video.playlist?.title}
+        <span
+          class="meta-link"
+          style="color:#9326e9;cursor:pointer;"
+          title="Show all videos in this playlist"
+          on:click={() => filterByPlaylist && filterByPlaylist(video.playlist.title)}
+          tabindex="0"
+          role="button"
+        >
+          {video.playlist.title}
+        </span>
+      {/if}
+    </div>
+  </div>
+</div>
+
+<style>
+.card {
+  background: #fff;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px #e8e8e8;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #ededed;
+}
+
+.thumb-wrapper {
+  position: relative;
+  overflow: visible;
+  z-index: 0;
+}
+
+.thumb {
+  width: 100%;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  background: #eee;
+  min-height: 112px;
+  display: block;
+  position: relative;   /* Key: enables stacking */
+  z-index: 1;           /* Image is under overlay */
+}
+
+/* Duration label inside thumbnail, bottom right, always on top */
+.length-inline {
+  position: absolute;
+  right: 0.45em;
+  bottom: 0.45em;
+  color: #fff;
+  background: #222c;
+  font-size: 0.97em;
+  padding: 0.14em 0.66em;
+  border-radius: 6px;
+  font-weight: 500;
+  opacity: 0.96;
+  box-shadow: 0 1px 4px #0002;
+  z-index: 5;              /* Above .thumb */
+  pointer-events: none;
+  display: inline-block;
+  max-width: 85%;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.card-body {
+  padding: 1rem 1rem 0.7rem 1rem;
+  color: #222;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin-bottom: 0.2em;
+}
+.card-title {
+  font-size: 1.08rem;
+  font-weight: 600;
+  min-height: 2.2em;
+  max-height: 2.3em;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  flex: 1;
+}
+.card-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  margin-top: 0.6em;
+  font-size: 1em;
+}
+.badge {
+  display: inline-block;
+  font-size: 0.89em;
+  font-weight: 600;
+  padding: 0.18em 0.7em;
+  border-radius: 4px;
+  margin-right: 0.5em;
+  color: #fff;
+  background: #bbb;
+  letter-spacing: 0.01em;
+  border: 1.5px solid transparent;
+  text-shadow: 0 1px 4px #0001;
+  white-space: nowrap;
+}
+.meta-link {
+  color: #252525;
+  font-size: 0.97em;
+  text-decoration: none;
+  background: #f6f6f6;
+  border-radius: 3px;
+  padding: 0.12em 0.55em;
+  margin-right: 0.18em;
+  font-weight: 500;
+  transition: background 0.13s, color 0.13s;
+}
+.meta-link:hover {
+  background: #e4e4e4;
+  color: #e93c2f;
+}
+</style>
+<script>
+  import { onMount, onDestroy } from 'svelte';
+  import { supabase } from '$lib/supabaseClient';
+
+  export let videoId;
+  export let videoDuration;
+  export let userId;
+
+  // Tracking state
+  let player;
+  let pollingInterval = null;
+  let lastTime = 0;
+  let watchSeconds = 0;
+  let markedAsWatched = false;
+  let lastSavedSeconds = 0;
+  let playerReady = false;
+
+  // Expose the playerReady state if you want to react in parent (optional)
+  export let ytReady = false;
+
+  // Attach YT
+  function onYouTubeIframeAPIReady() {
+    ytReady = true;
+    initPlayer();
+  }
+
+  function initPlayer() {
+    if (player || !document.getElementById('yt-player')) return;
+    player = new window.YT.Player('yt-player', {
+      events: {
+        'onReady': () => { playerReady = true; startWatchTimer(); },
+        'onStateChange': onPlayerStateChange
+      }
+    });
+  }
+
+  function startWatchTimer() {
+    if (pollingInterval) return;
+    lastTime = player.getCurrentTime?.() || 0;
+    pollingInterval = setInterval(async () => {
+      if (!userId || !player) return;
+      const currentTime = player.getCurrentTime?.() || 0;
+      let delta = currentTime - lastTime;
+      if (delta < 0) delta = 0;
+      if (delta > 5) delta = 1;
+      watchSeconds += delta;
+      lastTime = currentTime;
+
+      // Save every 8s
+      if (Math.floor(watchSeconds / 8) > Math.floor(lastSavedSeconds / 8) || watchSeconds - lastSavedSeconds >= 8) {
+        await savePartialWatchSession(Math.floor(watchSeconds));
+        lastSavedSeconds = watchSeconds;
+      }
+
+      // Save full duration if 90% watched
+      const duration = player.getDuration?.() || videoDuration || 1;
+      const percentWatched = Math.max(currentTime, watchSeconds) / duration;
+      if (!markedAsWatched && percentWatched >= 0.9 && userId) {
+        markedAsWatched = true;
+        await saveWatchSession(duration);
+      }
+    }, 1200);
+    // console.log("Watch polling started");
+  }
+
+  function stopWatchTimer() {
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      pollingInterval = null;
+      flushProgress();
+    }
+  }
+
+  async function savePartialWatchSession(seconds) {
+    if (!userId) return;
+    const today = new Date().toISOString().slice(0, 10);
+    await supabase.from('watch_sessions').upsert({
+      user_id: userId,
+      video_id: videoId,
+      seconds: Math.max(1, seconds),
+      date: today
+    }, { onConflict: ['user_id', 'video_id', 'date'] });
+  }
+
+  async function saveWatchSession(duration) {
+    if (!userId) return;
+    const today = new Date().toISOString().slice(0, 10);
+    await supabase.from('watch_sessions').upsert({
+      user_id: userId,
+      video_id: videoId,
+      seconds: Math.max(1, Math.round(duration)),
+      date: today
+    }, { onConflict: ['user_id', 'video_id', 'date'] });
+  }
+
+  function flushProgress() {
+    if (userId && watchSeconds > lastSavedSeconds) {
+      savePartialWatchSession(Math.floor(watchSeconds));
+      lastSavedSeconds = watchSeconds;
+    }
+  }
+
+  function onPlayerStateChange(event) {
+    stopWatchTimer();
+    if (event.data === 1) {
+      startWatchTimer();
+    }
+    if ([0, 2, 3].includes(event.data)) {
+      flushProgress();
+    }
+  }
+
+  function handleBeforeUnload() {
+    flushProgress();
+  }
+
+  onMount(() => {
+    // Attach global
+    window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+    if (!window.YT) {
+      const tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.body.appendChild(tag);
+    } else {
+      ytReady = true;
+      initPlayer();
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload);
+  });
+
+  onDestroy(() => {
+    stopWatchTimer();
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+    flushProgress();
+  });
+</script>
+<script>
+  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+  import { Sparkles, BarChart3, Search, Globe, Tag } from 'lucide-svelte';
+
+  // --- Props (all state is controlled by parent) ---
+  export let levels = [];
+  export let sortChoices = [];
+  export let countryOptions = [];
+  export let tagOptions = [];
+  export let selectedLevels;
+  export let sortBy;
+  export let selectedCountry;
+  export let selectedTags;
+  export let hideWatched;
+  export let searchTerm;
+  export let searchOpen = false;
+
+  const dispatch = createEventDispatcher();
+
+  // --- Local mirror of state for UI, synced from props ---
+  let _selectedLevels = new Set(selectedLevels);
+  let _sortBy = sortBy;
+  let _selectedCountry = selectedCountry;
+  let _selectedTags = new Set(selectedTags);
+  let _hideWatched = hideWatched;
+  let _searchTerm = searchTerm;
+  let _searchOpen = searchOpen;
+
+  // --- Dropdown state (UI only) ---
+  let showSortDropdown = false;
+  let showLevelDropdown = false;
+  let showCountryDropdown = false;
+  let showTagDropdown = false;
+  let sortDropdownRef, levelsDropdownRef, tagDropdownRef, countryDropdownRef;
+
+  // --- Sync local UI state if parent props change (reactive assignments) ---
+  $: if (selectedLevels && !equalSets(selectedLevels, _selectedLevels)) _selectedLevels = new Set(selectedLevels);
+  $: if (selectedTags && !equalSets(selectedTags, _selectedTags)) _selectedTags = new Set(selectedTags);
+  $: if (sortBy !== _sortBy) _sortBy = sortBy;
+  $: if (selectedCountry !== _selectedCountry) _selectedCountry = selectedCountry;
+  $: if (hideWatched !== _hideWatched) _hideWatched = hideWatched;
+  $: if (searchTerm !== _searchTerm) _searchTerm = searchTerm;
+  $: if (searchOpen !== _searchOpen) _searchOpen = searchOpen;
+
+  // --- Handler helpers ---
+  function emitChange() {
+    dispatch('change', {
+      selectedLevels: new Set(_selectedLevels),
+      sortBy: _sortBy,
+      selectedCountry: _selectedCountry,
+      selectedTags: new Set(_selectedTags),
+      hideWatched: _hideWatched,
+      searchTerm: _searchTerm,
+      searchOpen: _searchOpen
+    });
+  }
+
+  function handleToggleLevel(lvl) {
+    if (_selectedLevels.has(lvl)) _selectedLevels.delete(lvl);
+    else _selectedLevels.add(lvl);
+    emitChange();
+  }
+  function handleToggleAllLevels() {
+    if (_selectedLevels.size === levels.length) _selectedLevels = new Set();
+    else _selectedLevels = new Set(levels.map(l => l.value));
+    emitChange();
+  }
+  function handleSetSort(val) {
+    _sortBy = val;
+    emitChange();
+    showSortDropdown = false;
+  }
+  function handleSetCountry(c) {
+    _selectedCountry = c === _selectedCountry ? "" : c;
+    emitChange();
+  }
+  function handleToggleTag(tag) {
+    if (_selectedTags.has(tag)) _selectedTags.delete(tag);
+    else _selectedTags.add(tag);
+    emitChange();
+  }
+  function handleClearTags() {
+    _selectedTags = new Set();
+    emitChange();
+  }
+  function handleHideWatched() {
+    _hideWatched = !_hideWatched;
+    emitChange();
+  }
+  function handleSearchInput(val) {
+    _searchTerm = val;
+    emitChange();
+  }
+  function handleToggleSearch() {
+    _searchOpen = !_searchOpen;
+    if (!_searchOpen) _searchTerm = '';
+    emitChange();
+  }
+
+  // --- Close dropdowns on outside click ---
+  function handleDocumentClick(event) {
+    if (showSortDropdown && sortDropdownRef && !sortDropdownRef.contains(event.target)) showSortDropdown = false;
+    if (showLevelDropdown && levelsDropdownRef && !levelsDropdownRef.contains(event.target)) showLevelDropdown = false;
+    if (showTagDropdown && tagDropdownRef && !tagDropdownRef.contains(event.target)) showTagDropdown = false;
+    if (showCountryDropdown && countryDropdownRef && !countryDropdownRef.contains(event.target)) showCountryDropdown = false;
+  }
+
+  onMount(() => {
+    document.addEventListener('click', handleDocumentClick);
+  });
+  onDestroy(() => {
+    document.removeEventListener('click', handleDocumentClick);
+  });
+
+  function equalSets(a, b) {
+    if (!a || !b || a.size !== b.size) return false;
+    for (let v of a) if (!b.has(v)) return false;
+    return true;
+  }
+</script>
+
+<div class="controls-bar">
+  <div class="controls-left">
+    <!-- Sort Dropdown -->
+    <div class="dropdown" bind:this={sortDropdownRef}>
+      <button class="dropdown-btn" aria-expanded={showSortDropdown} on:click={() => showSortDropdown = !showSortDropdown} type="button">
+        <Sparkles size={18} style="margin-right:7px;vertical-align:-3px;color:#2e9be6;" />
+        Sort by
+        <svg width="12" height="9" style="margin-left:7px;" fill="none">
+          <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+        </svg>
+      </button>
+      {#if showSortDropdown}
+        <div class="dropdown-content">
+          {#each sortChoices as opt}
+            <div style="padding:0.32em 0.2em;cursor:pointer;" on:click={() => handleSetSort(opt.value)}>
+              {opt.label}
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </div>
+
+    <!-- Levels Dropdown -->
+    <div class="dropdown" bind:this={levelsDropdownRef}>
+      <button class="dropdown-btn" aria-expanded={showLevelDropdown} on:click={() => showLevelDropdown = !showLevelDropdown} type="button">
+        <BarChart3 size={18} style="margin-right:7px;vertical-align:-3px;color:#44c366;" />
+        Levels
+        <svg width="12" height="9" style="margin-left:7px;" fill="none">
+          <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+        </svg>
+      </button>
+      {#if showLevelDropdown}
+        <div class="dropdown-content">
+          <div style="margin-bottom:0.5em;font-size:1em;font-weight:600;">Include</div>
+          <div class="levels-list">
+            {#each levels as lvl}
+              <label class="level-checkbox">
+                <input type="checkbox" checked={_selectedLevels.has(lvl.value)} on:change={() => handleToggleLevel(lvl.value)} />
+                <span>{lvl.label}</span>
+              </label>
+            {/each}
+          </div>
+          <div style="margin-top:0.4em;">
+            <button style="font-size:0.97em;color:#176cda;background:none;border:none;cursor:pointer;" on:click={handleToggleAllLevels}>
+              {_selectedLevels.size === levels.length ? 'Clear all' : 'Select all'}
+            </button>
+          </div>
+        </div>
+      {/if}
+    </div>
+
+    <!-- Tags Dropdown -->
+    <div class="dropdown" bind:this={tagDropdownRef}>
+      <button class="dropdown-btn" aria-expanded={showTagDropdown} on:click={() => showTagDropdown = !showTagDropdown} type="button">
+        <Tag size={18} style="margin-right:7px;vertical-align:-3px;color:#f2a02b;" />
+        Tags
+        <svg width="12" height="9" style="margin-left:7px;" fill="none">
+          <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+        </svg>
+      </button>
+      {#if showTagDropdown}
+        <div class="dropdown-content">
+          {#each tagOptions as tag}
+            <label class="level-checkbox">
+              <input
+                type="checkbox"
+                checked={_selectedTags.has(tag)}
+                on:change={() => handleToggleTag(tag)}
+              />
+              <span>{tag}</span>
+            </label>
+          {/each}
+          <button style="margin-top:0.5em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;" on:click={handleClearTags}>
+            Clear all
+          </button>
+        </div>
+      {/if}
+    </div>
+
+    <!-- Countries Dropdown -->
+    <div class="dropdown" bind:this={countryDropdownRef}>
+      <button class="dropdown-btn" aria-expanded={showCountryDropdown} on:click={() => showCountryDropdown = !showCountryDropdown} type="button">
+        <Globe size={18} style="margin-right:7px;vertical-align:-3px;color:#c367f2;" />
+        Countries
+        <svg width="12" height="9" style="margin-left:7px;" fill="none">
+          <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+        </svg>
+      </button>
+      {#if showCountryDropdown}
+        <div class="dropdown-content">
+          <label class="level-checkbox">
+            <input
+              type="checkbox"
+              checked={_selectedCountry === ""}
+              on:change={() => handleSetCountry("")}
+            />
+            <span>All Countries</span>
+          </label>
+          {#each countryOptions as country}
+            <label class="level-checkbox">
+              <input
+                type="checkbox"
+                checked={_selectedCountry === country}
+                on:change={() => handleSetCountry(country)}
+              />
+              <span>{country}</span>
+            </label>
+          {/each}
+        </div>
+      {/if}
+    </div>
+  </div>
+  <div class="controls-right">
+    <button
+      class="dropdown-btn hide-watched-btn"
+      type="button"
+      aria-pressed={_hideWatched}
+      on:click={handleHideWatched}
+    >
+      <span class="switch-slider" aria-hidden="true"></span>
+      <span class="switch-label-text">Hide watched</span>
+    </button>
+    <div class="search-bar-container">
+      {#if _searchOpen}
+        <input
+          type="text"
+          class="search-input"
+          placeholder="Search videos…"
+          value={_searchTerm}
+          on:input={e => handleSearchInput(e.target.value)}
+          autofocus
+        />
+      {/if}
+      <button
+        class="search-toggle"
+        title="Search"
+        on:click={handleToggleSearch}
+        aria-label="Search"
+      >
+        <Search size={22} style="color:#2e9be6;" />
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .controls-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.2em;
+    max-width: 1380px;
+    margin: 2em auto 2em auto;
+    background: #f7f7fb;
+    padding: 0.7em 1.2em 0.7em 1.2em;
+    border-radius: 18px;
+    border: 1.7px solid #ececec;
+    box-shadow: 0 2px 16px #ececec60;
+    position: relative;
+    overflow-x: visible;
+  }
+  .controls-left {
+    display: flex;
+    align-items: center;
+    gap: 1.2em;
+  }
+  .controls-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 1.1em;
+  }
+  .dropdown {
+    position: relative;
+    min-width: 120px;
+  }
+  .dropdown-btn {
+    padding: 0.42em 1.1em;
+    font-size: 1.05em;
+    border-radius: 12px;
+    border: 1.2px solid #ececec;
+    background: #f9f9f9;
+    color: #1d1d1d;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.65em;
+    min-width: 110px;
+    transition:
+      border 0.11s,
+      background 0.11s;
+  }
+  .dropdown-btn[aria-expanded='true'],
+  .dropdown-btn[aria-pressed='true'] {
+    background: #f1f5fb;
+    border: 1.2px solid #bbb;
+    color: #1d1d1d;
+  }
+  .hide-watched-btn {
+    /* Neutral; red only for switch below */
+  }
+  .hide-watched-btn .switch-slider {
+    width: 36px;
+    height: 20px;
+    background: #e8e8e8;
+    border-radius: 8px;
+    position: relative;
+    display: inline-block;
+    transition: background 0.13s;
+    margin-right: 0.65em;
+    vertical-align: middle;
+  }
+  .hide-watched-btn[aria-pressed="true"] .switch-slider {
+    background: #fd2b23;
+  }
+  .hide-watched-btn .switch-slider::before {
+    content: '';
+    position: absolute;
+    width: 15px;
+    height: 15px;
+    left: 2.2px;
+    top: 2.2px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.13s, box-shadow 0.13s;
+    box-shadow: 0 1px 2px #0002;
+  }
+  .hide-watched-btn[aria-pressed="true"] .switch-slider::before {
+    transform: translateX(14px);
+    box-shadow: 0 1px 4px #fd2b2333;
+  }
+  .switch-label-text {
+    font-size: 1.05em;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    font-family: inherit;
+    color: inherit;
+  }
+  .dropdown-content {
+    position: absolute;
+    z-index: 1000;
+    background: #fff;
+    border: 1.3px solid #e8e8e8;
+    border-radius: 8px;
+    box-shadow: 0 2px 18px #eee;
+    min-width: 180px;
+    padding: 0.8em 0.6em;
+    top: 110%;
+    left: 0;
+    font-size: 1em;
+  }
+  .levels-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6em;
+    margin: 0.3em 0 0.4em 0;
+  }
+  .level-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    font-size: 1.03em;
+  }
+  /* --- Search Bar --- */
+  .search-bar-container {
+    display: flex;
+    align-items: center;
+    position: relative;
+    gap: 0.7em;
+  }
+  .search-input {
+    transition:
+      width 0.2s,
+      opacity 0.2s,
+      box-shadow 0.13s,
+      border 0.13s;
+    width: 180px;
+    max-width: 50vw;
+    order: -1;
+    margin-right: 0.3em;
+    opacity: 1;
+    font-size: 1.05em;
+    border-radius: 12px;
+    border: 1.2px solid #ececec;
+    background: #f9f9f9;
+    color: #1d1d1d;
+    font-weight: 500;
+    padding: 0.42em 1.1em;
+    box-shadow: 0 2px 8px #ececec60;
+    outline: none;
+  }
+  .search-input:focus {
+    border: 1.2px solid #bbb;
+    background: #f1f5fb;
+    box-shadow: 0 2px 16px #bbb2;
+  }
+  .search-toggle {
+    z-index: 2;
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 0.3em;
+    margin-left: 0;
+    border-radius: 50%;
+    transition: background 0.18s;
+  }
+  .search-toggle:hover,
+  .search-toggle:focus-visible {
+    background: #e5f2fd;
+  }
+  .search-toggle svg {
+    transition: stroke 0.15s;
+  }
+  .search-toggle:hover svg {
+    stroke: #2e9be6;
+  }
+
+  @media (max-width: 900px) {
+    .controls-bar {
+      flex-direction: column;
+      align-items: stretch;
+      padding: 0.7em 0.8em;
+    }
+    .controls-left,
+    .controls-right {
+      margin-left: 0;
+      justify-content: flex-start;
+    }
+    .controls-right {
+      justify-content: flex-end;
+      margin-top: 0.7em;
+    }
+  }
+  @media (max-width: 600px) {
+    .search-input {
+      width: 110px;
+      font-size: 0.96em;
+    }
+  }
+</style>
+<script>
+  import VideoCard from '$lib/components/VideoCard.svelte';
+  export let videos = [];
+  export let getBestThumbnail;
+  export let difficultyColor;
+  export let difficultyLabel;
+  export let formatLength;
+  export let filterByChannel;
+  export let filterByPlaylist;
+</script>
+
+<div class="grid">
+  {#each videos as video}
+    <VideoCard
+      {video}
+      {getBestThumbnail}
+      {difficultyColor}
+      {difficultyLabel}
+      {formatLength}
+      {filterByChannel}
+      {filterByPlaylist}
+    />
+  {/each}
+</div>
+
+<style>
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1.3rem;
+  margin: 2rem 0;
+}
+@media (max-width: 1200px) {
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 800px) {
+  .grid {
+    grid-template-columns: repeat(1, 1fr);
+  }
+}
+</style>
+// utils.js
+
+export function difficultyLabel(level) {
+  switch (level) {
+    case 'superbeginner': return 'Super Beginner';
+    case 'beginner': return 'Beginner';
+    case 'intermediate': return 'Intermediate';
+    case 'advanced': return 'Advanced';
+    default: return 'Not Yet Rated';
+  }
+}
+
+export function difficultyColor(level) {
+  switch (level) {
+    case 'superbeginner': return '#44c366';
+    case 'beginner': return '#2e9be6';
+    case 'intermediate': return '#f9c846';
+    case 'advanced': return '#e93c2f';
+    default: return '#bbb';
+  }
+}
+
+export function formatLength(sec) {
+  if (!sec || isNaN(sec)) return '';
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  return h > 0
+    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    : `${m}:${String(s).padStart(2, '0')}`;
+}
+
+export function getBestThumbnail(video) {
+  if (video.thumbnail) return video.thumbnail;
+  if (video.id) return `https://img.youtube.com/vi/${video.id}/hqdefault.jpg`;
+  return '/images/no_thumb_nail.png';
+}
+
+export function levelOrder(level) {
+  return ['superbeginner', 'beginner', 'intermediate', 'advanced'].indexOf(level);
+}
+
+export function shuffleArray(array) {
+  let arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>
+:root {
+	--primary: #e93c2f;
+	--text-main: #181818;
+	--text-secondary: #666;
+	--bg-main: #fff;
+	--bg-light: #f7f7f7;
+	--border: #ececec;
+	--info-bg: #e9f6ff;
+	--info-color: #2562e9;
+	--warning-bg: #f6e9ff;
+	--warning-color: #9326e9;
+	--error-bg: #ffd3d3;
+	--error-border: #fca5a5;
+	--error-color: #b12c2c;
+	--radius-chip: 9px;
+	--radius-error: 11px;
+	--radius: 12px;
+}
+
+body {
+	background: var(--bg-main);
+	color: var(--text-main);
+	margin: 0;
+	padding: 0;
+	font-family: 'Inter', 'Segoe UI', 'Arial', sans-serif;
+}
+
+a {
+	color: var(--text-main);
+	text-decoration: none;
+	transition: color 0.2s;
+}
+a:hover {
+	color: var(--primary);
+}
+
+/* Main container */
+.page-container {
+	max-width: 1920px;
+	margin: 3rem auto;
+	padding: 0rem 2vw 0rem 2vw; /* Reduced top and bottom padding */
+	font-family: inherit;
+}
+.sortbar-container {
+	margin-bottom: 3rem;
+}
+
+/* Chips for "filtered by" */
+.chip-info {
+	background: var(--info-bg);
+	color: #134f74;
+	padding: 8px 13px;
+	border-radius: var(--radius-chip);
+	margin-bottom: 18px;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	font-size: 1.02em;
+	font-weight: 500;
+	box-shadow: 0 2px 9px #3bb1fc09;
+}
+.chip-warning {
+	background: var(--warning-bg);
+	color: #612e8b;
+	padding: 8px 13px;
+	border-radius: var(--radius-chip);
+	margin-bottom: 18px;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	font-size: 1.02em;
+	font-weight: 500;
+	box-shadow: 0 2px 9px #a773e809;
+}
+
+.clear-btn {
+	background: none;
+	border: none;
+	font-weight: 600;
+	font-size: 1.05em;
+	cursor: pointer;
+	padding: 2px 10px;
+	border-radius: 6px;
+	transition:
+		background 0.12s,
+		color 0.12s;
+	outline: none;
+}
+.clear-btn--blue {
+	color: var(--info-color);
+}
+.clear-btn--purple {
+	color: var(--warning-color);
+}
+.clear-btn--blue:hover {
+	background: #e3eaff;
+	color: #9326e9;
+}
+.clear-btn--purple:hover {
+	background: #f5e3ff;
+	color: #2562e9;
+}
+
+.loading-more {
+	text-align: center;
+	color: #2e9be6;
+	margin: 1.8em 0 2.2em 0;
+	font-size: 1.09em;
+	font-weight: 600;
+	opacity: 0.78;
+}
+
+.error {
+	color: var(--error-color);
+	font-weight: 700;
+	margin: 2em auto;
+	text-align: center;
+	background: var(--error-bg);
+	padding: 1em 2em;
+	border-radius: var(--radius-error);
+	max-width: 520px;
+	font-size: 1.07em;
+	border: 1.5px solid var(--error-border);
+}
+
+.text-muted {
+	color: #888;
+}
+
+@media (max-width: 600px) {
+	.page-container {
+		padding: 1rem 2vw 1rem 2vw;
+	}
+	.sortbar-container {
+		margin-bottom: 0.7rem;
+	}
+	.chip-info,
+	.chip-warning {
+		padding: 6px 8px;
+		font-size: 0.97em;
+		gap: 8px;
+	}
+}
