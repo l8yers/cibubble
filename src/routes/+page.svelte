@@ -54,6 +54,53 @@
     "For Learners", "Kids Show", "Dubbed Show", "Videogames", "News", "History", "Science", "Travel", "Lifestyle", "Personal Development", "Cooking", "Music", "Comedy", "Native Show", "Education", "Sports", "Current Events"
   ].sort();
 
+  // 1. --- FETCH WATCHED IDS ON MOUNT ---
+  onMount(async () => {
+    loading = true;
+    const { data, error } = await supabase
+      .from('videos')
+      .select('*, playlist:playlist_id(title), channel:channel_id(name,country,tags)')
+      .limit(2000);
+
+    if (error) {
+      errorMsg = error.message;
+    } else if (data && data.length > 0) {
+      allVideos = data;
+      updateGrid();
+    } else {
+      videos = [];
+      allLoaded = true;
+    }
+    loading = false;
+
+    // Fetch watched video IDs for this user (replace this with your logic!)
+    // Example: get userId from auth and fetch their watched video IDs
+    // Replace 'user_id' logic as appropriate for your app
+    let { data: sessionData } = await supabase.auth.getSession();
+    let user = sessionData.session?.user;
+    if (user) {
+      const { data: watched } = await supabase
+        .from('watch_sessions')
+        .select('video_id')
+        .eq('user_id', user.id);
+      watchedIds = new Set((watched ?? []).map(w => String(w.video_id)));
+      updateGrid();
+    } else {
+      watchedIds = new Set();
+    }
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('scroll', handleScroll, { passive: true });
+    }
+  });
+
+  onDestroy(() => {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('scroll', handleScroll);
+    }
+  });
+
+  // 2. --- FILTER AND SORT ---
   function filterAndSort(input) {
     let filtered = input;
     if (selectedChannel) filtered = filtered.filter(v => v.channel_name === selectedChannel);
@@ -61,6 +108,7 @@
     filtered = filtered.filter(
       v => v.title && v.title !== 'Private video' && v.title !== 'Deleted video' && selectedLevels.has(v.level)
     );
+    // LEGENDARY PART: Hide watched!
     if (hideWatched) filtered = filtered.filter(v => !watchedIds.has(String(v.id)));
     if (selectedCountry) {
       filtered = filtered.filter(v =>
@@ -185,34 +233,6 @@
       }
     }
   }
-
-  onMount(async () => {
-    loading = true;
-    const { data, error } = await supabase
-      .from('videos')
-      .select('*, playlist:playlist_id(title), channel:channel_id(name,country,tags)')
-      .limit(2000);
-
-    if (error) {
-      errorMsg = error.message;
-    } else if (data && data.length > 0) {
-      allVideos = data;
-      updateGrid();
-    } else {
-      videos = [];
-      allLoaded = true;
-    }
-    loading = false;
-    if (typeof window !== 'undefined') {
-      window.addEventListener('scroll', handleScroll, { passive: true });
-    }
-  });
-
-  onDestroy(() => {
-    if (typeof window !== 'undefined') {
-      window.removeEventListener('scroll', handleScroll);
-    }
-  });
 
   // --- REACT TO SORTBAR PROP CHANGES ---
   function handleSortBarChange(e) {
