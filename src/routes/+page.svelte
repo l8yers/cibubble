@@ -1,12 +1,10 @@
 <script>
-  import { browser } from '$app/environment';
   import { onMount, onDestroy } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import VideoGrid from '$lib/VideoGrid.svelte';
   import SortBar from '$lib/SortBar.svelte';
   import * as utils from '$lib/utils.js';
 
-  // --- DATA STATE ---
   let videos = [];
   let allVideos = [];
   let loading = false;
@@ -14,7 +12,6 @@
   const pageSize = 30;
   let allLoaded = false;
 
-  // --- SEARCH STATE ---
   let searchTerm = '';
   let searchResults = [];
   let searchPage = 1;
@@ -22,7 +19,6 @@
   let searchError = '';
   let allSearchLoaded = false;
 
-  // --- FILTER STATE ---
   const levels = [
     { value: 'superbeginner', label: 'Super Beginner' },
     { value: 'beginner', label: 'Beginner' },
@@ -46,7 +42,6 @@
 
   let tagOptions = [
     "For Learners", "Kids Show", "Dubbed Show", "Videogames", "News", "History", "Science", "Travel", "Lifestyle", "Personal Development", "Cooking", "Music", "Comedy", "Native Show", "Education", "Sports", "Current Events"
-    // ...add more as you need!
   ].sort();
 
   let selectedCountry = "";
@@ -56,7 +51,7 @@
   let showTagDropdown = false;
 
   function setSelectedCountry(c) {
-    selectedCountry = (c === selectedCountry) ? "" : c; // deselect if already selected
+    selectedCountry = (c === selectedCountry) ? "" : c;
     showCountryDropdown = false;
     updateGrid();
   }
@@ -77,7 +72,6 @@
     showTagDropdown = !showTagDropdown;
   }
 
-  // --- LEVELS / SORT ---
   let selectedLevels = new Set(levels.map((l) => l.value));
   let sortBy = 'random';
   let showLevelDropdown = false;
@@ -86,7 +80,17 @@
   let watchedIds = new Set();
   let searchOpen = false;
 
-  // --- FILTER/SORT LOGIC (for non-search mode) ---
+  // Channel filter logic
+  let selectedChannel = "";
+  function filterByChannel(channelName) {
+    selectedChannel = channelName;
+    updateGrid();
+  }
+  function clearChannelFilter() {
+    selectedChannel = "";
+    updateGrid();
+  }
+
   function levelOrder(level) {
     return ['superbeginner', 'beginner', 'intermediate', 'advanced'].indexOf(level);
   }
@@ -99,7 +103,11 @@
     return arr;
   }
   function filterAndSort(input) {
-    let filtered = input.filter(
+    let filtered = input;
+    if (selectedChannel) {
+      filtered = filtered.filter(v => v.channel_name === selectedChannel);
+    }
+    filtered = filtered.filter(
       (v) =>
         v.title &&
         v.title !== 'Private video' &&
@@ -109,27 +117,23 @@
     if (hideWatched) {
       filtered = filtered.filter((v) => !watchedIds.has(String(v.id)));
     }
-    // --- COUNTRY FILTER (match v.channel?.country) ---
     if (selectedCountry) {
       filtered = filtered.filter((v) =>
         (v.channel?.country || "").trim().toLowerCase() === selectedCountry.trim().toLowerCase()
       );
     }
-    // --- TAGS FILTER (matches ANY selected tag against channel.tags, CSV) ---
     if (selectedTags.size > 0) {
       filtered = filtered.filter((v) => {
         const tags = (v.channel?.tags || "")
           .split(",")
           .map(t => t.trim().toLowerCase())
           .filter(Boolean);
-        // Return true if any selected tag matches
         for (let tag of selectedTags) {
           if (tags.includes(tag.toLowerCase())) return true;
         }
         return false;
       });
     }
-    // --- SORTING ---
     if (sortBy === 'random') {
       return shuffleArray(filtered);
     } else if (sortBy === 'easy') {
@@ -189,7 +193,6 @@
     }
   }
 
-  // --- SEARCH HANDLERS ---
   let searchTimeout;
   function handleSearchInput(event) {
     searchTerm = event.target.value;
@@ -198,7 +201,7 @@
       clearSearch();
       return;
     }
-    searchTimeout = setTimeout(() => runSearch(1, true), 250); // debounce and reset on new search
+    searchTimeout = setTimeout(() => runSearch(1, true), 250);
   }
   async function runSearch(page = 1, reset = false) {
     if (!searchTerm.trim()) return;
@@ -206,7 +209,6 @@
     searchError = '';
     let from = (page - 1) * pageSize;
     let to = from + pageSize - 1;
-    // --- FIXED Supabase .or() syntax ---
     const { data, error } = await supabase
       .from('videos')
       .select('*, playlist:playlist_id(title), channel:channel_id(name,country,tags)')
@@ -240,14 +242,13 @@
     updateGrid();
   }
 
-  // --- INFINITE SCROLL ---
   function handleScroll(e) {
     const el = e.target.scrollingElement || e.target;
     if (
       searchTerm &&
       !allSearchLoaded &&
       !searching &&
-      el.scrollHeight - el.scrollTop - el.clientHeight < 480 // near bottom
+      el.scrollHeight - el.scrollTop - el.clientHeight < 480
     ) {
       runSearch(searchPage + 1, false);
     }
@@ -256,7 +257,6 @@
       !allLoaded &&
       el.scrollHeight - el.scrollTop - el.clientHeight < 480
     ) {
-      // For non-search, load more locally (not from server)
       const nextVideos = filterAndSort(allVideos).slice(0, videos.length + pageSize);
       if (nextVideos.length > videos.length) {
         videos = nextVideos;
@@ -265,37 +265,36 @@
     }
   }
 
-// --- DATA LOAD (initial) ---
-onMount(async () => {
-  loading = true;
-  const { data, error } = await supabase
-    .from('videos')
-    .select('*, playlist:playlist_id(title), channel:channel_id(name,country,tags)')
-    .limit(2000);
+  onMount(async () => {
+    loading = true;
+    const { data, error } = await supabase
+      .from('videos')
+      .select('*, playlist:playlist_id(title), channel:channel_id(name,country,tags)')
+      .limit(2000);
 
-  if (error) {
-    errorMsg = error.message;
-  } else if (data && data.length > 0) {
-    allVideos = data;
-    updateGrid();
-  } else {
-    videos = [];
-    allLoaded = true;
-  }
-  loading = false;
+    if (error) {
+      errorMsg = error.message;
+    } else if (data && data.length > 0) {
+      allVideos = data;
+      updateGrid();
+    } else {
+      videos = [];
+      allLoaded = true;
+    }
+    loading = false;
+    if (typeof window !== 'undefined') {
+      window.addEventListener('scroll', handleScroll, { passive: true });
+    }
+  });
 
-  // Only attach scroll event if running in browser
-  if (browser) {
-    window.addEventListener('scroll', handleScroll, { passive: true });
-  }
-});
-
-onDestroy(() => {
-  if (browser) {
-    window.removeEventListener('scroll', handleScroll);
-  }
-});
+  onDestroy(() => {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('scroll', handleScroll);
+    }
+  });
 </script>
+
+
 
 <div class="page-container">
   <SortBar
@@ -331,7 +330,12 @@ onDestroy(() => {
     {showTagDropdown}
     {toggleTagDropdown}
   />
-
+{#if selectedChannel}
+  <div style="background:#e9f6ff;padding:10px 16px;border-radius:9px;margin-bottom:18px;display:flex;align-items:center;gap:14px;">
+    <span><b>Filtered by channel:</b> {selectedChannel}</span>
+    <button on:click={clearChannelFilter} style="background:none;border:none;color:#2562e9;font-weight:600;font-size:1.05em;cursor:pointer;">✕ Clear</button>
+  </div>
+{/if}
   {#if searchTerm.trim() !== ''}
     {#if searching && searchResults.length === 0}
       <p style="text-align:center;margin:2em 0;font-size:1.2em;">Searching…</p>
@@ -340,12 +344,20 @@ onDestroy(() => {
     {:else if searchResults.length === 0}
       <div style="margin-top:2em;text-align:center;color:#888;font-size:1.1em;">No videos found.</div>
     {:else}
+    {#if selectedChannel}
+  <div style="background:#e9f6ff;padding:10px 16px;border-radius:9px;margin-bottom:18px;display:flex;align-items:center;gap:14px;">
+    <span><b>Filtered by channel:</b> {selectedChannel}</span>
+    <button on:click={clearChannelFilter} style="background:none;border:none;color:#2562e9;font-weight:600;font-size:1.05em;cursor:pointer;">✕ Clear</button>
+  </div>
+{/if}
       <VideoGrid
         videos={searchResults}
         getBestThumbnail={utils.getBestThumbnail}
         difficultyColor={utils.difficultyColor}
         difficultyLabel={utils.difficultyLabel}
         formatLength={utils.formatLength}
+        filterByChannel={filterByChannel}
+        
       />
       {#if !allSearchLoaded}
         <div class="loading-more">Loading more…</div>
@@ -365,6 +377,7 @@ onDestroy(() => {
         difficultyColor={utils.difficultyColor}
         difficultyLabel={utils.difficultyLabel}
         formatLength={utils.formatLength}
+        filterByChannel={filterByChannel}
       />
       {#if !allLoaded}
         <div class="loading-more">Loading more…</div>
