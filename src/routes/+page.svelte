@@ -103,17 +103,6 @@
     updateGrid();
   }
 
-  function levelOrder(level) {
-    return ['superbeginner', 'beginner', 'intermediate', 'advanced'].indexOf(level);
-  }
-  function shuffleArray(array) {
-    let arr = [...array];
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  }
   function filterAndSort(input) {
     let filtered = input;
     if (selectedChannel) {
@@ -150,11 +139,11 @@
       });
     }
     if (sortBy === 'random') {
-      return shuffleArray(filtered);
+      return utils.shuffleArray(filtered);
     } else if (sortBy === 'easy') {
-      return filtered.sort((a, b) => levelOrder(a.level) - levelOrder(b.level));
+      return filtered.sort((a, b) => utils.levelOrder(a.level) - utils.levelOrder(b.level));
     } else if (sortBy === 'hard') {
-      return filtered.sort((a, b) => levelOrder(b.level) - levelOrder(a.level));
+      return filtered.sort((a, b) => utils.levelOrder(b.level) - utils.levelOrder(a.level));
     } else if (sortBy === 'long') {
       return filtered.sort((a, b) => (b.length || 0) - (a.length || 0));
     } else if (sortBy === 'short') {
@@ -308,6 +297,7 @@
     }
   });
 </script>
+
 
 <div class="page-container">
     <div class="sortbar-container">
