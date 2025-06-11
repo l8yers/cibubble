@@ -6,7 +6,6 @@
   import * as utils from '$lib/utils.js';
   import '../app.css';
 
-  // --- VIDEO STATE ---
   let videos = [];
   let allVideos = [];
   let loading = false;
@@ -14,7 +13,6 @@
   const pageSize = 30;
   let allLoaded = false;
 
-  // --- FILTER/SORT/SEARCH STATE managed by SortBar ---
   let selectedChannel = "";
   let selectedPlaylist = "";
 
@@ -27,14 +25,12 @@
   let searchTerm = '';
   let searchOpen = false;
 
-  // --- SEARCH STATE ---
   let searchResults = [];
   let searchPage = 1;
   let searching = false;
   let searchError = '';
   let allSearchLoaded = false;
 
-  // --- OPTIONS for props ---
   const levels = [
     { value: 'superbeginner', label: 'Super Beginner' },
     { value: 'beginner', label: 'Beginner' },
@@ -58,32 +54,21 @@
     "For Learners", "Kids Show", "Dubbed Show", "Videogames", "News", "History", "Science", "Travel", "Lifestyle", "Personal Development", "Cooking", "Music", "Comedy", "Native Show", "Education", "Sports", "Current Events"
   ].sort();
 
-  // --- FILTERING FUNCTIONS ---
   function filterAndSort(input) {
     let filtered = input;
-    if (selectedChannel) {
-      filtered = filtered.filter(v => v.channel_name === selectedChannel);
-    }
-    if (selectedPlaylist) {
-      filtered = filtered.filter(v => v.playlist?.title === selectedPlaylist);
-    }
+    if (selectedChannel) filtered = filtered.filter(v => v.channel_name === selectedChannel);
+    if (selectedPlaylist) filtered = filtered.filter(v => v.playlist?.title === selectedPlaylist);
     filtered = filtered.filter(
-      (v) =>
-        v.title &&
-        v.title !== 'Private video' &&
-        v.title !== 'Deleted video' &&
-        selectedLevels.has(v.level)
+      v => v.title && v.title !== 'Private video' && v.title !== 'Deleted video' && selectedLevels.has(v.level)
     );
-    if (hideWatched) {
-      filtered = filtered.filter((v) => !watchedIds.has(String(v.id)));
-    }
+    if (hideWatched) filtered = filtered.filter(v => !watchedIds.has(String(v.id)));
     if (selectedCountry) {
-      filtered = filtered.filter((v) =>
+      filtered = filtered.filter(v =>
         (v.channel?.country || "").trim().toLowerCase() === selectedCountry.trim().toLowerCase()
       );
     }
     if (selectedTags.size > 0) {
-      filtered = filtered.filter((v) => {
+      filtered = filtered.filter(v => {
         const tags = (v.channel?.tags || "")
           .split(",")
           .map(t => t.trim().toLowerCase())
@@ -94,21 +79,13 @@
         return false;
       });
     }
-    if (sortBy === 'random') {
-      return utils.shuffleArray(filtered);
-    } else if (sortBy === 'easy') {
-      return filtered.sort((a, b) => utils.levelOrder(a.level) - utils.levelOrder(b.level));
-    } else if (sortBy === 'hard') {
-      return filtered.sort((a, b) => utils.levelOrder(b.level) - utils.levelOrder(a.level));
-    } else if (sortBy === 'long') {
-      return filtered.sort((a, b) => (b.length || 0) - (a.length || 0));
-    } else if (sortBy === 'short') {
-      return filtered.sort((a, b) => (a.length || 0) - (b.length || 0));
-    } else if (sortBy === 'new') {
-      return filtered.sort((a, b) => new Date(b.published) - new Date(a.published));
-    } else if (sortBy === 'old') {
-      return filtered.sort((a, b) => new Date(a.published) - new Date(b.published));
-    }
+    if (sortBy === 'random') return utils.shuffleArray(filtered);
+    if (sortBy === 'easy') return filtered.sort((a, b) => utils.levelOrder(a.level) - utils.levelOrder(b.level));
+    if (sortBy === 'hard') return filtered.sort((a, b) => utils.levelOrder(b.level) - utils.levelOrder(a.level));
+    if (sortBy === 'long') return filtered.sort((a, b) => (b.length || 0) - (a.length || 0));
+    if (sortBy === 'short') return filtered.sort((a, b) => (a.length || 0) - (b.length || 0));
+    if (sortBy === 'new') return filtered.sort((a, b) => new Date(b.published) - new Date(a.published));
+    if (sortBy === 'old') return filtered.sort((a, b) => new Date(a.published) - new Date(b.published));
     return filtered;
   }
 
@@ -117,7 +94,7 @@
     allLoaded = videos.length >= filterAndSort(allVideos).length;
   }
 
-  // --- FILTER "CHIPS" LOGIC ---
+  // Filter "chips" logic
   function filterByChannel(channelName) {
     selectedChannel = channelName;
     updateGrid();
@@ -135,7 +112,7 @@
     updateGrid();
   }
 
-  // --- SEARCH ---
+  // --- SEARCH handling (search term is parent state, bar only emits) ---
   let searchTimeout;
   function handleSearchInput(val) {
     searchTerm = val;
@@ -185,7 +162,7 @@
     updateGrid();
   }
 
-  // --- SCROLL PAGINATION ---
+  // Scroll pagination for infinite scroll
   function handleScroll(e) {
     const el = e.target.scrollingElement || e.target;
     if (
@@ -209,7 +186,6 @@
     }
   }
 
-  // --- LIFECYCLE ---
   onMount(async () => {
     loading = true;
     const { data, error } = await supabase
@@ -255,11 +231,9 @@
     selectedCountry = sC;
     selectedTags = sT;
     hideWatched = hW;
-
-    // If search open/closed, sync local state
     searchOpen = sOpen;
 
-    // Only run search if changed
+    // Handle search - only run API if searchTerm changed
     if (searchTerm !== sTerm) {
       searchTerm = sTerm;
       if (searchTerm.trim() === '') {
@@ -268,7 +242,6 @@
         runSearch(1, true);
       }
     }
-
     updateGrid();
   }
 </script>
@@ -287,7 +260,7 @@
       hideWatched={hideWatched}
       searchTerm={searchTerm}
       searchOpen={searchOpen}
-      on:change={e => handleSortBarChange(e)}
+      on:change={handleSortBarChange}
     />
   </div>
 

@@ -1,8 +1,8 @@
 <script>
-  import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import { Sparkles, BarChart3, Search, Globe, Tag } from 'lucide-svelte';
 
-  // --- Props from parent ---
+  // --- Props (all state is controlled by parent) ---
   export let levels = [];
   export let sortChoices = [];
   export let countryOptions = [];
@@ -17,7 +17,7 @@
 
   const dispatch = createEventDispatcher();
 
-  // --- Local state mirrors props ---
+  // --- Local mirror of state for UI, synced from props ---
   let _selectedLevels = new Set(selectedLevels);
   let _sortBy = sortBy;
   let _selectedCountry = selectedCountry;
@@ -26,14 +26,23 @@
   let _searchTerm = searchTerm;
   let _searchOpen = searchOpen;
 
-  // Dropdown UI state
+  // --- Dropdown state (UI only) ---
   let showSortDropdown = false;
   let showLevelDropdown = false;
   let showCountryDropdown = false;
   let showTagDropdown = false;
-
   let sortDropdownRef, levelsDropdownRef, tagDropdownRef, countryDropdownRef;
 
+  // --- Sync local UI state if parent props change (reactive assignments) ---
+  $: if (selectedLevels && !equalSets(selectedLevels, _selectedLevels)) _selectedLevels = new Set(selectedLevels);
+  $: if (selectedTags && !equalSets(selectedTags, _selectedTags)) _selectedTags = new Set(selectedTags);
+  $: if (sortBy !== _sortBy) _sortBy = sortBy;
+  $: if (selectedCountry !== _selectedCountry) _selectedCountry = selectedCountry;
+  $: if (hideWatched !== _hideWatched) _hideWatched = hideWatched;
+  $: if (searchTerm !== _searchTerm) _searchTerm = searchTerm;
+  $: if (searchOpen !== _searchOpen) _searchOpen = searchOpen;
+
+  // --- Handler helpers ---
   function emitChange() {
     dispatch('change', {
       selectedLevels: new Set(_selectedLevels),
@@ -46,7 +55,6 @@
     });
   }
 
-  // Handlers
   function handleToggleLevel(lvl) {
     if (_selectedLevels.has(lvl)) _selectedLevels.delete(lvl);
     else _selectedLevels.add(lvl);
@@ -85,26 +93,16 @@
   }
   function handleToggleSearch() {
     _searchOpen = !_searchOpen;
-    // If closing search, reset value
-    if (!_searchOpen) {
-      _searchTerm = '';
-    }
+    if (!_searchOpen) _searchTerm = '';
     emitChange();
   }
 
+  // --- Close dropdowns on outside click ---
   function handleDocumentClick(event) {
-    if (showSortDropdown && sortDropdownRef && !sortDropdownRef.contains(event.target)) {
-      showSortDropdown = false;
-    }
-    if (showLevelDropdown && levelsDropdownRef && !levelsDropdownRef.contains(event.target)) {
-      showLevelDropdown = false;
-    }
-    if (showTagDropdown && tagDropdownRef && !tagDropdownRef.contains(event.target)) {
-      showTagDropdown = false;
-    }
-    if (showCountryDropdown && countryDropdownRef && !countryDropdownRef.contains(event.target)) {
-      showCountryDropdown = false;
-    }
+    if (showSortDropdown && sortDropdownRef && !sortDropdownRef.contains(event.target)) showSortDropdown = false;
+    if (showLevelDropdown && levelsDropdownRef && !levelsDropdownRef.contains(event.target)) showLevelDropdown = false;
+    if (showTagDropdown && tagDropdownRef && !tagDropdownRef.contains(event.target)) showTagDropdown = false;
+    if (showCountryDropdown && countryDropdownRef && !countryDropdownRef.contains(event.target)) showCountryDropdown = false;
   }
 
   onMount(() => {
@@ -114,17 +112,8 @@
     document.removeEventListener('click', handleDocumentClick);
   });
 
-  // Keep local state in sync with props
-  $: if (selectedLevels && !equalSets(selectedLevels, _selectedLevels)) _selectedLevels = new Set(selectedLevels);
-  $: if (selectedTags && !equalSets(selectedTags, _selectedTags)) _selectedTags = new Set(selectedTags);
-  $: if (sortBy !== _sortBy) _sortBy = sortBy;
-  $: if (selectedCountry !== _selectedCountry) _selectedCountry = selectedCountry;
-  $: if (hideWatched !== _hideWatched) _hideWatched = hideWatched;
-  $: if (searchTerm !== _searchTerm) _searchTerm = searchTerm;
-  $: if (searchOpen !== _searchOpen) _searchOpen = searchOpen;
-
   function equalSets(a, b) {
-    if (a.size !== b.size) return false;
+    if (!a || !b || a.size !== b.size) return false;
     for (let v of a) if (!b.has(v)) return false;
     return true;
   }
