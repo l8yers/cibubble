@@ -264,27 +264,36 @@
     }
   }
 
-  // --- DATA LOAD (initial) ---
-  onMount(async () => {
-    loading = true;
-    const { data, error } = await supabase
-      .from('videos')
-      .select('*, playlist:playlist_id(title), channel:channel_id(name,country,tags)')
-      .limit(2000);
-    if (error) errorMsg = error.message;
-    else if (data && data.length > 0) {
-      allVideos = data;
-      updateGrid();
-    } else {
-      videos = [];
-      allLoaded = true;
-    }
-    loading = false;
+// --- DATA LOAD (initial) ---
+onMount(async () => {
+  loading = true;
+  const { data, error } = await supabase
+    .from('videos')
+    .select('*, playlist:playlist_id(title), channel:channel_id(name,country,tags)')
+    .limit(2000);
+
+  if (error) {
+    errorMsg = error.message;
+  } else if (data && data.length > 0) {
+    allVideos = data;
+    updateGrid();
+  } else {
+    videos = [];
+    allLoaded = true;
+  }
+  loading = false;
+
+  // Only attach scroll event if running in browser
+  if (browser) {
     window.addEventListener('scroll', handleScroll, { passive: true });
-  });
-  onDestroy(() => {
+  }
+});
+
+onDestroy(() => {
+  if (browser) {
     window.removeEventListener('scroll', handleScroll);
-  });
+  }
+});
 </script>
 
 <div class="page-container">
