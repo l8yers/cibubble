@@ -57,7 +57,7 @@
 .logout-btn {
   color: #181818;
   font-size: 1.08em;
-  font-weight: 500;
+  font-weight: 600;
   padding: 0.2em 0.6em;
   border-radius: 7px;
   text-decoration: none;

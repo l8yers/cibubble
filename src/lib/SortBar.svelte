@@ -1,5 +1,5 @@
 <script>
-  import { Sparkles, BarChart3, Search } from 'lucide-svelte';
+  import { Sparkles, BarChart3, Search, Globe, Tag } from 'lucide-svelte';
 
   export let levels = [];
   export let sortChoices = [];
@@ -19,6 +19,21 @@
   export let handleSearchInput;
   export let hideWatched;
   export let updateGrid;
+
+  // Countries and Tags
+  export let countryOptions = [];
+  export let selectedCountries;      // Set
+  export let showCountryDropdown;
+  export let toggleCountryDropdown;
+  export let handleCountrySelect;
+
+  export let tagOptions = [];
+  export let selectedTags;           // Set
+  export let showTagDropdown;
+  export let toggleTagDropdown;
+  export let handleTagSelect;
+  export let clearTags;
+  export let clearCountries;
 </script>
 
 <div class="controls-bar">
@@ -66,6 +81,72 @@
           <div style="margin-top:0.4em;">
             <button style="font-size:0.97em;color:#176cda;background:none;border:none;cursor:pointer;" on:click={toggleAllLevels}>
               {allLevelsSelected() ? 'Clear all' : 'Select all'}
+            </button>
+          </div>
+        </div>
+      {/if}
+    </div>
+
+    <!-- Tags Dropdown -->
+    <div class="dropdown">
+      <button class="dropdown-btn" aria-expanded={showTagDropdown} on:click={toggleTagDropdown} type="button">
+        <Tag size={18} style="margin-right:7px;vertical-align:-3px;color:#f2a02b;" />
+        Tags
+        <svg width="12" height="9" style="margin-left:7px;" fill="none">
+          <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+        </svg>
+        {#if selectedTags.size > 0}
+          <span style="margin-left:0.5em;color:#888;font-weight:500;">({selectedTags.size})</span>
+        {/if}
+      </button>
+      {#if showTagDropdown}
+        <div class="dropdown-content" style="max-height:270px;overflow:auto;">
+          {#each tagOptions as tag}
+            <label class="level-checkbox">
+              <input
+                type="checkbox"
+                checked={selectedTags.has(tag)}
+                on:change={() => handleTagSelect(tag)}
+              />
+              <span>{tag}</span>
+            </label>
+          {/each}
+          <div style="margin-top:0.4em;">
+            <button style="font-size:0.97em;color:#176cda;background:none;border:none;cursor:pointer;" on:click={clearTags}>
+              Clear Tags
+            </button>
+          </div>
+        </div>
+      {/if}
+    </div>
+
+    <!-- Countries Dropdown -->
+    <div class="dropdown">
+      <button class="dropdown-btn" aria-expanded={showCountryDropdown} on:click={toggleCountryDropdown} type="button">
+        <Globe size={18} style="margin-right:7px;vertical-align:-3px;color:#c367f2;" />
+        Countries
+        <svg width="12" height="9" style="margin-left:7px;" fill="none">
+          <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+        </svg>
+        {#if selectedCountries.size > 0}
+          <span style="margin-left:0.5em;color:#888;font-weight:500;">({selectedCountries.size})</span>
+        {/if}
+      </button>
+      {#if showCountryDropdown}
+        <div class="dropdown-content" style="max-height:270px;overflow:auto;">
+          {#each countryOptions as country}
+            <label class="level-checkbox">
+              <input
+                type="checkbox"
+                checked={selectedCountries.has(country)}
+                on:change={() => handleCountrySelect(country)}
+              />
+              <span>{country}</span>
+            </label>
+          {/each}
+          <div style="margin-top:0.4em;">
+            <button style="font-size:0.97em;color:#176cda;background:none;border:none;cursor:pointer;" on:click={clearCountries}>
+              Clear Countries
             </button>
           </div>
         </div>

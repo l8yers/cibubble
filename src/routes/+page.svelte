@@ -37,16 +37,55 @@
     { value: 'new', label: 'New' },
     { value: 'old', label: 'Old' }
   ];
+
   let selectedLevels = new Set(levels.map((l) => l.value));
   let sortBy = 'random';
   let showLevelDropdown = false;
   let showSortDropdown = false;
   let hideWatched = false;
   let watchedIds = new Set();
-
   let searchOpen = false;
 
-  // --- FILTER/SORT LOGIC (for non-search mode) ---
+  // --- Country and Tag state ---
+  let countryOptions = [
+    "Spain", "Mexico", "Argentina", "Colombia", "Chile", "Various", "Peru",
+    "Guatemala", "Uruguay", "Dominican Republic", "Venezuela", "Costa Rica", "Cuba", "Ecuador", "Paraguay", "Panama", "Canary Islands", "Italy", "Puerto Rico", "Equatorial Guinea", "DUBS", "Not Native Speaker", "AI Voice", "Latin America"
+  ].sort();
+  let tagOptions = [
+    "For Learners", "Kids Show", "Dubbed Show", "Videogames", "News", "History", "Science", "Travel", "Lifestyle", "Personal Development", "Cooking", "Music", "Comedy", "Native Show", "Education", "Sports", "Current Events"
+  ].sort();
+
+  let selectedCountries = new Set();
+  let selectedTags = new Set();
+  let showCountryDropdown = false;
+  let showTagDropdown = false;
+
+  function toggleCountryDropdown() {
+    showCountryDropdown = !showCountryDropdown;
+  }
+  function toggleTagDropdown() {
+    showTagDropdown = !showTagDropdown;
+  }
+  function handleCountrySelect(country) {
+    if (selectedCountries.has(country)) selectedCountries.delete(country);
+    else selectedCountries.add(country);
+    updateGrid();
+  }
+  function handleTagSelect(tag) {
+    if (selectedTags.has(tag)) selectedTags.delete(tag);
+    else selectedTags.add(tag);
+    updateGrid();
+  }
+  function clearCountries() {
+    selectedCountries = new Set();
+    updateGrid();
+  }
+  function clearTags() {
+    selectedTags = new Set();
+    updateGrid();
+  }
+
+  // --- FILTER/SORT LOGIC (including countries/tags) ---
   function levelOrder(level) {
     return ['superbeginner', 'beginner', 'intermediate', 'advanced'].indexOf(level);
   }
@@ -58,56 +97,66 @@
     }
     return arr;
   }
-  function filterAndSort(input) {
-    let filtered = input.filter(
-      (v) =>
-        v.title &&
-        v.title !== 'Private video' &&
-        v.title !== 'Deleted video' &&
-        selectedLevels.has(v.level)
-    );
-    if (hideWatched) {
-      filtered = filtered.filter((v) => !watchedIds.has(String(v.id)));
-    }
-    if (sortBy === 'random') {
-      return shuffleArray(filtered);
-    } else if (sortBy === 'easy') {
-      return filtered.sort((a, b) => levelOrder(a.level) - levelOrder(b.level));
-    } else if (sortBy === 'hard') {
-      return filtered.sort((a, b) => levelOrder(b.level) - levelOrder(a.level));
-    } else if (sortBy === 'long') {
-      return filtered.sort((a, b) => (b.length || 0) - (a.length || 0));
-    } else if (sortBy === 'short') {
-      return filtered.sort((a, b) => (a.length || 0) - (b.length || 0));
-    } else if (sortBy === 'new') {
-      return filtered.sort((a, b) => new Date(b.published) - new Date(a.published));
-    } else if (sortBy === 'old') {
-      return filtered.sort((a, b) => new Date(a.published) - new Date(b.published));
-    }
-    return filtered;
+ function filterAndSort(input) {
+  let filtered = input.filter((v) => {
+    // --- LEVELS ---
+    if (!v.title || v.title === 'Private video' || v.title === 'Deleted video') return false;
+    if (!selectedLevels.has(v.level)) return false;
+
+    // --- COUNTRY ---
+    let videoCountry = (v.country || v.country_name || "").trim();
+    if (selectedCountries.size && !selectedCountries.has(videoCountry)) return false;
+
+    // --- TAGS ---
+    let tagField = v.tags || "";
+    let videoTags = Array.isArray(tagField)
+      ? tagField
+      : typeof tagField === "string"
+        ? tagField.split(/[;,|]/).map(s => s.trim()).filter(Boolean)
+        : [];
+    if (selectedTags.size && !videoTags.some(t => selectedTags.has(t))) return false;
+
+    // --- HIDE WATCHED ---
+    if (hideWatched && watchedIds.has(String(v.id))) return false;
+
+    return true;
+  });
+
+  // Sorting as before
+  if (sortBy === 'random') {
+    return shuffleArray(filtered);
+  } else if (sortBy === 'easy') {
+    return filtered.sort((a, b) => levelOrder(a.level) - levelOrder(b.level));
+  } else if (sortBy === 'hard') {
+    return filtered.sort((a, b) => levelOrder(b.level) - levelOrder(a.level));
+  } else if (sortBy === 'long') {
+    return filtered.sort((a, b) => (b.length || 0) - (a.length || 0));
+  } else if (sortBy === 'short') {
+    return filtered.sort((a, b) => (a.length || 0) - (b.length || 0));
+  } else if (sortBy === 'new') {
+    return filtered.sort((a, b) => new Date(b.published) - new Date(a.published));
+  } else if (sortBy === 'old') {
+    return filtered.sort((a, b) => new Date(a.published) - new Date(b.published));
   }
+  return filtered;
+}
   function updateGrid() {
     videos = filterAndSort(allVideos).slice(0, pageSize);
     allLoaded = videos.length >= filterAndSort(allVideos).length;
   }
 
+  // --- Level/Sort/Watched handlers ---
   function toggleLevel(level) {
-    if (selectedLevels.has(level)) {
-      selectedLevels.delete(level);
-    } else {
-      selectedLevels.add(level);
-    }
+    if (selectedLevels.has(level)) selectedLevels.delete(level);
+    else selectedLevels.add(level);
     updateGrid();
   }
   function allLevelsSelected() {
     return selectedLevels.size === levels.length;
   }
   function toggleAllLevels() {
-    if (allLevelsSelected()) {
-      selectedLevels = new Set();
-    } else {
-      selectedLevels = new Set(levels.map((l) => l.value));
-    }
+    if (allLevelsSelected()) selectedLevels = new Set();
+    else selectedLevels = new Set(levels.map((l) => l.value));
     updateGrid();
   }
   function handleSortSelect(value) {
@@ -123,9 +172,7 @@
   }
   function toggleSearch() {
     searchOpen = !searchOpen;
-    if (!searchOpen) {
-      clearSearch();
-    }
+    if (!searchOpen) clearSearch();
   }
 
   // --- SEARCH HANDLERS ---
@@ -137,7 +184,7 @@
       clearSearch();
       return;
     }
-    searchTimeout = setTimeout(() => runSearch(1, true), 250); // debounce and reset on new search
+    searchTimeout = setTimeout(() => runSearch(1, true), 250);
   }
   async function runSearch(page = 1, reset = false) {
     if (!searchTerm.trim()) return;
@@ -145,12 +192,12 @@
     searchError = '';
     let from = (page - 1) * pageSize;
     let to = from + pageSize - 1;
-    // --- FIXED Supabase .or() syntax ---
     const { data, error } = await supabase
       .from('videos')
       .select('*, playlist:playlist_id(title), channel:channel_id(name)')
       .or(
-  `title.ilike.%${searchTerm}%,channel_name.ilike.%${searchTerm}%`      )
+        `title.ilike.%${searchTerm}%,channel_name.ilike.%${searchTerm}%`
+      )
       .range(from, to);
     if (error) {
       searchError = error.message;
@@ -185,7 +232,7 @@
       searchTerm &&
       !allSearchLoaded &&
       !searching &&
-      el.scrollHeight - el.scrollTop - el.clientHeight < 480 // near bottom
+      el.scrollHeight - el.scrollTop - el.clientHeight < 480
     ) {
       runSearch(searchPage + 1, false);
     }
@@ -194,7 +241,6 @@
       !allLoaded &&
       el.scrollHeight - el.scrollTop - el.clientHeight < 480
     ) {
-      // For non-search, load more locally (not from server)
       const nextVideos = filterAndSort(allVideos).slice(0, videos.length + pageSize);
       if (nextVideos.length > videos.length) {
         videos = nextVideos;
@@ -246,7 +292,18 @@
     {handleSearchInput}
     {hideWatched}
     {updateGrid}
-    clearSearch={clearSearch}
+    countryOptions={countryOptions}
+    selectedCountries={selectedCountries}
+    showCountryDropdown={showCountryDropdown}
+    toggleCountryDropdown={toggleCountryDropdown}
+    handleCountrySelect={handleCountrySelect}
+    tagOptions={tagOptions}
+    selectedTags={selectedTags}
+    showTagDropdown={showTagDropdown}
+    toggleTagDropdown={toggleTagDropdown}
+    handleTagSelect={handleTagSelect}
+    clearTags={clearTags}
+    clearCountries={clearCountries}
   />
 
   {#if searchTerm.trim() !== ''}
