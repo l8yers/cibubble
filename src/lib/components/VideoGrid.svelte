@@ -1,5 +1,5 @@
 <script>
-  import VideoCard from '$lib/VideoCard.svelte';
+  import VideoCard from '$lib/components/VideoCard.svelte';
   export let videos = [];
   export let getBestThumbnail;
   export let difficultyColor;

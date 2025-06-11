@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import { page } from '$app/stores';
-  import VideoWatchTracker from '$lib/VideoWatchTracker.svelte';
+  import VideoWatchTracker from '$lib/components/VideoWatchTracker.svelte';
 
   let video = null;
   let suggestions = [];

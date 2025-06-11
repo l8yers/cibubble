@@ -216,9 +216,9 @@
     justify-content: space-between;
     gap: 1.2em;
     max-width: 1380px;
-    margin: 0.5em auto 2em auto;
+    margin: 2em auto 2em auto;
     background: #f7f7fb;
-    padding: 0.7em 1.5em 0.7em 1.2em;
+    padding: 0.7em 1.2em 0.7em 1.2em;
     border-radius: 18px;
     border: 1.7px solid #ececec;
     box-shadow: 0 2px 16px #ececec60;

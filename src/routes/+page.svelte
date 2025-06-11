@@ -1,9 +1,10 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
-  import VideoGrid from '$lib/VideoGrid.svelte';
-  import SortBar from '$lib/SortBar.svelte';
+  import VideoGrid from '$lib/components/VideoGrid.svelte';
+  import SortBar from '$lib/components/SortBar.svelte';
   import * as utils from '$lib/utils.js';
+  import '../app.css';
 
   let videos = [];
   let allVideos = [];
@@ -308,10 +309,9 @@
   });
 </script>
 
-
-
 <div class="page-container">
-  <SortBar
+    <div class="sortbar-container">
+        <SortBar
     {levels}
     {sortChoices}
     {selectedLevels}
@@ -330,13 +330,11 @@
     {handleSearchInput}
     {hideWatched}
     {updateGrid}
-
     {countryOptions}
     {selectedCountry}
     {setSelectedCountry}
     {showCountryDropdown}
     {toggleCountryDropdown}
-
     {tagOptions}
     {selectedTags}
     {toggleTag}
@@ -344,27 +342,29 @@
     {showTagDropdown}
     {toggleTagDropdown}
   />
+    </div>
+
 
   {#if selectedChannel}
-    <div style="background:#e9f6ff;padding:10px 16px;border-radius:9px;margin-bottom:18px;display:flex;align-items:center;gap:14px;">
+    <div class="chip-info ">
       <span><b>Filtered by channel:</b> {selectedChannel}</span>
-      <button on:click={clearChannelFilter} style="background:none;border:none;color:#2562e9;font-weight:600;font-size:1.05em;cursor:pointer;">✕ Clear</button>
+      <button on:click={clearChannelFilter} class="clear-btn clear-btn--blue">✕ Clear</button>
     </div>
   {/if}
   {#if selectedPlaylist}
-    <div style="background:#f6e9ff;padding:10px 16px;border-radius:9px;margin-bottom:18px;display:flex;align-items:center;gap:14px;">
+    <div class="chip-warning">
       <span><b>Filtered by playlist:</b> {selectedPlaylist}</span>
-      <button on:click={clearPlaylistFilter} style="background:none;border:none;color:#9326e9;font-weight:600;font-size:1.05em;cursor:pointer;">✕ Clear</button>
+      <button on:click={clearPlaylistFilter} class="clear-btn clear-btn--purple">✕ Clear</button>
     </div>
   {/if}
 
   {#if searchTerm.trim() !== ''}
     {#if searching && searchResults.length === 0}
-      <p style="text-align:center;margin:2em 0;font-size:1.2em;">Searching…</p>
+      <p class="loading-more">Searching…</p>
     {:else if searchError}
       <div class="error">{searchError}</div>
     {:else if searchResults.length === 0}
-      <div style="margin-top:2em;text-align:center;color:#888;font-size:1.1em;">No videos found.</div>
+      <div class="loading-more text-muted">No videos found.</div>
     {:else}
       <VideoGrid
         videos={searchResults}
@@ -381,11 +381,11 @@
     {/if}
   {:else}
     {#if loading}
-      <p style="text-align:center;margin:2em 0;font-size:1.2em;">Loading videos…</p>
+      <p class="loading-more">Loading videos…</p>
     {:else if errorMsg}
       <div class="error">{errorMsg}</div>
     {:else if videos.length === 0}
-      <div style="margin-top:2em;text-align:center;color:#888;font-size:1.1em;">No videos match your filters.</div>
+      <div class="loading-more text-muted">No videos match your filters.</div>
     {:else}
       <VideoGrid
         {videos}
@@ -402,32 +402,3 @@
     {/if}
   {/if}
 </div>
-
-<style>
-  .page-container {
-    max-width: 1920px;
-    margin: 0 auto;
-    padding: 2rem 2vw 2.5rem 2vw;
-    font-family: Inter, Arial, sans-serif;
-  }
-  .loading-more {
-    text-align: center;
-    color: #2e9be6;
-    margin: 1.8em 0 2.2em 0;
-    font-size: 1.09em;
-    font-weight: 600;
-    opacity: 0.78;
-  }
-  .error {
-    color: #b12c2c;
-    font-weight: 700;
-    margin: 2em auto;
-    text-align: center;
-    background: #ffd3d3;
-    padding: 1em 2em;
-    border-radius: 11px;
-    max-width: 520px;
-    font-size: 1.07em;
-    border: 1.5px solid #fca5a5;
-  }
-</style>
