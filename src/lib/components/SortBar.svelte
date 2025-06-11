@@ -1,7 +1,8 @@
 <script>
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import { Sparkles, BarChart3, Search, Globe, Tag } from 'lucide-svelte';
 
+  // --- Props from parent ---
   export let levels = [];
   export let sortChoices = [];
   export let countryOptions = [];
@@ -10,33 +11,86 @@
   export let sortBy;
   export let selectedCountry;
   export let selectedTags;
-  export let showSortDropdown;
-  export let showLevelDropdown;
-  export let showCountryDropdown;
-  export let showTagDropdown;
-  export let toggleLevel;
-  export let toggleAllLevels;
-  export let allLevelsSelected;
-  export let handleSortSelect;
-  export let handleSortDropdownToggle;
-  export let handleLevelDropdownToggle;
-  export let toggleCountryDropdown;
-  export let setSelectedCountry;
-  export let toggleTagDropdown;
-  export let toggleTag;
-  export let clearTags;
-  export let searchOpen;
-  export let toggleSearch;
-  export let searchTerm;
-  export let handleSearchInput;
   export let hideWatched;
-  export let updateGrid;
+  export let searchTerm;
+  export let searchOpen = false;
 
-  // Dropdown refs for outside click detection
-  let sortDropdownRef;
-  let levelsDropdownRef;
-  let tagDropdownRef;
-  let countryDropdownRef;
+  const dispatch = createEventDispatcher();
+
+  // --- Local state mirrors props ---
+  let _selectedLevels = new Set(selectedLevels);
+  let _sortBy = sortBy;
+  let _selectedCountry = selectedCountry;
+  let _selectedTags = new Set(selectedTags);
+  let _hideWatched = hideWatched;
+  let _searchTerm = searchTerm;
+  let _searchOpen = searchOpen;
+
+  // Dropdown UI state
+  let showSortDropdown = false;
+  let showLevelDropdown = false;
+  let showCountryDropdown = false;
+  let showTagDropdown = false;
+
+  let sortDropdownRef, levelsDropdownRef, tagDropdownRef, countryDropdownRef;
+
+  function emitChange() {
+    dispatch('change', {
+      selectedLevels: new Set(_selectedLevels),
+      sortBy: _sortBy,
+      selectedCountry: _selectedCountry,
+      selectedTags: new Set(_selectedTags),
+      hideWatched: _hideWatched,
+      searchTerm: _searchTerm,
+      searchOpen: _searchOpen
+    });
+  }
+
+  // Handlers
+  function handleToggleLevel(lvl) {
+    if (_selectedLevels.has(lvl)) _selectedLevels.delete(lvl);
+    else _selectedLevels.add(lvl);
+    emitChange();
+  }
+  function handleToggleAllLevels() {
+    if (_selectedLevels.size === levels.length) _selectedLevels = new Set();
+    else _selectedLevels = new Set(levels.map(l => l.value));
+    emitChange();
+  }
+  function handleSetSort(val) {
+    _sortBy = val;
+    emitChange();
+    showSortDropdown = false;
+  }
+  function handleSetCountry(c) {
+    _selectedCountry = c === _selectedCountry ? "" : c;
+    emitChange();
+  }
+  function handleToggleTag(tag) {
+    if (_selectedTags.has(tag)) _selectedTags.delete(tag);
+    else _selectedTags.add(tag);
+    emitChange();
+  }
+  function handleClearTags() {
+    _selectedTags = new Set();
+    emitChange();
+  }
+  function handleHideWatched() {
+    _hideWatched = !_hideWatched;
+    emitChange();
+  }
+  function handleSearchInput(val) {
+    _searchTerm = val;
+    emitChange();
+  }
+  function handleToggleSearch() {
+    _searchOpen = !_searchOpen;
+    // If closing search, reset value
+    if (!_searchOpen) {
+      _searchTerm = '';
+    }
+    emitChange();
+  }
 
   function handleDocumentClick(event) {
     if (showSortDropdown && sortDropdownRef && !sortDropdownRef.contains(event.target)) {
@@ -56,17 +110,31 @@
   onMount(() => {
     document.addEventListener('click', handleDocumentClick);
   });
-
   onDestroy(() => {
     document.removeEventListener('click', handleDocumentClick);
   });
+
+  // Keep local state in sync with props
+  $: if (selectedLevels && !equalSets(selectedLevels, _selectedLevels)) _selectedLevels = new Set(selectedLevels);
+  $: if (selectedTags && !equalSets(selectedTags, _selectedTags)) _selectedTags = new Set(selectedTags);
+  $: if (sortBy !== _sortBy) _sortBy = sortBy;
+  $: if (selectedCountry !== _selectedCountry) _selectedCountry = selectedCountry;
+  $: if (hideWatched !== _hideWatched) _hideWatched = hideWatched;
+  $: if (searchTerm !== _searchTerm) _searchTerm = searchTerm;
+  $: if (searchOpen !== _searchOpen) _searchOpen = searchOpen;
+
+  function equalSets(a, b) {
+    if (a.size !== b.size) return false;
+    for (let v of a) if (!b.has(v)) return false;
+    return true;
+  }
 </script>
 
 <div class="controls-bar">
   <div class="controls-left">
     <!-- Sort Dropdown -->
     <div class="dropdown" bind:this={sortDropdownRef}>
-      <button class="dropdown-btn" aria-expanded={showSortDropdown} on:click={handleSortDropdownToggle} type="button">
+      <button class="dropdown-btn" aria-expanded={showSortDropdown} on:click={() => showSortDropdown = !showSortDropdown} type="button">
         <Sparkles size={18} style="margin-right:7px;vertical-align:-3px;color:#2e9be6;" />
         Sort by
         <svg width="12" height="9" style="margin-left:7px;" fill="none">
@@ -76,7 +144,7 @@
       {#if showSortDropdown}
         <div class="dropdown-content">
           {#each sortChoices as opt}
-            <div style="padding:0.32em 0.2em;cursor:pointer;" on:click={() => handleSortSelect(opt.value)}>
+            <div style="padding:0.32em 0.2em;cursor:pointer;" on:click={() => handleSetSort(opt.value)}>
               {opt.label}
             </div>
           {/each}
@@ -86,7 +154,7 @@
 
     <!-- Levels Dropdown -->
     <div class="dropdown" bind:this={levelsDropdownRef}>
-      <button class="dropdown-btn" aria-expanded={showLevelDropdown} on:click={handleLevelDropdownToggle} type="button">
+      <button class="dropdown-btn" aria-expanded={showLevelDropdown} on:click={() => showLevelDropdown = !showLevelDropdown} type="button">
         <BarChart3 size={18} style="margin-right:7px;vertical-align:-3px;color:#44c366;" />
         Levels
         <svg width="12" height="9" style="margin-left:7px;" fill="none">
@@ -99,14 +167,14 @@
           <div class="levels-list">
             {#each levels as lvl}
               <label class="level-checkbox">
-                <input type="checkbox" checked={selectedLevels.has(lvl.value)} on:change={() => toggleLevel(lvl.value)} />
+                <input type="checkbox" checked={_selectedLevels.has(lvl.value)} on:change={() => handleToggleLevel(lvl.value)} />
                 <span>{lvl.label}</span>
               </label>
             {/each}
           </div>
           <div style="margin-top:0.4em;">
-            <button style="font-size:0.97em;color:#176cda;background:none;border:none;cursor:pointer;" on:click={toggleAllLevels}>
-              {allLevelsSelected() ? 'Clear all' : 'Select all'}
+            <button style="font-size:0.97em;color:#176cda;background:none;border:none;cursor:pointer;" on:click={handleToggleAllLevels}>
+              {_selectedLevels.size === levels.length ? 'Clear all' : 'Select all'}
             </button>
           </div>
         </div>
@@ -115,7 +183,7 @@
 
     <!-- Tags Dropdown -->
     <div class="dropdown" bind:this={tagDropdownRef}>
-      <button class="dropdown-btn" aria-expanded={showTagDropdown} on:click={toggleTagDropdown} type="button">
+      <button class="dropdown-btn" aria-expanded={showTagDropdown} on:click={() => showTagDropdown = !showTagDropdown} type="button">
         <Tag size={18} style="margin-right:7px;vertical-align:-3px;color:#f2a02b;" />
         Tags
         <svg width="12" height="9" style="margin-left:7px;" fill="none">
@@ -128,13 +196,13 @@
             <label class="level-checkbox">
               <input
                 type="checkbox"
-                checked={selectedTags.has(tag)}
-                on:change={() => toggleTag(tag)}
+                checked={_selectedTags.has(tag)}
+                on:change={() => handleToggleTag(tag)}
               />
               <span>{tag}</span>
             </label>
           {/each}
-          <button style="margin-top:0.5em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;" on:click={clearTags}>
+          <button style="margin-top:0.5em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;" on:click={handleClearTags}>
             Clear all
           </button>
         </div>
@@ -143,7 +211,7 @@
 
     <!-- Countries Dropdown -->
     <div class="dropdown" bind:this={countryDropdownRef}>
-      <button class="dropdown-btn" aria-expanded={showCountryDropdown} on:click={toggleCountryDropdown} type="button">
+      <button class="dropdown-btn" aria-expanded={showCountryDropdown} on:click={() => showCountryDropdown = !showCountryDropdown} type="button">
         <Globe size={18} style="margin-right:7px;vertical-align:-3px;color:#c367f2;" />
         Countries
         <svg width="12" height="9" style="margin-left:7px;" fill="none">
@@ -155,8 +223,8 @@
           <label class="level-checkbox">
             <input
               type="checkbox"
-              checked={selectedCountry === ""}
-              on:change={() => setSelectedCountry("")}
+              checked={_selectedCountry === ""}
+              on:change={() => handleSetCountry("")}
             />
             <span>All Countries</span>
           </label>
@@ -164,8 +232,8 @@
             <label class="level-checkbox">
               <input
                 type="checkbox"
-                checked={selectedCountry === country}
-                on:change={() => setSelectedCountry(country)}
+                checked={_selectedCountry === country}
+                on:change={() => handleSetCountry(country)}
               />
               <span>{country}</span>
             </label>
@@ -178,29 +246,27 @@
     <button
       class="dropdown-btn hide-watched-btn"
       type="button"
-      aria-pressed={hideWatched}
-      on:click={() => {
-        hideWatched = !hideWatched;
-        updateGrid();
-      }}>
+      aria-pressed={_hideWatched}
+      on:click={handleHideWatched}
+    >
       <span class="switch-slider" aria-hidden="true"></span>
       <span class="switch-label-text">Hide watched</span>
     </button>
     <div class="search-bar-container">
-      {#if searchOpen}
+      {#if _searchOpen}
         <input
           type="text"
           class="search-input"
           placeholder="Search videos…"
-          bind:value={searchTerm}
-          on:input={handleSearchInput}
+          value={_searchTerm}
+          on:input={e => handleSearchInput(e.target.value)}
           autofocus
         />
       {/if}
       <button
         class="search-toggle"
         title="Search"
-        on:click={toggleSearch}
+        on:click={handleToggleSearch}
         aria-label="Search"
       >
         <Search size={22} style="color:#2e9be6;" />
@@ -383,6 +449,7 @@
   .search-toggle:hover svg {
     stroke: #2e9be6;
   }
+
   @media (max-width: 900px) {
     .controls-bar {
       flex-direction: column;

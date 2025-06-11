@@ -6,6 +6,7 @@
   import * as utils from '$lib/utils.js';
   import '../app.css';
 
+  // --- VIDEO STATE ---
   let videos = [];
   let allVideos = [];
   let loading = false;
@@ -13,13 +14,27 @@
   const pageSize = 30;
   let allLoaded = false;
 
+  // --- FILTER/SORT/SEARCH STATE managed by SortBar ---
+  let selectedChannel = "";
+  let selectedPlaylist = "";
+
+  let selectedLevels = new Set(['superbeginner', 'beginner', 'intermediate', 'advanced']);
+  let sortBy = 'random';
+  let selectedCountry = "";
+  let selectedTags = new Set();
+  let hideWatched = false;
+  let watchedIds = new Set();
   let searchTerm = '';
+  let searchOpen = false;
+
+  // --- SEARCH STATE ---
   let searchResults = [];
   let searchPage = 1;
   let searching = false;
   let searchError = '';
   let allSearchLoaded = false;
 
+  // --- OPTIONS for props ---
   const levels = [
     { value: 'superbeginner', label: 'Super Beginner' },
     { value: 'beginner', label: 'Beginner' },
@@ -35,74 +50,15 @@
     { value: 'new', label: 'New' },
     { value: 'old', label: 'Old' }
   ];
-
   let countryOptions = [
     "Spain", "Mexico", "Argentina", "Colombia", "Chile", "Various", "Peru",
     "Guatemala", "Uruguay", "Dominican Republic", "Venezuela", "Costa Rica", "Cuba", "Ecuador", "Paraguay", "Panama", "Canary Islands", "Italy", "Puerto Rico", "Equatorial Guinea", "DUBS", "Not Native Speaker", "AI Voice", "Latin America"
   ].sort();
-
   let tagOptions = [
     "For Learners", "Kids Show", "Dubbed Show", "Videogames", "News", "History", "Science", "Travel", "Lifestyle", "Personal Development", "Cooking", "Music", "Comedy", "Native Show", "Education", "Sports", "Current Events"
   ].sort();
 
-  let selectedCountry = "";
-  let selectedTags = new Set();
-
-  let showCountryDropdown = false;
-  let showTagDropdown = false;
-
-  function setSelectedCountry(c) {
-    selectedCountry = (c === selectedCountry) ? "" : c;
-    showCountryDropdown = false;
-    updateGrid();
-  }
-
-  function toggleTag(tag) {
-    if (selectedTags.has(tag)) selectedTags.delete(tag);
-    else selectedTags.add(tag);
-    updateGrid();
-  }
-  function clearTags() {
-    selectedTags = new Set();
-    updateGrid();
-  }
-  function toggleCountryDropdown() {
-    showCountryDropdown = !showCountryDropdown;
-  }
-  function toggleTagDropdown() {
-    showTagDropdown = !showTagDropdown;
-  }
-
-  let selectedLevels = new Set(levels.map((l) => l.value));
-  let sortBy = 'random';
-  let showLevelDropdown = false;
-  let showSortDropdown = false;
-  let hideWatched = false;
-  let watchedIds = new Set();
-  let searchOpen = false;
-
-  // Channel filter logic
-  let selectedChannel = "";
-  function filterByChannel(channelName) {
-    selectedChannel = channelName;
-    updateGrid();
-  }
-  function clearChannelFilter() {
-    selectedChannel = "";
-    updateGrid();
-  }
-
-  // Playlist filter logic
-  let selectedPlaylist = "";
-  function filterByPlaylist(playlistTitle) {
-    selectedPlaylist = playlistTitle;
-    updateGrid();
-  }
-  function clearPlaylistFilter() {
-    selectedPlaylist = "";
-    updateGrid();
-  }
-
+  // --- FILTERING FUNCTIONS ---
   function filterAndSort(input) {
     let filtered = input;
     if (selectedChannel) {
@@ -155,51 +111,34 @@
     }
     return filtered;
   }
+
   function updateGrid() {
     videos = filterAndSort(allVideos).slice(0, pageSize);
     allLoaded = videos.length >= filterAndSort(allVideos).length;
   }
 
-  function toggleLevel(level) {
-    if (selectedLevels.has(level)) {
-      selectedLevels.delete(level);
-    } else {
-      selectedLevels.add(level);
-    }
+  // --- FILTER "CHIPS" LOGIC ---
+  function filterByChannel(channelName) {
+    selectedChannel = channelName;
     updateGrid();
   }
-  function allLevelsSelected() {
-    return selectedLevels.size === levels.length;
-  }
-  function toggleAllLevels() {
-    if (allLevelsSelected()) {
-      selectedLevels = new Set();
-    } else {
-      selectedLevels = new Set(levels.map((l) => l.value));
-    }
+  function clearChannelFilter() {
+    selectedChannel = "";
     updateGrid();
   }
-  function handleSortSelect(value) {
-    sortBy = value;
-    showSortDropdown = false;
+  function filterByPlaylist(playlistTitle) {
+    selectedPlaylist = playlistTitle;
     updateGrid();
   }
-  function handleLevelDropdownToggle() {
-    showLevelDropdown = !showLevelDropdown;
-  }
-  function handleSortDropdownToggle() {
-    showSortDropdown = !showSortDropdown;
-  }
-  function toggleSearch() {
-    searchOpen = !searchOpen;
-    if (!searchOpen) {
-      clearSearch();
-    }
+  function clearPlaylistFilter() {
+    selectedPlaylist = "";
+    updateGrid();
   }
 
+  // --- SEARCH ---
   let searchTimeout;
-  function handleSearchInput(event) {
-    searchTerm = event.target.value;
+  function handleSearchInput(val) {
+    searchTerm = val;
     clearTimeout(searchTimeout);
     if (searchTerm.trim() === '') {
       clearSearch();
@@ -246,6 +185,7 @@
     updateGrid();
   }
 
+  // --- SCROLL PAGINATION ---
   function handleScroll(e) {
     const el = e.target.scrollingElement || e.target;
     if (
@@ -269,6 +209,7 @@
     }
   }
 
+  // --- LIFECYCLE ---
   onMount(async () => {
     loading = true;
     const { data, error } = await supabase
@@ -296,47 +237,62 @@
       window.removeEventListener('scroll', handleScroll);
     }
   });
+
+  // --- REACT TO SORTBAR PROP CHANGES ---
+  function handleSortBarChange(e) {
+    const {
+      selectedLevels: sL,
+      sortBy: sB,
+      selectedCountry: sC,
+      selectedTags: sT,
+      hideWatched: hW,
+      searchTerm: sTerm,
+      searchOpen: sOpen
+    } = e.detail;
+
+    selectedLevels = sL;
+    sortBy = sB;
+    selectedCountry = sC;
+    selectedTags = sT;
+    hideWatched = hW;
+
+    // If search open/closed, sync local state
+    searchOpen = sOpen;
+
+    // Only run search if changed
+    if (searchTerm !== sTerm) {
+      searchTerm = sTerm;
+      if (searchTerm.trim() === '') {
+        clearSearch();
+      } else {
+        runSearch(1, true);
+      }
+    }
+
+    updateGrid();
+  }
 </script>
 
-
 <div class="page-container">
-    <div class="sortbar-container">
-        <SortBar
-    {levels}
-    {sortChoices}
-    {selectedLevels}
-    {sortBy}
-    {showSortDropdown}
-    {showLevelDropdown}
-    {toggleLevel}
-    {toggleAllLevels}
-    {allLevelsSelected}
-    {handleSortSelect}
-    {handleSortDropdownToggle}
-    {handleLevelDropdownToggle}
-    {searchOpen}
-    {toggleSearch}
-    {searchTerm}
-    {handleSearchInput}
-    {hideWatched}
-    {updateGrid}
-    {countryOptions}
-    {selectedCountry}
-    {setSelectedCountry}
-    {showCountryDropdown}
-    {toggleCountryDropdown}
-    {tagOptions}
-    {selectedTags}
-    {toggleTag}
-    {clearTags}
-    {showTagDropdown}
-    {toggleTagDropdown}
-  />
-    </div>
-
+  <div class="sortbar-container">
+    <SortBar
+      levels={levels}
+      sortChoices={sortChoices}
+      countryOptions={countryOptions}
+      tagOptions={tagOptions}
+      selectedLevels={selectedLevels}
+      sortBy={sortBy}
+      selectedCountry={selectedCountry}
+      selectedTags={selectedTags}
+      hideWatched={hideWatched}
+      searchTerm={searchTerm}
+      searchOpen={searchOpen}
+      on:change={e => handleSortBarChange(e)}
+    />
+  </div>
 
   {#if selectedChannel}
-    <div class="chip-info ">
+    <div class="chip-info">
       <span><b>Filtered by channel:</b> {selectedChannel}</span>
       <button on:click={clearChannelFilter} class="clear-btn clear-btn--blue">✕ Clear</button>
     </div>
