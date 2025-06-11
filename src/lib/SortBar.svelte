@@ -153,7 +153,7 @@
         hideWatched = !hideWatched;
         updateGrid();
       }}>
-      <span class="switch-slider {hideWatched ? 'checked' : ''}"></span>
+      <span class="switch-slider" aria-hidden="true"></span>
       <span class="switch-label-text">Hide watched</span>
     </button>
     <div class="search-bar-container">
@@ -231,11 +231,10 @@
   .dropdown-btn[aria-pressed='true'] {
     background: #f1f5fb;
     border: 1.2px solid #bbb;
+    color: #1d1d1d;
   }
-  .hide-watched-btn[aria-pressed="true"] {
-    background: #fbecec;
-    border: 1.2px solid #fd2b23;
-    color: #fd2b23;
+  .hide-watched-btn {
+    /* Neutral; red only for switch below */
   }
   .hide-watched-btn .switch-slider {
     width: 36px;
@@ -248,6 +247,9 @@
     margin-right: 0.65em;
     vertical-align: middle;
   }
+  .hide-watched-btn[aria-pressed="true"] .switch-slider {
+    background: #fd2b23;
+  }
   .hide-watched-btn .switch-slider::before {
     content: '';
     position: absolute;
@@ -257,14 +259,12 @@
     top: 2.2px;
     background: #fff;
     border-radius: 50%;
-    transition: transform 0.13s;
+    transition: transform 0.13s, box-shadow 0.13s;
     box-shadow: 0 1px 2px #0002;
-  }
-  .hide-watched-btn[aria-pressed="true"] .switch-slider {
-    background: #fd2b23;
   }
   .hide-watched-btn[aria-pressed="true"] .switch-slider::before {
     transform: translateX(14px);
+    box-shadow: 0 1px 4px #fd2b2333;
   }
   .switch-label-text {
     font-size: 1.05em;
@@ -306,15 +306,35 @@
     gap: 0.7em;
   }
   .search-input {
-    transition:
-      width 0.2s,
-      opacity 0.2s;
-    width: 180px;
-    max-width: 50vw;
-    order: -1; /* This keeps the input to the *left* of the button */
-    margin-right: 0.3em;
-    opacity: 1;
-  }
+  transition:
+    width 0.2s,
+    opacity 0.2s,
+    box-shadow 0.13s,
+    border 0.13s;
+  width: 180px;
+  max-width: 50vw;
+  order: -1;
+  margin-right: 0.3em;
+  opacity: 1;
+
+  /* Add these for design consistency */
+  font-size: 1.05em;
+  border-radius: 12px;
+  border: 1.2px solid #ececec;
+  background: #f9f9f9;
+  color: #1d1d1d;
+  font-weight: 500;
+  padding: 0.42em 1.1em;
+  box-shadow: 0 2px 8px #ececec60;
+  outline: none;
+}
+
+.search-input:focus {
+  border: 1.2px solid #bbb;
+  background: #f1f5fb;
+  box-shadow: 0 2px 16px #bbb2;
+}
+
   .search-toggle {
     z-index: 2;
     background: none;
