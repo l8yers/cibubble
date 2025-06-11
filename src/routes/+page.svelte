@@ -91,6 +91,17 @@
     updateGrid();
   }
 
+  // Playlist filter logic
+  let selectedPlaylist = "";
+  function filterByPlaylist(playlistTitle) {
+    selectedPlaylist = playlistTitle;
+    updateGrid();
+  }
+  function clearPlaylistFilter() {
+    selectedPlaylist = "";
+    updateGrid();
+  }
+
   function levelOrder(level) {
     return ['superbeginner', 'beginner', 'intermediate', 'advanced'].indexOf(level);
   }
@@ -106,6 +117,9 @@
     let filtered = input;
     if (selectedChannel) {
       filtered = filtered.filter(v => v.channel_name === selectedChannel);
+    }
+    if (selectedPlaylist) {
+      filtered = filtered.filter(v => v.playlist?.title === selectedPlaylist);
     }
     filtered = filtered.filter(
       (v) =>
@@ -330,12 +344,20 @@
     {showTagDropdown}
     {toggleTagDropdown}
   />
-{#if selectedChannel}
-  <div style="background:#e9f6ff;padding:10px 16px;border-radius:9px;margin-bottom:18px;display:flex;align-items:center;gap:14px;">
-    <span><b>Filtered by channel:</b> {selectedChannel}</span>
-    <button on:click={clearChannelFilter} style="background:none;border:none;color:#2562e9;font-weight:600;font-size:1.05em;cursor:pointer;">✕ Clear</button>
-  </div>
-{/if}
+
+  {#if selectedChannel}
+    <div style="background:#e9f6ff;padding:10px 16px;border-radius:9px;margin-bottom:18px;display:flex;align-items:center;gap:14px;">
+      <span><b>Filtered by channel:</b> {selectedChannel}</span>
+      <button on:click={clearChannelFilter} style="background:none;border:none;color:#2562e9;font-weight:600;font-size:1.05em;cursor:pointer;">✕ Clear</button>
+    </div>
+  {/if}
+  {#if selectedPlaylist}
+    <div style="background:#f6e9ff;padding:10px 16px;border-radius:9px;margin-bottom:18px;display:flex;align-items:center;gap:14px;">
+      <span><b>Filtered by playlist:</b> {selectedPlaylist}</span>
+      <button on:click={clearPlaylistFilter} style="background:none;border:none;color:#9326e9;font-weight:600;font-size:1.05em;cursor:pointer;">✕ Clear</button>
+    </div>
+  {/if}
+
   {#if searchTerm.trim() !== ''}
     {#if searching && searchResults.length === 0}
       <p style="text-align:center;margin:2em 0;font-size:1.2em;">Searching…</p>
@@ -344,12 +366,6 @@
     {:else if searchResults.length === 0}
       <div style="margin-top:2em;text-align:center;color:#888;font-size:1.1em;">No videos found.</div>
     {:else}
-    {#if selectedChannel}
-  <div style="background:#e9f6ff;padding:10px 16px;border-radius:9px;margin-bottom:18px;display:flex;align-items:center;gap:14px;">
-    <span><b>Filtered by channel:</b> {selectedChannel}</span>
-    <button on:click={clearChannelFilter} style="background:none;border:none;color:#2562e9;font-weight:600;font-size:1.05em;cursor:pointer;">✕ Clear</button>
-  </div>
-{/if}
       <VideoGrid
         videos={searchResults}
         getBestThumbnail={utils.getBestThumbnail}
@@ -357,7 +373,7 @@
         difficultyLabel={utils.difficultyLabel}
         formatLength={utils.formatLength}
         filterByChannel={filterByChannel}
-        
+        filterByPlaylist={filterByPlaylist}
       />
       {#if !allSearchLoaded}
         <div class="loading-more">Loading more…</div>
@@ -378,6 +394,7 @@
         difficultyLabel={utils.difficultyLabel}
         formatLength={utils.formatLength}
         filterByChannel={filterByChannel}
+        filterByPlaylist={filterByPlaylist}
       />
       {#if !allLoaded}
         <div class="loading-more">Loading more…</div>

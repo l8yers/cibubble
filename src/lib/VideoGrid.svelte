@@ -5,7 +5,8 @@
   export let difficultyColor;
   export let difficultyLabel;
   export let formatLength;
-  export let filterByChannel; // 👈 Add this line
+  export let filterByChannel;
+  export let filterByPlaylist;
 </script>
 
 <div class="grid">
@@ -16,7 +17,8 @@
       {difficultyColor}
       {difficultyLabel}
       {formatLength}
-      {filterByChannel} 
+      {filterByChannel}
+      {filterByPlaylist}
     />
   {/each}
 </div>

@@ -4,7 +4,8 @@
   export let difficultyColor;
   export let difficultyLabel;
   export let formatLength;
-  export let filterByChannel; // <-- Add this prop!
+  export let filterByChannel;
+  export let filterByPlaylist;
 </script>
 
 <div class="card">
@@ -42,15 +43,23 @@
           {video.channel?.name ?? video.channel_name}
         </span>
       {/if}
-      {#if video.playlist_id}
-        <a class="meta-link" href={`/playlist/${video.playlist_id}`}>{video.playlist?.title ?? ""}</a>
+      {#if video.playlist_id && video.playlist?.title}
+        <span
+          class="meta-link"
+          style="color:#9326e9;cursor:pointer;"
+          title="Show all videos in this playlist"
+          on:click={() => filterByPlaylist && filterByPlaylist(video.playlist.title)}
+          tabindex="0"
+          role="button"
+        >
+          {video.playlist.title}
+        </span>
       {/if}
     </div>
   </div>
 </div>
 
 <style>
-/* ... your styles unchanged ... */
 .card {
   background: #fff;
   border-radius: 6px;
