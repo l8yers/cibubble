@@ -13,10 +13,6 @@
   $: id = $page.params.id;
 
   onMount(async () => {
-    // Lock scroll when mounted
-    if (typeof document !== 'undefined') {
-      document.body.style.overflow = 'hidden';
-    }
     loading = true;
     // Get user
     const { data: sess } = await supabase.auth.getSession();
@@ -29,13 +25,6 @@
       .maybeSingle();
     video = vid;
     loading = false;
-
-    // Clean up: re-enable scroll if user navigates away
-    return () => {
-      if (typeof document !== 'undefined') {
-        document.body.style.overflow = '';
-      }
-    };
   });
 </script>
 
@@ -80,12 +69,6 @@
 {/if}
 
 <style>
-/* Lock body scroll for this page */
-:global(body) {
-  overflow: hidden !important;
-}
-
-/* Main container takes the full viewport, no page scroll */
 .player-container {
   display: grid;
   grid-template-columns: 1fr 380px;
@@ -99,17 +82,13 @@
   box-sizing: border-box;
 }
 
-/* Main video and meta fits, no scroll */
 .player-main-col {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
-  min-height: 0;
   overflow: hidden;
-    padding: 2.3rem 0 1.2rem 0;
+  padding: 2.3rem 0 1.2rem 0;
 }
 
-/* Video box tries to keep aspect, can shrink if needed */
 .player-video-box {
   width: 100%;
   aspect-ratio: 16/9;
@@ -123,7 +102,6 @@
   flex-shrink: 0;
 }
 
-/* Title and meta */
 .player-title {
   font-size: 1.38rem;
   font-weight: 800;
@@ -166,25 +144,14 @@
   margin-left: auto;
 }
 
-/* Sidebar: fills height, scrolls if needed */
 .player-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
-  min-width: 0;
-  width: 100%;
-  height: 100vh;
-  max-height: 100vh;
-  overflow-y: auto;
   overflow-x: visible;
   box-sizing: border-box;
-  /* Add top/bottom padding for comfy scroll */
-  padding: 1.7rem 2px 1.3rem 2px;   /* (top, right, bottom, left) */
-  /* You can adjust these numbers to your taste! */
+  padding: 1.7rem 2px 1.3rem 2px;
 }
 
-
-/* Hide player-sidebar scroll bar for webkit, optional: */
 .player-sidebar::-webkit-scrollbar {
   width: 10px;
   background: #eee;
@@ -195,11 +162,8 @@
   border-radius: 7px;
 }
 
-/* Mobile responsive: stack columns, make sidebar fill bottom, scrolls independently */
 @media (max-width: 1200px) {
   .player-container {
-    grid-template-columns: 1fr;
-    gap: 1.3rem;
     max-width: 99vw;
     padding: 0;
     height: 100vh;
