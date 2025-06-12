@@ -81,7 +81,7 @@
     <div class="sidebar-card-list">
       {#each suggestions as v, i (v.id)}
         {#if !skipWatched || !isWatched(v)}
-          <a class="card sidebar-card" href={`/video/${v.id}`} title={v.title}>
+          <a class="sidebar-card" href={`/video/${v.id}`} title={v.title}>
             <span class="thumb-wrapper">
               <img
                 class="thumb"
@@ -94,20 +94,14 @@
                 <span class="length-inline">{utils.formatLength(v.length)}</span>
               {/if}
             </span>
-            <div class="card-body">
-              <div class="card-title-row">
-                <span class="card-title">{v.title}</span>
+            <div class="card-content">
+              <div class="sidebar-title-row">
+                <span class="sidebar-card-title">{v.title}</span>
               </div>
-              <div class="card-meta">
+              <div class="sidebar-card-meta">
                 <span class="badge" style="background:{utils.difficultyColor(v.level)};">
                   {utils.difficultyLabel(v.level)}
                 </span>
-                {#if v.channel_name}
-                  <span class="meta-link">{v.channel_name}</span>
-                {/if}
-                {#if v.playlist_id && v.playlist?.title}
-                  <span class="meta-link" style="color:#9326e9;">{v.playlist.title}</span>
-                {/if}
               </div>
             </div>
           </a>
@@ -125,7 +119,7 @@
   gap: 0.1em;
 }
 .sidebar-header {
-  font-size: 1.1em;
+  font-size: 1.08em;
   font-weight: 700;
   color: var(--text-secondary, #666);
   margin-bottom: 0.2em;
@@ -169,7 +163,7 @@
 .sidebar-card-list {
   display: flex;
   flex-direction: column;
-  gap: 0.85em;
+  gap: 1em;
   margin: 0.2em 0 0 0;
 }
 
@@ -178,77 +172,86 @@
   flex-direction: row;
   align-items: flex-start;
   background: #fff;
-  border-radius: 9px;
-  box-shadow: 0 1.5px 8px #e0e0e0;
-  border: 1px solid #ececec;
-  transition: background 0.14s, box-shadow 0.11s, transform 0.09s;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px #e8e8e8;
+  border: 1px solid #ededed;
+  transition: background 0.13s, box-shadow 0.10s, transform 0.09s;
   text-decoration: none;
-  min-height: 56px;
-  padding: 0.23em 0.6em 0.23em 0.22em;
+  min-height: 110px;
+  padding: 0.18em 1em 0.18em 0.2em;
+  gap: 1.1em;
   outline: none;
-  gap: 0.7em;
 }
-.sidebar-card:hover, .sidebar-card:focus {
+
+.sidebar-card:hover,
+.sidebar-card:focus {
   background: #f7f5fa;
   box-shadow: 0 3px 16px #e93c2f11;
-  transform: translateY(-1px) scale(1.011);
+  transform: translateY(-1px) scale(1.013);
 }
+
 .thumb-wrapper {
   position: relative;
-  width: 95px;
-  min-width: 95px;
+  width: 148px;
+  min-width: 148px;
+  max-width: 148px;
   aspect-ratio: 16/9;
-  border-radius: 6px;
+  border-radius: 7px;
   overflow: hidden;
   background: #ededed;
-  box-shadow: 0 0.8px 5px #0001;
+  box-shadow: 0 1px 8px #0001;
   display: flex;
   align-items: center;
   justify-content: center;
 }
+
 .thumb {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: 7px;
   display: block;
   background: #ededed;
-  min-height: 48px;
+  min-height: 84px;
 }
+
 .length-inline {
   position: absolute;
-  right: 0.45em;
-  bottom: 0.45em;
+  right: 0.55em;
+  bottom: 0.55em;
   color: #fff;
   background: #222c;
-  font-size: 0.92em;
-  padding: 0.12em 0.57em;
+  font-size: 0.97em;
+  padding: 0.14em 0.66em;
   border-radius: 6px;
   font-weight: 500;
   opacity: 0.96;
   box-shadow: 0 1px 4px #0002;
   z-index: 9;
   pointer-events: none;
-  max-width: 80%;
+  max-width: 85%;
   text-align: right;
   white-space: nowrap;
 }
-.card-body {
-  padding: 0.21em 0 0 0;
+
+.card-content {
+  padding: 0.1em 0 0 0;
   color: #222;
   flex: 1;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   min-width: 0;
 }
-.card-title-row {
+
+.sidebar-title-row {
   display: flex;
   align-items: center;
-  gap: 0.4em;
-  margin-bottom: 0.1em;
+  gap: 0.5em;
+  margin-bottom: 0.13em;
 }
-.card-title {
-  font-size: 1.02rem;
+.sidebar-card-title {
+  font-size: 1.05rem;
   font-weight: 600;
   max-height: 2.5em;
   overflow: hidden;
@@ -256,46 +259,28 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   flex: 1;
+  line-height: 1.2;
 }
-.card-meta {
+.sidebar-card-meta {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.42em;
-  margin-top: 0.31em;
-  font-size: 0.99em;
+  gap: 0.5em;
+  margin-top: 0.36em;
+  font-size: 1em;
 }
 .badge {
   display: inline-block;
-  font-size: 0.84em;
+  font-size: 0.89em;
   font-weight: 600;
-  padding: 0.13em 0.57em;
+  padding: 0.17em 0.7em;
   border-radius: 4px;
-  margin-right: 0.2em;
   color: #fff;
   background: #bbb;
   letter-spacing: 0.01em;
-  border: 1.2px solid transparent;
+  border: 1.5px solid transparent;
   text-shadow: 0 1px 4px #0001;
   white-space: nowrap;
-}
-.meta-link {
-  color: #2e9be6;
-  font-size: 0.97em;
-  text-decoration: none;
-  background: #f6f6f6;
-  border-radius: 3px;
-  padding: 0.11em 0.36em;
-  margin-right: 0.12em;
-  font-weight: 500;
-  transition: background 0.13s, color 0.13s;
-  white-space: nowrap;
-  max-width: 110px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.meta-link[style*="color:#9326e9;"] {
-  background: #f6e9ff;
 }
 .sidebar-loading {
   color: #aaa;
@@ -305,9 +290,9 @@
 }
 
 /* Responsive: smaller thumbs/cards for narrow sidebars */
-@media (max-width: 600px) {
-  .thumb-wrapper, .thumb { width: 58px; min-width: 58px; min-height: 32px;}
-  .sidebar-card { min-height: 32px; }
-  .card-title { font-size: 0.97em; }
+@media (max-width: 800px) {
+  .thumb-wrapper, .thumb { width: 95px; min-width: 95px; min-height: 56px;}
+  .sidebar-card { min-height: 56px; }
+  .sidebar-card-title { font-size: 0.97em; }
 }
 </style>
