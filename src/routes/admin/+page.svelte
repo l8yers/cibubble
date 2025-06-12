@@ -368,22 +368,47 @@ select, .tag-input { margin-top: 0.4em; }
     <div style="margin:1em 0 1.2em 0; color:{message.startsWith('✅') ? '#27ae60' : '#c0392b'}; font-weight:500;">{message}</div>
   {/if}
 
+
+<style>
+/* ... previous styles, unchanged ... */
+.collapsible-cell {
+  padding: 1.3em 2em;
+  background: #f6faff;
+}
+.playlists-cell {
+  padding: 1.3em 2em;
+  background: #f9f9fc;
+}
+@media (max-width: 800px) {
+  .admin-table th, .admin-table td { font-size: 0.93em; }
+  .collapsible-cell, .playlists-cell { padding: 1em 0.6em; }
+}
+</style>
+
+<div class="admin-main">
+  <h2 style="margin-bottom:1.6em;">CIBUBBLE Admin Tools</h2>
+  <!-- stats and admin bar unchanged... -->
+
   <table class="admin-table">
     <thead>
       <tr>
         <th>Channel</th>
         <th>Country</th>
         <th>Tags</th>
-        <th style="width:350px;">Level / Actions</th>
+        <th>Level</th>
+        <th>Playlists</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
       {#each channels as chan}
         <tr>
+          <!-- Channel -->
           <td>
             <img class="channel-thumb" src={chan.thumbnail} alt={chan.name} />
             <span style="font-weight:600;">{chan.name}</span>
           </td>
+          <!-- Country -->
           <td>
             <select bind:value={chan._country} aria-label="Select country">
               <option value="">No Country</option>
@@ -397,13 +422,25 @@ select, .tag-input { margin-top: 0.4em; }
               </button>
             {/if}
           </td>
+          <!-- Tags summary -->
           <td>
             {#if chan.tags}
               <span>{chan.tags}</span>
             {:else}
               <span style="color:#aaa;">No tags</span>
             {/if}
+            <div>
+              <button
+                style="background:#e3e3e3;color:#222;margin-top:6px;font-size:0.97em"
+                on:click={() => toggleTagsFor(chan.id)}
+                aria-expanded={showTagsFor === chan.id}
+                aria-label={showTagsFor === chan.id ? "Hide tags" : "Set tags"}
+              >
+                {showTagsFor === chan.id ? "Hide Tags ▲" : "Set Tags ▼"}
+              </button>
+            </div>
           </td>
+          <!-- Level -->
           <td>
             <select bind:value={chan._newLevel} aria-label="Set channel level">
               <option value="">
@@ -422,22 +459,15 @@ select, .tag-input { margin-top: 0.4em; }
               on:click={() => setChannelLevel(chan.id, chan._newLevel)}
               disabled={!chan._newLevel || settingLevel[chan.id]}
               aria-label="Set channel level"
+              style="margin-top:6px"
             >
               {settingLevel[chan.id] ? 'Setting…' : 'Set Level'}
             </button>
-            <button style="background:#bbb;" on:click={() => deleteChannel(chan.id)} disabled={!!deleting[chan.id]}>
-              {deleting[chan.id] ? 'Deleting…' : 'Delete'}
-            </button>
+          </td>
+          <!-- Playlists summary and open/close -->
+          <td>
             <button
-              style="background:#e3e3e3;color:#222;margin-left:1em"
-              on:click={() => toggleTagsFor(chan.id)}
-              aria-expanded={showTagsFor === chan.id}
-              aria-label={showTagsFor === chan.id ? "Hide tags" : "Set tags"}
-            >
-              {showTagsFor === chan.id ? "Hide Tags ▲" : "Set Tags ▼"}
-            </button>
-            <button
-              style="background:#eee;color:#222;margin-left:1em"
+              style="background:#eee;color:#222;font-size:0.97em"
               on:click={() => togglePlaylistsFor(chan.id)}
               aria-expanded={showPlaylistsFor === chan.id}
               aria-label={showPlaylistsFor === chan.id ? "Hide playlists" : "Show playlists"}
@@ -445,11 +475,19 @@ select, .tag-input { margin-top: 0.4em; }
               {showPlaylistsFor === chan.id ? "Hide Playlists ▲" : "Show Playlists ▼"}
             </button>
           </td>
+          <!-- Actions -->
+          <td>
+            <button style="background:#bbb;" on:click={() => deleteChannel(chan.id)} disabled={!!deleting[chan.id]}>
+              {deleting[chan.id] ? 'Deleting…' : 'Delete'}
+            </button>
+          </td>
         </tr>
-        <!-- Collapsible TAGS row -->
+        <!-- Collapsible TAGS cell, full row but content is inside the tags column -->
         {#if showTagsFor === chan.id}
           <tr class="collapsible-row">
-            <td colspan="4" style="background:#f6faff; padding:1.3em 2em;">
+            <td></td>
+            <td></td>
+            <td class="collapsible-cell" colspan="1">
               <div style="display:flex;flex-wrap:wrap;gap:0.3em;align-items:center;">
                 {#each tagOptions as tag}
                   <label class="chip" tabindex="0" aria-label={"Tag: " + tag}>
@@ -488,12 +526,19 @@ select, .tag-input { margin-top: 0.4em; }
                 >{savingTags[chan.id] ? 'Saving…' : 'Save'}</button>
               </div>
             </td>
+            <td></td>
+            <td></td>
+            <td></td>
           </tr>
         {/if}
-        <!-- Collapsible PLAYLISTS row -->
+        <!-- Collapsible PLAYLISTS cell, full row but content is in the playlists column -->
         {#if showPlaylistsFor === chan.id}
           <tr class="collapsible-row">
-            <td colspan="4" style="background:#f9f9fc; padding:1.3em 2em;">
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td class="playlists-cell" colspan="1">
               {#if playlistsLoading}
                 <div>Loading playlists…</div>
               {:else if playlists.length === 0}
@@ -539,14 +584,17 @@ select, .tag-input { margin-top: 0.4em; }
                 </table>
               {/if}
             </td>
+            <td></td>
           </tr>
         {/if}
       {/each}
       {#if channels.length === 0}
         <tr>
-          <td colspan="4" style="text-align:center;color:#999;">No channels found.</td>
+          <td colspan="6" style="text-align:center;color:#999;">No channels found.</td>
         </tr>
       {/if}
     </tbody>
   </table>
+</div>
+
 </div>
