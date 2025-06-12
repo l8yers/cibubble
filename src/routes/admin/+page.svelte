@@ -35,7 +35,11 @@
   let showPlaylistsFor = null;
   let playlists = [];
   let playlistsLoading = false;
-  let showTagsFor = null;   // NEW for tags collapsible
+  let showTagsFor = null;
+  let settingCountry = {};
+  let settingLevel = {};
+  let settingPlaylistLevel = {};
+  let savingTags = {};
   let adminStats = {
     videos: 0,
     channels: 0,
@@ -57,14 +61,12 @@
     }
   };
 
-  // --- Helpers ---
   function formatTime(sec) {
     const h = Math.floor(sec / 3600);
     const m = Math.floor((sec % 3600) / 60);
     return `${h}h ${m}m`;
   }
 
-  // --- Admin Actions ---
   async function importChannel() {
     message = '';
     importing = true;
@@ -85,7 +87,8 @@
   }
 
   async function clearDatabase() {
-    if (!confirm('Are you sure? This will delete ALL videos, playlists, and channels!')) return;
+    const confirmStr = prompt('Are you sure? Type DELETE to confirm clearing ALL data.');
+    if (confirmStr !== 'DELETE') return;
     clearing = true;
     message = '';
     await supabase.from('videos').delete().neq('id', '');
@@ -108,9 +111,11 @@
 
   async function setChannelLevel(channelId, level) {
     if (!level) return;
+    settingLevel[channelId] = true;
     await supabase.from('videos').update({ level }).eq('channel_id', channelId);
     message = `✅ All videos for this channel set to "${levels.find(l => l.value === level)?.label}"`;
     await refresh();
+    settingLevel[channelId] = false;
   }
 
   async function togglePlaylistsFor(channelId) {
@@ -128,7 +133,6 @@
     if (!error) {
       playlists = await Promise.all(
         (data || []).map(async (pl) => {
-          // Fetch levels of all videos in this playlist
           const { data: vids } = await supabase
             .from('videos')
             .select('level')
@@ -161,23 +165,17 @@
 
   async function setPlaylistLevel(playlistId, level) {
     if (!level) return;
+    settingPlaylistLevel[playlistId] = true;
     await supabase.from('videos').update({ level }).eq('playlist_id', playlistId);
     message = `✅ All videos for this playlist set to "${levels.find(l => l.value === level)?.label}"`;
-    // Update only that playlist's currentLevel in the UI, clear its _newLevel
     playlists = playlists.map(pl =>
       pl.id === playlistId
         ? { ...pl, currentLevel: level, _newLevel: '' }
         : pl
     );
+    settingPlaylistLevel[playlistId] = false;
   }
 
-  async function setChannelCountry(channelId, country) {
-    await supabase.from('channels').update({ country }).eq('id', channelId);
-    message = '✅ Country updated';
-    await refresh();
-  }
-
-  // Tags collapsible logic
   function toggleTagsFor(channelId) {
     if (showTagsFor === channelId) {
       showTagsFor = null;
@@ -188,7 +186,7 @@
 
   async function setChannelTags(chan) {
     if (!chan._tagsSet) return;
-    // Add new tags to tagOptions if needed (UI only, not master table here)
+    savingTags[chan.id] = true;
     for (const t of chan._tagsSet) {
       if (!tagOptions.includes(t)) tagOptions = [...tagOptions, t];
     }
@@ -198,34 +196,58 @@
     message = '✅ Tags updated';
     chan._tagsDirty = false;
     await refresh();
+    savingTags[chan.id] = false;
+  }
+
+  async function setChannelCountry(channelId, country) {
+    settingCountry[channelId] = true;
+    await supabase.from('channels').update({ country }).eq('id', channelId);
+    message = '✅ Country updated';
+    await refresh();
+    settingCountry[channelId] = false;
   }
 
   // --- REFRESH DATA & STATS ---
   async function refresh() {
     refreshing = true;
-    // Channels for table
     let { data, error } = await supabase.from('channels').select('*');
     if (error) {
       message = error.message;
       refreshing = false;
       return;
     }
-    channels = (data || []).map(chan => ({
-      ...chan,
-      _country: chan.country || "",
-      _tagsSet: new Set((chan.tags || "").split(",").map(t => t.trim()).filter(Boolean)),
-      _newTag: "",
-      _tagsDirty: false,
-      _newLevel: ""
-    }));
+    // For each channel, fetch video levels to calculate _mainLevel
+    channels = await Promise.all(
+      (data || []).map(async (chan) => {
+        // fetch all levels for this channel
+        const { data: vids } = await supabase.from('videos').select('level').eq('channel_id', chan.id);
+        let _mainLevel = '';
+        if (vids && vids.length > 0) {
+          const levelsArr = vids.map(v => v.level || '');
+          const uniqueLevels = Array.from(new Set(levelsArr));
+          if (uniqueLevels.length === 1) {
+            _mainLevel = uniqueLevels[0] || '';
+          } else {
+            _mainLevel = 'mixed';
+          }
+        }
+        return {
+          ...chan,
+          _country: chan.country || "",
+          _tagsSet: new Set((chan.tags || "").split(",").map(t => t.trim()).filter(Boolean)),
+          _newTag: "",
+          _tagsDirty: false,
+          _newLevel: "",
+          _mainLevel
+        };
+      })
+    );
 
-    // --- Stats ---
-    // Counts
+    // Stats
     const { count: videosCount } = await supabase.from('videos').select('id', { count: 'exact', head: true });
     const { count: playlistsCount } = await supabase.from('playlists').select('id', { count: 'exact', head: true });
     const { count: channelsCount } = await supabase.from('channels').select('id', { count: 'exact', head: true });
 
-    // Totals by level and time by level
     let byLevel = {
       superbeginner: 0,
       beginner: 0,
@@ -243,13 +265,11 @@
 
     for (const lvl of Object.keys(byLevel)) {
       const eqLevel = lvl === 'notyet' ? '' : lvl;
-      // Count
       const { count } = await supabase
         .from('videos')
         .select('id', { count: 'exact', head: true })
         .eq('level', eqLevel);
       byLevel[lvl] = count || 0;
-      // Total time
       const { data: levelVids } = await supabase.from('videos').select('length').eq('level', eqLevel);
       if (levelVids) {
         timeByLevel[lvl] = levelVids.reduce((sum, v) => sum + (v.length || 0), 0);
@@ -258,7 +278,6 @@
       }
     }
 
-    // Running time (all)
     const { data: vidsTime } = await supabase.from('videos').select('length');
     let runningTime = 0;
     if (vidsTime) {
@@ -293,18 +312,30 @@ select, .tag-input { margin-top: 0.4em; }
 .admin-table th { color: #e93c2f; font-weight: 700;}
 .admin-table td { vertical-align: middle;}
 .channel-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; margin-right: 1.1em; border: 1.5px solid #eee;}
-.chip { background:#f7f7fb;border-radius:6px;padding:2px 7px 2px 5px;display:inline-flex;align-items:center;cursor:pointer;margin-right:5px;font-size:0.98em;}
+.chip { background:#f7f7fb;border-radius:6px;padding:2px 7px 2px 5px;display:inline-flex;align-items:center;cursor:pointer;margin-right:5px;margin-bottom:4px;font-size:0.98em;}
 .chip input[type="checkbox"] { margin-right: 3px;}
+.chip:focus-within { outline: 2px solid #e93c2f; }
+.chip label { cursor:pointer;}
+.chip input { cursor:pointer;}
 /* Playlist & tag collapsible UI styles */
 .playlist-table { width:100%; margin-top:1em; background:none; font-size:0.98em;}
 .playlist-table th, .playlist-table td { padding: 0.55em 0.6em; border-bottom: 1px solid #f4f4fa; text-align:left;}
-@media (max-width: 700px) {.admin-main { padding: 1.3em 0.3em;} .admin-table th, .admin-table td { font-size: 0.97em; padding: 0.6em;}}
+@media (max-width: 700px) {
+  .admin-main { padding: 1.3em 0.3em;}
+  .admin-table th, .admin-table td { font-size: 0.97em; padding: 0.6em;}
+  .chip { font-size: 0.91em; padding: 3px 6px 3px 4px; }
+  .admin-table td { padding: 0.55em 0.4em;}
+  .collapsible-row td { padding: 1.2em 0.7em !important;}
+}
+@media (max-width: 500px) {
+  .chip { font-size: 0.85em; padding: 5px 6px 5px 4px;}
+  .row { flex-wrap:wrap; }
+}
 </style>
 
 <div class="admin-main">
   <h2 style="margin-bottom:1.6em;">CIBUBBLE Admin Tools</h2>
 
-  <!-- --- Admin Totals Bar --- -->
   <div style="margin: 0 0 1.2em 0; padding: 0.8em 1.3em; background: #faf6f4; border-radius: 7px; display: flex; flex-wrap: wrap; gap: 2.2em; font-size:1.1em; color:#e93c2f;">
     <div><b>Videos:</b> {adminStats.videos}</div>
     <div><b>Channels:</b> {adminStats.channels}</div>
@@ -328,10 +359,10 @@ select, .tag-input { margin-top: 0.4em; }
   </div>
 
   <div class="row">
-    <input type="text" placeholder="Paste YouTube channel link or @handle…" bind:value={url} />
-    <button on:click={importChannel} disabled={!url || importing}>{importing ? 'Importing…' : 'Import Channel'}</button>
-    <button on:click={refresh} disabled={refreshing}>↻ Refresh</button>
-    <button style="margin-left:auto;" on:click={clearDatabase} disabled={clearing}>Clear Database</button>
+    <input type="text" placeholder="Paste YouTube channel link or @handle…" bind:value={url} aria-label="YouTube Channel Link" />
+    <button on:click={importChannel} disabled={!url || importing} aria-label="Import Channel">{importing ? 'Importing…' : 'Import Channel'}</button>
+    <button on:click={refresh} disabled={refreshing} aria-label="Refresh">{refreshing ? 'Refreshing…' : '↻ Refresh'}</button>
+    <button style="margin-left:auto;" on:click={clearDatabase} disabled={clearing} aria-label="Clear Database">{clearing ? 'Clearing…' : 'Clear Database'}</button>
   </div>
   {#if message}
     <div style="margin:1em 0 1.2em 0; color:{message.startsWith('✅') ? '#27ae60' : '#c0392b'}; font-weight:500;">{message}</div>
@@ -353,19 +384,19 @@ select, .tag-input { margin-top: 0.4em; }
             <img class="channel-thumb" src={chan.thumbnail} alt={chan.name} />
             <span style="font-weight:600;">{chan.name}</span>
           </td>
-          <!-- Country dropdown -->
           <td>
-            <select bind:value={chan._country}>
+            <select bind:value={chan._country} aria-label="Select country">
               <option value="">No Country</option>
               {#each countryOptions as country}
                 <option value={country}>{country}</option>
               {/each}
             </select>
-            <button on:click={() => setChannelCountry(chan.id, chan._country)} disabled={chan.country === chan._country}>
-              Save
-            </button>
+            {#if chan.country !== chan._country}
+              <button on:click={() => setChannelCountry(chan.id, chan._country)} disabled={settingCountry[chan.id]}>
+                {settingCountry[chan.id] ? 'Saving…' : 'Save'}
+              </button>
+            {/if}
           </td>
-          <!-- Tags summary only in main row -->
           <td>
             {#if chan.tags}
               <span>{chan.tags}</span>
@@ -373,19 +404,35 @@ select, .tag-input { margin-top: 0.4em; }
               <span style="color:#aaa;">No tags</span>
             {/if}
           </td>
-          <!-- Level / Actions -->
           <td>
-            <select bind:value={chan._newLevel}>
+            <select bind:value={chan._newLevel} aria-label="Set channel level">
+              <option value="">
+                {chan._mainLevel === 'mixed'
+                  ? '-- Mixed --'
+                  : levels.find(lvl => lvl.value === chan._mainLevel)?.label
+                    ? '-- ' + levels.find(lvl => lvl.value === chan._mainLevel)?.label + ' --'
+                    : '-- Not Set --'
+                }
+              </option>
               {#each levels as lvl}
                 <option value={lvl.value}>{lvl.label}</option>
               {/each}
             </select>
-            <button on:click={() => setChannelLevel(chan.id, chan._newLevel)} disabled={!chan._newLevel}>Set Level</button>
-            <button style="background:#bbb;" on:click={() => deleteChannel(chan.id)} disabled={!!deleting[chan.id]}>Delete</button>
+            <button
+              on:click={() => setChannelLevel(chan.id, chan._newLevel)}
+              disabled={!chan._newLevel || settingLevel[chan.id]}
+              aria-label="Set channel level"
+            >
+              {settingLevel[chan.id] ? 'Setting…' : 'Set Level'}
+            </button>
+            <button style="background:#bbb;" on:click={() => deleteChannel(chan.id)} disabled={!!deleting[chan.id]}>
+              {deleting[chan.id] ? 'Deleting…' : 'Delete'}
+            </button>
             <button
               style="background:#e3e3e3;color:#222;margin-left:1em"
               on:click={() => toggleTagsFor(chan.id)}
               aria-expanded={showTagsFor === chan.id}
+              aria-label={showTagsFor === chan.id ? "Hide tags" : "Set tags"}
             >
               {showTagsFor === chan.id ? "Hide Tags ▲" : "Set Tags ▼"}
             </button>
@@ -393,6 +440,7 @@ select, .tag-input { margin-top: 0.4em; }
               style="background:#eee;color:#222;margin-left:1em"
               on:click={() => togglePlaylistsFor(chan.id)}
               aria-expanded={showPlaylistsFor === chan.id}
+              aria-label={showPlaylistsFor === chan.id ? "Hide playlists" : "Show playlists"}
             >
               {showPlaylistsFor === chan.id ? "Hide Playlists ▲" : "Show Playlists ▼"}
             </button>
@@ -402,9 +450,9 @@ select, .tag-input { margin-top: 0.4em; }
         {#if showTagsFor === chan.id}
           <tr class="collapsible-row">
             <td colspan="4" style="background:#f6faff; padding:1.3em 2em;">
-              <div style="display:flex;flex-wrap:wrap;gap:0.3em;">
+              <div style="display:flex;flex-wrap:wrap;gap:0.3em;align-items:center;">
                 {#each tagOptions as tag}
-                  <label class="chip">
+                  <label class="chip" tabindex="0" aria-label={"Tag: " + tag}>
                     <input
                       type="checkbox"
                       checked={chan._tagsSet.has(tag)}
@@ -422,6 +470,7 @@ select, .tag-input { margin-top: 0.4em; }
                   placeholder="Add tag"
                   style="margin-left:0.5em;width:90px;font-size:0.98em;"
                   bind:value={chan._newTag}
+                  aria-label="Add new tag"
                   on:keydown={(e) => {
                     if (e.key === 'Enter' && chan._newTag?.trim()) {
                       chan._tagsSet.add(chan._newTag.trim());
@@ -434,8 +483,9 @@ select, .tag-input { margin-top: 0.4em; }
                 <button
                   style="margin-left:0.3em;font-size:0.93em;padding:0.4em 1.1em;"
                   on:click={() => setChannelTags(chan)}
-                  disabled={!chan._tagsDirty}
-                >Save</button>
+                  disabled={!chan._tagsDirty || savingTags[chan.id]}
+                  aria-label="Save tags"
+                >{savingTags[chan.id] ? 'Saving…' : 'Save'}</button>
               </div>
             </td>
           </tr>
@@ -463,7 +513,7 @@ select, .tag-input { margin-top: 0.4em; }
                         <td>{pl.title}</td>
                         <td>{pl.videos_count}</td>
                         <td>
-                          <select bind:value={pl._newLevel}>
+                          <select bind:value={pl._newLevel} aria-label="Set playlist level">
                             <option value="">
                               -- 
                               {pl.currentLevel === '' ? 'Not Set'
@@ -479,8 +529,9 @@ select, .tag-input { margin-top: 0.4em; }
                           <button
                             style="margin-left:0.6em"
                             on:click={() => setPlaylistLevel(pl.id, pl._newLevel)}
-                            disabled={!pl._newLevel}
-                          >Set</button>
+                            disabled={!pl._newLevel || settingPlaylistLevel[pl.id]}
+                            aria-label="Set playlist level"
+                          >{settingPlaylistLevel[pl.id] ? 'Setting…' : 'Set'}</button>
                         </td>
                       </tr>
                     {/each}
