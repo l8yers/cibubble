@@ -14,10 +14,10 @@
     "Native Show","Education","Sports","Current Events"
   ];
 
+  // --- Level changes ---
   const levels = [
     { value: '', label: 'Set Level' },
-    { value: 'superbeginner', label: 'Super Beginner' },
-    { value: 'beginner', label: 'Beginner' },
+    { value: 'easy', label: 'Easy' },           // Renamed from beginner
     { value: 'intermediate', label: 'Intermediate' },
     { value: 'advanced', label: 'Advanced' },
     { value: 'notyet', label: 'Not Yet Rated' }
@@ -38,21 +38,21 @@
   let settingLevel = {};
   let settingPlaylistLevel = {};
   let savingTags = {};
+
+  // --- Remove superbeginner, rename beginner to easy everywhere ---
   let adminStats = {
     videos: 0,
     channels: 0,
     playlists: 0,
     runningTime: 0,
     byLevel: {
-      superbeginner: 0,
-      beginner: 0,
+      easy: 0,            // was beginner
       intermediate: 0,
       advanced: 0,
       notyet: 0
     },
     timeByLevel: {
-      superbeginner: 0,
-      beginner: 0,
+      easy: 0,
       intermediate: 0,
       advanced: 0,
       notyet: 0
@@ -238,25 +238,25 @@
       })
     );
 
+    // --- Update stats with new levels (easy not beginner, no superbeginner) ---
     const { count: videosCount } = await supabase.from('videos').select('id', { count: 'exact', head: true });
     const { count: playlistsCount } = await supabase.from('playlists').select('id', { count: 'exact', head: true });
     const { count: channelsCount } = await supabase.from('channels').select('id', { count: 'exact', head: true });
 
     let byLevel = {
-      superbeginner: 0,
-      beginner: 0,
+      easy: 0,
       intermediate: 0,
       advanced: 0,
       notyet: 0
     };
     let timeByLevel = {
-      superbeginner: 0,
-      beginner: 0,
+      easy: 0,
       intermediate: 0,
       advanced: 0,
       notyet: 0
     };
 
+    // Use 'easy' instead of 'beginner'
     for (const lvl of Object.keys(byLevel)) {
       const eqLevel = lvl === 'notyet' ? '' : lvl;
       const { count } = await supabase
@@ -294,6 +294,7 @@
 </script>
 
 <style>
+/* (Same compact, modern style as before, but easy uses the green, superbeginner color) */
 .admin-main {
   max-width: 1100px;
   margin: 2.5rem auto 0 auto;
@@ -395,8 +396,8 @@ select, .tag-input {
   margin-left: 0.4em;
 }
 
-.stat-chip.level.superbeginner { border-left: 5px solid #00b5ad; }
-.stat-chip.level.beginner { border-left: 5px solid #16a085; }
+/* Easy gets green accent (was superbeginner) */
+.stat-chip.level.easy { border-left: 5px solid #16a085; }
 .stat-chip.level.intermediate { border-left: 5px solid #f5a623; }
 .stat-chip.level.advanced { border-left: 5px solid #e93c2f; }
 .stat-chip.level.notyet { border-left: 5px solid #b2b2b2; }
@@ -508,13 +509,9 @@ select, .tag-input {
     <div class="stat-chip"><span class="stat-label">Channels</span> {adminStats.channels}</div>
     <div class="stat-chip"><span class="stat-label">Playlists</span> {adminStats.playlists}</div>
     <div class="stat-chip"><span class="stat-label">Total Time</span> {formatTime(adminStats.runningTime)}</div>
-    <div class="stat-chip level superbeginner">
-      <span class="stat-label">Super Beginner</span> {adminStats.byLevel.superbeginner}
-      <span class="stat-time">{formatTime(adminStats.timeByLevel.superbeginner)}</span>
-    </div>
-    <div class="stat-chip level beginner">
-      <span class="stat-label">Beginner</span> {adminStats.byLevel.beginner}
-      <span class="stat-time">{formatTime(adminStats.timeByLevel.beginner)}</span>
+    <div class="stat-chip level easy">
+      <span class="stat-label">Easy</span> {adminStats.byLevel.easy}
+      <span class="stat-time">{formatTime(adminStats.timeByLevel.easy)}</span>
     </div>
     <div class="stat-chip level intermediate">
       <span class="stat-label">Intermediate</span> {adminStats.byLevel.intermediate}
