@@ -16,7 +16,7 @@
       message = error.message;
     } else {
       message = 'Login successful! Redirecting…';
-      setTimeout(() => goto('/profile'), 1200);
+      setTimeout(() => goto('/admin'), 1200); // always send to admin (or change to /profile if you want)
     }
   }
 </script>
@@ -76,4 +76,3 @@ button:hover { background: #b8271b; }
     <a href="/signup" style="color:#e93c2f;">Sign Up</a>
   </div>
 </div>
- 

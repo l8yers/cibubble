@@ -1,4 +1,25 @@
-===== ./routes/+page.svelte =====
+
+==== ./routes/+page.server.js ====
+
+// src/routes/+page.server.js
+import { supabase } from '$lib/supabaseClient';
+
+export async function load() {
+  const pageSize = 30; // Same as your front page
+
+  const { data, error } = await supabase
+    .from('videos')
+    .select('*, playlist:playlist_id(title), channel:channel_id(name,country,tags)')
+    .limit(pageSize);
+
+  return {
+    initialVideos: data ?? [],
+    errorMsg: error ? error.message : ''
+  };
+}
+
+==== ./routes/+page.svelte ====
+
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
@@ -339,10 +360,41 @@
   {/if}
 </div>
 
+==== ./routes/admin/+page.server.js ====
 
-===== ./routes/admin/+page.svelte =====
+// src/routes/admin/+page.server.js
+import { redirect } from '@sveltejs/kit';
+import { createServerClient } from '@supabase/auth-helpers-sveltekit';
+
+export async function load({ locals }) {
+  const supabase = createServerClient(
+    process.env.VITE_SUPABASE_URL,
+    process.env.VITE_SUPABASE_ANON_KEY,
+    { cookies: locals.cookies }
+  );
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user?.id) throw redirect(303, '/login');
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', session.user.id)
+    .single();
+
+  if (!profile?.is_admin) throw redirect(303, '/');
+
+  return {
+    userId: session.user.id,
+    isAdmin: true
+  };
+}
+
+==== ./routes/admin/+page.svelte ====
+
 <script>
-  import { supabase } from '$lib/supabaseClient';
+  export let userId;    // Provided from +page.server.js
+  export let isAdmin;   // Always true here
 
   // --- Master lists ---
   const countryOptions = [
@@ -401,13 +453,14 @@
 
   // --- Helpers ---
   function formatTime(sec) {
-    // If your "length" is in minutes, change to: let h = Math.floor(sec / 60); let m = sec % 60;
     const h = Math.floor(sec / 3600);
     const m = Math.floor((sec % 3600) / 60);
     return `${h}h ${m}m`;
   }
 
   // --- Admin Actions ---
+  import { supabase } from '$lib/supabaseClient';
+
   async function importChannel() {
     message = '';
     importing = true;
@@ -471,7 +524,6 @@
     if (!error) {
       playlists = await Promise.all(
         (data || []).map(async (pl) => {
-          // Fetch levels of all videos in this playlist
           const { data: vids } = await supabase
             .from('videos')
             .select('level')
@@ -506,7 +558,6 @@
     if (!level) return;
     await supabase.from('videos').update({ level }).eq('playlist_id', playlistId);
     message = `✅ All videos for this playlist set to "${levels.find(l => l.value === level)?.label}"`;
-    // Update only that playlist's currentLevel in the UI, clear its _newLevel
     playlists = playlists.map(pl =>
       pl.id === playlistId
         ? { ...pl, currentLevel: level, _newLevel: '' }
@@ -522,7 +573,6 @@
 
   async function setChannelTags(chan) {
     if (!chan._tagsSet) return;
-    // Add new tags to tagOptions if needed (UI only, not master table here)
     for (const t of chan._tagsSet) {
       if (!tagOptions.includes(t)) tagOptions = [...tagOptions, t];
     }
@@ -534,10 +584,8 @@
     await refresh();
   }
 
-  // --- REFRESH DATA & STATS ---
   async function refresh() {
     refreshing = true;
-    // Channels for table
     let { data, error } = await supabase.from('channels').select('*');
     if (error) {
       message = error.message;
@@ -553,13 +601,10 @@
       _newLevel: ""
     }));
 
-    // --- Stats ---
-    // Counts
     const { count: videosCount } = await supabase.from('videos').select('id', { count: 'exact', head: true });
     const { count: playlistsCount } = await supabase.from('playlists').select('id', { count: 'exact', head: true });
     const { count: channelsCount } = await supabase.from('channels').select('id', { count: 'exact', head: true });
 
-    // Totals by level and time by level
     let byLevel = {
       superbeginner: 0,
       beginner: 0,
@@ -577,13 +622,11 @@
 
     for (const lvl of Object.keys(byLevel)) {
       const eqLevel = lvl === 'notyet' ? '' : lvl;
-      // Count
       const { count } = await supabase
         .from('videos')
         .select('id', { count: 'exact', head: true })
         .eq('level', eqLevel);
       byLevel[lvl] = count || 0;
-      // Total time
       const { data: levelVids } = await supabase.from('videos').select('length').eq('level', eqLevel);
       if (levelVids) {
         timeByLevel[lvl] = levelVids.reduce((sum, v) => sum + (v.length || 0), 0);
@@ -592,7 +635,6 @@
       }
     }
 
-    // Running time (all)
     const { data: vidsTime } = await supabase.from('videos').select('length');
     let runningTime = 0;
     if (vidsTime) {
@@ -614,31 +656,8 @@
   refresh();
 </script>
 
-<style>
-.admin-main { max-width: 1100px; margin: 2.5rem auto 0 auto; background: #fff; border-radius: 13px; border: 1px solid #ececec; box-shadow: 0 2px 18px #ececec; padding: 2.7rem 2vw 2.5rem 2vw; font-family: Inter, Arial, sans-serif;}
-.row { display: flex; gap: 1em; margin-bottom: 1.5em; align-items: center;}
-input[type="text"], .tag-input { width: 370px; padding: 0.73em 1em; font-size: 1.09rem; border: 1px solid #ececec; border-radius: 7px; background: #fafafa; color: #181818;}
-button { padding: 0.66em 1.6em; font-size: 1.04rem; background: #e93c2f; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; margin-right: 1em; transition: background 0.18s;}
-button[disabled] { background: #e3e3e3; color: #aaa; cursor: default;}
-button:hover:not([disabled]) { background: #b8271b;}
-select, .tag-input { margin-top: 0.4em; }
-.admin-table { width: 100%; margin: 2.2em 0 0 0; border-collapse: collapse; background: #fff; font-size: 1.04em;}
-.admin-table th, .admin-table td { padding: 0.85em 0.8em; border-bottom: 1px solid #f2f2f2; text-align: left;}
-.admin-table th { color: #e93c2f; font-weight: 700;}
-.admin-table td { vertical-align: middle;}
-.channel-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; margin-right: 1.1em; border: 1.5px solid #eee;}
-.chip { background:#f7f7fb;border-radius:6px;padding:2px 7px 2px 5px;display:inline-flex;align-items:center;cursor:pointer;margin-right:5px;font-size:0.98em;}
-.chip input[type="checkbox"] { margin-right: 3px;}
-/* Playlist UI styles */
-.playlist-table { width:100%; margin-top:1em; background:none; font-size:0.98em;}
-.playlist-table th, .playlist-table td { padding: 0.55em 0.6em; border-bottom: 1px solid #f4f4fa; text-align:left;}
-@media (max-width: 700px) {.admin-main { padding: 1.3em 0.3em;} .admin-table th, .admin-table td { font-size: 0.97em; padding: 0.6em;}}
-</style>
-
 <div class="admin-main">
   <h2 style="margin-bottom:1.6em;">CIBUBBLE Admin Tools</h2>
-
-  <!-- --- Admin Totals Bar --- -->
   <div style="margin: 0 0 1.2em 0; padding: 0.8em 1.3em; background: #faf6f4; border-radius: 7px; display: flex; flex-wrap: wrap; gap: 2.2em; font-size:1.1em; color:#e93c2f;">
     <div><b>Videos:</b> {adminStats.videos}</div>
     <div><b>Channels:</b> {adminStats.channels}</div>
@@ -660,7 +679,6 @@ select, .tag-input { margin-top: 0.4em; }
       Not Yet: {formatTime(adminStats.timeByLevel.notyet)}
     </div>
   </div>
-
   <div class="row">
     <input type="text" placeholder="Paste YouTube channel link or @handle…" bind:value={url} />
     <button on:click={importChannel} disabled={!url || importing}>{importing ? 'Importing…' : 'Import Channel'}</button>
@@ -670,7 +688,6 @@ select, .tag-input { margin-top: 0.4em; }
   {#if message}
     <div style="margin:1em 0 1.2em 0; color:{message.startsWith('✅') ? '#27ae60' : '#c0392b'}; font-weight:500;">{message}</div>
   {/if}
-
   <table class="admin-table">
     <thead>
       <tr>
@@ -813,8 +830,28 @@ select, .tag-input { margin-top: 0.4em; }
   </table>
 </div>
 
+<style>
+.admin-main { max-width: 1100px; margin: 2.5rem auto 0 auto; background: #fff; border-radius: 13px; border: 1px solid #ececec; box-shadow: 0 2px 18px #ececec; padding: 2.7rem 2vw 2.5rem 2vw; font-family: Inter, Arial, sans-serif;}
+.row { display: flex; gap: 1em; margin-bottom: 1.5em; align-items: center;}
+input[type="text"], .tag-input { width: 370px; padding: 0.73em 1em; font-size: 1.09rem; border: 1px solid #ececec; border-radius: 7px; background: #fafafa; color: #181818;}
+button { padding: 0.66em 1.6em; font-size: 1.04rem; background: #e93c2f; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; margin-right: 1em; transition: background 0.18s;}
+button[disabled] { background: #e3e3e3; color: #aaa; cursor: default;}
+button:hover:not([disabled]) { background: #b8271b;}
+select, .tag-input { margin-top: 0.4em; }
+.admin-table { width: 100%; margin: 2.2em 0 0 0; border-collapse: collapse; background: #fff; font-size: 1.04em;}
+.admin-table th, .admin-table td { padding: 0.85em 0.8em; border-bottom: 1px solid #f2f2f2; text-align: left;}
+.admin-table th { color: #e93c2f; font-weight: 700;}
+.admin-table td { vertical-align: middle;}
+.channel-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; margin-right: 1.1em; border: 1.5px solid #eee;}
+.chip { background:#f7f7fb;border-radius:6px;padding:2px 7px 2px 5px;display:inline-flex;align-items:center;cursor:pointer;margin-right:5px;font-size:0.98em;}
+.chip input[type="checkbox"] { margin-right: 3px;}
+.playlist-table { width:100%; margin-top:1em; background:none; font-size:0.98em;}
+.playlist-table th, .playlist-table td { padding: 0.55em 0.6em; border-bottom: 1px solid #f4f4fa; text-align:left;}
+@media (max-width: 700px) {.admin-main { padding: 1.3em 0.3em;} .admin-table th, .admin-table td { font-size: 0.97em; padding: 0.6em;}}
+</style>
 
-===== ./routes/progress/+page.svelte =====
+==== ./routes/progress/+page.svelte ====
+
 <script>
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
@@ -1380,8 +1417,8 @@ select, .tag-input { margin-top: 0.4em; }
 	}
 </style>
 
+==== ./routes/signup/+page.svelte ====
 
-===== ./routes/signup/+page.svelte =====
 <script>
   import { supabase } from '$lib/supabaseClient';
 
@@ -1459,16 +1496,16 @@ button:hover { background: #b8271b; }
   </div>
 </div>
 
+==== ./routes/+layout.svelte ====
 
-===== ./routes/+layout.svelte =====
 <script>
   import NavBar from '$lib/components/NavBar.svelte';
 </script>
 <NavBar />
 <slot />
 
+==== ./routes/login/+page.svelte ====
 
-===== ./routes/login/+page.svelte =====
 <script>
   import { supabase } from '$lib/supabaseClient';
   import { goto } from '$app/navigation';
@@ -1487,7 +1524,7 @@ button:hover { background: #b8271b; }
       message = error.message;
     } else {
       message = 'Login successful! Redirecting…';
-      setTimeout(() => goto('/profile'), 1200);
+      setTimeout(() => goto('/admin'), 1200); // always send to admin (or change to /profile if you want)
     }
   }
 </script>
@@ -1547,9 +1584,9 @@ button:hover { background: #b8271b; }
     <a href="/signup" style="color:#e93c2f;">Sign Up</a>
   </div>
 </div>
- 
 
-===== ./routes/api/add-video/+server.js =====
+==== ./routes/api/add-video/+server.js ====
+
 import { json } from '@sveltejs/kit';
 import { createClient } from '@supabase/supabase-js';
 
@@ -1825,8 +1862,8 @@ export async function POST({ request }) {
   }
 }
 
+==== ./routes/video/[id]/+page.svelte ====
 
-===== ./routes/video/[id]/+page.svelte =====
 <script>
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
@@ -1842,8 +1879,6 @@ export async function POST({ request }) {
   $: id = $page.params.id;
 
   onMount(async () => {
-    // Lock scroll when mounted
-    document.body.style.overflow = 'hidden';
     loading = true;
     // Get user
     const { data: sess } = await supabase.auth.getSession();
@@ -1856,12 +1891,6 @@ export async function POST({ request }) {
       .maybeSingle();
     video = vid;
     loading = false;
-  });
-
-  // Clean up: re-enable scroll if user navigates away
-  import { onDestroy } from 'svelte';
-  onDestroy(() => {
-    document.body.style.overflow = '';
   });
 </script>
 
@@ -1906,12 +1935,6 @@ export async function POST({ request }) {
 {/if}
 
 <style>
-/* Lock body scroll for this page */
-:global(body) {
-  overflow: hidden !important;
-}
-
-/* Main container takes the full viewport, no page scroll */
 .player-container {
   display: grid;
   grid-template-columns: 1fr 380px;
@@ -1925,17 +1948,13 @@ export async function POST({ request }) {
   box-sizing: border-box;
 }
 
-/* Main video and meta fits, no scroll */
 .player-main-col {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
-  min-height: 0;
   overflow: hidden;
-    padding: 2.3rem 0 1.2rem 0;
+  padding: 2.3rem 0 1.2rem 0;
 }
 
-/* Video box tries to keep aspect, can shrink if needed */
 .player-video-box {
   width: 100%;
   aspect-ratio: 16/9;
@@ -1949,7 +1968,6 @@ export async function POST({ request }) {
   flex-shrink: 0;
 }
 
-/* Title and meta */
 .player-title {
   font-size: 1.38rem;
   font-weight: 800;
@@ -1992,25 +2010,14 @@ export async function POST({ request }) {
   margin-left: auto;
 }
 
-/* Sidebar: fills height, scrolls if needed */
 .player-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
-  min-width: 0;
-  width: 100%;
-  height: 100vh;
-  max-height: 100vh;
-  overflow-y: auto;
   overflow-x: visible;
   box-sizing: border-box;
-  /* Add top/bottom padding for comfy scroll */
-  padding: 1.7rem 2px 1.3rem 2px;   /* (top, right, bottom, left) */
-  /* You can adjust these numbers to your taste! */
+  padding: 1.7rem 2px 1.3rem 2px;
 }
 
-
-/* Hide player-sidebar scroll bar for webkit, optional: */
 .player-sidebar::-webkit-scrollbar {
   width: 10px;
   background: #eee;
@@ -2021,11 +2028,8 @@ export async function POST({ request }) {
   border-radius: 7px;
 }
 
-/* Mobile responsive: stack columns, make sidebar fill bottom, scrolls independently */
 @media (max-width: 1200px) {
   .player-container {
-    grid-template-columns: 1fr;
-    gap: 1.3rem;
     max-width: 99vw;
     padding: 0;
     height: 100vh;
@@ -2050,8 +2054,8 @@ export async function POST({ request }) {
 }
 </style>
 
+==== ./lib/supabaseClient.js ====
 
-===== ./lib/supabaseClient.js =====
 import { createClient } from '@supabase/supabase-js';
 
 export const supabase = createClient(
@@ -2059,12 +2063,12 @@ export const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
+==== ./lib/index.js ====
 
-===== ./lib/index.js =====
 // place files you want to import through the `$lib` alias in this folder.
 
+==== ./lib/components/NavBar.svelte ====
 
-===== ./lib/components/NavBar.svelte =====
 <script>
   import { supabase } from '$lib/supabaseClient';
   import { onMount } from 'svelte';
@@ -2161,8 +2165,8 @@ export const supabase = createClient(
   </div>
 </nav>
 
+==== ./lib/components/SideBar.svelte ====
 
-===== ./lib/components/SideBar.svelte =====
 <script>
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
@@ -2477,8 +2481,8 @@ export const supabase = createClient(
 }
 </style>
 
+==== ./lib/components/VideoCard.svelte ====
 
-===== ./lib/components/VideoCard.svelte =====
 <script>
   export let video;
   export let getBestThumbnail;
@@ -2650,8 +2654,8 @@ export const supabase = createClient(
 }
 </style>
 
+==== ./lib/components/VideoWatchTracker.svelte ====
 
-===== ./lib/components/VideoWatchTracker.svelte =====
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
@@ -2789,8 +2793,8 @@ export const supabase = createClient(
   });
 </script>
 
+==== ./lib/components/SortBar.svelte ====
 
-===== ./lib/components/SortBar.svelte =====
 <script>
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import { Sparkles, BarChart3, Search, Globe, Tag } from 'lucide-svelte';
@@ -2898,11 +2902,12 @@ export const supabase = createClient(
     if (showCountryDropdown && countryDropdownRef && !countryDropdownRef.contains(event.target)) showCountryDropdown = false;
   }
 
+  // ✅ SSR SAFE: Only attach event listeners in the browser
   onMount(() => {
     document.addEventListener('click', handleDocumentClick);
-  });
-  onDestroy(() => {
-    document.removeEventListener('click', handleDocumentClick);
+    return () => {
+      document.removeEventListener('click', handleDocumentClick);
+    };
   });
 
   function equalSets(a, b) {
@@ -2911,6 +2916,7 @@ export const supabase = createClient(
     return true;
   }
 </script>
+
 
 <div class="controls-bar">
   <div class="controls-left">
@@ -3256,8 +3262,8 @@ export const supabase = createClient(
   }
 </style>
 
+==== ./lib/components/VideoGrid.svelte ====
 
-===== ./lib/components/VideoGrid.svelte =====
 <script>
   import VideoCard from '$lib/components/VideoCard.svelte';
   export let videos = [];
@@ -3302,8 +3308,8 @@ export const supabase = createClient(
 }
 </style>
 
+==== ./lib/utils.js ====
 
-===== ./lib/utils.js =====
 // utils.js
 
 export function difficultyLabel(level) {
@@ -3355,8 +3361,8 @@ export function shuffleArray(array) {
   return arr;
 }
 
+==== ./app.html ====
 
-===== ./app.html =====
 <!doctype html>
 <html lang="en">
 	<head>
@@ -3370,8 +3376,11 @@ export function shuffleArray(array) {
 	</body>
 </html>
 
+==== ./output.txt ====
 
-===== ./app.css =====
+
+==== ./app.css ====
+
 :root {
 	--primary: #e93c2f;
 	--text-main: #181818;
@@ -3515,5 +3524,3 @@ a:hover {
 		gap: 8px;
 	}
 }
-
-
