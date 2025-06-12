@@ -3,11 +3,10 @@
   import { supabase } from '$lib/supabaseClient';
   import { page } from '$app/stores';
   import VideoWatchTracker from '$lib/components/VideoWatchTracker.svelte';
-  import VideoCard from '$lib/components/VideoCard.svelte';
+  import SideBar from '$lib/components/SideBar.svelte';
   import * as utils from '$lib/utils.js';
 
   let video = null;
-  let suggestions = [];
   let loading = true;
   let user = null;
 
@@ -15,24 +14,16 @@
 
   onMount(async () => {
     loading = true;
-    // Get user
+    // Get user session
     const { data: sess } = await supabase.auth.getSession();
     user = sess.session?.user ?? null;
-    // Fetch main video
+    // Fetch main video, including channel and playlist info
     const { data: vid } = await supabase
       .from('videos')
       .select('*, playlist:playlist_id(title), channel:channel_id(name,country,tags)')
       .eq('id', id)
       .maybeSingle();
     video = vid;
-    // Fetch 8 suggestions: same channel/level/playlist preferred, else recent
-    const { data: suggs } = await supabase
-      .from('videos')
-      .select('*, playlist:playlist_id(title), channel:channel_id(name,country,tags)')
-      .neq('id', id)
-      .order('created', { ascending: false })
-      .limit(8);
-    suggestions = suggs ?? [];
     loading = false;
   });
 </script>
@@ -72,26 +63,12 @@
       </div>
     </div>
     <aside class="player-sidebar">
-      <div class="player-suggestions-label">More Videos</div>
-      <div class="player-suggestions-grid">
-        {#each suggestions as v}
-          <VideoCard
-            video={v}
-            getBestThumbnail={utils.getBestThumbnail}
-            difficultyColor={utils.difficultyColor}
-            difficultyLabel={utils.difficultyLabel}
-            formatLength={utils.formatLength}
-            filterByChannel={null}
-            filterByPlaylist={null}
-          />
-        {/each}
-      </div>
+      <SideBar {video} />
     </aside>
   </div>
 {/if}
 
 <style>
-/* Main container grid layout */
 .player-container {
   display: grid;
   grid-template-columns: 1fr 380px;
@@ -159,7 +136,6 @@
   color: #adadad;
   margin-left: auto;
 }
-
 .player-sidebar {
   display: flex;
   flex-direction: column;
@@ -167,18 +143,11 @@
   min-width: 0;
   width: 100%;
 }
-.player-suggestions-label {
-  font-size: 1.10em;
-  font-weight: 700;
-  color: var(--text-secondary, #666);
-  margin-bottom: 6px;
-  margin-top: 2px;
-  letter-spacing: 0.01em;
-}
-.player-suggestions-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.1rem;
+.player-loading {
+  text-align: center;
+  margin-top: 3rem;
+  color: #aaa;
+  font-size: 1.1rem;
 }
 @media (max-width: 1200px) {
   .player-container {
@@ -190,24 +159,5 @@
   .player-sidebar {
     width: 100%;
   }
-  .player-suggestions-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.1rem;
-  }
-}
-@media (max-width: 800px) {
-  .player-container {
-    padding: 1rem 0.3rem;
-  }
-  .player-suggestions-grid {
-    grid-template-columns: 1fr;
-    gap: 0.65rem;
-  }
-}
-.player-loading {
-  text-align: center;
-  margin-top: 3rem;
-  color: #aaa;
-  font-size: 1.1rem;
 }
 </style>

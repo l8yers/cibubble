@@ -32,6 +32,7 @@
   let allSearchLoaded = false;
 
   const levels = [
+    { value: 'superbeginner', label: 'Super Beginner' },
     { value: 'beginner', label: 'Beginner' },
     { value: 'intermediate', label: 'Intermediate' },
     { value: 'advanced', label: 'Advanced' }
@@ -53,7 +54,7 @@
     "For Learners", "Kids Show", "Dubbed Show", "Videogames", "News", "History", "Science", "Travel", "Lifestyle", "Personal Development", "Cooking", "Music", "Comedy", "Native Show", "Education", "Sports", "Current Events"
   ].sort();
 
-  // 1. --- FETCH WATCHED IDS ON MOUNT ---
+  // Fetch on mount
   onMount(async () => {
     loading = true;
     const { data, error } = await supabase
@@ -72,7 +73,8 @@
     }
     loading = false;
 
-    let { data: sessionData } = await supabase.auth.getSession();
+    // Fetch watched IDs for logged-in user
+    const { data: sessionData } = await supabase.auth.getSession();
     let user = sessionData.session?.user;
     if (user) {
       const { data: watched } = await supabase
@@ -96,7 +98,7 @@
     }
   });
 
-  // 2. --- FILTER AND SORT ---
+  // --- FILTER AND SORT ---
   function filterAndSort(input) {
     let filtered = input;
     if (selectedChannel) filtered = filtered.filter(v => v.channel_name === selectedChannel);
@@ -104,7 +106,6 @@
     filtered = filtered.filter(
       v => v.title && v.title !== 'Private video' && v.title !== 'Deleted video' && selectedLevels.has(v.level)
     );
-    // LEGENDARY PART: Hide watched!
     if (hideWatched) filtered = filtered.filter(v => !watchedIds.has(String(v.id)));
     if (selectedCountry) {
       filtered = filtered.filter(v =>
@@ -156,7 +157,7 @@
     updateGrid();
   }
 
-  // --- SEARCH handling (search term is parent state, bar only emits) ---
+  // --- SEARCH handling
   let searchTimeout;
   function handleSearchInput(val) {
     searchTerm = val;
@@ -230,7 +231,7 @@
     }
   }
 
-  // --- REACT TO SORTBAR PROP CHANGES ---
+  // Handle SortBar changes
   function handleSortBarChange(e) {
     const {
       selectedLevels: sL,
@@ -249,7 +250,6 @@
     hideWatched = hW;
     searchOpen = sOpen;
 
-    // Handle search - only run API if searchTerm changed
     if (searchTerm !== sTerm) {
       searchTerm = sTerm;
       if (searchTerm.trim() === '') {
