@@ -35,6 +35,7 @@
   let showPlaylistsFor = null;
   let playlists = [];
   let playlistsLoading = false;
+  let showTagsFor = null;   // NEW for tags collapsible
   let adminStats = {
     videos: 0,
     channels: 0,
@@ -58,7 +59,6 @@
 
   // --- Helpers ---
   function formatTime(sec) {
-    // If your "length" is in minutes, change to: let h = Math.floor(sec / 60); let m = sec % 60;
     const h = Math.floor(sec / 3600);
     const m = Math.floor((sec % 3600) / 60);
     return `${h}h ${m}m`;
@@ -177,6 +177,15 @@
     await refresh();
   }
 
+  // Tags collapsible logic
+  function toggleTagsFor(channelId) {
+    if (showTagsFor === channelId) {
+      showTagsFor = null;
+    } else {
+      showTagsFor = channelId;
+    }
+  }
+
   async function setChannelTags(chan) {
     if (!chan._tagsSet) return;
     // Add new tags to tagOptions if needed (UI only, not master table here)
@@ -286,7 +295,7 @@ select, .tag-input { margin-top: 0.4em; }
 .channel-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; margin-right: 1.1em; border: 1.5px solid #eee;}
 .chip { background:#f7f7fb;border-radius:6px;padding:2px 7px 2px 5px;display:inline-flex;align-items:center;cursor:pointer;margin-right:5px;font-size:0.98em;}
 .chip input[type="checkbox"] { margin-right: 3px;}
-/* Playlist UI styles */
+/* Playlist & tag collapsible UI styles */
 .playlist-table { width:100%; margin-top:1em; background:none; font-size:0.98em;}
 .playlist-table th, .playlist-table td { padding: 0.55em 0.6em; border-bottom: 1px solid #f4f4fa; text-align:left;}
 @media (max-width: 700px) {.admin-main { padding: 1.3em 0.3em;} .admin-table th, .admin-table td { font-size: 0.97em; padding: 0.6em;}}
@@ -334,7 +343,7 @@ select, .tag-input { margin-top: 0.4em; }
         <th>Channel</th>
         <th>Country</th>
         <th>Tags</th>
-        <th style="width:320px;">Level / Actions</th>
+        <th style="width:350px;">Level / Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -356,43 +365,13 @@ select, .tag-input { margin-top: 0.4em; }
               Save
             </button>
           </td>
-          <!-- Tags multi-select + add -->
+          <!-- Tags summary only in main row -->
           <td>
-            <div style="display:flex;flex-wrap:wrap;gap:0.3em;">
-              {#each tagOptions as tag}
-                <label class="chip">
-                  <input
-                    type="checkbox"
-                    checked={chan._tagsSet.has(tag)}
-                    on:change={() => {
-                      if (chan._tagsSet.has(tag)) chan._tagsSet.delete(tag);
-                      else chan._tagsSet.add(tag);
-                      chan._tagsDirty = true;
-                    }}
-                  />
-                  <span>{tag}</span>
-                </label>
-              {/each}
-              <input
-                type="text"
-                placeholder="Add tag"
-                style="margin-left:0.5em;width:90px;font-size:0.98em;"
-                bind:value={chan._newTag}
-                on:keydown={(e) => {
-                  if (e.key === 'Enter' && chan._newTag?.trim()) {
-                    chan._tagsSet.add(chan._newTag.trim());
-                    if (!tagOptions.includes(chan._newTag.trim())) tagOptions = [...tagOptions, chan._newTag.trim()];
-                    chan._newTag = "";
-                    chan._tagsDirty = true;
-                  }
-                }}
-              />
-              <button
-                style="margin-left:0.3em;font-size:0.93em;padding:0.4em 1.1em;"
-                on:click={() => setChannelTags(chan)}
-                disabled={!chan._tagsDirty}
-              >Save</button>
-            </div>
+            {#if chan.tags}
+              <span>{chan.tags}</span>
+            {:else}
+              <span style="color:#aaa;">No tags</span>
+            {/if}
           </td>
           <!-- Level / Actions -->
           <td>
@@ -404,15 +383,66 @@ select, .tag-input { margin-top: 0.4em; }
             <button on:click={() => setChannelLevel(chan.id, chan._newLevel)} disabled={!chan._newLevel}>Set Level</button>
             <button style="background:#bbb;" on:click={() => deleteChannel(chan.id)} disabled={!!deleting[chan.id]}>Delete</button>
             <button
+              style="background:#e3e3e3;color:#222;margin-left:1em"
+              on:click={() => toggleTagsFor(chan.id)}
+              aria-expanded={showTagsFor === chan.id}
+            >
+              {showTagsFor === chan.id ? "Hide Tags ▲" : "Set Tags ▼"}
+            </button>
+            <button
               style="background:#eee;color:#222;margin-left:1em"
               on:click={() => togglePlaylistsFor(chan.id)}
+              aria-expanded={showPlaylistsFor === chan.id}
             >
-              {showPlaylistsFor === chan.id ? "Hide Playlists" : "Show Playlists"}
+              {showPlaylistsFor === chan.id ? "Hide Playlists ▲" : "Show Playlists ▼"}
             </button>
           </td>
         </tr>
+        <!-- Collapsible TAGS row -->
+        {#if showTagsFor === chan.id}
+          <tr class="collapsible-row">
+            <td colspan="4" style="background:#f6faff; padding:1.3em 2em;">
+              <div style="display:flex;flex-wrap:wrap;gap:0.3em;">
+                {#each tagOptions as tag}
+                  <label class="chip">
+                    <input
+                      type="checkbox"
+                      checked={chan._tagsSet.has(tag)}
+                      on:change={() => {
+                        if (chan._tagsSet.has(tag)) chan._tagsSet.delete(tag);
+                        else chan._tagsSet.add(tag);
+                        chan._tagsDirty = true;
+                      }}
+                    />
+                    <span>{tag}</span>
+                  </label>
+                {/each}
+                <input
+                  type="text"
+                  placeholder="Add tag"
+                  style="margin-left:0.5em;width:90px;font-size:0.98em;"
+                  bind:value={chan._newTag}
+                  on:keydown={(e) => {
+                    if (e.key === 'Enter' && chan._newTag?.trim()) {
+                      chan._tagsSet.add(chan._newTag.trim());
+                      if (!tagOptions.includes(chan._newTag.trim())) tagOptions = [...tagOptions, chan._newTag.trim()];
+                      chan._newTag = "";
+                      chan._tagsDirty = true;
+                    }
+                  }}
+                />
+                <button
+                  style="margin-left:0.3em;font-size:0.93em;padding:0.4em 1.1em;"
+                  on:click={() => setChannelTags(chan)}
+                  disabled={!chan._tagsDirty}
+                >Save</button>
+              </div>
+            </td>
+          </tr>
+        {/if}
+        <!-- Collapsible PLAYLISTS row -->
         {#if showPlaylistsFor === chan.id}
-          <tr>
+          <tr class="collapsible-row">
             <td colspan="4" style="background:#f9f9fc; padding:1.3em 2em;">
               {#if playlistsLoading}
                 <div>Loading playlists…</div>
