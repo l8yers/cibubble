@@ -72,9 +72,6 @@
     }
     loading = false;
 
-    // Fetch watched video IDs for this user (replace this with your logic!)
-    // Example: get userId from auth and fetch their watched video IDs
-    // Replace 'user_id' logic as appropriate for your app
     let { data: sessionData } = await supabase.auth.getSession();
     let user = sessionData.session?.user;
     if (user) {
