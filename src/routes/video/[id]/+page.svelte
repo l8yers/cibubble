@@ -3,7 +3,7 @@
   import { supabase } from '$lib/supabaseClient';
   import { page } from '$app/stores';
   import VideoWatchTracker from '$lib/components/VideoWatchTracker.svelte';
-  import SideBar from '$lib/components/SideBar.svelte';
+  import SideBar from '$lib/components/SideBar.svelte'; // <-- Use your new sidebar here!
   import * as utils from '$lib/utils.js';
 
   let video = null;
@@ -14,10 +14,10 @@
 
   onMount(async () => {
     loading = true;
-    // Get user session
+    // Get user
     const { data: sess } = await supabase.auth.getSession();
     user = sess.session?.user ?? null;
-    // Fetch main video, including channel and playlist info
+    // Fetch main video
     const { data: vid } = await supabase
       .from('videos')
       .select('*, playlist:playlist_id(title), channel:channel_id(name,country,tags)')
@@ -69,6 +69,7 @@
 {/if}
 
 <style>
+/* Main container grid layout */
 .player-container {
   display: grid;
   grid-template-columns: 1fr 380px;
@@ -143,12 +144,6 @@
   min-width: 0;
   width: 100%;
 }
-.player-loading {
-  text-align: center;
-  margin-top: 3rem;
-  color: #aaa;
-  font-size: 1.1rem;
-}
 @media (max-width: 1200px) {
   .player-container {
     grid-template-columns: 1fr;
@@ -159,5 +154,16 @@
   .player-sidebar {
     width: 100%;
   }
+}
+@media (max-width: 800px) {
+  .player-container {
+    padding: 1rem 0.3rem;
+  }
+}
+.player-loading {
+  text-align: center;
+  margin-top: 3rem;
+  color: #aaa;
+  font-size: 1.1rem;
 }
 </style>
