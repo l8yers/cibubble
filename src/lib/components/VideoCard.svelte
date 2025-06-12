@@ -6,6 +6,9 @@
   export let formatLength;
   export let filterByChannel;
   export let filterByPlaylist;
+
+  // Import the playlist icon from lucide-svelte
+  import { ListMusic } from 'lucide-svelte';
 </script>
 
 <div class="card">
@@ -45,14 +48,14 @@
       {/if}
       {#if video.playlist_id && video.playlist?.title}
         <span
-          class="meta-link"
-          style="color:#9326e9;cursor:pointer;"
+          class="meta-link playlist-icon"
           title="Show all videos in this playlist"
           on:click={() => filterByPlaylist && filterByPlaylist(video.playlist.title)}
           tabindex="0"
           role="button"
         >
-          {video.playlist.title}
+          <ListMusic size={18} />
+          <span class="sr-only">{video.playlist.title}</span>
         </span>
       {/if}
     </div>
@@ -162,9 +165,27 @@
   margin-right: 0.18em;
   font-weight: 500;
   transition: background 0.13s, color 0.13s;
+  display: flex;
+  align-items: center;
 }
 .meta-link:hover {
   background: #e4e4e4;
   color: #e93c2f;
+}
+.playlist-icon :global(svg) {
+  vertical-align: middle;
+  color: #9326e9;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
 }
 </style>
