@@ -1,7 +1,6 @@
 <script>
   import { supabase } from '$lib/supabaseClient';
 
-  // --- Master lists ---
   const countryOptions = [
     "Argentina","Canary Islands","Chile","Colombia","Costa Rica","Cuba",
     "Dominican Republic","Ecuador","El Salvador","Equatorial Guinea",
@@ -24,7 +23,6 @@
     { value: 'notyet', label: 'Not Yet Rated' }
   ];
 
-  // --- State ---
   let url = '';
   let message = '';
   let importing = false;
@@ -207,7 +205,6 @@
     settingCountry[channelId] = false;
   }
 
-  // --- REFRESH DATA & STATS ---
   async function refresh() {
     refreshing = true;
     let { data, error } = await supabase.from('channels').select('*');
@@ -216,10 +213,8 @@
       refreshing = false;
       return;
     }
-    // For each channel, fetch video levels to calculate _mainLevel
     channels = await Promise.all(
       (data || []).map(async (chan) => {
-        // fetch all levels for this channel
         const { data: vids } = await supabase.from('videos').select('level').eq('channel_id', chan.id);
         let _mainLevel = '';
         if (vids && vids.length > 0) {
@@ -243,7 +238,6 @@
       })
     );
 
-    // Stats
     const { count: videosCount } = await supabase.from('videos').select('id', { count: 'exact', head: true });
     const { count: playlistsCount } = await supabase.from('playlists').select('id', { count: 'exact', head: true });
     const { count: channelsCount } = await supabase.from('channels').select('id', { count: 'exact', head: true });
@@ -360,6 +354,53 @@ select, .tag-input {
   background: #fafafa;
 }
 
+.stats-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8em 1.3em;
+  margin: 0 0 1.5em 0;
+  padding: 0.7em 1.1em;
+  background: #f8f7fa;
+  border-radius: 8px;
+  align-items: flex-end;
+}
+
+.stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  background: #fff;
+  border-radius: 6px;
+  font-size: 1.04em;
+  padding: 0.29em 0.95em 0.29em 0.7em;
+  box-shadow: 0 1px 5px #ececec;
+  color: #d14e17;
+  font-weight: 600;
+  border: 1px solid #f3efea;
+}
+
+.stat-label {
+  color: #a4a4a4;
+  font-size: 0.98em;
+  margin-right: 0.24em;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.stat-time {
+  color: #aaa;
+  font-size: 0.98em;
+  font-weight: 400;
+  margin-left: 0.4em;
+}
+
+.stat-chip.level.superbeginner { border-left: 5px solid #00b5ad; }
+.stat-chip.level.beginner { border-left: 5px solid #16a085; }
+.stat-chip.level.intermediate { border-left: 5px solid #f5a623; }
+.stat-chip.level.advanced { border-left: 5px solid #e93c2f; }
+.stat-chip.level.notyet { border-left: 5px solid #b2b2b2; }
+
 .admin-table {
   width: 100%;
   margin: 1.5em 0 0 0;
@@ -413,15 +454,16 @@ select, .tag-input {
 .chip input[type="checkbox"] { margin-right: 3px; }
 .chip:focus-within { outline: 2px solid #e93c2f; }
 
-.collapsible-cell,
-.playlists-cell {
+.collapsible-cell {
   padding: 0.5em 0.8em !important;
   background: #f6faff;
   font-size: 0.96em;
 }
 
 .playlists-cell {
+  padding: 0.5em 0.8em !important;
   background: #f9f9fc;
+  font-size: 0.96em;
 }
 
 .playlist-table {
@@ -445,6 +487,7 @@ select, .tag-input {
   .chip { font-size: 0.83em; min-height: 18px; padding: 1px 3px 1px 2px; }
   .collapsible-cell, .playlists-cell { padding: 0.32em 0.3em !important; }
   .playlist-table th, .playlist-table td { font-size: 0.91em; padding: 0.13em 0.1em; }
+  .stat-chip { font-size: 0.93em; padding: 0.18em 0.5em 0.18em 0.4em; }
 }
 
 @media (max-width: 600px) {
@@ -452,32 +495,38 @@ select, .tag-input {
   .channel-thumb { width: 16px; height: 16px; }
   .chip { font-size: 0.75em; min-height: 14px; }
   .collapsible-cell, .playlists-cell { padding: 0.15em 0.06em !important; }
+  .stat-chip { font-size: 0.88em; padding: 0.11em 0.32em 0.11em 0.21em; }
 }
-
 </style>
 
 <div class="admin-main">
-  <h2 style="margin-bottom:1.6em;">CIBUBBLE Admin Tools</h2>
+  <h2 style="margin-bottom:1.1em;">CIBUBBLE Admin Tools</h2>
 
-  <div style="margin: 0 0 1.2em 0; padding: 0.8em 1.3em; background: #faf6f4; border-radius: 7px; display: flex; flex-wrap: wrap; gap: 2.2em; font-size:1.1em; color:#e93c2f;">
-    <div><b>Videos:</b> {adminStats.videos}</div>
-    <div><b>Channels:</b> {adminStats.channels}</div>
-    <div><b>Playlists:</b> {adminStats.playlists}</div>
-    <div><b>Total Time:</b> {formatTime(adminStats.runningTime)}</div>
-    <div>
-      <b>Super Beginner:</b> {adminStats.byLevel.superbeginner} &nbsp;|&nbsp;
-      <b>Beginner:</b> {adminStats.byLevel.beginner} &nbsp;|&nbsp;
-      <b>Intermediate:</b> {adminStats.byLevel.intermediate} &nbsp;|&nbsp;
-      <b>Advanced:</b> {adminStats.byLevel.advanced} &nbsp;|&nbsp;
-      <b>Not Yet:</b> {adminStats.byLevel.notyet}
+  <!-- Tidy STATS BAR -->
+  <div class="stats-bar">
+    <div class="stat-chip"><span class="stat-label">Videos</span> {adminStats.videos}</div>
+    <div class="stat-chip"><span class="stat-label">Channels</span> {adminStats.channels}</div>
+    <div class="stat-chip"><span class="stat-label">Playlists</span> {adminStats.playlists}</div>
+    <div class="stat-chip"><span class="stat-label">Total Time</span> {formatTime(adminStats.runningTime)}</div>
+    <div class="stat-chip level superbeginner">
+      <span class="stat-label">Super Beginner</span> {adminStats.byLevel.superbeginner}
+      <span class="stat-time">{formatTime(adminStats.timeByLevel.superbeginner)}</span>
     </div>
-    <div style="width:100%;font-size:0.97em;color:#d14e17;margin-top:0.5em;">
-      <b>Time by Level:</b>
-      Super Beginner: {formatTime(adminStats.timeByLevel.superbeginner)} &nbsp;|&nbsp;
-      Beginner: {formatTime(adminStats.timeByLevel.beginner)} &nbsp;|&nbsp;
-      Intermediate: {formatTime(adminStats.timeByLevel.intermediate)} &nbsp;|&nbsp;
-      Advanced: {formatTime(adminStats.timeByLevel.advanced)} &nbsp;|&nbsp;
-      Not Yet: {formatTime(adminStats.timeByLevel.notyet)}
+    <div class="stat-chip level beginner">
+      <span class="stat-label">Beginner</span> {adminStats.byLevel.beginner}
+      <span class="stat-time">{formatTime(adminStats.timeByLevel.beginner)}</span>
+    </div>
+    <div class="stat-chip level intermediate">
+      <span class="stat-label">Intermediate</span> {adminStats.byLevel.intermediate}
+      <span class="stat-time">{formatTime(adminStats.timeByLevel.intermediate)}</span>
+    </div>
+    <div class="stat-chip level advanced">
+      <span class="stat-label">Advanced</span> {adminStats.byLevel.advanced}
+      <span class="stat-time">{formatTime(adminStats.timeByLevel.advanced)}</span>
+    </div>
+    <div class="stat-chip level notyet">
+      <span class="stat-label">Not Yet</span> {adminStats.byLevel.notyet}
+      <span class="stat-time">{formatTime(adminStats.timeByLevel.notyet)}</span>
     </div>
   </div>
 
@@ -490,27 +539,6 @@ select, .tag-input {
   {#if message}
     <div style="margin:1em 0 1.2em 0; color:{message.startsWith('✅') ? '#27ae60' : '#c0392b'}; font-weight:500;">{message}</div>
   {/if}
-
-
-<style>
-/* ... previous styles, unchanged ... */
-.collapsible-cell {
-  padding: 1.3em 2em;
-  background: #f6faff;
-}
-.playlists-cell {
-  padding: 1.3em 2em;
-  background: #f9f9fc;
-}
-@media (max-width: 800px) {
-  .admin-table th, .admin-table td { font-size: 0.93em; }
-  .collapsible-cell, .playlists-cell { padding: 1em 0.6em; }
-}
-</style>
-
-<div class="admin-main">
-  <h2 style="margin-bottom:1.6em;">CIBUBBLE Admin Tools</h2>
-  <!-- stats and admin bar unchanged... -->
 
   <table class="admin-table">
     <thead>
@@ -605,7 +633,7 @@ select, .tag-input {
             </button>
           </td>
         </tr>
-        <!-- Collapsible TAGS cell, full row but content is inside the tags column -->
+        <!-- Collapsible TAGS row (still under tags col only, stays compact) -->
         {#if showTagsFor === chan.id}
           <tr class="collapsible-row">
             <td></td>
@@ -654,14 +682,10 @@ select, .tag-input {
             <td></td>
           </tr>
         {/if}
-        <!-- Collapsible PLAYLISTS cell, full row but content is in the playlists column -->
+        <!-- Collapsible PLAYLISTS row (spans all columns, so not squashed) -->
         {#if showPlaylistsFor === chan.id}
           <tr class="collapsible-row">
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td class="playlists-cell" colspan="1">
+            <td class="playlists-cell" colspan="6">
               {#if playlistsLoading}
                 <div>Loading playlists…</div>
               {:else if playlists.length === 0}
@@ -707,7 +731,6 @@ select, .tag-input {
                 </table>
               {/if}
             </td>
-            <td></td>
           </tr>
         {/if}
       {/each}
@@ -718,6 +741,4 @@ select, .tag-input {
       {/if}
     </tbody>
   </table>
-</div>
-
 </div>
