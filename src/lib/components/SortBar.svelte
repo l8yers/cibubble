@@ -105,11 +105,12 @@
     if (showCountryDropdown && countryDropdownRef && !countryDropdownRef.contains(event.target)) showCountryDropdown = false;
   }
 
+  // ✅ SSR SAFE: Only attach event listeners in the browser
   onMount(() => {
     document.addEventListener('click', handleDocumentClick);
-  });
-  onDestroy(() => {
-    document.removeEventListener('click', handleDocumentClick);
+    return () => {
+      document.removeEventListener('click', handleDocumentClick);
+    };
   });
 
   function equalSets(a, b) {
@@ -118,6 +119,7 @@
     return true;
   }
 </script>
+
 
 <div class="controls-bar">
   <div class="controls-left">
