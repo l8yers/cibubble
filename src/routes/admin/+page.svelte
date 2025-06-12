@@ -300,37 +300,160 @@
 </script>
 
 <style>
-.admin-main { max-width: 1100px; margin: 2.5rem auto 0 auto; background: #fff; border-radius: 13px; border: 1px solid #ececec; box-shadow: 0 2px 18px #ececec; padding: 2.7rem 2vw 2.5rem 2vw; font-family: Inter, Arial, sans-serif;}
-.row { display: flex; gap: 1em; margin-bottom: 1.5em; align-items: center;}
-input[type="text"], .tag-input { width: 370px; padding: 0.73em 1em; font-size: 1.09rem; border: 1px solid #ececec; border-radius: 7px; background: #fafafa; color: #181818;}
-button { padding: 0.66em 1.6em; font-size: 1.04rem; background: #e93c2f; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; margin-right: 1em; transition: background 0.18s;}
-button[disabled] { background: #e3e3e3; color: #aaa; cursor: default;}
-button:hover:not([disabled]) { background: #b8271b;}
-select, .tag-input { margin-top: 0.4em; }
-.admin-table { width: 100%; margin: 2.2em 0 0 0; border-collapse: collapse; background: #fff; font-size: 1.04em;}
-.admin-table th, .admin-table td { padding: 0.85em 0.8em; border-bottom: 1px solid #f2f2f2; text-align: left;}
-.admin-table th { color: #e93c2f; font-weight: 700;}
-.admin-table td { vertical-align: middle;}
-.channel-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; margin-right: 1.1em; border: 1.5px solid #eee;}
-.chip { background:#f7f7fb;border-radius:6px;padding:2px 7px 2px 5px;display:inline-flex;align-items:center;cursor:pointer;margin-right:5px;margin-bottom:4px;font-size:0.98em;}
-.chip input[type="checkbox"] { margin-right: 3px;}
+.admin-main {
+  max-width: 1100px;
+  margin: 2.5rem auto 0 auto;
+  background: #fff;
+  border-radius: 13px;
+  border: 1px solid #ececec;
+  box-shadow: 0 2px 18px #ececec;
+  padding: 2.1rem 1.5vw 1.6rem 1.5vw;
+  font-family: Inter, Arial, sans-serif;
+}
+
+.row {
+  display: flex;
+  gap: 0.7em;
+  margin-bottom: 1.2em;
+  align-items: center;
+}
+
+input[type="text"], .tag-input {
+  width: 340px;
+  padding: 0.36em 0.8em;
+  font-size: 0.98rem;
+  border: 1px solid #ececec;
+  border-radius: 6px;
+  background: #fafafa;
+  color: #181818;
+}
+
+button {
+  padding: 0.34em 1.05em;
+  font-size: 0.97em;
+  background: #e93c2f;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  margin-right: 0.38em;
+  transition: background 0.18s;
+  min-width: 0;
+  line-height: 1.1em;
+}
+
+button[disabled] {
+  background: #e3e3e3;
+  color: #aaa;
+  cursor: default;
+}
+button:hover:not([disabled]) { background: #b8271b; }
+
+select, .tag-input {
+  margin-top: 0.12em;
+  margin-bottom: 0.12em;
+  font-size: 0.97em;
+  padding: 0.18em 0.5em;
+  border-radius: 5px;
+  border: 1px solid #ececec;
+  background: #fafafa;
+}
+
+.admin-table {
+  width: 100%;
+  margin: 1.5em 0 0 0;
+  border-collapse: collapse;
+  background: #fff;
+  font-size: 1.00em;
+}
+
+.admin-table th, .admin-table td {
+  padding: 0.33em 0.45em;
+  border-bottom: 1px solid #f2f2f2;
+  text-align: left;
+  vertical-align: middle;
+  font-size: 0.98em;
+}
+
+.admin-table th {
+  color: #e93c2f;
+  font-weight: 700;
+  font-size: 1.04em;
+  letter-spacing: 0.01em;
+}
+
+.admin-table td {
+  vertical-align: middle;
+  font-size: 0.98em;
+}
+
+.channel-thumb {
+  width: 30px;
+  height: 30px;
+  object-fit: cover;
+  border-radius: 5px;
+  margin-right: 0.6em;
+  border: 1px solid #eee;
+  vertical-align: middle;
+}
+
+.chip {
+  background: #f7f7fb;
+  border-radius: 4px;
+  padding: 1px 6px 1px 4px;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  margin-right: 4px;
+  margin-bottom: 2px;
+  font-size: 0.91em;
+  min-height: 22px;
+}
+.chip input[type="checkbox"] { margin-right: 3px; }
 .chip:focus-within { outline: 2px solid #e93c2f; }
-.chip label { cursor:pointer;}
-.chip input { cursor:pointer;}
-/* Playlist & tag collapsible UI styles */
-.playlist-table { width:100%; margin-top:1em; background:none; font-size:0.98em;}
-.playlist-table th, .playlist-table td { padding: 0.55em 0.6em; border-bottom: 1px solid #f4f4fa; text-align:left;}
-@media (max-width: 700px) {
-  .admin-main { padding: 1.3em 0.3em;}
-  .admin-table th, .admin-table td { font-size: 0.97em; padding: 0.6em;}
-  .chip { font-size: 0.91em; padding: 3px 6px 3px 4px; }
-  .admin-table td { padding: 0.55em 0.4em;}
-  .collapsible-row td { padding: 1.2em 0.7em !important;}
+
+.collapsible-cell,
+.playlists-cell {
+  padding: 0.5em 0.8em !important;
+  background: #f6faff;
+  font-size: 0.96em;
 }
-@media (max-width: 500px) {
-  .chip { font-size: 0.85em; padding: 5px 6px 5px 4px;}
-  .row { flex-wrap:wrap; }
+
+.playlists-cell {
+  background: #f9f9fc;
 }
+
+.playlist-table {
+  width: 100%;
+  margin-top: 0.6em;
+  background: none;
+  font-size: 0.96em;
+  border-collapse: collapse;
+}
+
+.playlist-table th, .playlist-table td {
+  padding: 0.29em 0.39em;
+  border-bottom: 1px solid #f4f4fa;
+  text-align: left;
+}
+
+@media (max-width: 900px) {
+  .admin-main { padding: 1em 0.4em 1em 0.4em; }
+  .admin-table th, .admin-table td { font-size: 0.93em; padding: 0.18em 0.21em; }
+  .channel-thumb { width: 22px; height: 22px; margin-right: 0.32em; }
+  .chip { font-size: 0.83em; min-height: 18px; padding: 1px 3px 1px 2px; }
+  .collapsible-cell, .playlists-cell { padding: 0.32em 0.3em !important; }
+  .playlist-table th, .playlist-table td { font-size: 0.91em; padding: 0.13em 0.1em; }
+}
+
+@media (max-width: 600px) {
+  .admin-table th, .admin-table td { font-size: 0.91em; padding: 0.11em 0.06em; }
+  .channel-thumb { width: 16px; height: 16px; }
+  .chip { font-size: 0.75em; min-height: 14px; }
+  .collapsible-cell, .playlists-cell { padding: 0.15em 0.06em !important; }
+}
+
 </style>
 
 <div class="admin-main">
