@@ -1,5 +1,7 @@
 // src/routes/+page.server.js
 import { supabase } from '$lib/supabaseClient';
+import dotenv from 'dotenv';
+dotenv.config();
 
 console.log('SUPABASE ENV VARS', {
   url: process.env.PRIVATE_SUPABASE_URL,
