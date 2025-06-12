@@ -14,7 +14,9 @@
 
   onMount(async () => {
     // Lock scroll when mounted
-    document.body.style.overflow = 'hidden';
+    if (typeof document !== 'undefined') {
+      document.body.style.overflow = 'hidden';
+    }
     loading = true;
     // Get user
     const { data: sess } = await supabase.auth.getSession();
@@ -27,12 +29,13 @@
       .maybeSingle();
     video = vid;
     loading = false;
-  });
 
-  // Clean up: re-enable scroll if user navigates away
-  import { onDestroy } from 'svelte';
-  onDestroy(() => {
-    document.body.style.overflow = '';
+    // Clean up: re-enable scroll if user navigates away
+    return () => {
+      if (typeof document !== 'undefined') {
+        document.body.style.overflow = '';
+      }
+    };
   });
 </script>
 
