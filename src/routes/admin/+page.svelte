@@ -14,10 +14,10 @@
     "Native Show","Education","Sports","Current Events"
   ];
 
-  // --- Level changes ---
+  // Levels: Easy (was Beginner), Intermediate, Advanced, Not Yet Rated
   const levels = [
     { value: '', label: 'Set Level' },
-    { value: 'easy', label: 'Easy' },           // Renamed from beginner
+    { value: 'easy', label: 'Easy' },
     { value: 'intermediate', label: 'Intermediate' },
     { value: 'advanced', label: 'Advanced' },
     { value: 'notyet', label: 'Not Yet Rated' }
@@ -39,14 +39,13 @@
   let settingPlaylistLevel = {};
   let savingTags = {};
 
-  // --- Remove superbeginner, rename beginner to easy everywhere ---
   let adminStats = {
     videos: 0,
     channels: 0,
     playlists: 0,
     runningTime: 0,
     byLevel: {
-      easy: 0,            // was beginner
+      easy: 0,
       intermediate: 0,
       advanced: 0,
       notyet: 0
@@ -238,7 +237,6 @@
       })
     );
 
-    // --- Update stats with new levels (easy not beginner, no superbeginner) ---
     const { count: videosCount } = await supabase.from('videos').select('id', { count: 'exact', head: true });
     const { count: playlistsCount } = await supabase.from('playlists').select('id', { count: 'exact', head: true });
     const { count: channelsCount } = await supabase.from('channels').select('id', { count: 'exact', head: true });
@@ -256,7 +254,6 @@
       notyet: 0
     };
 
-    // Use 'easy' instead of 'beginner'
     for (const lvl of Object.keys(byLevel)) {
       const eqLevel = lvl === 'notyet' ? '' : lvl;
       const { count } = await supabase
@@ -294,7 +291,6 @@
 </script>
 
 <style>
-/* (Same compact, modern style as before, but easy uses the green, superbeginner color) */
 .admin-main {
   max-width: 1100px;
   margin: 2.5rem auto 0 auto;
@@ -396,7 +392,6 @@ select, .tag-input {
   margin-left: 0.4em;
 }
 
-/* Easy gets green accent (was superbeginner) */
 .stat-chip.level.easy { border-left: 5px solid #16a085; }
 .stat-chip.level.intermediate { border-left: 5px solid #f5a623; }
 .stat-chip.level.advanced { border-left: 5px solid #e93c2f; }
@@ -461,6 +456,12 @@ select, .tag-input {
   font-size: 0.96em;
 }
 
+.tags-cell {
+  padding: 0.5em 0.8em !important;
+  background: #f6faff;
+  font-size: 0.96em;
+}
+
 .playlists-cell {
   padding: 0.5em 0.8em !important;
   background: #f9f9fc;
@@ -486,7 +487,7 @@ select, .tag-input {
   .admin-table th, .admin-table td { font-size: 0.93em; padding: 0.18em 0.21em; }
   .channel-thumb { width: 22px; height: 22px; margin-right: 0.32em; }
   .chip { font-size: 0.83em; min-height: 18px; padding: 1px 3px 1px 2px; }
-  .collapsible-cell, .playlists-cell { padding: 0.32em 0.3em !important; }
+  .collapsible-cell, .playlists-cell, .tags-cell { padding: 0.32em 0.3em !important; }
   .playlist-table th, .playlist-table td { font-size: 0.91em; padding: 0.13em 0.1em; }
   .stat-chip { font-size: 0.93em; padding: 0.18em 0.5em 0.18em 0.4em; }
 }
@@ -495,7 +496,7 @@ select, .tag-input {
   .admin-table th, .admin-table td { font-size: 0.91em; padding: 0.11em 0.06em; }
   .channel-thumb { width: 16px; height: 16px; }
   .chip { font-size: 0.75em; min-height: 14px; }
-  .collapsible-cell, .playlists-cell { padding: 0.15em 0.06em !important; }
+  .collapsible-cell, .playlists-cell, .tags-cell { padding: 0.15em 0.06em !important; }
   .stat-chip { font-size: 0.88em; padding: 0.11em 0.32em 0.11em 0.21em; }
 }
 </style>
@@ -630,12 +631,10 @@ select, .tag-input {
             </button>
           </td>
         </tr>
-        <!-- Collapsible TAGS row (still under tags col only, stays compact) -->
+        <!-- Collapsible TAGS row (now spans all columns, matches playlists) -->
         {#if showTagsFor === chan.id}
           <tr class="collapsible-row">
-            <td></td>
-            <td></td>
-            <td class="collapsible-cell" colspan="1">
+            <td class="tags-cell" colspan="6">
               <div style="display:flex;flex-wrap:wrap;gap:0.3em;align-items:center;">
                 {#each tagOptions as tag}
                   <label class="chip" tabindex="0" aria-label={"Tag: " + tag}>
@@ -674,9 +673,6 @@ select, .tag-input {
                 >{savingTags[chan.id] ? 'Saving…' : 'Save'}</button>
               </div>
             </td>
-            <td></td>
-            <td></td>
-            <td></td>
           </tr>
         {/if}
         <!-- Collapsible PLAYLISTS row (spans all columns, so not squashed) -->
