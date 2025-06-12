@@ -3,7 +3,7 @@
 export function difficultyLabel(level) {
   switch (level) {
     case 'superbeginner': return 'Super Beginner';
-    case 'beginner': return 'Beginner';
+    case 'beginner': return 'Easy';
     case 'intermediate': return 'Intermediate';
     case 'advanced': return 'Advanced';
     default: return 'Not Yet Rated';
