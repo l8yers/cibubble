@@ -6,26 +6,23 @@
   import * as utils from '$lib/utils.js';
   import '../app.css';
 
+  // --- Filter UI state ---
   import {
-    filteredVideos,
-    loading,
-    errorMsg,
-    loadVideos,
-    selectedChannel,
-    selectedPlaylist,
-    selectedLevels,
-    sortBy,
-    selectedCountry,
-    selectedTags,
-    hideWatched,
-    watchedIds,
-    searchTerm
+    selectedChannel, selectedPlaylist, selectedLevels, sortBy, selectedCountry,
+    selectedTags, hideWatched, searchTerm
   } from '$lib/stores/videos.js';
 
-  // --- THE FIX: Use a writable store for searchOpen
+  // --- Infinite loading state ---
+  const PAGE_SIZE = 30;
+  let videos = writable([]);
+  let loading = writable(false);
+  let errorMsg = writable('');
+  let hasMore = writable(true);
+  let page = writable(1);
+
   let searchOpen = writable(false);
 
-  // --- URL <-> Filters helpers ---
+  // --- URL <-> Filters helpers (as before) ---
   function filtersToQuery({
     levels,
     tags,
@@ -33,21 +30,18 @@
     channel,
     playlist,
     sort,
-    hideWatched,
     search,
-    searchOpen // (optional: include if you want search bar open state in URL)
+    // Optionally: hideWatched, searchOpen
   }) {
     const params = new URLSearchParams();
-    if (levels?.size && levels.size < 3) params.set('level', Array.from(levels).join(',')); // Only set if not all
+    if (levels?.size && levels.size < 3) params.set('level', Array.from(levels).join(','));
     if (tags?.size) params.set('tags', Array.from(tags).join(','));
     if (country) params.set('country', country);
     if (channel) params.set('channel', channel);
     if (playlist) params.set('playlist', playlist);
     if (sort && sort !== 'random') params.set('sort', sort);
-    if (hideWatched) params.set('hideWatched', '1');
     if (search) params.set('search', search);
-    // Uncomment if you want to sync search bar open state:
-    // if (searchOpen) params.set('searchOpen', '1');
+    // Optionally: if (hideWatched) params.set('hideWatched', '1');
     return params.toString();
   }
 
@@ -60,13 +54,10 @@
       channel: params.get('channel') || '',
       playlist: params.get('playlist') || '',
       sort: params.get('sort') || 'random',
-      hideWatched: params.get('hideWatched') === '1',
-      search: params.get('search') || '',
-      searchOpen: params.get('searchOpen') === '1'
+      search: params.get('search') || ''
     };
   }
 
-  // --- Update URL from current filters ---
   function updateUrlFromFilters() {
     const query = filtersToQuery({
       levels: get(selectedLevels),
@@ -75,15 +66,59 @@
       channel: get(selectedChannel),
       playlist: get(selectedPlaylist),
       sort: get(sortBy),
-      hideWatched: get(hideWatched),
       search: get(searchTerm)
-      // searchOpen: get(searchOpen) // Uncomment if you want to sync this state
     });
     const url = query ? `?${query}` : window.location.pathname;
     history.replaceState({}, '', url);
   }
 
-  // --- Set filter stores from querystring on mount ---
+  // --- MAIN fetch function ---
+  async function fetchVideos({ append = false } = {}) {
+    loading.set(true);
+    errorMsg.set('');
+    const query = new URLSearchParams({
+      page: get(page),
+      pageSize: PAGE_SIZE,
+      levels: Array.from(get(selectedLevels)).join(','),
+      tags: Array.from(get(selectedTags)).join(','),
+      country: get(selectedCountry),
+      channel: get(selectedChannel),
+      playlist: get(selectedPlaylist),
+      sort: get(sortBy),
+      search: get(searchTerm)
+    });
+const res = await fetch(`/api/videos?${query}`);
+if (!res.ok) {
+  const errText = await res.text();
+  errorMsg.set('Error loading videos: ' + errText);
+  loading.set(false);
+  return;
+}
+
+    const { videos: fetched, hasMore: more } = await res.json();
+    if (append) {
+      videos.update(vs => [...vs, ...fetched]);
+    } else {
+      videos.set(fetched);
+    }
+    hasMore.set(more);
+    loading.set(false);
+  }
+
+  // --- Load More Handler ---
+  async function loadMore() {
+    if (!get(hasMore) || get(loading)) return;
+    page.update(p => p + 1);
+    await fetchVideos({ append: true });
+  }
+
+  // --- Reset videos on filter/sort/search change ---
+  function resetAndFetch() {
+    page.set(1);
+    fetchVideos({ append: false });
+  }
+
+  // --- On mount: get filters from URL, fetch first page ---
   onMount(() => {
     const filters = queryToFilters(window.location.search);
     if (filters.levels.size) selectedLevels.set(filters.levels);
@@ -92,43 +127,46 @@
     if (filters.channel) selectedChannel.set(filters.channel);
     if (filters.playlist) selectedPlaylist.set(filters.playlist);
     sortBy.set(filters.sort);
-    hideWatched.set(filters.hideWatched);
     searchTerm.set(filters.search);
-    if ('searchOpen' in filters) searchOpen.set(filters.searchOpen);
+    // Optionally: searchOpen.set(filters.searchOpen);
 
-    loadVideos();
+    resetAndFetch();
   });
 
-  // --- When filters change, update URL ---
+  // --- When filters change, update URL and refetch videos ---
   function handleSortBarChange(e) {
     selectedLevels.set(e.detail.selectedLevels);
     sortBy.set(e.detail.sortBy);
     selectedCountry.set(e.detail.selectedCountry);
     selectedTags.set(e.detail.selectedTags);
-    hideWatched.set(e.detail.hideWatched);
     searchTerm.set(e.detail.searchTerm);
-    if ('searchOpen' in e.detail) searchOpen.set(e.detail.searchOpen);
+    // Optionally: if ('searchOpen' in e.detail) searchOpen.set(e.detail.searchOpen);
     updateUrlFromFilters();
+    resetAndFetch();
   }
 
   function filterByChannel(channelName) {
     selectedChannel.set(channelName);
     updateUrlFromFilters();
+    resetAndFetch();
   }
   function clearChannelFilter() {
     selectedChannel.set('');
     updateUrlFromFilters();
+    resetAndFetch();
   }
   function filterByPlaylist(playlistTitle) {
     selectedPlaylist.set(playlistTitle);
     updateUrlFromFilters();
+    resetAndFetch();
   }
   function clearPlaylistFilter() {
     selectedPlaylist.set('');
     updateUrlFromFilters();
+    resetAndFetch();
   }
 
-  // Filter/Sort options (should live in a config file or constants ideally)
+  // Filter/Sort options (as before)
   const levels = [
     { value: 'easy', label: 'Easy' },
     { value: 'intermediate', label: 'Intermediate' },
@@ -167,7 +205,6 @@
       sortBy={$sortBy}
       selectedCountry={$selectedCountry}
       selectedTags={$selectedTags}
-      hideWatched={$hideWatched}
       searchTerm={$searchTerm}
       searchOpen={$searchOpen}
       on:change={handleSortBarChange}
@@ -187,15 +224,15 @@
     </div>
   {/if}
 
-  {#if $loading}
+  {#if $loading && $videos.length === 0}
     <p class="loading-more">Loading videos…</p>
   {:else if $errorMsg}
     <div class="error">{$errorMsg}</div>
-  {:else if $filteredVideos.length === 0}
+  {:else if $videos.length === 0}
     <div class="loading-more text-muted">No videos match your filters.</div>
   {:else}
     <VideoGrid
-      videos={$filteredVideos}
+      videos={$videos}
       getBestThumbnail={utils.getBestThumbnail}
       difficultyColor={utils.difficultyColor}
       difficultyLabel={utils.difficultyLabel}
@@ -203,6 +240,31 @@
       {filterByChannel}
       {filterByPlaylist}
     />
+    {#if $hasMore}
+      <button class="load-more-btn" on:click={loadMore} disabled={$loading} style="margin: 2em auto; display: block;">
+        {#if $loading}Loading...{/if}
+        {#if !$loading}Load More{/if}
+      </button>
+    {/if}
   {/if}
 </div>
 
+<style>
+  .load-more-btn {
+    padding: 0.9em 2.4em;
+    font-size: 1.17em;
+    background: #fafbff;
+    border: 1.6px solid #d6d6ee;
+    border-radius: 13px;
+    box-shadow: 0 2px 12px #ececec80;
+    font-weight: 700;
+    cursor: pointer;
+    margin: 2em auto 0 auto;
+    transition: background 0.15s;
+  }
+  .load-more-btn:disabled {
+    opacity: 0.66;
+    cursor: not-allowed;
+  }
+
+</style>
