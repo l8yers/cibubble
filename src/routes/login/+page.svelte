@@ -1,22 +1,18 @@
 <script>
-  import { supabase } from '$lib/supabaseClient';
+  import { login, authError } from '$lib/stores/user.js';
   import { goto } from '$app/navigation';
 
   let email = '';
   let password = '';
   let message = '';
 
-  async function login() {
-    message = '';
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    if (error) {
-      message = error.message;
-    } else {
+  async function handleLogin() {
+    await login(email, password);
+    if (!$authError) {
       message = 'Login successful! Redirecting…';
-      setTimeout(() => goto('/profile'), 1200);
+      setTimeout(() => goto('/progress'), 1200);
+    } else {
+      message = $authError;
     }
   }
 </script>
@@ -69,11 +65,10 @@ button:hover { background: #b8271b; }
   <h2>Log In</h2>
   <input type="email" bind:value={email} placeholder="Email" autocomplete="email" />
   <input type="password" bind:value={password} placeholder="Password" autocomplete="current-password" />
-  <button on:click={login}>Log In</button>
+  <button on:click={handleLogin}>Log In</button>
   <div class="message">{message}</div>
   <div style="margin-top:1em; color:#888;">
     Don't have an account?
     <a href="/signup" style="color:#e93c2f;">Sign Up</a>
   </div>
 </div>
- 

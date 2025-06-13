@@ -1,11 +1,10 @@
-// src/lib/stores/user.js
 import { writable } from 'svelte/store';
 import { supabase } from '../supabaseClient.js';
 
 export const user = writable(null);
 export const authError = writable('');
 
-// Try to get current user/session on load
+// Load the current session/user on app start
 export async function loadUser() {
   const { data, error } = await supabase.auth.getSession();
   if (data?.session?.user) {
@@ -17,7 +16,7 @@ export async function loadUser() {
   }
 }
 
-// Login function
+// Login
 export async function login(email, password) {
   const { error, data } = await supabase.auth.signInWithPassword({ email, password });
   if (data?.user) {
@@ -29,13 +28,13 @@ export async function login(email, password) {
   }
 }
 
-// Logout function
+// Logout
 export async function logout() {
   await supabase.auth.signOut();
   user.set(null);
 }
 
-// Listen to auth state changes and update store
+// Keep store updated on any auth change
 supabase.auth.onAuthStateChange((_event, session) => {
   if (session?.user) {
     user.set(session.user);
@@ -45,5 +44,5 @@ supabase.auth.onAuthStateChange((_event, session) => {
   }
 });
 
-// Immediately load user on import
+// Initial load
 loadUser();

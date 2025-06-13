@@ -1,5 +1,5 @@
 <script>
-  import { user, logout } from '$lib/stores/user.js'; // Import user store and logout action
+  import { user, logout } from '$lib/stores/user.js';
 </script>
 
 <style>
@@ -62,6 +62,7 @@
   <div class="nav-links">
     <a class="nav-link" href="/">Home</a>
     <a class="nav-link" href="/admin">ADMIN</a>
+    <!-- <a class="nav-link" href="/faq">FAQ</a> -->
     {#if $user}
       <a class="nav-link" href="/progress">Progress</a>
       <button class="logout-btn" on:click={logout}>Logout</button>

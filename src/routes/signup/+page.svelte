@@ -1,5 +1,6 @@
 <script>
   import { supabase } from '$lib/supabaseClient';
+  import { goto } from '$app/navigation';
 
   let email = '';
   let password = '';
@@ -7,14 +8,12 @@
 
   async function signup() {
     message = '';
-    const { error } = await supabase.auth.signUp({
-      email,
-      password
-    });
+    const { error } = await supabase.auth.signUp({ email, password });
     if (error) {
       message = error.message;
     } else {
       message = 'Signup successful! Check your email to confirm.';
+      setTimeout(() => goto('/login'), 1200);
     }
   }
 </script>

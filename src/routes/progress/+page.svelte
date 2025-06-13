@@ -1,169 +1,174 @@
 <script>
-	import { onMount } from 'svelte';
-	import { supabase } from '$lib/supabaseClient';
-	import VideoCard from '$lib/components/VideoCard.svelte';
-	import * as utils from '$lib/utils.js';
+  import { onMount } from 'svelte';
+  import { user, loadUser } from '$lib/stores/user.js';
+  import { supabase } from '$lib/supabaseClient.js'; // Direct import recommended
+  import VideoCard from '$lib/components/VideoCard.svelte';
+  import * as utils from '$lib/utils.js';
 
-	let user = null;
-	let myVideos = [];
-	let watchedVideos = [];
-	let email = '';
-	let newEmail = '';
-	let newPassword = '';
-	let message = '';
-	let watchTime = 0;
-	let todayWatchTime = 0;
-	let activityDays = [];
-	let streak = 0;
+  let myVideos = [];
+  let watchedVideos = [];
+  let email = '';
+  let newEmail = '';
+  let newPassword = '';
+  let message = '';
+  let watchTime = 0;
+  let todayWatchTime = 0;
+  let activityDays = [];
+  let streak = 0;
 
-	function formatMinutes(seconds) {
-		if (!seconds) return '0 min';
-		const m = Math.round(seconds / 60);
-		return m > 0 ? `${m} min` : `${seconds} sec`;
-	}
+  // Format functions unchanged
+  function formatMinutes(seconds) {
+    if (!seconds) return '0 min';
+    const m = Math.round(seconds / 60);
+    return m > 0 ? `${m} min` : `${seconds} sec`;
+  }
 
-	function barColor(mins) {
-		if (mins >= 120) return '#e93c2f';
-		if (mins >= 60) return '#44c366';
-		if (mins >= 30) return '#f9c846';
-		if (mins >= 10) return '#f7ed85';
-		if (mins > 0) return '#b7f6ed';
-		return '#ececec';
-	}
+  function barColor(mins) {
+    if (mins >= 120) return '#e93c2f';
+    if (mins >= 60) return '#44c366';
+    if (mins >= 30) return '#f9c846';
+    if (mins >= 10) return '#f7ed85';
+    if (mins > 0) return '#b7f6ed';
+    return '#ececec';
+  }
 
-	async function fetchRecentActivity() {
-		if (!user) return;
-		const today = new Date();
-		const dates = [];
-		for (let i = 13; i >= 0; i--) {
-			const d = new Date(today);
-			d.setDate(today.getDate() - i);
-			dates.push(d.toISOString().slice(0, 10));
-		}
-		const fromDate = dates[0];
-		const toDate = dates[dates.length - 1];
-		let { data: sessions } = await supabase
-			.from('watch_sessions')
-			.select('date,seconds')
-			.eq('user_id', user.id)
-			.gte('date', fromDate)
-			.lte('date', toDate);
+  // Reactive: fetch all user-dependent data when $user changes
+  $: if ($user) {
+    fetchAllUserData($user.id);
+  }
 
-		const map = {};
-		(sessions || []).forEach((s) => {
-			map[s.date] = (map[s.date] || 0) + (s.seconds || 0);
-		});
-		activityDays = dates.map((date) => ({
-			date,
-			mins: Math.round((map[date] || 0) / 60)
-		}));
+  // Helper: fetch all user data in parallel (keep logic in one place)
+  async function fetchAllUserData(userId) {
+    email = $user.email;
+    newEmail = email;
 
-		streak = 0;
-		for (let i = activityDays.length - 1; i >= 0; i--) {
-			if (activityDays[i].mins > 0) streak++;
-			else break;
-		}
-	}
+    // Fetch user's videos
+    let { data: videos } = await supabase
+      .from('videos')
+      .select('*')
+      .eq('added_by', userId)
+      .order('created', { ascending: false });
+    myVideos = videos || [];
 
-	onMount(async () => {
-		const {
-			data: { session }
-		} = await supabase.auth.getSession();
-		if (session?.user) {
-			user = session.user;
-			email = user.email;
-			newEmail = email;
+    // --- Total watch time ---
+    let { data: allSessions } = await supabase
+      .from('watch_sessions')
+      .select('seconds')
+      .eq('user_id', userId);
+    watchTime = (allSessions ?? []).reduce((acc, s) => acc + (s.seconds || 0), 0);
 
-			// Fetch user's videos
-			let { data: videos } = await supabase
-				.from('videos')
-				.select('*')
-				.eq('added_by', user.id)
-				.order('created', { ascending: false });
-			myVideos = videos || [];
+    // --- Today's watch time ---
+    const today = new Date().toISOString().slice(0, 10);
+    let { data: todaySessions } = await supabase
+      .from('watch_sessions')
+      .select('seconds')
+      .eq('user_id', userId)
+      .eq('date', today);
+    todayWatchTime = (todaySessions ?? []).reduce((acc, s) => acc + (s.seconds || 0), 0);
 
-			// --- Total watch time ---
-			let { data: allSessions } = await supabase
-				.from('watch_sessions')
-				.select('seconds')
-				.eq('user_id', user.id);
-			watchTime = (allSessions ?? []).reduce((acc, s) => acc + (s.seconds || 0), 0);
+    // --- Recent activity and streak ---
+    await fetchRecentActivity(userId);
 
-			// --- Today's watch time ---
-			const today = new Date().toISOString().slice(0, 10);
-			let { data: todaySessions } = await supabase
-				.from('watch_sessions')
-				.select('seconds')
-				.eq('user_id', user.id)
-				.eq('date', today);
-			todayWatchTime = (todaySessions ?? []).reduce((acc, s) => acc + (s.seconds || 0), 0);
+    // --- Watched videos (recent, ordered) ---
+    let { data: watchedSessions } = await supabase
+      .from('watch_sessions')
+      .select('video_id, date')
+      .eq('user_id', userId);
 
-			// --- Recent activity and streak ---
-			await fetchRecentActivity();
+    const videoMap = {};
+    for (const ws of watchedSessions ?? []) {
+      if (ws.video_id && ws.date) {
+        if (!videoMap[ws.video_id] || ws.date > videoMap[ws.video_id]) {
+          videoMap[ws.video_id] = ws.date;
+        }
+      }
+    }
+    const videoIds = Object.keys(videoMap);
 
-			// --- Fetch watched videos ---
-			let { data: watchedSessions } = await supabase
-				.from('watch_sessions')
-				.select('video_id, date')
-				.eq('user_id', user.id);
+    if (videoIds.length) {
+      let { data: vids } = await supabase.from('videos').select('*').in('id', videoIds);
+      watchedVideos = (vids || [])
+        .map((v) => ({
+          ...v,
+          lastWatched: videoMap[v.id]
+        }))
+        .sort((a, b) => (b.lastWatched || '').localeCompare(a.lastWatched || ''));
+    } else {
+      watchedVideos = [];
+    }
+  }
 
-			const videoMap = {};
-			for (const ws of watchedSessions ?? []) {
-				if (ws.video_id && ws.date) {
-					if (!videoMap[ws.video_id] || ws.date > videoMap[ws.video_id]) {
-						videoMap[ws.video_id] = ws.date;
-					}
-				}
-			}
-			const videoIds = Object.keys(videoMap);
+  // Activity/streak calendar
+  async function fetchRecentActivity(userId) {
+    const today = new Date();
+    const dates = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      dates.push(d.toISOString().slice(0, 10));
+    }
+    const fromDate = dates[0];
+    const toDate = dates[dates.length - 1];
+    let { data: sessions } = await supabase
+      .from('watch_sessions')
+      .select('date,seconds')
+      .eq('user_id', userId)
+      .gte('date', fromDate)
+      .lte('date', toDate);
 
-			if (videoIds.length) {
-				let { data: vids } = await supabase.from('videos').select('*').in('id', videoIds);
+    const map = {};
+    (sessions || []).forEach((s) => {
+      map[s.date] = (map[s.date] || 0) + (s.seconds || 0);
+    });
+    activityDays = dates.map((date) => ({
+      date,
+      mins: Math.round((map[date] || 0) / 60)
+    }));
 
-				watchedVideos = (vids || [])
-					.map((v) => ({
-						...v,
-						lastWatched: videoMap[v.id]
-					}))
-					.sort((a, b) => (b.lastWatched || '').localeCompare(a.lastWatched || ''));
-			} else {
-				watchedVideos = [];
-			}
-		}
-	});
+    streak = 0;
+    for (let i = activityDays.length - 1; i >= 0; i--) {
+      if (activityDays[i].mins > 0) streak++;
+      else break;
+    }
+  }
 
-	async function updateEmail() {
-		message = '';
-		if (!newEmail || newEmail === email) {
-			message = 'No change.';
-			return;
-		}
-		const { error } = await supabase.auth.updateUser({ email: newEmail });
-		if (error) {
-			message = error.message;
-		} else {
-			message = 'Email updated! Please check your inbox to confirm.';
-			email = newEmail;
-		}
-	}
+  // Account settings
+  async function updateEmail() {
+    message = '';
+    if (!newEmail || newEmail === email) {
+      message = 'No change.';
+      return;
+    }
+    const { error } = await supabase.auth.updateUser({ email: newEmail });
+    if (error) {
+      message = error.message;
+    } else {
+      message = 'Email updated! Please check your inbox to confirm.';
+      email = newEmail;
+    }
+  }
 
-	async function updatePassword() {
-		message = '';
-		if (!newPassword) {
-			message = 'Password cannot be empty.';
-			return;
-		}
-		const { error } = await supabase.auth.updateUser({ password: newPassword });
-		if (error) {
-			message = error.message;
-		} else {
-			message = 'Password updated!';
-			newPassword = '';
-		}
-	}
+  async function updatePassword() {
+    message = '';
+    if (!newPassword) {
+      message = 'Password cannot be empty.';
+      return;
+    }
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      message = error.message;
+    } else {
+      message = 'Password updated!';
+      newPassword = '';
+    }
+  }
+
+  // Make sure we call loadUser() once on mount for SSR hydration (it’s idempotent)
+  onMount(() => {
+    loadUser();
+  });
 </script>
-
-{#if !user}
+{#if !$user}
 	<div class="profile-main" style="text-align:center;">
 		<div style="margin:2em 0;">
 			Not logged in.<br /><a href="/login" class="video-link">Login here</a>
@@ -173,7 +178,7 @@
 	<div class="profile-main">
 		<div class="section-title">Progress</div>
 
-		<!-- CHUNKY DREAMING SPANISH STATS BOXES -->
+		<!-- STATS BOXES -->
 		<div class="stats-boxes-row">
 			<div class="stat-box">
 				<div class="stat-label">Total Watch Time</div>
@@ -192,7 +197,7 @@
 			</div>
 		</div>
 
-		<!-- HISTORY SECTION styled like front page grid -->
+		<!-- HISTORY SECTION -->
 		<div class="history-section">
 			<div class="history-header">
 				<span class="section-title" style="margin:0;">History</span>
@@ -219,6 +224,7 @@
 			{/if}
 		</div>
 
+		<!-- MY VIDEOS SECTION -->
 		<div class="my-videos-section">
 			<div class="my-videos-header">
 				<span class="section-title" style="margin:0;">My Videos</span>
@@ -244,7 +250,6 @@
 				</div>
 			{/if}
 		</div>
-		<!-- MY VIDEOS SECTION styled like front page grid -->
 
 		<div class="section-title">Account</div>
 		<div class="profile-row"><b>Email:</b> {email}</div>
@@ -410,14 +415,14 @@
 		max-width: 320px;
 	}
 	.my-videos-section {
-  margin-top: 2.6em;
-}
-.my-videos-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.2em;
-}
+		margin-top: 2.6em;
+	}
+	.my-videos-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 1.2em;
+	}
 
 	@media (max-width: 600px) {
 		.history-card {
