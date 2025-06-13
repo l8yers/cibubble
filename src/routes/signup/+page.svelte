@@ -1,19 +1,18 @@
 <script>
-  import { supabase } from '$lib/supabaseClient';
+  import { signup, authError } from '$lib/stores/user.js';
   import { goto } from '$app/navigation';
 
   let email = '';
   let password = '';
   let message = '';
 
-  async function signup() {
-    message = '';
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) {
-      message = error.message;
-    } else {
+  async function handleSignup() {
+    const { error } = await signup(email, password);
+    if (!error) {
       message = 'Signup successful! Check your email to confirm.';
       setTimeout(() => goto('/login'), 1200);
+    } else {
+      message = $authError;
     }
   }
 </script>
@@ -66,7 +65,7 @@ button:hover { background: #b8271b; }
   <h2>Sign Up</h2>
   <input type="email" bind:value={email} placeholder="Email" autocomplete="email" />
   <input type="password" bind:value={password} placeholder="Password" autocomplete="new-password" />
-  <button on:click={signup}>Sign Up</button>
+  <button on:click={handleSignup}>Sign Up</button>
   <div class="message">{message}</div>
   <div style="margin-top:1em; color:#888;">
     Already have an account?

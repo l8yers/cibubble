@@ -55,6 +55,7 @@
 }
 </style>
 
+
 <nav class="header">
   <a href="/" class="logo-row">
     <img src="/logo.png" alt="CIBUBBLE logo" class="logo-img" />
@@ -62,7 +63,6 @@
   <div class="nav-links">
     <a class="nav-link" href="/">Home</a>
     <a class="nav-link" href="/admin">ADMIN</a>
-    <!-- <a class="nav-link" href="/faq">FAQ</a> -->
     {#if $user}
       <a class="nav-link" href="/progress">Progress</a>
       <button class="logout-btn" on:click={logout}>Logout</button>

@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { user, loadUser } from '$lib/stores/user.js';
-  import { supabase } from '$lib/supabaseClient.js'; // Direct import recommended
+  import { supabase } from '$lib/supabaseClient.js';
   import VideoCard from '$lib/components/VideoCard.svelte';
   import * as utils from '$lib/utils.js';
 
@@ -16,7 +16,6 @@
   let activityDays = [];
   let streak = 0;
 
-  // Format functions unchanged
   function formatMinutes(seconds) {
     if (!seconds) return '0 min';
     const m = Math.round(seconds / 60);
@@ -32,12 +31,11 @@
     return '#ececec';
   }
 
-  // Reactive: fetch all user-dependent data when $user changes
+  // Fetch all user-dependent data when $user changes
   $: if ($user) {
     fetchAllUserData($user.id);
   }
 
-  // Helper: fetch all user data in parallel (keep logic in one place)
   async function fetchAllUserData(userId) {
     email = $user.email;
     newEmail = email;
@@ -168,6 +166,7 @@
     loadUser();
   });
 </script>
+
 {#if !$user}
 	<div class="profile-main" style="text-align:center;">
 		<div style="margin:2em 0;">
@@ -375,7 +374,6 @@
 			min-width: unset;
 		}
 	}
-
 	/* History/my videos grid: match front page grid */
 	.history-section {
 		margin-top: 2.4em;
@@ -423,7 +421,6 @@
 		align-items: center;
 		margin-bottom: 1.2em;
 	}
-
 	@media (max-width: 600px) {
 		.history-card {
 			flex-basis: 82vw;
@@ -434,7 +431,6 @@
 			gap: 1em;
 		}
 	}
-
 	.profile-row {
 		margin-bottom: 1.3em;
 	}
