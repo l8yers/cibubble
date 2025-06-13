@@ -1,307 +1,223 @@
 <script>
-	import { createEventDispatcher, onMount, onDestroy } from 'svelte';
-	import { Sparkles, BarChart3, Search, Globe, Tag } from 'lucide-svelte';
+  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+  import { Sparkles, BarChart3, Search, Globe, Tag } from 'lucide-svelte';
 
-	// --- Props (all state is controlled by parent) ---
-	export let levels = [];
-	export let sortChoices = [];
-	export let countryOptions = [];
-	export let tagOptions = [];
-	export let selectedLevels;
-	export let sortBy;
-	export let selectedCountry;
-	export let selectedTags;
-	export let hideWatched;
-	export let searchTerm;
-	export let searchOpen = false; // <-- make sure this is a prop
+  // All state is controlled by parent, always up to date
+  export let levels = [];
+  export let sortChoices = [];
+  export let countryOptions = [];
+  export let tagOptions = [];
+  export let selectedLevels;
+  export let sortBy;
+  export let selectedCountry;
+  export let selectedTags;
+  export let hideWatched;
+  export let searchTerm;
+  export let searchOpen = false;
 
-	const dispatch = createEventDispatcher();
+  const dispatch = createEventDispatcher();
 
-	// --- Local mirror of state for UI, synced from props ---
-	let _selectedLevels = new Set(selectedLevels);
-	let _sortBy = sortBy;
-	let _selectedCountry = selectedCountry;
-	let _selectedTags = new Set(selectedTags);
-	let _hideWatched = hideWatched;
-	let _searchTerm = searchTerm;
-	let _searchOpen = searchOpen;
+  // --- Dropdown state (UI only) ---
+  let showSortDropdown = false;
+  let showLevelDropdown = false;
+  let showCountryDropdown = false;
+  let showTagDropdown = false;
+  let sortDropdownRef, levelsDropdownRef, tagDropdownRef, countryDropdownRef;
 
-	// --- Dropdown state (UI only) ---
-	let showSortDropdown = false;
-	let showLevelDropdown = false;
-	let showCountryDropdown = false;
-	let showTagDropdown = false;
-	let sortDropdownRef, levelsDropdownRef, tagDropdownRef, countryDropdownRef;
+  // --- Handler helpers (all stateless) ---
+  function emitChange(data = {}) {
+    dispatch('change', {
+      selectedLevels,
+      sortBy,
+      selectedCountry,
+      selectedTags,
+      hideWatched,
+      searchTerm,
+      searchOpen,
+      ...data // override any changed value
+    });
+  }
 
-	// --- Sync local UI state if parent props change (reactive assignments) ---
-	$: if (selectedLevels && !equalSets(selectedLevels, _selectedLevels))
-		_selectedLevels = new Set(selectedLevels);
-	$: if (selectedTags && !equalSets(selectedTags, _selectedTags))
-		_selectedTags = new Set(selectedTags);
-	$: if (sortBy !== _sortBy) _sortBy = sortBy;
-	$: if (selectedCountry !== _selectedCountry) _selectedCountry = selectedCountry;
-	$: if (hideWatched !== _hideWatched) _hideWatched = hideWatched;
-	$: if (searchTerm !== _searchTerm) _searchTerm = searchTerm;
-	$: if (searchOpen !== _searchOpen) _searchOpen = searchOpen;
+  function handleToggleLevel(lvl) {
+    const next = new Set(selectedLevels);
+    if (next.has(lvl)) next.delete(lvl);
+    else next.add(lvl);
+    emitChange({ selectedLevels: next });
+  }
+  function handleToggleAllLevels() {
+    if (selectedLevels.size === levels.length) emitChange({ selectedLevels: new Set() });
+    else emitChange({ selectedLevels: new Set(levels.map(l => l.value)) });
+  }
+  function handleSetSort(val) {
+    emitChange({ sortBy: val });
+    showSortDropdown = false;
+  }
+  function handleSetCountry(c) {
+    emitChange({ selectedCountry: c === selectedCountry ? '' : c });
+  }
+  function handleToggleTag(tag) {
+    const next = new Set(selectedTags);
+    if (next.has(tag)) next.delete(tag);
+    else next.add(tag);
+    emitChange({ selectedTags: next });
+  }
+  function handleClearTags() {
+    emitChange({ selectedTags: new Set() });
+  }
+  function handleHideWatched() {
+    emitChange({ hideWatched: !hideWatched });
+  }
+  function handleSearchInput(val) {
+    emitChange({ searchTerm: val });
+  }
+  function handleToggleSearch() {
+    emitChange({ searchOpen: !searchOpen, searchTerm: searchOpen ? '' : searchTerm });
+  }
 
-	// --- Handler helpers ---
-	function emitChange() {
-		dispatch('change', {
-			selectedLevels: new Set(_selectedLevels),
-			sortBy: _sortBy,
-			selectedCountry: _selectedCountry,
-			selectedTags: new Set(_selectedTags),
-			hideWatched: _hideWatched,
-			searchTerm: _searchTerm,
-			searchOpen: _searchOpen // <--- THIS KEEPS IT SYNCED!
-		});
-	}
-
-	function handleToggleLevel(lvl) {
-		if (_selectedLevels.has(lvl)) _selectedLevels.delete(lvl);
-		else _selectedLevels.add(lvl);
-		emitChange();
-	}
-	function handleToggleAllLevels() {
-		if (_selectedLevels.size === levels.length) _selectedLevels = new Set();
-		else _selectedLevels = new Set(levels.map((l) => l.value));
-		emitChange();
-	}
-	function handleSetSort(val) {
-		_sortBy = val;
-		emitChange();
-		showSortDropdown = false;
-	}
-	function handleSetCountry(c) {
-		_selectedCountry = c === _selectedCountry ? '' : c;
-		emitChange();
-	}
-	function handleToggleTag(tag) {
-		if (_selectedTags.has(tag)) _selectedTags.delete(tag);
-		else _selectedTags.add(tag);
-		emitChange();
-	}
-	function handleClearTags() {
-		_selectedTags = new Set();
-		emitChange();
-	}
-	function handleHideWatched() {
-		_hideWatched = !_hideWatched;
-		emitChange();
-	}
-	function handleSearchInput(val) {
-		_searchTerm = val;
-		emitChange();
-	}
-	function handleToggleSearch() {
-		_searchOpen = !_searchOpen;
-		if (!_searchOpen) _searchTerm = '';
-		emitChange();
-	}
-
-	// --- Close dropdowns on outside click ---
-	function handleDocumentClick(event) {
-		if (showSortDropdown && sortDropdownRef && !sortDropdownRef.contains(event.target))
-			showSortDropdown = false;
-		if (showLevelDropdown && levelsDropdownRef && !levelsDropdownRef.contains(event.target))
-			showLevelDropdown = false;
-		if (showTagDropdown && tagDropdownRef && !tagDropdownRef.contains(event.target))
-			showTagDropdown = false;
-		if (showCountryDropdown && countryDropdownRef && !countryDropdownRef.contains(event.target))
-			showCountryDropdown = false;
-	}
-
-	// ✅ SSR SAFE: Only attach event listeners in the browser
-	onMount(() => {
-		document.addEventListener('click', handleDocumentClick);
-		return () => {
-			document.removeEventListener('click', handleDocumentClick);
-		};
-	});
-
-	function equalSets(a, b) {
-		if (!a || !b || a.size !== b.size) return false;
-		for (let v of a) if (!b.has(v)) return false;
-		return true;
-	}
+  // --- Close dropdowns on outside click ---
+  function handleDocumentClick(event) {
+    if (showSortDropdown && sortDropdownRef && !sortDropdownRef.contains(event.target)) showSortDropdown = false;
+    if (showLevelDropdown && levelsDropdownRef && !levelsDropdownRef.contains(event.target)) showLevelDropdown = false;
+    if (showTagDropdown && tagDropdownRef && !tagDropdownRef.contains(event.target)) showTagDropdown = false;
+    if (showCountryDropdown && countryDropdownRef && !countryDropdownRef.contains(event.target)) showCountryDropdown = false;
+  }
+  onMount(() => {
+    document.addEventListener('click', handleDocumentClick);
+    return () => document.removeEventListener('click', handleDocumentClick);
+  });
 </script>
 
 <div class="controls-bar">
-	<div class="controls-left">
-		<!-- Sort Dropdown -->
-		<div class="dropdown" bind:this={sortDropdownRef}>
-			<button
-				class="dropdown-btn"
-				aria-expanded={showSortDropdown}
-				on:click={() => (showSortDropdown = !showSortDropdown)}
-				type="button"
-			>
-				<Sparkles size={18} style="margin-right:7px;vertical-align:-3px;color:#2e9be6;" />
-				Sort by
-				<svg width="12" height="9" style="margin-left:7px;" fill="none">
-					<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
-				</svg>
-			</button>
-			{#if showSortDropdown}
-				<div class="dropdown-content">
-					{#each sortChoices as opt}
-						<div
-							style="padding:0.32em 0.2em;cursor:pointer;"
-							on:click={() => handleSetSort(opt.value)}
-						>
-							{opt.label}
-						</div>
-					{/each}
-				</div>
-			{/if}
-		</div>
+  <div class="controls-left">
+    <!-- Sort Dropdown -->
+    <div class="dropdown" bind:this={sortDropdownRef}>
+      <button class="dropdown-btn" aria-expanded={showSortDropdown} on:click={() => showSortDropdown = !showSortDropdown} type="button">
+        <Sparkles size={18} style="margin-right:7px;vertical-align:-3px;color:#2e9be6;" />
+        Sort by
+        <svg width="12" height="9" style="margin-left:7px;" fill="none">
+          <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+        </svg>
+      </button>
+      {#if showSortDropdown}
+        <div class="dropdown-content">
+          {#each sortChoices as opt}
+            <div style="padding:0.32em 0.2em;cursor:pointer;" on:click={() => handleSetSort(opt.value)}>
+              {opt.label}
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </div>
 
-		<!-- Levels Dropdown -->
-		<div class="dropdown" bind:this={levelsDropdownRef}>
-			<button
-				class="dropdown-btn"
-				aria-expanded={showLevelDropdown}
-				on:click={() => (showLevelDropdown = !showLevelDropdown)}
-				type="button"
-			>
-				<BarChart3 size={18} style="margin-right:7px;vertical-align:-3px;color:#44c366;" />
-				Levels
-				<svg width="12" height="9" style="margin-left:7px;" fill="none">
-					<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
-				</svg>
-			</button>
-			{#if showLevelDropdown}
-				<div class="dropdown-content">
-					<div style="margin-bottom:0.5em;font-size:1em;font-weight:600;">Include</div>
-					<div class="levels-list">
-						{#each levels as lvl}
-							<label class="level-checkbox">
-								<input
-									type="checkbox"
-									checked={_selectedLevels.has(lvl.value)}
-									on:change={() => handleToggleLevel(lvl.value)}
-								/>
-								<span>{lvl.label}</span>
-							</label>
-						{/each}
-					</div>
-					<div style="margin-top:0.4em;">
-						<button
-							style="font-size:0.97em;color:#176cda;background:none;border:none;cursor:pointer;"
-							on:click={handleToggleAllLevels}
-						>
-							{_selectedLevels.size === levels.length ? 'Clear all' : 'Select all'}
-						</button>
-					</div>
-				</div>
-			{/if}
-		</div>
+    <!-- Levels Dropdown -->
+    <div class="dropdown" bind:this={levelsDropdownRef}>
+      <button class="dropdown-btn" aria-expanded={showLevelDropdown} on:click={() => showLevelDropdown = !showLevelDropdown} type="button">
+        <BarChart3 size={18} style="margin-right:7px;vertical-align:-3px;color:#44c366;" />
+        Levels
+        <svg width="12" height="9" style="margin-left:7px;" fill="none">
+          <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+        </svg>
+      </button>
+      {#if showLevelDropdown}
+        <div class="dropdown-content">
+          <div style="margin-bottom:0.5em;font-size:1em;font-weight:600;">Include</div>
+          <div class="levels-list">
+            {#each levels as lvl}
+              <label class="level-checkbox">
+                <input type="checkbox" checked={selectedLevels.has(lvl.value)} on:change={() => handleToggleLevel(lvl.value)} />
+                <span>{lvl.label}</span>
+              </label>
+            {/each}
+          </div>
+          <div style="margin-top:0.4em;">
+            <button style="font-size:0.97em;color:#176cda;background:none;border:none;cursor:pointer;" on:click={handleToggleAllLevels}>
+              {selectedLevels.size === levels.length ? 'Clear all' : 'Select all'}
+            </button>
+          </div>
+        </div>
+      {/if}
+    </div>
 
-		<!-- Tags Dropdown -->
-		<div class="dropdown" bind:this={tagDropdownRef}>
-			<button
-				class="dropdown-btn"
-				aria-expanded={showTagDropdown}
-				on:click={() => (showTagDropdown = !showTagDropdown)}
-				type="button"
-			>
-				<Tag size={18} style="margin-right:7px;vertical-align:-3px;color:#f2a02b;" />
-				Tags
-				<svg width="12" height="9" style="margin-left:7px;" fill="none">
-					<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
-				</svg>
-			</button>
-			{#if showTagDropdown}
-				<div class="dropdown-content">
-					{#each tagOptions as tag}
-						<label class="level-checkbox">
-							<input
-								type="checkbox"
-								checked={_selectedTags.has(tag)}
-								on:change={() => handleToggleTag(tag)}
-							/>
-							<span>{tag}</span>
-						</label>
-					{/each}
-					<button
-						style="margin-top:0.5em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;"
-						on:click={handleClearTags}
-					>
-						Clear all
-					</button>
-				</div>
-			{/if}
-		</div>
+    <!-- Tags Dropdown -->
+    <div class="dropdown" bind:this={tagDropdownRef}>
+      <button class="dropdown-btn" aria-expanded={showTagDropdown} on:click={() => showTagDropdown = !showTagDropdown} type="button">
+        <Tag size={18} style="margin-right:7px;vertical-align:-3px;color:#f2a02b;" />
+        Tags
+        <svg width="12" height="9" style="margin-left:7px;" fill="none">
+          <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+        </svg>
+      </button>
+      {#if showTagDropdown}
+        <div class="dropdown-content">
+          {#each tagOptions as tag}
+            <label class="level-checkbox">
+              <input type="checkbox" checked={selectedTags.has(tag)} on:change={() => handleToggleTag(tag)} />
+              <span>{tag}</span>
+            </label>
+          {/each}
+          <button style="margin-top:0.5em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;" on:click={handleClearTags}>
+            Clear all
+          </button>
+        </div>
+      {/if}
+    </div>
 
-		<!-- Countries Dropdown -->
-		<div class="dropdown" bind:this={countryDropdownRef}>
-			<button
-				class="dropdown-btn"
-				aria-expanded={showCountryDropdown}
-				on:click={() => (showCountryDropdown = !showCountryDropdown)}
-				type="button"
-			>
-				<Globe size={18} style="margin-right:7px;vertical-align:-3px;color:#c367f2;" />
-				Countries
-				<svg width="12" height="9" style="margin-left:7px;" fill="none">
-					<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
-				</svg>
-			</button>
-			{#if showCountryDropdown}
-				<div class="dropdown-content">
-					<label class="level-checkbox">
-						<input
-							type="checkbox"
-							checked={_selectedCountry === ''}
-							on:change={() => handleSetCountry('')}
-						/>
-						<span>All Countries</span>
-					</label>
-					{#each countryOptions as country}
-						<label class="level-checkbox">
-							<input
-								type="checkbox"
-								checked={_selectedCountry === country}
-								on:change={() => handleSetCountry(country)}
-							/>
-							<span>{country}</span>
-						</label>
-					{/each}
-				</div>
-			{/if}
-		</div>
-	</div>
-	<div class="controls-right">
-		<button
-			class="dropdown-btn hide-watched-btn"
-			type="button"
-			aria-pressed={_hideWatched}
-			on:click={handleHideWatched}
-		>
-			<span class="switch-slider" aria-hidden="true"></span>
-			<span class="switch-label-text">Hide watched</span>
-		</button>
-		<div class="search-bar-container">
-			{#if _searchOpen}
-				<input
-					type="text"
-					class="search-input"
-					placeholder="Search videos…"
-					value={_searchTerm}
-					on:input={(e) => handleSearchInput(e.target.value)}
-					autofocus
-				/>
-			{/if}
-			<button
-				class="search-toggle"
-				title="Search"
-				on:click={handleToggleSearch}
-				aria-label="Search"
-			>
-				<Search size={22} style="color:#2e9be6;" />
-			</button>
-		</div>
-	</div>
+    <!-- Countries Dropdown -->
+    <div class="dropdown" bind:this={countryDropdownRef}>
+      <button class="dropdown-btn" aria-expanded={showCountryDropdown} on:click={() => showCountryDropdown = !showCountryDropdown} type="button">
+        <Globe size={18} style="margin-right:7px;vertical-align:-3px;color:#c367f2;" />
+        Countries
+        <svg width="12" height="9" style="margin-left:7px;" fill="none">
+          <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+        </svg>
+      </button>
+      {#if showCountryDropdown}
+        <div class="dropdown-content">
+          <label class="level-checkbox">
+            <input type="checkbox" checked={selectedCountry === ''} on:change={() => handleSetCountry('')} />
+            <span>All Countries</span>
+          </label>
+          {#each countryOptions as country}
+            <label class="level-checkbox">
+              <input type="checkbox" checked={selectedCountry === country} on:change={() => handleSetCountry(country)} />
+              <span>{country}</span>
+            </label>
+          {/each}
+        </div>
+      {/if}
+    </div>
+  </div>
+  <div class="controls-right">
+    <button
+      class="dropdown-btn hide-watched-btn"
+      type="button"
+      aria-pressed={hideWatched}
+      on:click={handleHideWatched}
+    >
+      <span class="switch-slider" aria-hidden="true"></span>
+      <span class="switch-label-text">Hide watched</span>
+    </button>
+    <div class="search-bar-container">
+      {#if searchOpen}
+        <input
+          type="text"
+          class="search-input"
+          placeholder="Search videos…"
+          value={searchTerm}
+          on:input={e => handleSearchInput(e.target.value)}
+          autofocus
+        />
+      {/if}
+      <button
+        class="search-toggle"
+        title="Search"
+        on:click={handleToggleSearch}
+        aria-label="Search"
+      >
+        <Search size={22} style="color:#2e9be6;" />
+      </button>
+    </div>
+  </div>
 </div>
 
 <style>

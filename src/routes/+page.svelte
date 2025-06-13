@@ -151,15 +151,18 @@
   });
 
   // --- When filters change, update URL and refetch videos ---
-  function handleSortBarChange(e) {
-    selectedLevels.set(e.detail.selectedLevels);
-    sortBy.set(e.detail.sortBy);
-    selectedCountry.set(e.detail.selectedCountry);
-    selectedTags.set(e.detail.selectedTags);
-    searchTerm.set(e.detail.searchTerm);
-    updateUrlFromFilters();
-    resetAndFetch();
-  }
+function handleSortBarChange(e) {
+  selectedLevels.set(e.detail.selectedLevels);
+  sortBy.set(e.detail.sortBy);
+  selectedCountry.set(e.detail.selectedCountry);
+  selectedTags.set(e.detail.selectedTags);
+  hideWatched.set(e.detail.hideWatched);
+  searchTerm.set(e.detail.searchTerm);
+  searchOpen = e.detail.searchOpen;
+
+  updateUrlFromFilters();   // <-- keep URL in sync
+  resetAndFetch();          // <-- this triggers a new API request!
+}
 
   function filterByChannel(channelName) {
     selectedChannel.set(channelName);
@@ -211,19 +214,20 @@
 
 <div class="page-container">
   <div class="sortbar-container">
-    <SortBar
-      {levels}
-      {sortChoices}
-      {countryOptions}
-      {tagOptions}
-      selectedLevels={$selectedLevels}
-      sortBy={$sortBy}
-      selectedCountry={$selectedCountry}
-      selectedTags={$selectedTags}
-      searchTerm={$searchTerm}
-      searchOpen={searchOpen}
-      on:change={handleSortBarChange}
-    />
+<SortBar
+  {levels}
+  {sortChoices}
+  {countryOptions}
+  {tagOptions}
+  selectedLevels={$selectedLevels}
+  sortBy={$sortBy}
+  selectedCountry={$selectedCountry}
+  selectedTags={$selectedTags}
+  hideWatched={$hideWatched}
+  searchTerm={$searchTerm}
+  searchOpen={searchOpen}
+  on:change={handleSortBarChange}
+/>
   </div>
 
   {#if $selectedChannel}
