@@ -190,23 +190,6 @@
 					{streak} day{streak === 1 ? '' : 's'}
 				</div>
 			</div>
-			<div class="stat-box calendar-box">
-				<div class="stat-label">Calendar</div>
-				<div class="mini-calendar">
-					{#each activityDays as d, i}
-						<div
-							class="calendar-day {i === activityDays.length - 1 ? 'calendar-today' : ''}"
-							style="background:{barColor(d.mins)}"
-							title={`Date: ${d.date}\n${d.mins} min`}
-						></div>
-					{/each}
-				</div>
-				<div class="calendar-labels">
-					{#each activityDays as d, i}
-						<div>{i % 2 === 0 ? d.date.slice(5) : ''}</div>
-					{/each}
-				</div>
-			</div>
 		</div>
 
 		<!-- HISTORY SECTION styled like front page grid -->
