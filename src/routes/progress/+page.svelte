@@ -210,30 +210,32 @@
     </div>
 
     <!-- HISTORY SECTION styled like front page grid -->
-    <div class="history-section">
-      <div class="history-header">
-        <span class="section-title" style="margin:0;">History</span>
-        <a href="/history" class="view-all-link">View all</a>
-      </div>
-      {#if watchedVideos.length === 0}
-        <div>No videos watched yet.</div>
-      {:else}
-        <div class="history-grid">
-          {#each watchedVideos.slice(0, 15) as v}
-            <VideoCard
-         
-              video={v}
-              getBestThumbnail={utils.getBestThumbnail}
-              difficultyColor={utils.difficultyColor}
-              difficultyLabel={utils.difficultyLabel}
-              formatLength={utils.formatLength}
-              filterByChannel={null}
-              filterByPlaylist={null}
-            />
-          {/each}
+<div class="history-section">
+  <div class="history-header">
+    <span class="section-title" style="margin:0;">History</span>
+    <a href="/history" class="view-all-link">View all</a>
+  </div>
+  {#if watchedVideos.length === 0}
+    <div>No videos watched yet.</div>
+  {:else}
+    <div class="history-row">
+      {#each watchedVideos.slice(0, 15) as v}
+        <div class="history-card">
+          <VideoCard
+            video={v}
+            getBestThumbnail={utils.getBestThumbnail}
+            difficultyColor={utils.difficultyColor}
+            difficultyLabel={utils.difficultyLabel}
+            formatLength={utils.formatLength}
+            filterByChannel={null}
+            filterByPlaylist={null}
+          />
         </div>
-      {/if}
+      {/each}
     </div>
+  {/if}
+</div>
+
 
     <!-- MY VIDEOS SECTION styled like front page grid -->
 
@@ -371,13 +373,38 @@
     text-decoration: none;
     font-weight: 500;
   }
-  .history-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 2.1em 2.1em;
-    margin-bottom: 2em;
-    margin-top: 0.6em;
+.history-row {
+  display: flex;
+  gap: 1.5em;
+  overflow-x: auto;
+  padding-bottom: 0.7em;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.history-row::-webkit-scrollbar {
+  height: 9px;
+  background: #f6f6f6;
+}
+.history-row::-webkit-scrollbar-thumb {
+  background: #e5e5e5;
+  border-radius: 6px;
+}
+.history-card {
+  flex: 0 0 265px;  /* Adjust width for card size */
+  scroll-snap-align: start;
+  min-width: 265px;
+  max-width: 320px;
+}
+@media (max-width: 600px) {
+  .history-card {
+    flex-basis: 82vw;
+    min-width: 82vw;
+    max-width: 90vw;
   }
+  .history-row {
+    gap: 1em;
+  }
+}
 
   .profile-row {
     margin-bottom: 1.3em;
