@@ -31,7 +31,7 @@ export async function GET({ url }) {
       return json({ error: idError.message }, { status: 500 });
     }
     if (!idsData || idsData.length === 0) {
-      return json({ videos: [], total: 0, hasMore: false });
+      return json({ videos: [], total: 0, hasMore: true });
     }
 
     // 2. Randomly pick up to pageSize IDs
@@ -64,7 +64,7 @@ export async function GET({ url }) {
     return json({
       videos: sortedVideos,
       total: count ?? 0,
-      hasMore: false // No real paging for random, but you could add more logic here
+      hasMore: true // No real paging for random, but you could add more logic here
     });
   }
 

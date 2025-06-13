@@ -12,25 +12,23 @@
   } from '$lib/stores/videos.js';
 
   const PAGE_SIZE = 30;
-  let videos = writable([]);
-  let loading = writable(false);
-  let errorMsg = writable('');
-  let hasMore = writable(true);
-  let page = writable(1);
+  const videos = writable([]);
+  const loading = writable(false);
+  const errorMsg = writable('');
+  const hasMore = writable(true);
+  const page = writable(1);
 
-  let searchOpen = writable(false);
-
-  // ---- Intersection Observer Fix ----
+  let searchOpen = false;
   let sentinel;
   let observerInstance;
 
-  // Clean up previous observer, attach to new sentinel
+  // ---- Infinite Scroll: Observe the sentinel after each render ----
   function setupObserver() {
     if (observerInstance) {
       observerInstance.disconnect();
       observerInstance = null;
     }
-    if (sentinel && $hasMore && $sortBy !== 'random') {
+    if (sentinel && get(hasMore) && get(sortBy) !== 'random') {
       observerInstance = new IntersectionObserver(
         (entries) => {
           entries.forEach((entry) => {
@@ -49,26 +47,11 @@
       observerInstance.observe(sentinel);
     }
   }
+  $: if (sentinel) setupObserver();
+  onDestroy(() => { if (observerInstance) observerInstance.disconnect(); });
 
-  // Set up and tear down the observer reactively when sentinel changes!
-  $: if (sentinel) {
-    setupObserver();
-  }
-
-  onDestroy(() => {
-    if (observerInstance) observerInstance.disconnect();
-  });
-
-  // --- Filter/URL logic, fetchVideos, handleSortBarChange, etc. as before ---
-  function filtersToQuery({
-    levels,
-    tags,
-    country,
-    channel,
-    playlist,
-    sort,
-    search
-  }) {
+  // --- URL <-> Filters helpers ---
+  function filtersToQuery({ levels, tags, country, channel, playlist, sort, search }) {
     const params = new URLSearchParams();
     if (levels?.size && levels.size < 3) params.set('level', Array.from(levels).join(','));
     if (tags?.size) params.set('tags', Array.from(tags).join(','));
@@ -107,6 +90,7 @@
     history.replaceState({}, '', url);
   }
 
+  // --- Main fetch function for all sorts except random ---
   async function fetchVideos({ append = false } = {}) {
     loading.set(true);
     errorMsg.set('');
@@ -138,17 +122,22 @@
     loading.set(false);
   }
 
+  // --- Load More Handler (random and non-random) ---
   async function loadMore() {
     if (!get(hasMore) || get(loading)) return;
+    // For random: keep incrementing page and appending
+    // For others: ditto
     page.update(p => p + 1);
     await fetchVideos({ append: true });
   }
 
+  // --- Reset videos on filter/sort/search change ---
   function resetAndFetch() {
     page.set(1);
     fetchVideos({ append: false });
   }
 
+  // --- On mount: get filters from URL, fetch first page ---
   onMount(() => {
     const filters = queryToFilters(window.location.search);
     if (filters.levels.size) selectedLevels.set(filters.levels);
@@ -161,6 +150,7 @@
     resetAndFetch();
   });
 
+  // --- When filters change, update URL and refetch videos ---
   function handleSortBarChange(e) {
     selectedLevels.set(e.detail.selectedLevels);
     sortBy.set(e.detail.sortBy);
@@ -231,7 +221,7 @@
       selectedCountry={$selectedCountry}
       selectedTags={$selectedTags}
       searchTerm={$searchTerm}
-      searchOpen={$searchOpen}
+      searchOpen={searchOpen}
       on:change={handleSortBarChange}
     />
   </div>
@@ -279,7 +269,6 @@
   {/if}
 </div>
 
-
 <style>
   .load-more-btn {
     padding: 0.9em 2.4em;
@@ -297,6 +286,5 @@
     opacity: 0.66;
     cursor: not-allowed;
   }
-
+  /* ...other CSS from your app... */
 </style>
-
