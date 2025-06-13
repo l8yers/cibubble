@@ -1,21 +1,20 @@
-// utils.js
-
 export function difficultyLabel(level) {
   switch (level) {
-    case 'superbeginner': return 'Super Beginner';
-    case 'beginner': return 'Easy';
+    case 'easy': return 'Easy';
     case 'intermediate': return 'Intermediate';
     case 'advanced': return 'Advanced';
+    // If you still want to show old "superbeginner", keep this:
+    case 'superbeginner': return 'Super Beginner';
     default: return 'Not Yet Rated';
   }
 }
 
 export function difficultyColor(level) {
   switch (level) {
-    case 'superbeginner': return '#44c366';
-    case 'beginner': return '#069C56';
+    case 'easy': return '#069C56';           // Use the old beginner color for easy
     case 'intermediate': return '#FF980E';
     case 'advanced': return '#D3212C';
+    case 'superbeginner': return '#44c366';  // Optional, for legacy support
     default: return '#bbb';
   }
 }
@@ -37,7 +36,10 @@ export function getBestThumbnail(video) {
 }
 
 export function levelOrder(level) {
-  return ['superbeginner', 'beginner', 'intermediate', 'advanced'].indexOf(level);
+  // Make sure 'easy' is in the order now
+  return ['easy', 'intermediate', 'advanced'].indexOf(level);
+  // Add 'superbeginner' at the start if you still support it
+  // return ['superbeginner', 'easy', 'intermediate', 'advanced'].indexOf(level);
 }
 
 export function shuffleArray(array) {
