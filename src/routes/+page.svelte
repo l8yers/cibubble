@@ -3,23 +3,85 @@
   import VideoGrid from '$lib/components/VideoGrid.svelte';
   import SortBar from '$lib/components/SortBar.svelte';
   import * as utils from '$lib/utils.js';
-    import '../app.css';
+  import '../app.css';
 
-
-  // Import stores
   import {
     filteredVideos, loading, errorMsg, loadVideos,
     selectedChannel, selectedPlaylist, selectedLevels, sortBy, selectedCountry,
     selectedTags, hideWatched, watchedIds, searchTerm
   } from '$lib/stores/videos.js';
 
-  // Set up on mount
+  import { get } from 'svelte/store';
+
+  // --- URL <-> Filters helpers ---
+  function filtersToQuery({
+    levels,
+    tags,
+    country,
+    channel,
+    playlist,
+    sort,
+    hideWatched,
+    search
+  }) {
+    const params = new URLSearchParams();
+    if (levels?.size && levels.size < 3) params.set('level', Array.from(levels).join(',')); // Only set if not all
+    if (tags?.size) params.set('tags', Array.from(tags).join(','));
+    if (country) params.set('country', country);
+    if (channel) params.set('channel', channel);
+    if (playlist) params.set('playlist', playlist);
+    if (sort && sort !== 'random') params.set('sort', sort);
+    if (hideWatched) params.set('hideWatched', '1');
+    if (search) params.set('search', search);
+    return params.toString();
+  }
+
+  function queryToFilters(qs) {
+    const params = new URLSearchParams(qs);
+    return {
+      levels: new Set((params.get('level') || '').split(',').filter(Boolean)),
+      tags: new Set((params.get('tags') || '').split(',').filter(Boolean)),
+      country: params.get('country') || '',
+      channel: params.get('channel') || '',
+      playlist: params.get('playlist') || '',
+      sort: params.get('sort') || 'random',
+      hideWatched: params.get('hideWatched') === '1',
+      search: params.get('search') || '',
+    };
+  }
+
+  // --- Update URL from current filters ---
+  function updateUrlFromFilters() {
+    const query = filtersToQuery({
+      levels: get(selectedLevels),
+      tags: get(selectedTags),
+      country: get(selectedCountry),
+      channel: get(selectedChannel),
+      playlist: get(selectedPlaylist),
+      sort: get(sortBy),
+      hideWatched: get(hideWatched),
+      search: get(searchTerm)
+    });
+    const url = query ? `?${query}` : window.location.pathname;
+    history.replaceState({}, '', url);
+  }
+
+  // --- Set filter stores from querystring on mount ---
   onMount(() => {
+    const filters = queryToFilters(window.location.search);
+    if (filters.levels.size) selectedLevels.set(filters.levels);
+    if (filters.tags.size) selectedTags.set(filters.tags);
+    if (filters.country) selectedCountry.set(filters.country);
+    if (filters.channel) selectedChannel.set(filters.channel);
+    if (filters.playlist) selectedPlaylist.set(filters.playlist);
+    sortBy.set(filters.sort);
+    hideWatched.set(filters.hideWatched);
+    searchTerm.set(filters.search);
+
     loadVideos();
-    // TODO: fetch watchedIds for the current user and set watchedIds store here
   });
 
-  // Example: pass event from SortBar to update filter stores
+  // --- When filters change, update URL ---
   function handleSortBarChange(e) {
     selectedLevels.set(e.detail.selectedLevels);
     sortBy.set(e.detail.sortBy);
@@ -27,13 +89,25 @@
     selectedTags.set(e.detail.selectedTags);
     hideWatched.set(e.detail.hideWatched);
     searchTerm.set(e.detail.searchTerm);
+    updateUrlFromFilters();
   }
 
-  // Filtering by channel/playlist via VideoCard grid:
-  function filterByChannel(channelName) { selectedChannel.set(channelName); }
-  function clearChannelFilter() { selectedChannel.set(""); }
-  function filterByPlaylist(playlistTitle) { selectedPlaylist.set(playlistTitle); }
-  function clearPlaylistFilter() { selectedPlaylist.set(""); }
+  function filterByChannel(channelName) {
+    selectedChannel.set(channelName);
+    updateUrlFromFilters();
+  }
+  function clearChannelFilter() {
+    selectedChannel.set("");
+    updateUrlFromFilters();
+  }
+  function filterByPlaylist(playlistTitle) {
+    selectedPlaylist.set(playlistTitle);
+    updateUrlFromFilters();
+  }
+  function clearPlaylistFilter() {
+    selectedPlaylist.set("");
+    updateUrlFromFilters();
+  }
 
   // Filter/Sort options (should live in a config file or constants ideally)
   const levels = [
