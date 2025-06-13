@@ -2,21 +2,19 @@
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import { page } from '$app/stores';
+  import { user } from '$lib/stores/user.js';
   import VideoWatchTracker from '$lib/components/VideoWatchTracker.svelte';
   import SideBar from '$lib/components/SideBar.svelte';
   import * as utils from '$lib/utils.js';
 
   let video = null;
   let loading = true;
-  let user = null;
 
   $: id = $page.params.id;
 
   onMount(async () => {
     loading = true;
-    // Get user
-    const { data: sess } = await supabase.auth.getSession();
-    user = sess.session?.user ?? null;
+    // Use $user instead of direct supabase.auth.getSession()
     // Fetch main video
     const { data: vid } = await supabase
       .from('videos')
@@ -27,6 +25,47 @@
     loading = false;
   });
 </script>
+
+{#if loading}
+  <div class="player-loading">Loading…</div>
+{:else if !video}
+  <div class="player-loading">Video not found.</div>
+{:else}
+  <div class="player-container">
+    <div class="player-main-col">
+      <div class="player-video-box">
+        <iframe
+          id="yt-player"
+          width="100%"
+          height="100%"
+          src={`https://www.youtube.com/embed/${video.id}?enablejsapi=1`}
+          title={video.title}
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen
+        ></iframe>
+        {#if $user}
+          <VideoWatchTracker videoId={video.id} videoDuration={video.length} userId={$user.id} />
+        {/if}
+      </div>
+      <div class="player-title">{video.title}</div>
+      <div class="player-meta-row">
+        <span
+          class="player-diff-badge"
+          style="background: {utils.difficultyColor(video.level)};"
+        >{utils.difficultyLabel(video.level)}</span>
+        <span class="player-channel">{video.channel?.name ?? video.channel_name}</span>
+        {#if video.length}
+          <span class="player-duration">{utils.formatLength(video.length)}</span>
+        {/if}
+      </div>
+    </div>
+    <aside class="player-sidebar">
+      <SideBar {video} />
+    </aside>
+  </div>
+{/if}
+
 
 {#if loading}
   <div class="player-loading">Loading…</div>
