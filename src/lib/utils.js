@@ -13,9 +13,9 @@ export function difficultyLabel(level) {
 export function difficultyColor(level) {
   switch (level) {
     case 'superbeginner': return '#44c366';
-    case 'beginner': return '#2e9be6';
-    case 'intermediate': return '#f9c846';
-    case 'advanced': return '#e93c2f';
+    case 'beginner': return '#069C56';
+    case 'intermediate': return '#FF980E';
+    case 'advanced': return '#D3212C';
     default: return '#bbb';
   }
 }
