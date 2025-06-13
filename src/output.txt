@@ -1,4 +1,3 @@
-===== ./routes/+page.svelte =====
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
@@ -33,8 +32,7 @@
   let allSearchLoaded = false;
 
   const levels = [
-    { value: 'superbeginner', label: 'Super Beginner' },
-    { value: 'beginner', label: 'Beginner' },
+    { value: 'beginner', label: 'Easy' },
     { value: 'intermediate', label: 'Intermediate' },
     { value: 'advanced', label: 'Advanced' }
   ];
@@ -193,18 +191,7 @@
       } else {
         searchResults = [...searchResults, ...data];
         allSearchLoaded = data.length < pageSize;
-        searchPage = page;
-      }
-    }
-    searching = false;
-  }
-  function clearSearch() {
-    searchTerm = '';
-    searchResults = [];
-    searching = false;
-    searchError = '';
-    allSearchLoaded = false;
-    searchPage = 1;
+        searchPage = page;    done
     updateGrid();
   }
 
@@ -338,13 +325,9 @@
     {/if}
   {/if}
 </div>
-
-
-===== ./routes/admin/+page.svelte =====
 <script>
   import { supabase } from '$lib/supabaseClient';
 
-  // --- Master lists ---
   const countryOptions = [
     "Argentina","Canary Islands","Chile","Colombia","Costa Rica","Cuba",
     "Dominican Republic","Ecuador","El Salvador","Equatorial Guinea",
@@ -358,16 +341,15 @@
     "Native Show","Education","Sports","Current Events"
   ];
 
+  // Levels: Easy (was Beginner), Intermediate, Advanced, Not Yet Rated
   const levels = [
     { value: '', label: 'Set Level' },
-    { value: 'superbeginner', label: 'Super Beginner' },
-    { value: 'beginner', label: 'Beginner' },
+    { value: 'easy', label: 'Easy' },
     { value: 'intermediate', label: 'Intermediate' },
     { value: 'advanced', label: 'Advanced' },
     { value: 'notyet', label: 'Not Yet Rated' }
   ];
 
-  // --- State ---
   let url = '';
   let message = '';
   let importing = false;
@@ -378,36 +360,37 @@
   let showPlaylistsFor = null;
   let playlists = [];
   let playlistsLoading = false;
+  let showTagsFor = null;
+  let settingCountry = {};
+  let settingLevel = {};
+  let settingPlaylistLevel = {};
+  let savingTags = {};
+
   let adminStats = {
     videos: 0,
     channels: 0,
     playlists: 0,
     runningTime: 0,
     byLevel: {
-      superbeginner: 0,
-      beginner: 0,
+      easy: 0,
       intermediate: 0,
       advanced: 0,
       notyet: 0
     },
     timeByLevel: {
-      superbeginner: 0,
-      beginner: 0,
+      easy: 0,
       intermediate: 0,
       advanced: 0,
       notyet: 0
     }
   };
 
-  // --- Helpers ---
   function formatTime(sec) {
-    // If your "length" is in minutes, change to: let h = Math.floor(sec / 60); let m = sec % 60;
     const h = Math.floor(sec / 3600);
     const m = Math.floor((sec % 3600) / 60);
     return `${h}h ${m}m`;
   }
 
-  // --- Admin Actions ---
   async function importChannel() {
     message = '';
     importing = true;
@@ -428,7 +411,8 @@
   }
 
   async function clearDatabase() {
-    if (!confirm('Are you sure? This will delete ALL videos, playlists, and channels!')) return;
+    const confirmStr = prompt('Are you sure? Type DELETE to confirm clearing ALL data.');
+    if (confirmStr !== 'DELETE') return;
     clearing = true;
     message = '';
     await supabase.from('videos').delete().neq('id', '');
@@ -451,9 +435,11 @@
 
   async function setChannelLevel(channelId, level) {
     if (!level) return;
+    settingLevel[channelId] = true;
     await supabase.from('videos').update({ level }).eq('channel_id', channelId);
     message = `✅ All videos for this channel set to "${levels.find(l => l.value === level)?.label}"`;
     await refresh();
+    settingLevel[channelId] = false;
   }
 
   async function togglePlaylistsFor(channelId) {
@@ -471,7 +457,6 @@
     if (!error) {
       playlists = await Promise.all(
         (data || []).map(async (pl) => {
-          // Fetch levels of all videos in this playlist
           const { data: vids } = await supabase
             .from('videos')
             .select('level')
@@ -504,25 +489,28 @@
 
   async function setPlaylistLevel(playlistId, level) {
     if (!level) return;
+    settingPlaylistLevel[playlistId] = true;
     await supabase.from('videos').update({ level }).eq('playlist_id', playlistId);
     message = `✅ All videos for this playlist set to "${levels.find(l => l.value === level)?.label}"`;
-    // Update only that playlist's currentLevel in the UI, clear its _newLevel
     playlists = playlists.map(pl =>
       pl.id === playlistId
         ? { ...pl, currentLevel: level, _newLevel: '' }
         : pl
     );
+    settingPlaylistLevel[playlistId] = false;
   }
 
-  async function setChannelCountry(channelId, country) {
-    await supabase.from('channels').update({ country }).eq('id', channelId);
-    message = '✅ Country updated';
-    await refresh();
+  function toggleTagsFor(channelId) {
+    if (showTagsFor === channelId) {
+      showTagsFor = null;
+    } else {
+      showTagsFor = channelId;
+    }
   }
 
   async function setChannelTags(chan) {
     if (!chan._tagsSet) return;
-    // Add new tags to tagOptions if needed (UI only, not master table here)
+    savingTags[chan.id] = true;
     for (const t of chan._tagsSet) {
       if (!tagOptions.includes(t)) tagOptions = [...tagOptions, t];
     }
@@ -532,44 +520,62 @@
     message = '✅ Tags updated';
     chan._tagsDirty = false;
     await refresh();
+    savingTags[chan.id] = false;
   }
 
-  // --- REFRESH DATA & STATS ---
+  async function setChannelCountry(channelId, country) {
+    settingCountry[channelId] = true;
+    await supabase.from('channels').update({ country }).eq('id', channelId);
+    message = '✅ Country updated';
+    await refresh();
+    settingCountry[channelId] = false;
+  }
+
   async function refresh() {
     refreshing = true;
-    // Channels for table
     let { data, error } = await supabase.from('channels').select('*');
     if (error) {
       message = error.message;
       refreshing = false;
       return;
     }
-    channels = (data || []).map(chan => ({
-      ...chan,
-      _country: chan.country || "",
-      _tagsSet: new Set((chan.tags || "").split(",").map(t => t.trim()).filter(Boolean)),
-      _newTag: "",
-      _tagsDirty: false,
-      _newLevel: ""
-    }));
+    channels = await Promise.all(
+      (data || []).map(async (chan) => {
+        const { data: vids } = await supabase.from('videos').select('level').eq('channel_id', chan.id);
+        let _mainLevel = '';
+        if (vids && vids.length > 0) {
+          const levelsArr = vids.map(v => v.level || '');
+          const uniqueLevels = Array.from(new Set(levelsArr));
+          if (uniqueLevels.length === 1) {
+            _mainLevel = uniqueLevels[0] || '';
+          } else {
+            _mainLevel = 'mixed';
+          }
+        }
+        return {
+          ...chan,
+          _country: chan.country || "",
+          _tagsSet: new Set((chan.tags || "").split(",").map(t => t.trim()).filter(Boolean)),
+          _newTag: "",
+          _tagsDirty: false,
+          _newLevel: "",
+          _mainLevel
+        };
+      })
+    );
 
-    // --- Stats ---
-    // Counts
     const { count: videosCount } = await supabase.from('videos').select('id', { count: 'exact', head: true });
     const { count: playlistsCount } = await supabase.from('playlists').select('id', { count: 'exact', head: true });
     const { count: channelsCount } = await supabase.from('channels').select('id', { count: 'exact', head: true });
 
-    // Totals by level and time by level
     let byLevel = {
-      superbeginner: 0,
-      beginner: 0,
+      easy: 0,
       intermediate: 0,
       advanced: 0,
       notyet: 0
     };
     let timeByLevel = {
-      superbeginner: 0,
-      beginner: 0,
+      easy: 0,
       intermediate: 0,
       advanced: 0,
       notyet: 0
@@ -577,13 +583,11 @@
 
     for (const lvl of Object.keys(byLevel)) {
       const eqLevel = lvl === 'notyet' ? '' : lvl;
-      // Count
       const { count } = await supabase
         .from('videos')
         .select('id', { count: 'exact', head: true })
         .eq('level', eqLevel);
       byLevel[lvl] = count || 0;
-      // Total time
       const { data: levelVids } = await supabase.from('videos').select('length').eq('level', eqLevel);
       if (levelVids) {
         timeByLevel[lvl] = levelVids.reduce((sum, v) => sum + (v.length || 0), 0);
@@ -592,7 +596,6 @@
       }
     }
 
-    // Running time (all)
     const { data: vidsTime } = await supabase.from('videos').select('length');
     let runningTime = 0;
     if (vidsTime) {
@@ -615,57 +618,248 @@
 </script>
 
 <style>
-.admin-main { max-width: 1100px; margin: 2.5rem auto 0 auto; background: #fff; border-radius: 13px; border: 1px solid #ececec; box-shadow: 0 2px 18px #ececec; padding: 2.7rem 2vw 2.5rem 2vw; font-family: Inter, Arial, sans-serif;}
-.row { display: flex; gap: 1em; margin-bottom: 1.5em; align-items: center;}
-input[type="text"], .tag-input { width: 370px; padding: 0.73em 1em; font-size: 1.09rem; border: 1px solid #ececec; border-radius: 7px; background: #fafafa; color: #181818;}
-button { padding: 0.66em 1.6em; font-size: 1.04rem; background: #e93c2f; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; margin-right: 1em; transition: background 0.18s;}
-button[disabled] { background: #e3e3e3; color: #aaa; cursor: default;}
-button:hover:not([disabled]) { background: #b8271b;}
-select, .tag-input { margin-top: 0.4em; }
-.admin-table { width: 100%; margin: 2.2em 0 0 0; border-collapse: collapse; background: #fff; font-size: 1.04em;}
-.admin-table th, .admin-table td { padding: 0.85em 0.8em; border-bottom: 1px solid #f2f2f2; text-align: left;}
-.admin-table th { color: #e93c2f; font-weight: 700;}
-.admin-table td { vertical-align: middle;}
-.channel-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; margin-right: 1.1em; border: 1.5px solid #eee;}
-.chip { background:#f7f7fb;border-radius:6px;padding:2px 7px 2px 5px;display:inline-flex;align-items:center;cursor:pointer;margin-right:5px;font-size:0.98em;}
-.chip input[type="checkbox"] { margin-right: 3px;}
-/* Playlist UI styles */
-.playlist-table { width:100%; margin-top:1em; background:none; font-size:0.98em;}
-.playlist-table th, .playlist-table td { padding: 0.55em 0.6em; border-bottom: 1px solid #f4f4fa; text-align:left;}
-@media (max-width: 700px) {.admin-main { padding: 1.3em 0.3em;} .admin-table th, .admin-table td { font-size: 0.97em; padding: 0.6em;}}
+.admin-main {
+  max-width: 1100px;
+  margin: 2.5rem auto 0 auto;
+  background: #fff;
+  border-radius: 13px;
+  border: 1px solid #ececec;
+  box-shadow: 0 2px 18px #ececec;
+  padding: 2.1rem 1.5vw 1.6rem 1.5vw;
+  font-family: Inter, Arial, sans-serif;
+}
+
+.row {
+  display: flex;
+  gap: 0.7em;
+  margin-bottom: 1.2em;
+  align-items: center;
+}
+
+input[type="text"], .tag-input {
+  width: 340px;
+  padding: 0.36em 0.8em;
+  font-size: 0.98rem;
+  border: 1px solid #ececec;
+  border-radius: 6px;
+  background: #fafafa;
+  color: #181818;
+}
+
+button {
+  padding: 0.34em 1.05em;
+  font-size: 0.97em;
+  background: #e93c2f;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  margin-right: 0.38em;
+  transition: background 0.18s;
+  min-width: 0;
+  line-height: 1.1em;
+}
+
+button[disabled] {
+  background: #e3e3e3;
+  color: #aaa;
+  cursor: default;
+}
+button:hover:not([disabled]) { background: #b8271b; }
+
+select, .tag-input {
+  margin-top: 0.12em;
+  margin-bottom: 0.12em;
+  font-size: 0.97em;
+  padding: 0.18em 0.5em;
+  border-radius: 5px;
+  border: 1px solid #ececec;
+  background: #fafafa;
+}
+
+.stats-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8em 1.3em;
+  margin: 0 0 1.5em 0;
+  padding: 0.7em 1.1em;
+  background: #f8f7fa;
+  border-radius: 8px;
+  align-items: flex-end;
+}
+
+.stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  background: #fff;
+  border-radius: 6px;
+  font-size: 1.04em;
+  padding: 0.29em 0.95em 0.29em 0.7em;
+  box-shadow: 0 1px 5px #ececec;
+  color: #d14e17;
+  font-weight: 600;
+  border: 1px solid #f3efea;
+}
+
+.stat-label {
+  color: #a4a4a4;
+  font-size: 0.98em;
+  margin-right: 0.24em;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.stat-time {
+  color: #aaa;
+  font-size: 0.98em;
+  font-weight: 400;
+  margin-left: 0.4em;
+}
+
+.stat-chip.level.easy { border-left: 5px solid #16a085; }
+.stat-chip.level.intermediate { border-left: 5px solid #f5a623; }
+.stat-chip.level.advanced { border-left: 5px solid #e93c2f; }
+.stat-chip.level.notyet { border-left: 5px solid #b2b2b2; }
+
+.admin-table {
+  width: 100%;
+  margin: 1.5em 0 0 0;
+  border-collapse: collapse;
+  background: #fff;
+  font-size: 1.00em;
+}
+
+.admin-table th, .admin-table td {
+  padding: 0.33em 0.45em;
+  border-bottom: 1px solid #f2f2f2;
+  text-align: left;
+  vertical-align: middle;
+  font-size: 0.98em;
+}
+
+.admin-table th {
+  color: #e93c2f;
+  font-weight: 700;
+  font-size: 1.04em;
+  letter-spacing: 0.01em;
+}
+
+.admin-table td {
+  vertical-align: middle;
+  font-size: 0.98em;
+}
+
+.channel-thumb {
+  width: 30px;
+  height: 30px;
+  object-fit: cover;
+  border-radius: 5px;
+  margin-right: 0.6em;
+  border: 1px solid #eee;
+  vertical-align: middle;
+}
+
+.chip {
+  background: #f7f7fb;
+  border-radius: 4px;
+  padding: 1px 6px 1px 4px;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  margin-right: 4px;
+  margin-bottom: 2px;
+  font-size: 0.91em;
+  min-height: 22px;
+}
+.chip input[type="checkbox"] { margin-right: 3px; }
+.chip:focus-within { outline: 2px solid #e93c2f; }
+
+.collapsible-cell {
+  padding: 0.5em 0.8em !important;
+  background: #f6faff;
+  font-size: 0.96em;
+}
+
+.tags-cell {
+  padding: 0.5em 0.8em !important;
+  background: #f6faff;
+  font-size: 0.96em;
+}
+
+.playlists-cell {
+  padding: 0.5em 0.8em !important;
+  background: #f9f9fc;
+  font-size: 0.96em;
+}
+
+.playlist-table {
+  width: 100%;
+  margin-top: 0.6em;
+  background: none;
+  font-size: 0.96em;
+  border-collapse: collapse;
+}
+
+.playlist-table th, .playlist-table td {
+  padding: 0.29em 0.39em;
+  border-bottom: 1px solid #f4f4fa;
+  text-align: left;
+}
+
+@media (max-width: 900px) {
+  .admin-main { padding: 1em 0.4em 1em 0.4em; }
+  .admin-table th, .admin-table td { font-size: 0.93em; padding: 0.18em 0.21em; }
+  .channel-thumb { width: 22px; height: 22px; margin-right: 0.32em; }
+  .chip { font-size: 0.83em; min-height: 18px; padding: 1px 3px 1px 2px; }
+  .collapsible-cell, .playlists-cell, .tags-cell { padding: 0.32em 0.3em !important; }
+  .playlist-table th, .playlist-table td { font-size: 0.91em; padding: 0.13em 0.1em; }
+  .stat-chip { font-size: 0.93em; padding: 0.18em 0.5em 0.18em 0.4em; }
+}
+
+@media (max-width: 600px) {
+  .admin-table th, .admin-table td { font-size: 0.91em; padding: 0.11em 0.06em; }
+  .channel-thumb { width: 16px; height: 16px; }
+  .chip { font-size: 0.75em; min-height: 14px; }
+  .collapsible-cell, .playlists-cell, .tags-cell { padding: 0.15em 0.06em !important; }
+  .stat-chip { font-size: 0.88em; padding: 0.11em 0.32em 0.11em 0.21em; }
+}
 </style>
 
 <div class="admin-main">
-  <h2 style="margin-bottom:1.6em;">CIBUBBLE Admin Tools</h2>
+  <h2 style="margin-bottom:1.1em;">CIBUBBLE Admin Tools</h2>
 
-  <!-- --- Admin Totals Bar --- -->
-  <div style="margin: 0 0 1.2em 0; padding: 0.8em 1.3em; background: #faf6f4; border-radius: 7px; display: flex; flex-wrap: wrap; gap: 2.2em; font-size:1.1em; color:#e93c2f;">
-    <div><b>Videos:</b> {adminStats.videos}</div>
-    <div><b>Channels:</b> {adminStats.channels}</div>
-    <div><b>Playlists:</b> {adminStats.playlists}</div>
-    <div><b>Total Time:</b> {formatTime(adminStats.runningTime)}</div>
-    <div>
-      <b>Super Beginner:</b> {adminStats.byLevel.superbeginner} &nbsp;|&nbsp;
-      <b>Beginner:</b> {adminStats.byLevel.beginner} &nbsp;|&nbsp;
-      <b>Intermediate:</b> {adminStats.byLevel.intermediate} &nbsp;|&nbsp;
-      <b>Advanced:</b> {adminStats.byLevel.advanced} &nbsp;|&nbsp;
-      <b>Not Yet:</b> {adminStats.byLevel.notyet}
+  <!-- Tidy STATS BAR -->
+  <div class="stats-bar">
+    <div class="stat-chip"><span class="stat-label">Videos</span> {adminStats.videos}</div>
+    <div class="stat-chip"><span class="stat-label">Channels</span> {adminStats.channels}</div>
+    <div class="stat-chip"><span class="stat-label">Playlists</span> {adminStats.playlists}</div>
+    <div class="stat-chip"><span class="stat-label">Total Time</span> {formatTime(adminStats.runningTime)}</div>
+    <div class="stat-chip level easy">
+      <span class="stat-label">Easy</span> {adminStats.byLevel.easy}
+      <span class="stat-time">{formatTime(adminStats.timeByLevel.easy)}</span>
     </div>
-    <div style="width:100%;font-size:0.97em;color:#d14e17;margin-top:0.5em;">
-      <b>Time by Level:</b>
-      Super Beginner: {formatTime(adminStats.timeByLevel.superbeginner)} &nbsp;|&nbsp;
-      Beginner: {formatTime(adminStats.timeByLevel.beginner)} &nbsp;|&nbsp;
-      Intermediate: {formatTime(adminStats.timeByLevel.intermediate)} &nbsp;|&nbsp;
-      Advanced: {formatTime(adminStats.timeByLevel.advanced)} &nbsp;|&nbsp;
-      Not Yet: {formatTime(adminStats.timeByLevel.notyet)}
+    <div class="stat-chip level intermediate">
+      <span class="stat-label">Intermediate</span> {adminStats.byLevel.intermediate}
+      <span class="stat-time">{formatTime(adminStats.timeByLevel.intermediate)}</span>
+    </div>
+    <div class="stat-chip level advanced">
+      <span class="stat-label">Advanced</span> {adminStats.byLevel.advanced}
+      <span class="stat-time">{formatTime(adminStats.timeByLevel.advanced)}</span>
+    </div>
+    <div class="stat-chip level notyet">
+      <span class="stat-label">Not Yet</span> {adminStats.byLevel.notyet}
+      <span class="stat-time">{formatTime(adminStats.timeByLevel.notyet)}</span>
     </div>
   </div>
 
   <div class="row">
-    <input type="text" placeholder="Paste YouTube channel link or @handle…" bind:value={url} />
-    <button on:click={importChannel} disabled={!url || importing}>{importing ? 'Importing…' : 'Import Channel'}</button>
-    <button on:click={refresh} disabled={refreshing}>↻ Refresh</button>
-    <button style="margin-left:auto;" on:click={clearDatabase} disabled={clearing}>Clear Database</button>
+    <input type="text" placeholder="Paste YouTube channel link or @handle…" bind:value={url} aria-label="YouTube Channel Link" />
+    <button on:click={importChannel} disabled={!url || importing} aria-label="Import Channel">{importing ? 'Importing…' : 'Import Channel'}</button>
+    <button on:click={refresh} disabled={refreshing} aria-label="Refresh">{refreshing ? 'Refreshing…' : '↻ Refresh'}</button>
+    <button style="margin-left:auto;" on:click={clearDatabase} disabled={clearing} aria-label="Clear Database">{clearing ? 'Clearing…' : 'Clear Database'}</button>
   </div>
   {#if message}
     <div style="margin:1em 0 1.2em 0; color:{message.startsWith('✅') ? '#27ae60' : '#c0392b'}; font-weight:500;">{message}</div>
@@ -677,86 +871,141 @@ select, .tag-input { margin-top: 0.4em; }
         <th>Channel</th>
         <th>Country</th>
         <th>Tags</th>
-        <th style="width:320px;">Level / Actions</th>
+        <th>Level</th>
+        <th>Playlists</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
       {#each channels as chan}
         <tr>
+          <!-- Channel -->
           <td>
             <img class="channel-thumb" src={chan.thumbnail} alt={chan.name} />
             <span style="font-weight:600;">{chan.name}</span>
           </td>
-          <!-- Country dropdown -->
+          <!-- Country -->
           <td>
-            <select bind:value={chan._country}>
+            <select bind:value={chan._country} aria-label="Select country">
               <option value="">No Country</option>
               {#each countryOptions as country}
                 <option value={country}>{country}</option>
               {/each}
             </select>
-            <button on:click={() => setChannelCountry(chan.id, chan._country)} disabled={chan.country === chan._country}>
-              Save
-            </button>
+            {#if chan.country !== chan._country}
+              <button on:click={() => setChannelCountry(chan.id, chan._country)} disabled={settingCountry[chan.id]}>
+                {settingCountry[chan.id] ? 'Saving…' : 'Save'}
+              </button>
+            {/if}
           </td>
-          <!-- Tags multi-select + add -->
+          <!-- Tags summary -->
           <td>
-            <div style="display:flex;flex-wrap:wrap;gap:0.3em;">
-              {#each tagOptions as tag}
-                <label class="chip">
-                  <input
-                    type="checkbox"
-                    checked={chan._tagsSet.has(tag)}
-                    on:change={() => {
-                      if (chan._tagsSet.has(tag)) chan._tagsSet.delete(tag);
-                      else chan._tagsSet.add(tag);
-                      chan._tagsDirty = true;
-                    }}
-                  />
-                  <span>{tag}</span>
-                </label>
-              {/each}
-              <input
-                type="text"
-                placeholder="Add tag"
-                style="margin-left:0.5em;width:90px;font-size:0.98em;"
-                bind:value={chan._newTag}
-                on:keydown={(e) => {
-                  if (e.key === 'Enter' && chan._newTag?.trim()) {
-                    chan._tagsSet.add(chan._newTag.trim());
-                    if (!tagOptions.includes(chan._newTag.trim())) tagOptions = [...tagOptions, chan._newTag.trim()];
-                    chan._newTag = "";
-                    chan._tagsDirty = true;
-                  }
-                }}
-              />
+            {#if chan.tags}
+              <span>{chan.tags}</span>
+            {:else}
+              <span style="color:#aaa;">No tags</span>
+            {/if}
+            <div>
               <button
-                style="margin-left:0.3em;font-size:0.93em;padding:0.4em 1.1em;"
-                on:click={() => setChannelTags(chan)}
-                disabled={!chan._tagsDirty}
-              >Save</button>
+                style="background:#e3e3e3;color:#222;margin-top:6px;font-size:0.97em"
+                on:click={() => toggleTagsFor(chan.id)}
+                aria-expanded={showTagsFor === chan.id}
+                aria-label={showTagsFor === chan.id ? "Hide tags" : "Set tags"}
+              >
+                {showTagsFor === chan.id ? "Hide Tags ▲" : "Set Tags ▼"}
+              </button>
             </div>
           </td>
-          <!-- Level / Actions -->
+          <!-- Level -->
           <td>
-            <select bind:value={chan._newLevel}>
+            <select bind:value={chan._newLevel} aria-label="Set channel level">
+              <option value="">
+                {chan._mainLevel === 'mixed'
+                  ? '-- Mixed --'
+                  : levels.find(lvl => lvl.value === chan._mainLevel)?.label
+                    ? '-- ' + levels.find(lvl => lvl.value === chan._mainLevel)?.label + ' --'
+                    : '-- Not Set --'
+                }
+              </option>
               {#each levels as lvl}
                 <option value={lvl.value}>{lvl.label}</option>
               {/each}
             </select>
-            <button on:click={() => setChannelLevel(chan.id, chan._newLevel)} disabled={!chan._newLevel}>Set Level</button>
-            <button style="background:#bbb;" on:click={() => deleteChannel(chan.id)} disabled={!!deleting[chan.id]}>Delete</button>
             <button
-              style="background:#eee;color:#222;margin-left:1em"
-              on:click={() => togglePlaylistsFor(chan.id)}
+              on:click={() => setChannelLevel(chan.id, chan._newLevel)}
+              disabled={!chan._newLevel || settingLevel[chan.id]}
+              aria-label="Set channel level"
+              style="margin-top:6px"
             >
-              {showPlaylistsFor === chan.id ? "Hide Playlists" : "Show Playlists"}
+              {settingLevel[chan.id] ? 'Setting…' : 'Set Level'}
+            </button>
+          </td>
+          <!-- Playlists summary and open/close -->
+          <td>
+            <button
+              style="background:#eee;color:#222;font-size:0.97em"
+              on:click={() => togglePlaylistsFor(chan.id)}
+              aria-expanded={showPlaylistsFor === chan.id}
+              aria-label={showPlaylistsFor === chan.id ? "Hide playlists" : "Show playlists"}
+            >
+              {showPlaylistsFor === chan.id ? "Hide Playlists ▲" : "Show Playlists ▼"}
+            </button>
+          </td>
+          <!-- Actions -->
+          <td>
+            <button style="background:#bbb;" on:click={() => deleteChannel(chan.id)} disabled={!!deleting[chan.id]}>
+              {deleting[chan.id] ? 'Deleting…' : 'Delete'}
             </button>
           </td>
         </tr>
+        <!-- Collapsible TAGS row (now spans all columns, matches playlists) -->
+        {#if showTagsFor === chan.id}
+          <tr class="collapsible-row">
+            <td class="tags-cell" colspan="6">
+              <div style="display:flex;flex-wrap:wrap;gap:0.3em;align-items:center;">
+                {#each tagOptions as tag}
+                  <label class="chip" tabindex="0" aria-label={"Tag: " + tag}>
+                    <input
+                      type="checkbox"
+                      checked={chan._tagsSet.has(tag)}
+                      on:change={() => {
+                        if (chan._tagsSet.has(tag)) chan._tagsSet.delete(tag);
+                        else chan._tagsSet.add(tag);
+                        chan._tagsDirty = true;
+                      }}
+                    />
+                    <span>{tag}</span>
+                  </label>
+                {/each}
+                <input
+                  type="text"
+                  placeholder="Add tag"
+                  style="margin-left:0.5em;width:90px;font-size:0.98em;"
+                  bind:value={chan._newTag}
+                  aria-label="Add new tag"
+                  on:keydown={(e) => {
+                    if (e.key === 'Enter' && chan._newTag?.trim()) {
+                      chan._tagsSet.add(chan._newTag.trim());
+                      if (!tagOptions.includes(chan._newTag.trim())) tagOptions = [...tagOptions, chan._newTag.trim()];
+                      chan._newTag = "";
+                      chan._tagsDirty = true;
+                    }
+                  }}
+                />
+                <button
+                  style="margin-left:0.3em;font-size:0.93em;padding:0.4em 1.1em;"
+                  on:click={() => setChannelTags(chan)}
+                  disabled={!chan._tagsDirty || savingTags[chan.id]}
+                  aria-label="Save tags"
+                >{savingTags[chan.id] ? 'Saving…' : 'Save'}</button>
+              </div>
+            </td>
+          </tr>
+        {/if}
+        <!-- Collapsible PLAYLISTS row (spans all columns, so not squashed) -->
         {#if showPlaylistsFor === chan.id}
-          <tr>
-            <td colspan="4" style="background:#f9f9fc; padding:1.3em 2em;">
+          <tr class="collapsible-row">
+            <td class="playlists-cell" colspan="6">
               {#if playlistsLoading}
                 <div>Loading playlists…</div>
               {:else if playlists.length === 0}
@@ -776,7 +1025,7 @@ select, .tag-input { margin-top: 0.4em; }
                         <td>{pl.title}</td>
                         <td>{pl.videos_count}</td>
                         <td>
-                          <select bind:value={pl._newLevel}>
+                          <select bind:value={pl._newLevel} aria-label="Set playlist level">
                             <option value="">
                               -- 
                               {pl.currentLevel === '' ? 'Not Set'
@@ -792,8 +1041,9 @@ select, .tag-input { margin-top: 0.4em; }
                           <button
                             style="margin-left:0.6em"
                             on:click={() => setPlaylistLevel(pl.id, pl._newLevel)}
-                            disabled={!pl._newLevel}
-                          >Set</button>
+                            disabled={!pl._newLevel || settingPlaylistLevel[pl.id]}
+                            aria-label="Set playlist level"
+                          >{settingPlaylistLevel[pl.id] ? 'Setting…' : 'Set'}</button>
                         </td>
                       </tr>
                     {/each}
@@ -806,18 +1056,17 @@ select, .tag-input { margin-top: 0.4em; }
       {/each}
       {#if channels.length === 0}
         <tr>
-          <td colspan="4" style="text-align:center;color:#999;">No channels found.</td>
+          <td colspan="6" style="text-align:center;color:#999;">No channels found.</td>
         </tr>
       {/if}
     </tbody>
   </table>
 </div>
-
-
-===== ./routes/progress/+page.svelte =====
 <script>
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
+	import VideoCard from '$lib/components/VideoCard.svelte';
+	import * as utils from '$lib/utils.js';
 
 	let user = null;
 	let myVideos = [];
@@ -988,36 +1237,26 @@ select, .tag-input { margin-top: 0.4em; }
 	<div class="profile-main">
 		<div class="section-title">Progress</div>
 
-		<!-- Stats and graph at the top -->
-		<div class="stats-row"><b>Total watch time:</b> {formatMinutes(watchTime)}</div>
-		<div class="stats-row"><b>Today's watch time:</b> {formatMinutes(todayWatchTime)}</div>
-		<div class="streak-row">
-			🔥 <b>Streak:</b>
-			{streak} day{streak === 1 ? '' : 's'} active
-		</div>
-
-		<div style="font-size:0.98em; color:#888; margin-bottom:0.2em;">
-			Minutes watched per day (last 14 days)
-		</div>
-		<div class="activity-bar-graph">
-			{#each activityDays as d, i}
-				<div
-					class="activity-bar {i === activityDays.length - 1 ? 'activity-bar-today' : ''}"
-					style="height:{Math.min(d.mins, 120) / 1.2}px; background:{barColor(d.mins)}"
-					title={`Date: ${d.date}\n${d.mins} min`}
-				></div>
-			{/each}
-		</div>
-		<div class="activity-labels">
-			{#each activityDays as d, i}
-				<div style="width:24px; text-align:center">
-					{i % 2 === 0 ? d.date.slice(5) : ''}
+		<!-- CHUNKY DREAMING SPANISH STATS BOXES -->
+		<div class="stats-boxes-row">
+			<div class="stat-box">
+				<div class="stat-label">Total Watch Time</div>
+				<div class="stat-value">{formatMinutes(watchTime)}</div>
+			</div>
+			<div class="stat-box">
+				<div class="stat-label">Today's Watch Time</div>
+				<div class="stat-value">{formatMinutes(todayWatchTime)}</div>
+			</div>
+			<div class="stat-box">
+				<div class="stat-label">Streak</div>
+				<div class="stat-value">
+					<span style="font-size:2em;">🔥</span>
+					{streak} day{streak === 1 ? '' : 's'}
 				</div>
-			{/each}
+			</div>
 		</div>
-		<div style="font-size:0.87em; color:#aaa; margin-top:0.2em;">Days (oldest &rarr; today)</div>
 
-		<!-- HISTORY: Horizontal row, scrollable, front-page cards, no last watched, no length -->
+		<!-- HISTORY SECTION styled like front page grid -->
 		<div class="history-section">
 			<div class="history-header">
 				<span class="section-title" style="margin:0;">History</span>
@@ -1026,56 +1265,50 @@ select, .tag-input { margin-top: 0.4em; }
 			{#if watchedVideos.length === 0}
 				<div>No videos watched yet.</div>
 			{:else}
-				<div class="history-scroll-row">
+				<div class="history-row">
 					{#each watchedVideos.slice(0, 15) as v}
-						<a href={`/video/${v.id}`} class="ci-card">
-							<span class="ci-thumb-link">
-								<img
-									class="ci-thumb-img"
-									src={v.thumbnail || '/no_thumb_nail.png'}
-									alt="Video thumbnail"
-								/>
-							</span>
-							<div class="ci-card-info">
-								<span class="ci-badge {v.level}">{v.level}</span>
-								<span class="ci-title" title={v.title}>{v.title}</span>
-								<div class="ci-channel">{v.channel_name}</div>
-							</div>
-						</a>
+						<div class="history-card">
+							<VideoCard
+								video={v}
+								getBestThumbnail={utils.getBestThumbnail}
+								difficultyColor={utils.difficultyColor}
+								difficultyLabel={utils.difficultyLabel}
+								formatLength={utils.formatLength}
+								filterByChannel={null}
+								filterByPlaylist={null}
+							/>
+						</div>
 					{/each}
 				</div>
 			{/if}
 		</div>
 
-		<!-- MY VIDEOS: Horizontal row, scrollable, matches History section -->
-		<div class="history-section">
-			<div class="history-header">
+		<div class="my-videos-section">
+			<div class="my-videos-header">
 				<span class="section-title" style="margin:0;">My Videos</span>
 				<a href="/my-videos" class="view-all-link">View all</a>
 			</div>
 			{#if myVideos.length === 0}
-				<div>No videos added yet.</div>
+				<div>You haven’t added any videos yet.</div>
 			{:else}
-				<div class="history-scroll-row">
+				<div class="history-row">
 					{#each myVideos.slice(0, 15) as v}
-						<a href={`/video/${v.id}`} class="ci-card">
-							<span class="ci-thumb-link">
-								<img
-									class="ci-thumb-img"
-									src={v.thumbnail || '/no_thumb_nail.png'}
-									alt="Video thumbnail"
-								/>
-							</span>
-							<div class="ci-card-info">
-								<span class="ci-badge {v.level}">{v.level}</span>
-								<span class="ci-title" title={v.title}>{v.title}</span>
-								<div class="ci-channel">{v.channel_name}</div>
-							</div>
-						</a>
+						<div class="history-card">
+							<VideoCard
+								video={v}
+								getBestThumbnail={utils.getBestThumbnail}
+								difficultyColor={utils.difficultyColor}
+								difficultyLabel={utils.difficultyLabel}
+								formatLength={utils.formatLength}
+								filterByChannel={null}
+								filterByPlaylist={null}
+							/>
+						</div>
 					{/each}
 				</div>
 			{/if}
 		</div>
+		<!-- MY VIDEOS SECTION styled like front page grid -->
 
 		<div class="section-title">Account</div>
 		<div class="profile-row"><b>Email:</b> {email}</div>
@@ -1113,49 +1346,154 @@ select, .tag-input { margin-top: 0.4em; }
 		margin: 1.7em 0 1em 0;
 		letter-spacing: 0.3px;
 	}
-	.stats-row {
-		color: #222;
-		font-size: 1.07em;
-		margin-bottom: 0.7em;
+	/* Chunkier stats boxes */
+	.stats-boxes-row {
+		display: flex;
+		gap: 2.6em;
+		margin: 2.4em 0 2.5em 0;
+		flex-wrap: wrap;
+		align-items: stretch;
 	}
-	.streak-row {
+	.stat-box {
+		background: #fafafa;
+		border-radius: 18px;
+		box-shadow: 0 2px 18px #ececec;
+		padding: 2em 3em 2em 3em;
+		min-width: 200px;
+		min-height: 108px;
+		flex: 1 1 210px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 0.8em;
+	}
+	.stat-label {
+		color: #aaa;
+		font-size: 1.19em;
+		font-weight: 600;
+		letter-spacing: 0.07em;
+		margin-bottom: 0.6em;
+	}
+	.stat-value {
+		font-size: 2.2em;
+		color: #222;
+		font-weight: 800;
+		letter-spacing: 0.02em;
+		display: flex;
+		align-items: center;
+		gap: 0.3em;
+	}
+	.calendar-box {
+		min-width: 270px;
+		padding: 1.5em 1.6em 1.2em 1.6em;
+		justify-content: start;
+		align-items: stretch;
+	}
+	.mini-calendar {
+		display: flex;
+		gap: 5px;
+		margin-bottom: 0.32em;
+		margin-top: 0.5em;
+		min-height: 19px;
+		justify-content: center;
+	}
+	.calendar-day {
+		width: 18px;
+		height: 28px;
+		border-radius: 7px;
+		background: #ececec;
+		outline: none;
+		box-shadow: 0 0 0 1px #e6e6e6;
+		transition: background 0.16s;
+	}
+	.calendar-today {
+		outline: 2.5px solid #2562e9;
+	}
+	.calendar-labels {
+		display: flex;
+		gap: 5px;
+		font-size: 0.97em;
+		color: #bbb;
+		justify-content: center;
+	}
+	.calendar-labels > div {
+		width: 18px;
+		text-align: center;
+	}
+	@media (max-width: 960px) {
+		.stats-boxes-row {
+			flex-direction: column;
+			gap: 1.8em;
+		}
+		.stat-box {
+			min-width: unset;
+			width: 100%;
+		}
+		.calendar-box {
+			min-width: unset;
+		}
+	}
+
+	/* History/my videos grid: match front page grid */
+	.history-section {
+		margin-top: 2.4em;
+	}
+	.history-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 1.2em;
+	}
+	.view-all-link {
 		font-size: 1em;
 		color: #2562e9;
-		margin-bottom: 0.7em;
+		text-decoration: none;
 		font-weight: 500;
 	}
-	.activity-bar-graph {
+	.history-row {
 		display: flex;
-		gap: 8px;
-		align-items: end;
-		margin: 1.1em 0 0.2em 0;
-		height: 54px;
+		gap: 1.5em;
+		overflow-x: auto;
+		padding-bottom: 0.7em;
+		scroll-snap-type: x mandatory;
+		-webkit-overflow-scrolling: touch;
 	}
-	.activity-bar {
-		width: 24px;
-		border-radius: 5px 5px 2px 2px;
-		background: #ececec;
-		position: relative;
-		transition:
-			height 0.2s,
-			background 0.2s;
-		display: flex;
-		align-items: flex-end;
-		justify-content: center;
-		cursor: pointer;
+	.history-row::-webkit-scrollbar {
+		height: 9px;
+		background: #f6f6f6;
 	}
-	.activity-bar-today {
-		outline: 2px solid #2562e9;
-		box-shadow: 0 0 0 2px #e8e8fa;
+	.history-row::-webkit-scrollbar-thumb {
+		background: #e5e5e5;
+		border-radius: 6px;
 	}
-	.activity-labels {
-		display: flex;
-		gap: 8px;
-		margin-top: 3px;
-		font-size: 0.91em;
-		color: #888;
-		justify-content: start;
+	.history-card {
+		flex: 0 0 265px; /* Adjust width for card size */
+		scroll-snap-align: start;
+		min-width: 265px;
+		max-width: 320px;
 	}
+	.my-videos-section {
+  margin-top: 2.6em;
+}
+.my-videos-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.2em;
+}
+
+	@media (max-width: 600px) {
+		.history-card {
+			flex-basis: 82vw;
+			min-width: 82vw;
+			max-width: 90vw;
+		}
+		.history-row {
+			gap: 1em;
+		}
+	}
+
 	.profile-row {
 		margin-bottom: 1.3em;
 	}
@@ -1191,197 +1529,7 @@ select, .tag-input { margin-top: 0.4em; }
 		margin-bottom: 1em;
 		min-height: 1.5em;
 	}
-
-	/* ----------- HISTORY (watched videos row) ----------- */
-	.history-section {
-		margin-top: 2.2em;
-	}
-	.history-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 1em;
-	}
-	.view-all-link {
-		font-size: 1em;
-		color: #2562e9;
-		text-decoration: none;
-		font-weight: 500;
-	}
-	.history-scroll-row {
-		display: flex;
-		flex-direction: row;
-		gap: 24px;
-		overflow-x: auto;
-		padding-bottom: 2px;
-		margin-bottom: 2em;
-		scrollbar-width: thin;
-	}
-	.history-scroll-row::-webkit-scrollbar {
-		height: 8px;
-		background: #f3f3f3;
-	}
-	.history-scroll-row::-webkit-scrollbar-thumb {
-		background: #dcdcdc;
-		border-radius: 8px;
-	}
-
-	.ci-card {
-		background: #fff;
-		border-radius: 14px;
-		box-shadow: 0 2px 10px #ececec;
-		min-width: 196px;
-		max-width: 196px;
-		flex: 0 0 196px;
-		display: flex;
-		flex-direction: column;
-		text-align: left;
-		padding: 0;
-		cursor: pointer;
-		transition: box-shadow 0.18s;
-		font-family: Inter, Arial, sans-serif;
-	}
-	.ci-card:hover {
-		box-shadow: 0 6px 32px #e93c2f22;
-	}
-
-	.ci-thumb-link {
-		display: block;
-		border-radius: 14px 14px 0 0;
-		overflow: hidden;
-	}
-	.ci-thumb-img {
-		width: 100%;
-		aspect-ratio: 16/9;
-		object-fit: cover;
-		background: #f3f3f3;
-	}
-
-	.ci-card-info {
-		padding: 0.8em 1em 1.1em 1em;
-	}
-	.ci-title {
-		font-weight: 600;
-		font-size: 1.07em;
-		margin: 0.24em 0 0.09em 0;
-		color: #222;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-	.ci-badge {
-		border-radius: 8px;
-		padding: 0.1em 0.48em;
-		font-size: 0.87em;
-		font-weight: 500;
-		color: #fff;
-		background: #e93c2f;
-		margin-bottom: 0.1em;
-		text-transform: capitalize;
-		display: inline-block;
-		margin-right: 0.4em;
-	}
-	.ci-badge.Superbeginner {
-		background: #2e9be6;
-	}
-	.ci-badge.Beginner {
-		background: #44c366;
-	}
-	.ci-badge.Intermediate {
-		background: #e93c2f;
-	}
-	.ci-badge.Advanced {
-		background: #f9c846;
-		color: #181818;
-	}
-	.ci-channel {
-		font-size: 0.92em;
-		color: #888;
-		margin-top: 0.11em;
-	}
-
-	.card-history {
-		background: #fff;
-		border-radius: 15px;
-		box-shadow: 0 2px 8px #ececec;
-		min-width: 180px;
-		max-width: 180px;
-		flex: 0 0 180px;
-		display: flex;
-		flex-direction: column;
-		align-items: stretch;
-		text-align: left;
-		transition: box-shadow 0.13s;
-		cursor: pointer;
-		padding: 0;
-	}
-	.card-history:hover {
-		box-shadow: 0 6px 28px #e93c2f20;
-	}
-	.card-thumb-link {
-		display: block;
-		border-radius: 15px 15px 0 0;
-		overflow: hidden;
-	}
-	.card-thumb-img {
-		width: 100%;
-		aspect-ratio: 16/9;
-		object-fit: cover;
-		background: #f3f3f3;
-	}
-	.card-info {
-		padding: 0.67em 0.82em 1em 0.82em;
-	}
-	.card-title {
-		font-weight: 600;
-		font-size: 1em;
-		margin: 0.22em 0 0.12em 0;
-		color: #232323;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-	.card-badge {
-		border-radius: 8px;
-		padding: 0.11em 0.6em;
-		font-size: 0.83em;
-		font-weight: 500;
-		color: #fff;
-		background: #e93c2f;
-		margin-right: 0.36em;
-		text-transform: capitalize;
-	}
-	.card-badge.Superbeginner {
-		background: #2e9be6;
-	}
-	.card-badge.Beginner {
-		background: #44c366;
-	}
-	.card-badge.Intermediate {
-		background: #e93c2f;
-	}
-	.card-badge.Advanced {
-		background: #f9c846;
-		color: #181818;
-	}
-	.card-channel {
-		font-size: 0.91em;
-		color: #868686;
-	}
-	@media (max-width: 600px) {
-		.card-history,
-		.history-scroll-row {
-			min-width: 150px;
-			max-width: 150px;
-		}
-		.card-thumb-img {
-			aspect-ratio: 16/9;
-		}
-	}
 </style>
-
-
-===== ./routes/signup/+page.svelte =====
 <script>
   import { supabase } from '$lib/supabaseClient';
 
@@ -1458,17 +1606,11 @@ button:hover { background: #b8271b; }
     <a href="/login" style="color:#e93c2f;">Log In</a>
   </div>
 </div>
-
-
-===== ./routes/+layout.svelte =====
 <script>
   import NavBar from '$lib/components/NavBar.svelte';
 </script>
 <NavBar />
 <slot />
-
-
-===== ./routes/login/+page.svelte =====
 <script>
   import { supabase } from '$lib/supabaseClient';
   import { goto } from '$app/navigation';
@@ -1547,287 +1689,7 @@ button:hover { background: #b8271b; }
     <a href="/signup" style="color:#e93c2f;">Sign Up</a>
   </div>
 </div>
- 
-
-===== ./routes/api/add-video/+server.js =====
-import { json } from '@sveltejs/kit';
-import { createClient } from '@supabase/supabase-js';
-
-// Server keys for SSR
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
-const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || process.env.VITE_YOUTUBE_API_KEY || import.meta.env.VITE_YOUTUBE_API_KEY;
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-// --- Duration Parsing Utility ---
-function parseDuration(iso) {
-  // "PT1H2M10S" → seconds
-  const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-  return (
-    (parseInt(m?.[1] || 0) * 3600) +
-    (parseInt(m?.[2] || 0) * 60) +
-    (parseInt(m?.[3] || 0))
-  );
-}
-
-// --- Fetch durations for an array of video IDs ---
-async function fetchVideoDurations(videoIds) {
-  let results = [];
-  for (let i = 0; i < videoIds.length; i += 50) {
-    const ids = videoIds.slice(i, i + 50).join(",");
-    const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${YOUTUBE_API_KEY}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    if (data.items) {
-      results.push(...data.items.map(v => ({
-        id: v.id,
-        length: parseDuration(v.contentDetails.duration)
-      })));
-    }
-  }
-  // Reduce to { id: length, ... }
-  return results.reduce((acc, v) => ({ ...acc, [v.id]: v.length }), {});
-}
-
-// --- Extracts channel ID or handle from a YouTube URL ---
-function extractChannelIdOrHandle(url) {
-  const channelIdMatch = url.match(/youtube\.com\/channel\/([a-zA-Z0-9_-]+)/);
-  if (channelIdMatch) return { id: channelIdMatch[1], type: "id" };
-  const handleMatch = url.match(/youtube\.com\/@([a-zA-Z0-9_]+)/);
-  if (handleMatch) return { handle: handleMatch[1], type: "handle" };
-  return null;
-}
-
-// --- Robust channel ID resolution for @handles, usernames, etc. ---
-async function getChannelIdFromHandle(handle) {
-  const handleOnly = handle.startsWith('@') ? handle.slice(1) : handle;
-
-  // 1. Try forHandle (new YouTube @handle system)
-  let url = `https://www.googleapis.com/youtube/v3/channels?part=id,snippet,contentDetails&forHandle=${encodeURIComponent(handleOnly)}&key=${YOUTUBE_API_KEY}`;
-  let res = await fetch(url);
-  let data = await res.json();
-
-  if (data.items && data.items.length > 0) {
-    console.log('Found channel via forHandle:', data.items[0].id, data.items[0].snippet.title);
-    return data.items[0].id;
-  } else {
-    console.warn('Channel not found via forHandle:', handleOnly, data);
-  }
-
-  // 2. Try legacy forUsername
-  url = `https://www.googleapis.com/youtube/v3/channels?part=id,snippet,contentDetails&forUsername=${encodeURIComponent(handleOnly)}&key=${YOUTUBE_API_KEY}`;
-  res = await fetch(url);
-  data = await res.json();
-
-  if (data.items && data.items.length > 0) {
-    console.log('Found channel via forUsername:', data.items[0].id, data.items[0].snippet.title);
-    return data.items[0].id;
-  } else {
-    console.warn('Channel not found via forUsername:', handleOnly, data);
-  }
-
-  // 3. Fallback: Search (last resort, not as reliable)
-  url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(handleOnly)}&key=${YOUTUBE_API_KEY}`;
-  res = await fetch(url);
-  data = await res.json();
-
-  if (data.items && data.items.length > 0) {
-    const channelId = data.items[0].snippet.channelId;
-    console.log('Found channel via search:', channelId, data.items[0].snippet.title);
-    return channelId;
-  } else {
-    console.error('Channel not found via any method:', handleOnly, data);
-    return null;
-  }
-}
-
-async function getChannelInfo(channelId) {
-  const url = `https://www.googleapis.com/youtube/v3/channels?part=snippet,contentDetails&id=${channelId}&key=${YOUTUBE_API_KEY}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if (!data.items || data.items.length === 0) return null;
-  const c = data.items[0];
-  return {
-    id: c.id,
-    name: c.snippet.title,
-    thumbnail: c.snippet.thumbnails?.default?.url || '',
-    description: c.snippet.description,
-    uploadsPlaylistId: c.contentDetails?.relatedPlaylists?.uploads,
-  };
-}
-
-async function getPlaylists(channelId) {
-  let playlists = [];
-  let nextPage = '';
-  do {
-    const url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet&channelId=${channelId}&maxResults=50&pageToken=${nextPage}&key=${YOUTUBE_API_KEY}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    if (data.items) playlists.push(...data.items);
-    nextPage = data.nextPageToken || '';
-  } while (nextPage);
-  return playlists.map(pl => ({
-    id: pl.id,
-    channel_id: pl.snippet.channelId,
-    title: pl.snippet.title,
-    thumbnail: pl.snippet.thumbnails?.default?.url || '',
-    description: pl.snippet.description,
-  }));
-}
-
-async function getPlaylistVideos(playlistId) {
-  let videos = [];
-  let nextPage = '';
-  do {
-    const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${playlistId}&maxResults=50&pageToken=${nextPage}&key=${YOUTUBE_API_KEY}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    if (data.items) videos.push(...data.items);
-    nextPage = data.nextPageToken || '';
-  } while (nextPage);
-
-  const videoIds = videos.map(v => v.contentDetails.videoId).filter(Boolean);
-  let durations = {};
-  if (videoIds.length) {
-    durations = await fetchVideoDurations(videoIds);
-  }
-
-  return videos.map(v => ({
-    id: v.contentDetails.videoId,
-    title: v.snippet.title,
-    channel_id: v.snippet.channelId,
-    channel_name: v.snippet.channelTitle,
-    thumbnail: v.snippet.thumbnails?.high?.url || v.snippet.thumbnails?.default?.url || '',
-    length: durations[v.contentDetails.videoId] ?? null,
-    playlist_id: playlistId,
-    created: new Date().toISOString(),
-    level: "notyet",
-    playlist_position: v.snippet.position ?? null,
-  }));
-}
-
-async function getAllUploads(uploadsPlaylistId) {
-  const videos = await getPlaylistVideos(uploadsPlaylistId);
-  return videos.map(v => ({ ...v, playlist_id: null }));
-}
-
-// --- MAIN ENTRY POINT ---
-export async function POST({ request }) {
-  try {
-    if (!YOUTUBE_API_KEY) return json({ error: 'Missing YouTube API key' }, { status: 500 });
-
-    const { url } = await request.json();
-    const extracted = extractChannelIdOrHandle(url);
-    if (!extracted) return json({ error: 'Invalid YouTube channel link.' }, { status: 400 });
-
-    let channelId = extracted.id;
-    let resolvedVia = 'direct';
-
-    if (!channelId && extracted.handle) {
-      channelId = await getChannelIdFromHandle(extracted.handle);
-      resolvedVia = 'handle';
-      if (!channelId) {
-        return json({ error: 'Channel not found (handle could not be resolved).' }, { status: 404 });
-      }
-    }
-
-    console.log(`[IMPORT] Importing channel with ID: ${channelId} (via: ${resolvedVia})`);
-
-    // Get channel info
-    const channel = await getChannelInfo(channelId);
-    if (!channel) {
-      console.error(`[IMPORT] Could not fetch channel info for ID: ${channelId}`);
-      return json({ error: 'Could not fetch channel info.' }, { status: 404 });
-    }
-    console.log(`[IMPORT] Fetched channel info: ${channel.id} "${channel.name}"`);
-
-    // Insert/update channel
-    const { error: channelError } = await supabase.from('channels').upsert([{
-      id: channel.id,
-      name: channel.name,
-      thumbnail: channel.thumbnail,
-      description: channel.description
-    }]);
-    if (channelError) {
-      console.error(`[IMPORT] Error upserting channel:`, channelError);
-      return json({ error: 'Failed to upsert channel.' }, { status: 500 });
-    }
-
-    // Get and upsert playlists
-    const playlists = await getPlaylists(channelId);
-    if (playlists.length > 0) {
-      const { error: playlistError } = await supabase.from('playlists').upsert(playlists);
-      if (playlistError) {
-        console.error(`[IMPORT] Error upserting playlists:`, playlistError);
-        return json({ error: 'Failed to upsert playlists.' }, { status: 500 });
-      }
-    }
-
-    // Get all playlist videos (with durations)
-    let playlistVideos = [];
-    for (const pl of playlists) {
-      const vids = await getPlaylistVideos(pl.id);
-      playlistVideos.push(...vids);
-    }
-
-    // Get "uploads" videos (videos not necessarily in playlists)
-    let uploadsVideos = [];
-    if (channel.uploadsPlaylistId) {
-      uploadsVideos = await getAllUploads(channel.uploadsPlaylistId);
-    }
-
-    // Merge playlist videos and uploads, prefer playlist if duplicate id
-    const seen = new Set();
-    const allVideos = [];
-    for (const v of playlistVideos) {
-      if (!seen.has(v.id)) {
-        allVideos.push(v);
-        seen.add(v.id);
-      }
-    }
-    for (const v of uploadsVideos) {
-      if (!seen.has(v.id)) {
-        allVideos.push(v);
-        seen.add(v.id);
-      }
-    }
-
-    // Upsert videos with durations!
-    if (allVideos.length > 0) {
-      const { error: videoError } = await supabase.from('videos').upsert(allVideos.map(v => ({
-        id: v.id,
-        playlist_id: v.playlist_id,
-        channel_id: v.channel_id,
-        title: v.title,
-        channel_name: v.channel_name,
-        thumbnail: v.thumbnail,
-        length: v.length,
-        level: v.level,
-        created: v.created,
-        playlist_position: v.playlist_position
-      })));
-      if (videoError) {
-        console.error(`[IMPORT] Error upserting videos:`, videoError);
-        return json({ error: 'Failed to upsert videos.' }, { status: 500 });
-      }
-    }
-
-    return json({
-      success: true,
-      channel,
-      playlists_count: playlists.length,
-      videos_added: allVideos.length
-    });
-  } catch (err) {
-    console.error("[IMPORT ERROR]", err);
-    return json({ error: err.message || 'Unknown error' }, { status: 500 });
-  }
-}
-
-
-===== ./routes/video/[id]/+page.svelte =====
-<script>
+ <script>
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import { page } from '$app/stores';
@@ -1842,8 +1704,6 @@ export async function POST({ request }) {
   $: id = $page.params.id;
 
   onMount(async () => {
-    // Lock scroll when mounted
-    document.body.style.overflow = 'hidden';
     loading = true;
     // Get user
     const { data: sess } = await supabase.auth.getSession();
@@ -1856,12 +1716,6 @@ export async function POST({ request }) {
       .maybeSingle();
     video = vid;
     loading = false;
-  });
-
-  // Clean up: re-enable scroll if user navigates away
-  import { onDestroy } from 'svelte';
-  onDestroy(() => {
-    document.body.style.overflow = '';
   });
 </script>
 
@@ -1906,12 +1760,6 @@ export async function POST({ request }) {
 {/if}
 
 <style>
-/* Lock body scroll for this page */
-:global(body) {
-  overflow: hidden !important;
-}
-
-/* Main container takes the full viewport, no page scroll */
 .player-container {
   display: grid;
   grid-template-columns: 1fr 380px;
@@ -1925,17 +1773,13 @@ export async function POST({ request }) {
   box-sizing: border-box;
 }
 
-/* Main video and meta fits, no scroll */
 .player-main-col {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
-  min-height: 0;
   overflow: hidden;
-    padding: 2.3rem 0 1.2rem 0;
+  padding: 2.3rem 0 1.2rem 0;
 }
 
-/* Video box tries to keep aspect, can shrink if needed */
 .player-video-box {
   width: 100%;
   aspect-ratio: 16/9;
@@ -1949,7 +1793,6 @@ export async function POST({ request }) {
   flex-shrink: 0;
 }
 
-/* Title and meta */
 .player-title {
   font-size: 1.38rem;
   font-weight: 800;
@@ -1992,25 +1835,14 @@ export async function POST({ request }) {
   margin-left: auto;
 }
 
-/* Sidebar: fills height, scrolls if needed */
 .player-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
-  min-width: 0;
-  width: 100%;
-  height: 100vh;
-  max-height: 100vh;
-  overflow-y: auto;
   overflow-x: visible;
   box-sizing: border-box;
-  /* Add top/bottom padding for comfy scroll */
-  padding: 1.7rem 2px 1.3rem 2px;   /* (top, right, bottom, left) */
-  /* You can adjust these numbers to your taste! */
+  padding: 1.7rem 2px 1.3rem 2px;
 }
 
-
-/* Hide player-sidebar scroll bar for webkit, optional: */
 .player-sidebar::-webkit-scrollbar {
   width: 10px;
   background: #eee;
@@ -2021,11 +1853,8 @@ export async function POST({ request }) {
   border-radius: 7px;
 }
 
-/* Mobile responsive: stack columns, make sidebar fill bottom, scrolls independently */
 @media (max-width: 1200px) {
   .player-container {
-    grid-template-columns: 1fr;
-    gap: 1.3rem;
     max-width: 99vw;
     padding: 0;
     height: 100vh;
@@ -2049,22 +1878,7 @@ export async function POST({ request }) {
   font-size: 1.1rem;
 }
 </style>
-
-
-===== ./lib/supabaseClient.js =====
-import { createClient } from '@supabase/supabase-js';
-
-export const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
-
-
-===== ./lib/index.js =====
 // place files you want to import through the `$lib` alias in this folder.
-
-
-===== ./lib/components/NavBar.svelte =====
 <script>
   import { supabase } from '$lib/supabaseClient';
   import { onMount } from 'svelte';
@@ -2160,9 +1974,6 @@ export const supabase = createClient(
 
   </div>
 </nav>
-
-
-===== ./lib/components/SideBar.svelte =====
 <script>
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
@@ -2246,7 +2057,7 @@ export const supabase = createClient(
     <div class="sidebar-card-list">
       {#each suggestions as v, i (v.id)}
         {#if !skipWatched || !isWatched(v)}
-          <a class="card sidebar-card" href={`/video/${v.id}`} title={v.title}>
+          <a class="sidebar-card" href={`/video/${v.id}`} title={v.title}>
             <span class="thumb-wrapper">
               <img
                 class="thumb"
@@ -2259,20 +2070,14 @@ export const supabase = createClient(
                 <span class="length-inline">{utils.formatLength(v.length)}</span>
               {/if}
             </span>
-            <div class="card-body">
-              <div class="card-title-row">
-                <span class="card-title">{v.title}</span>
+            <div class="card-content">
+              <div class="sidebar-title-row">
+                <span class="sidebar-card-title">{v.title}</span>
               </div>
-              <div class="card-meta">
+              <div class="sidebar-card-meta">
                 <span class="badge" style="background:{utils.difficultyColor(v.level)};">
                   {utils.difficultyLabel(v.level)}
                 </span>
-                {#if v.channel_name}
-                  <span class="meta-link">{v.channel_name}</span>
-                {/if}
-                {#if v.playlist_id && v.playlist?.title}
-                  <span class="meta-link" style="color:#9326e9;">{v.playlist.title}</span>
-                {/if}
               </div>
             </div>
           </a>
@@ -2290,7 +2095,7 @@ export const supabase = createClient(
   gap: 0.1em;
 }
 .sidebar-header {
-  font-size: 1.1em;
+  font-size: 1.08em;
   font-weight: 700;
   color: var(--text-secondary, #666);
   margin-bottom: 0.2em;
@@ -2334,7 +2139,7 @@ export const supabase = createClient(
 .sidebar-card-list {
   display: flex;
   flex-direction: column;
-  gap: 0.85em;
+  gap: 1em;
   margin: 0.2em 0 0 0;
 }
 
@@ -2343,77 +2148,86 @@ export const supabase = createClient(
   flex-direction: row;
   align-items: flex-start;
   background: #fff;
-  border-radius: 9px;
-  box-shadow: 0 1.5px 8px #e0e0e0;
-  border: 1px solid #ececec;
-  transition: background 0.14s, box-shadow 0.11s, transform 0.09s;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px #e8e8e8;
+  border: 1px solid #ededed;
+  transition: background 0.13s, box-shadow 0.10s, transform 0.09s;
   text-decoration: none;
-  min-height: 56px;
-  padding: 0.23em 0.6em 0.23em 0.22em;
+  min-height: 110px;
+  padding: 0.18em 1em 0.18em 0.2em;
+  gap: 1.1em;
   outline: none;
-  gap: 0.7em;
 }
-.sidebar-card:hover, .sidebar-card:focus {
+
+.sidebar-card:hover,
+.sidebar-card:focus {
   background: #f7f5fa;
   box-shadow: 0 3px 16px #e93c2f11;
-  transform: translateY(-1px) scale(1.011);
+  transform: translateY(-1px) scale(1.013);
 }
+
 .thumb-wrapper {
   position: relative;
-  width: 95px;
-  min-width: 95px;
+  width: 148px;
+  min-width: 148px;
+  max-width: 148px;
   aspect-ratio: 16/9;
-  border-radius: 6px;
+  border-radius: 7px;
   overflow: hidden;
   background: #ededed;
-  box-shadow: 0 0.8px 5px #0001;
+  box-shadow: 0 1px 8px #0001;
   display: flex;
   align-items: center;
   justify-content: center;
 }
+
 .thumb {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: 7px;
   display: block;
   background: #ededed;
-  min-height: 48px;
+  min-height: 84px;
 }
+
 .length-inline {
   position: absolute;
-  right: 0.45em;
-  bottom: 0.45em;
+  right: 0.55em;
+  bottom: 0.55em;
   color: #fff;
   background: #222c;
-  font-size: 0.92em;
-  padding: 0.12em 0.57em;
+  font-size: 0.97em;
+  padding: 0.14em 0.66em;
   border-radius: 6px;
   font-weight: 500;
   opacity: 0.96;
   box-shadow: 0 1px 4px #0002;
   z-index: 9;
   pointer-events: none;
-  max-width: 80%;
+  max-width: 85%;
   text-align: right;
   white-space: nowrap;
 }
-.card-body {
-  padding: 0.21em 0 0 0;
+
+.card-content {
+  padding: 0.1em 0 0 0;
   color: #222;
   flex: 1;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   min-width: 0;
 }
-.card-title-row {
+
+.sidebar-title-row {
   display: flex;
   align-items: center;
-  gap: 0.4em;
-  margin-bottom: 0.1em;
+  gap: 0.5em;
+  margin-bottom: 0.13em;
 }
-.card-title {
-  font-size: 1.02rem;
+.sidebar-card-title {
+  font-size: 1.05rem;
   font-weight: 600;
   max-height: 2.5em;
   overflow: hidden;
@@ -2421,46 +2235,28 @@ export const supabase = createClient(
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   flex: 1;
+  line-height: 1.2;
 }
-.card-meta {
+.sidebar-card-meta {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.42em;
-  margin-top: 0.31em;
-  font-size: 0.99em;
+  gap: 0.5em;
+  margin-top: 0.36em;
+  font-size: 1em;
 }
 .badge {
   display: inline-block;
-  font-size: 0.84em;
+  font-size: 0.89em;
   font-weight: 600;
-  padding: 0.13em 0.57em;
+  padding: 0.17em 0.7em;
   border-radius: 4px;
-  margin-right: 0.2em;
   color: #fff;
   background: #bbb;
   letter-spacing: 0.01em;
-  border: 1.2px solid transparent;
+  border: 1.5px solid transparent;
   text-shadow: 0 1px 4px #0001;
   white-space: nowrap;
-}
-.meta-link {
-  color: #2e9be6;
-  font-size: 0.97em;
-  text-decoration: none;
-  background: #f6f6f6;
-  border-radius: 3px;
-  padding: 0.11em 0.36em;
-  margin-right: 0.12em;
-  font-weight: 500;
-  transition: background 0.13s, color 0.13s;
-  white-space: nowrap;
-  max-width: 110px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.meta-link[style*="color:#9326e9;"] {
-  background: #f6e9ff;
 }
 .sidebar-loading {
   color: #aaa;
@@ -2470,15 +2266,12 @@ export const supabase = createClient(
 }
 
 /* Responsive: smaller thumbs/cards for narrow sidebars */
-@media (max-width: 600px) {
-  .thumb-wrapper, .thumb { width: 58px; min-width: 58px; min-height: 32px;}
-  .sidebar-card { min-height: 32px; }
-  .card-title { font-size: 0.97em; }
+@media (max-width: 800px) {
+  .thumb-wrapper, .thumb { width: 95px; min-width: 95px; min-height: 56px;}
+  .sidebar-card { min-height: 56px; }
+  .sidebar-card-title { font-size: 0.97em; }
 }
 </style>
-
-
-===== ./lib/components/VideoCard.svelte =====
 <script>
   export let video;
   export let getBestThumbnail;
@@ -2487,6 +2280,9 @@ export const supabase = createClient(
   export let formatLength;
   export let filterByChannel;
   export let filterByPlaylist;
+
+  // Import the playlist icon from lucide-svelte
+  import { ListMusic } from 'lucide-svelte';
 </script>
 
 <div class="card">
@@ -2526,14 +2322,14 @@ export const supabase = createClient(
       {/if}
       {#if video.playlist_id && video.playlist?.title}
         <span
-          class="meta-link"
-          style="color:#9326e9;cursor:pointer;"
+          class="meta-link playlist-icon"
           title="Show all videos in this playlist"
           on:click={() => filterByPlaylist && filterByPlaylist(video.playlist.title)}
           tabindex="0"
           role="button"
         >
-          {video.playlist.title}
+          <ListMusic size={18} />
+          <span class="sr-only">{video.playlist.title}</span>
         </span>
       {/if}
     </div>
@@ -2643,15 +2439,30 @@ export const supabase = createClient(
   margin-right: 0.18em;
   font-weight: 500;
   transition: background 0.13s, color 0.13s;
+  display: flex;
+  align-items: center;
 }
 .meta-link:hover {
   background: #e4e4e4;
   color: #e93c2f;
 }
+.playlist-icon :global(svg) {
+  vertical-align: middle;
+  color: #9326e9;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
 </style>
-
-
-===== ./lib/components/VideoWatchTracker.svelte =====
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
@@ -2788,9 +2599,6 @@ export const supabase = createClient(
     flushProgress();
   });
 </script>
-
-
-===== ./lib/components/SortBar.svelte =====
 <script>
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import { Sparkles, BarChart3, Search, Globe, Tag } from 'lucide-svelte';
@@ -2898,11 +2706,12 @@ export const supabase = createClient(
     if (showCountryDropdown && countryDropdownRef && !countryDropdownRef.contains(event.target)) showCountryDropdown = false;
   }
 
+  // ✅ SSR SAFE: Only attach event listeners in the browser
   onMount(() => {
     document.addEventListener('click', handleDocumentClick);
-  });
-  onDestroy(() => {
-    document.removeEventListener('click', handleDocumentClick);
+    return () => {
+      document.removeEventListener('click', handleDocumentClick);
+    };
   });
 
   function equalSets(a, b) {
@@ -2911,6 +2720,7 @@ export const supabase = createClient(
     return true;
   }
 </script>
+
 
 <div class="controls-bar">
   <div class="controls-left">
@@ -3255,9 +3065,6 @@ export const supabase = createClient(
     }
   }
 </style>
-
-
-===== ./lib/components/VideoGrid.svelte =====
 <script>
   import VideoCard from '$lib/components/VideoCard.svelte';
   export let videos = [];
@@ -3301,62 +3108,6 @@ export const supabase = createClient(
   }
 }
 </style>
-
-
-===== ./lib/utils.js =====
-// utils.js
-
-export function difficultyLabel(level) {
-  switch (level) {
-    case 'superbeginner': return 'Super Beginner';
-    case 'beginner': return 'Beginner';
-    case 'intermediate': return 'Intermediate';
-    case 'advanced': return 'Advanced';
-    default: return 'Not Yet Rated';
-  }
-}
-
-export function difficultyColor(level) {
-  switch (level) {
-    case 'superbeginner': return '#44c366';
-    case 'beginner': return '#2e9be6';
-    case 'intermediate': return '#f9c846';
-    case 'advanced': return '#e93c2f';
-    default: return '#bbb';
-  }
-}
-
-export function formatLength(sec) {
-  if (!sec || isNaN(sec)) return '';
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  const s = sec % 60;
-  return h > 0
-    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-    : `${m}:${String(s).padStart(2, '0')}`;
-}
-
-export function getBestThumbnail(video) {
-  if (video.thumbnail) return video.thumbnail;
-  if (video.id) return `https://img.youtube.com/vi/${video.id}/hqdefault.jpg`;
-  return '/images/no_thumb_nail.png';
-}
-
-export function levelOrder(level) {
-  return ['superbeginner', 'beginner', 'intermediate', 'advanced'].indexOf(level);
-}
-
-export function shuffleArray(array) {
-  let arr = [...array];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
-
-===== ./app.html =====
 <!doctype html>
 <html lang="en">
 	<head>
@@ -3369,9 +3120,6 @@ export function shuffleArray(array) {
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>
 </html>
-
-
-===== ./app.css =====
 :root {
 	--primary: #e93c2f;
 	--text-main: #181818;
@@ -3515,5 +3263,3 @@ a:hover {
 		gap: 8px;
 	}
 }
-
-
