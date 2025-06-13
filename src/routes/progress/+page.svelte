@@ -1,6 +1,8 @@
 <script>
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
+  import VideoCard from '$lib/components/VideoCard.svelte';
+  import * as utils from '$lib/utils.js';
 
   let user = null;
   let myVideos = [];
@@ -171,7 +173,7 @@
   <div class="profile-main">
     <div class="section-title">Progress</div>
 
-    <!-- DREAMING SPANISH STYLE STATS BOXES -->
+    <!-- CHUNKY DREAMING SPANISH STATS BOXES -->
     <div class="stats-boxes-row">
       <div class="stat-box">
         <div class="stat-label">Total Watch Time</div>
@@ -184,7 +186,7 @@
       <div class="stat-box">
         <div class="stat-label">Streak</div>
         <div class="stat-value">
-          <span style="font-size:1.5em;">🔥</span>
+          <span style="font-size:2em;">🔥</span>
           {streak} day{streak === 1 ? '' : 's'}
         </div>
       </div>
@@ -207,7 +209,7 @@
       </div>
     </div>
 
-    <!-- HISTORY: Horizontal row, scrollable, front-page cards, no last watched, no length -->
+    <!-- HISTORY SECTION styled like front page grid -->
     <div class="history-section">
       <div class="history-header">
         <span class="section-title" style="margin:0;">History</span>
@@ -216,56 +218,25 @@
       {#if watchedVideos.length === 0}
         <div>No videos watched yet.</div>
       {:else}
-        <div class="history-scroll-row">
+        <div class="history-grid">
           {#each watchedVideos.slice(0, 15) as v}
-            <a href={`/video/${v.id}`} class="ci-card">
-              <span class="ci-thumb-link">
-                <img
-                  class="ci-thumb-img"
-                  src={v.thumbnail || '/no_thumb_nail.png'}
-                  alt="Video thumbnail"
-                />
-              </span>
-              <div class="ci-card-info">
-                <span class="ci-badge {v.level}">{v.level}</span>
-                <span class="ci-title" title={v.title}>{v.title}</span>
-                <div class="ci-channel">{v.channel_name}</div>
-              </div>
-            </a>
+            <VideoCard
+         
+              video={v}
+              getBestThumbnail={utils.getBestThumbnail}
+              difficultyColor={utils.difficultyColor}
+              difficultyLabel={utils.difficultyLabel}
+              formatLength={utils.formatLength}
+              filterByChannel={null}
+              filterByPlaylist={null}
+            />
           {/each}
         </div>
       {/if}
     </div>
 
-    <!-- MY VIDEOS: Horizontal row, scrollable, matches History section -->
-    <div class="history-section">
-      <div class="history-header">
-        <span class="section-title" style="margin:0;">My Videos</span>
-        <a href="/my-videos" class="view-all-link">View all</a>
-      </div>
-      {#if myVideos.length === 0}
-        <div>No videos added yet.</div>
-      {:else}
-        <div class="history-scroll-row">
-          {#each myVideos.slice(0, 15) as v}
-            <a href={`/video/${v.id}`} class="ci-card">
-              <span class="ci-thumb-link">
-                <img
-                  class="ci-thumb-img"
-                  src={v.thumbnail || '/no_thumb_nail.png'}
-                  alt="Video thumbnail"
-                />
-              </span>
-              <div class="ci-card-info">
-                <span class="ci-badge {v.level}">{v.level}</span>
-                <span class="ci-title" title={v.title}>{v.title}</span>
-                <div class="ci-channel">{v.channel_name}</div>
-              </div>
-            </a>
-          {/each}
-        </div>
-      {/if}
-    </div>
+    <!-- MY VIDEOS SECTION styled like front page grid -->
+
 
     <div class="section-title">Account</div>
     <div class="profile-row"><b>Email:</b> {email}</div>
@@ -303,94 +274,96 @@
     margin: 1.7em 0 1em 0;
     letter-spacing: 0.3px;
   }
-
-  /* DREAMING SPANISH STATS BOXES */
+  /* Chunkier stats boxes */
   .stats-boxes-row {
     display: flex;
-    gap: 2.1em;
-    margin: 1.6em 0 2.2em 0;
+    gap: 2.6em;
+    margin: 2.4em 0 2.5em 0;
     flex-wrap: wrap;
     align-items: stretch;
   }
   .stat-box {
     background: #fafafa;
-    border-radius: 15px;
-    box-shadow: 0 2px 16px #ececec;
-    padding: 1.3em 2em 1.2em 2em;
-    min-width: 172px;
-    min-height: 94px;
-    flex: 1 1 172px;
+    border-radius: 18px;
+    box-shadow: 0 2px 18px #ececec;
+    padding: 2em 3em 2em 3em;
+    min-width: 200px;
+    min-height: 108px;
+    flex: 1 1 210px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    margin-bottom: 0.8em;
   }
   .stat-label {
     color: #aaa;
-    font-size: 1.01em;
+    font-size: 1.19em;
     font-weight: 600;
-    letter-spacing: 0.05em;
-    margin-bottom: 0.5em;
+    letter-spacing: 0.07em;
+    margin-bottom: 0.6em;
   }
   .stat-value {
-    font-size: 1.5em;
+    font-size: 2.2em;
     color: #222;
-    font-weight: 700;
-    letter-spacing: 0.01em;
+    font-weight: 800;
+    letter-spacing: 0.02em;
     display: flex;
     align-items: center;
     gap: 0.3em;
   }
   .calendar-box {
-    min-width: 210px;
-    padding: 1.1em 1.3em;
+    min-width: 270px;
+    padding: 1.5em 1.6em 1.2em 1.6em;
     justify-content: start;
     align-items: stretch;
   }
   .mini-calendar {
     display: flex;
-    gap: 3px;
-    margin-bottom: 0.22em;
-    margin-top: 0.4em;
-    min-height: 16px;
+    gap: 5px;
+    margin-bottom: 0.32em;
+    margin-top: 0.5em;
+    min-height: 19px;
+    justify-content: center;
   }
   .calendar-day {
-    width: 14px;
-    height: 22px;
-    border-radius: 5px;
+    width: 18px;
+    height: 28px;
+    border-radius: 7px;
     background: #ececec;
     outline: none;
     box-shadow: 0 0 0 1px #e6e6e6;
     transition: background 0.16s;
   }
   .calendar-today {
-    outline: 2px solid #2562e9;
+    outline: 2.5px solid #2562e9;
   }
   .calendar-labels {
     display: flex;
-    gap: 3px;
-    font-size: 0.80em;
+    gap: 5px;
+    font-size: 0.97em;
     color: #bbb;
-    justify-content: start;
+    justify-content: center;
   }
   .calendar-labels > div {
-    width: 14px;
+    width: 18px;
     text-align: center;
   }
-  @media (max-width: 820px) {
-    .stats-boxes-row { flex-direction: column; gap: 1.3em; }
+  @media (max-width: 960px) {
+    .stats-boxes-row { flex-direction: column; gap: 1.8em; }
     .stat-box { min-width: unset; width: 100%; }
+    .calendar-box { min-width: unset; }
   }
 
-  /* ----------- HISTORY (watched videos row) ----------- */
+  /* History/my videos grid: match front page grid */
   .history-section {
-    margin-top: 2.2em;
+    margin-top: 2.4em;
   }
   .history-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1em;
+    margin-bottom: 1.2em;
   }
   .view-all-link {
     font-size: 1em;
@@ -398,105 +371,47 @@
     text-decoration: none;
     font-weight: 500;
   }
-  .history-scroll-row {
-    display: flex;
-    flex-direction: row;
-    gap: 24px;
-    overflow-x: auto;
-    padding-bottom: 2px;
+  .history-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 2.1em 2.1em;
     margin-bottom: 2em;
-    scrollbar-width: thin;
-  }
-  .history-scroll-row::-webkit-scrollbar {
-    height: 8px;
-    background: #f3f3f3;
-  }
-  .history-scroll-row::-webkit-scrollbar-thumb {
-    background: #dcdcdc;
-    border-radius: 8px;
+    margin-top: 0.6em;
   }
 
-  .ci-card {
-    background: #fff;
-    border-radius: 14px;
-    box-shadow: 0 2px 10px #ececec;
-    min-width: 196px;
-    max-width: 196px;
-    flex: 0 0 196px;
-    display: flex;
-    flex-direction: column;
-    text-align: left;
-    padding: 0;
-    cursor: pointer;
-    transition: box-shadow 0.18s;
-    font-family: Inter, Arial, sans-serif;
+  .profile-row {
+    margin-bottom: 1.3em;
   }
-  .ci-card:hover {
-    box-shadow: 0 6px 32px #e93c2f22;
-  }
-
-  .ci-thumb-link {
-    display: block;
-    border-radius: 14px 14px 0 0;
-    overflow: hidden;
-  }
-  .ci-thumb-img {
+  input[type='email'],
+  input[type='password'] {
     width: 100%;
-    aspect-ratio: 16/9;
-    object-fit: cover;
-    background: #f3f3f3;
-  }
-
-  .ci-card-info {
-    padding: 0.8em 1em 1.1em 1em;
-  }
-  .ci-title {
-    font-weight: 600;
-    font-size: 1.07em;
-    margin: 0.24em 0 0.09em 0;
-    color: #222;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .ci-badge {
+    padding: 0.7em 1em;
+    font-size: 1.07rem;
+    border: 1px solid #ececec;
     border-radius: 8px;
-    padding: 0.1em 0.48em;
-    font-size: 0.87em;
-    font-weight: 500;
-    color: #fff;
-    background: #e93c2f;
-    margin-bottom: 0.1em;
-    text-transform: capitalize;
-    display: inline-block;
-    margin-right: 0.4em;
-  }
-  .ci-badge.Superbeginner {
-    background: #2e9be6;
-  }
-  .ci-badge.Beginner {
-    background: #44c366;
-  }
-  .ci-badge.Intermediate {
-    background: #e93c2f;
-  }
-  .ci-badge.Advanced {
-    background: #f9c846;
+    background: #fafafa;
+    margin-bottom: 0.9em;
     color: #181818;
   }
-  .ci-channel {
-    font-size: 0.92em;
-    color: #888;
-    margin-top: 0.11em;
+  button {
+    padding: 0.6em 1.7em;
+    font-size: 1.04rem;
+    background: #e93c2f;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    margin-right: 1em;
+    margin-bottom: 0.5em;
+    transition: background 0.18s;
   }
-  @media (max-width: 600px) {
-    .ci-card,
-    .history-scroll-row {
-      min-width: 150px;
-      max-width: 150px;
-    }
-    .ci-thumb-img {
-      aspect-ratio: 16/9;
-    }
+  button:hover {
+    background: #b8271b;
+  }
+  .message {
+    color: #26890d;
+    margin-bottom: 1em;
+    min-height: 1.5em;
   }
 </style>
