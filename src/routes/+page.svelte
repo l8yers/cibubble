@@ -2,16 +2,28 @@
   import { onMount } from 'svelte';
   import VideoGrid from '$lib/components/VideoGrid.svelte';
   import SortBar from '$lib/components/SortBar.svelte';
+  import { writable, get } from 'svelte/store';
   import * as utils from '$lib/utils.js';
   import '../app.css';
 
   import {
-    filteredVideos, loading, errorMsg, loadVideos,
-    selectedChannel, selectedPlaylist, selectedLevels, sortBy, selectedCountry,
-    selectedTags, hideWatched, watchedIds, searchTerm
+    filteredVideos,
+    loading,
+    errorMsg,
+    loadVideos,
+    selectedChannel,
+    selectedPlaylist,
+    selectedLevels,
+    sortBy,
+    selectedCountry,
+    selectedTags,
+    hideWatched,
+    watchedIds,
+    searchTerm
   } from '$lib/stores/videos.js';
 
-  import { get } from 'svelte/store';
+  // --- THE FIX: Use a writable store for searchOpen
+  let searchOpen = writable(false);
 
   // --- URL <-> Filters helpers ---
   function filtersToQuery({
@@ -22,7 +34,8 @@
     playlist,
     sort,
     hideWatched,
-    search
+    search,
+    searchOpen // (optional: include if you want search bar open state in URL)
   }) {
     const params = new URLSearchParams();
     if (levels?.size && levels.size < 3) params.set('level', Array.from(levels).join(',')); // Only set if not all
@@ -33,6 +46,8 @@
     if (sort && sort !== 'random') params.set('sort', sort);
     if (hideWatched) params.set('hideWatched', '1');
     if (search) params.set('search', search);
+    // Uncomment if you want to sync search bar open state:
+    // if (searchOpen) params.set('searchOpen', '1');
     return params.toString();
   }
 
@@ -47,6 +62,7 @@
       sort: params.get('sort') || 'random',
       hideWatched: params.get('hideWatched') === '1',
       search: params.get('search') || '',
+      searchOpen: params.get('searchOpen') === '1'
     };
   }
 
@@ -61,6 +77,7 @@
       sort: get(sortBy),
       hideWatched: get(hideWatched),
       search: get(searchTerm)
+      // searchOpen: get(searchOpen) // Uncomment if you want to sync this state
     });
     const url = query ? `?${query}` : window.location.pathname;
     history.replaceState({}, '', url);
@@ -77,6 +94,7 @@
     sortBy.set(filters.sort);
     hideWatched.set(filters.hideWatched);
     searchTerm.set(filters.search);
+    if ('searchOpen' in filters) searchOpen.set(filters.searchOpen);
 
     loadVideos();
   });
@@ -89,6 +107,7 @@
     selectedTags.set(e.detail.selectedTags);
     hideWatched.set(e.detail.hideWatched);
     searchTerm.set(e.detail.searchTerm);
+    if ('searchOpen' in e.detail) searchOpen.set(e.detail.searchOpen);
     updateUrlFromFilters();
   }
 
@@ -97,7 +116,7 @@
     updateUrlFromFilters();
   }
   function clearChannelFilter() {
-    selectedChannel.set("");
+    selectedChannel.set('');
     updateUrlFromFilters();
   }
   function filterByPlaylist(playlistTitle) {
@@ -105,7 +124,7 @@
     updateUrlFromFilters();
   }
   function clearPlaylistFilter() {
-    selectedPlaylist.set("");
+    selectedPlaylist.set('');
     updateUrlFromFilters();
   }
 
@@ -125,11 +144,15 @@
     { value: 'old', label: 'Old' }
   ];
   let countryOptions = [
-    "Spain", "Mexico", "Argentina", "Colombia", "Chile", "Various", "Peru",
-    "Guatemala", "Uruguay", "Dominican Republic", "Venezuela", "Costa Rica", "Cuba", "Ecuador", "Paraguay", "Panama", "Canary Islands", "Italy", "Puerto Rico", "Equatorial Guinea", "DUBS", "Not Native Speaker", "AI Voice", "Latin America"
+    'Spain', 'Mexico', 'Argentina', 'Colombia', 'Chile', 'Various', 'Peru',
+    'Guatemala', 'Uruguay', 'Dominican Republic', 'Venezuela', 'Costa Rica', 'Cuba',
+    'Ecuador', 'Paraguay', 'Panama', 'Canary Islands', 'Italy', 'Puerto Rico',
+    'Equatorial Guinea', 'DUBS', 'Not Native Speaker', 'AI Voice', 'Latin America'
   ].sort();
   let tagOptions = [
-    "For Learners", "Kids Show", "Dubbed Show", "Videogames", "News", "History", "Science", "Travel", "Lifestyle", "Personal Development", "Cooking", "Music", "Comedy", "Native Show", "Education", "Sports", "Current Events"
+    'For Learners', 'Kids Show', 'Dubbed Show', 'Videogames', 'News', 'History', 'Science',
+    'Travel', 'Lifestyle', 'Personal Development', 'Cooking', 'Music', 'Comedy',
+    'Native Show', 'Education', 'Sports', 'Current Events'
   ].sort();
 </script>
 
@@ -146,6 +169,7 @@
       selectedTags={$selectedTags}
       hideWatched={$hideWatched}
       searchTerm={$searchTerm}
+      searchOpen={$searchOpen}
       on:change={handleSortBarChange}
     />
   </div>
@@ -176,8 +200,9 @@
       difficultyColor={utils.difficultyColor}
       difficultyLabel={utils.difficultyLabel}
       formatLength={utils.formatLength}
-      filterByChannel={filterByChannel}
-      filterByPlaylist={filterByPlaylist}
+      {filterByChannel}
+      {filterByPlaylist}
     />
   {/if}
 </div>
+
