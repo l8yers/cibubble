@@ -1,21 +1,27 @@
 // src/lib/stores/user.js
 import { writable } from 'svelte/store';
-import { getCurrentUser, signInWithEmail, signOut } from '../api/auth.js';
+import { supabase } from '../supabaseClient.js';
 
 export const user = writable(null);
 export const authError = writable('');
 
+// Try to get current user/session on load
 export async function loadUser() {
-  const { user: u, error } = await getCurrentUser();
-  if (u) user.set(u);
-  else user.set(null);
-  if (error) authError.set(error.message || 'Error loading user');
+  const { data, error } = await supabase.auth.getSession();
+  if (data?.session?.user) {
+    user.set(data.session.user);
+    authError.set('');
+  } else {
+    user.set(null);
+    authError.set(error?.message || '');
+  }
 }
 
+// Login function
 export async function login(email, password) {
-  const { user: u, error } = await signInWithEmail(email, password);
-  if (u) {
-    user.set(u);
+  const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+  if (data?.user) {
+    user.set(data.user);
     authError.set('');
   } else {
     user.set(null);
@@ -23,7 +29,21 @@ export async function login(email, password) {
   }
 }
 
+// Logout function
 export async function logout() {
-  await signOut();
+  await supabase.auth.signOut();
   user.set(null);
 }
+
+// Listen to auth state changes and update store
+supabase.auth.onAuthStateChange((_event, session) => {
+  if (session?.user) {
+    user.set(session.user);
+    authError.set('');
+  } else {
+    user.set(null);
+  }
+});
+
+// Immediately load user on import
+loadUser();
