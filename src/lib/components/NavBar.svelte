@@ -1,26 +1,5 @@
 <script>
-  import { supabase } from '$lib/supabaseClient';
-  import { onMount } from 'svelte';
-
-  let user = null;
-
-  // Check session at mount and listen for changes
-  onMount(async () => {
-    // Get current session from localStorage (browser)
-    const { data } = await supabase.auth.getSession();
-    user = data.session?.user ?? null;
-
-    // Listen for login/logout and update user
-    supabase.auth.onAuthStateChange((_event, session) => {
-      user = session?.user ?? null;
-    });
-  });
-
-  async function logout() {
-    await supabase.auth.signOut();
-    user = null;
-    window.location.href = '/';
-  }
+  import { user, logout } from '$lib/stores/user.js'; // Import user store and logout action
 </script>
 
 <style>
@@ -78,18 +57,17 @@
 
 <nav class="header">
   <a href="/" class="logo-row">
-    <img src="/logo.png" alt="CIBUBBLE logo" class="logo-img" />  </a>
+    <img src="/logo.png" alt="CIBUBBLE logo" class="logo-img" />
+  </a>
   <div class="nav-links">
     <a class="nav-link" href="/">Home</a>
     <a class="nav-link" href="/admin">ADMIN</a>
-        <!-- <a class="nav-link" href="/faq">FAQ</a> -->
-    {#if user}
+    {#if $user}
       <a class="nav-link" href="/progress">Progress</a>
       <button class="logout-btn" on:click={logout}>Logout</button>
     {:else}
       <a class="nav-link" href="/signup">Sign Up</a>
       <a class="nav-link" href="/login">Login</a>
     {/if}
-
   </div>
 </nav>

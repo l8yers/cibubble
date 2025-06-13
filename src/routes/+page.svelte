@@ -3,7 +3,6 @@
   import VideoGrid from '$lib/components/VideoGrid.svelte';
   import SortBar from '$lib/components/SortBar.svelte';
   import * as utils from '$lib/utils.js';
-    import '../app.css';
 
 
   // Import stores
