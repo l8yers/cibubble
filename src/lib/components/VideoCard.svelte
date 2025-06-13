@@ -8,6 +8,20 @@
   export let filterByPlaylist;
 
   import { ListMusic } from 'lucide-svelte';
+
+  // Generate a link preserving all existing filters but updating channel
+  function makeChannelUrl(channelId) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('channel', channelId);
+    return `/?${params.toString()}`;
+  }
+
+  // Generate a link preserving all existing filters but updating playlist
+  function makePlaylistUrl(playlistId) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('playlist', playlistId);
+    return `/?${params.toString()}`;
+  }
 </script>
 
 <div class="card">
@@ -33,27 +47,27 @@
       <span class="badge" style="background:{difficultyColor(video.level)};">
         {difficultyLabel(video.level)}
       </span>
+
       {#if video.channel_id && (video.channel?.name || video.channel_name)}
         <a
           class="meta-link"
           style="color:#2e9be6;cursor:pointer;"
           title="Show all videos from this channel"
-          href={`/?channel=${video.channel_id}`}
+          href={makeChannelUrl(video.channel_id)}
         >
           {video.channel?.name ?? video.channel_name}
         </a>
       {/if}
+
       {#if video.playlist_id && video.playlist?.title}
-        <span
+        <a
           class="meta-link playlist-icon"
           title="Show all videos in this playlist"
-          on:click={() => filterByPlaylist && filterByPlaylist(video.playlist.title)}
-          tabindex="0"
-          role="button"
+          href={makePlaylistUrl(video.playlist_id)}
         >
           <ListMusic size={18} />
           <span class="sr-only">{video.playlist.title}</span>
-        </span>
+        </a>
       {/if}
     </div>
   </div>

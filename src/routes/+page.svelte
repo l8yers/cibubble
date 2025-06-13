@@ -260,13 +260,19 @@
     <button on:click={clearChannelFilter} class="clear-btn clear-btn--blue">✕ Clear</button>
   </div>
 {/if}
-  {#if $selectedPlaylist}
-    <div class="chip-warning">
-      <span><b>Filtered by playlist:</b> {$selectedPlaylist}</span>
-      <button on:click={clearPlaylistFilter} class="clear-btn clear-btn--purple">✕ Clear</button>
-    </div>
-  {/if}
-
+{#if $selectedPlaylist}
+  <div class="chip-warning">
+    <span>
+      <b>Filtered by playlist:</b>
+      {#if $videos.length > 0}
+        {$videos[0].playlist?.title ?? $selectedPlaylist}
+      {:else}
+        {$selectedPlaylist}
+      {/if}
+    </span>
+    <button on:click={clearPlaylistFilter} class="clear-btn clear-btn--purple">✕ Clear</button>
+  </div>
+{/if}
   {#if $loading && $videos.length === 0}
     <p class="loading-more">Loading videos…</p>
   {:else if $errorMsg}
