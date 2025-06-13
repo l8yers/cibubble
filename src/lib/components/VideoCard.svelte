@@ -7,7 +7,6 @@
   export let filterByChannel;
   export let filterByPlaylist;
 
-  // Import the playlist icon from lucide-svelte
   import { ListMusic } from 'lucide-svelte';
 </script>
 
@@ -34,17 +33,15 @@
       <span class="badge" style="background:{difficultyColor(video.level)};">
         {difficultyLabel(video.level)}
       </span>
-      {#if video.channel_name}
-        <span
+      {#if video.channel_id && (video.channel?.name || video.channel_name)}
+        <a
           class="meta-link"
           style="color:#2e9be6;cursor:pointer;"
           title="Show all videos from this channel"
-          on:click={() => filterByChannel && filterByChannel(video.channel_name)}
-          tabindex="0"
-          role="button"
+          href={`/?channel=${video.channel_id}`}
         >
           {video.channel?.name ?? video.channel_name}
-        </span>
+        </a>
       {/if}
       {#if video.playlist_id && video.playlist?.title}
         <span

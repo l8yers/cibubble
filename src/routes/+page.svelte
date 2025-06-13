@@ -1,4 +1,5 @@
 <script>
+  import { page } from '$app/stores';
   import { onMount, onDestroy } from 'svelte';
   import VideoGrid from '$lib/components/VideoGrid.svelte';
   import SortBar from '$lib/components/SortBar.svelte';
@@ -16,13 +17,13 @@
   const loading = writable(false);
   const errorMsg = writable('');
   const hasMore = writable(true);
-  const page = writable(1);
+  const pageNum = writable(1);
 
   let searchOpen = false;
   let sentinel;
   let observerInstance;
 
-  // ---- Infinite Scroll: Observe the sentinel after each render ----
+  // Infinite Scroll setup
   function setupObserver() {
     if (observerInstance) {
       observerInstance.disconnect();
@@ -90,12 +91,12 @@
     history.replaceState({}, '', url);
   }
 
-  // --- Main fetch function for all sorts except random ---
+  // Main fetch function
   async function fetchVideos({ append = false } = {}) {
     loading.set(true);
     errorMsg.set('');
     const query = new URLSearchParams({
-      page: get(page),
+      page: get(pageNum),
       pageSize: PAGE_SIZE,
       levels: Array.from(get(selectedLevels)).join(','),
       tags: Array.from(get(selectedTags)).join(','),
@@ -122,50 +123,32 @@
     loading.set(false);
   }
 
-  // --- Load More Handler (random and non-random) ---
   async function loadMore() {
     if (!get(hasMore) || get(loading)) return;
-    // For random: keep incrementing page and appending
-    // For others: ditto
-    page.update(p => p + 1);
+    pageNum.update(p => p + 1);
     await fetchVideos({ append: true });
   }
 
-  // --- Reset videos on filter/sort/search change ---
   function resetAndFetch() {
-    page.set(1);
+    pageNum.set(1);
     fetchVideos({ append: false });
   }
 
-  // --- On mount: get filters from URL, fetch first page ---
-  onMount(() => {
-    const filters = queryToFilters(window.location.search);
-    if (filters.levels.size) selectedLevels.set(filters.levels);
-    if (filters.tags.size) selectedTags.set(filters.tags);
-    if (filters.country) selectedCountry.set(filters.country);
-    if (filters.channel) selectedChannel.set(filters.channel);
-    if (filters.playlist) selectedPlaylist.set(filters.playlist);
-    sortBy.set(filters.sort);
-    searchTerm.set(filters.search);
+  function handleSortBarChange(e) {
+    selectedLevels.set(e.detail.selectedLevels);
+    sortBy.set(e.detail.sortBy);
+    selectedCountry.set(e.detail.selectedCountry);
+    selectedTags.set(e.detail.selectedTags);
+    hideWatched.set(e.detail.hideWatched);
+    searchTerm.set(e.detail.searchTerm);
+    searchOpen = e.detail.searchOpen;
+
+    updateUrlFromFilters();
     resetAndFetch();
-  });
+  }
 
-  // --- When filters change, update URL and refetch videos ---
-function handleSortBarChange(e) {
-  selectedLevels.set(e.detail.selectedLevels);
-  sortBy.set(e.detail.sortBy);
-  selectedCountry.set(e.detail.selectedCountry);
-  selectedTags.set(e.detail.selectedTags);
-  hideWatched.set(e.detail.hideWatched);
-  searchTerm.set(e.detail.searchTerm);
-  searchOpen = e.detail.searchOpen;
-
-  updateUrlFromFilters();   // <-- keep URL in sync
-  resetAndFetch();          // <-- this triggers a new API request!
-}
-
-  function filterByChannel(channelName) {
-    selectedChannel.set(channelName);
+  function filterByChannel(channelId) {
+    selectedChannel.set(channelId);
     updateUrlFromFilters();
     resetAndFetch();
   }
@@ -182,6 +165,40 @@ function handleSortBarChange(e) {
   function clearPlaylistFilter() {
     selectedPlaylist.set('');
     updateUrlFromFilters();
+    resetAndFetch();
+  }
+
+  // --- The "secret sauce": first-load vs SPA reactivity ---
+  let firstLoad = true;
+  let lastQuery = '';
+
+  // First load: set filters from URL and fetch
+  onMount(() => {
+    const filters = queryToFilters(window.location.search);
+    selectedLevels.set(filters.levels.size ? filters.levels : new Set());
+    selectedTags.set(filters.tags.size ? filters.tags : new Set());
+    selectedCountry.set(filters.country || '');
+    selectedChannel.set(filters.channel || '');
+    selectedPlaylist.set(filters.playlist || '');
+    sortBy.set(filters.sort || 'random');
+    searchTerm.set(filters.search || '');
+
+    resetAndFetch();
+    firstLoad = false;
+  });
+
+  // SPA: Listen for URL query changes after first load
+  $: if (!firstLoad && $page.url.search !== lastQuery) {
+    lastQuery = $page.url.search;
+    const filters = queryToFilters($page.url.search);
+    selectedLevels.set(filters.levels.size ? filters.levels : new Set());
+    selectedTags.set(filters.tags.size ? filters.tags : new Set());
+    selectedCountry.set(filters.country || '');
+    selectedChannel.set(filters.channel || '');
+    selectedPlaylist.set(filters.playlist || '');
+    sortBy.set(filters.sort || 'random');
+    searchTerm.set(filters.search || '');
+
     resetAndFetch();
   }
 
@@ -214,28 +231,35 @@ function handleSortBarChange(e) {
 
 <div class="page-container">
   <div class="sortbar-container">
-<SortBar
-  {levels}
-  {sortChoices}
-  {countryOptions}
-  {tagOptions}
-  selectedLevels={$selectedLevels}
-  sortBy={$sortBy}
-  selectedCountry={$selectedCountry}
-  selectedTags={$selectedTags}
-  hideWatched={$hideWatched}
-  searchTerm={$searchTerm}
-  searchOpen={searchOpen}
-  on:change={handleSortBarChange}
-/>
+    <SortBar
+      {levels}
+      {sortChoices}
+      {countryOptions}
+      {tagOptions}
+      selectedLevels={$selectedLevels}
+      sortBy={$sortBy}
+      selectedCountry={$selectedCountry}
+      selectedTags={$selectedTags}
+      hideWatched={$hideWatched}
+      searchTerm={$searchTerm}
+      searchOpen={searchOpen}
+      on:change={handleSortBarChange}
+    />
   </div>
 
-  {#if $selectedChannel}
-    <div class="chip-info">
-      <span><b>Filtered by channel:</b> {$selectedChannel}</span>
-      <button on:click={clearChannelFilter} class="clear-btn clear-btn--blue">✕ Clear</button>
-    </div>
-  {/if}
+{#if $selectedChannel}
+  <div class="chip-info">
+    <span>
+      <b>Filtered by channel:</b>
+      {#if $videos.length > 0}
+        {$videos[0].channel?.name ?? $videos[0].channel_name ?? $selectedChannel}
+      {:else}
+        {$selectedChannel}
+      {/if}
+    </span>
+    <button on:click={clearChannelFilter} class="clear-btn clear-btn--blue">✕ Clear</button>
+  </div>
+{/if}
   {#if $selectedPlaylist}
     <div class="chip-warning">
       <span><b>Filtered by playlist:</b> {$selectedPlaylist}</span>
@@ -259,11 +283,9 @@ function handleSortBarChange(e) {
       {filterByChannel}
       {filterByPlaylist}
     />
-    <!-- Infinite scroll for all sorts EXCEPT random -->
     {#if $hasMore && $sortBy !== 'random'}
       <div bind:this={sentinel} style="height: 2em;"></div>
     {/if}
-    <!-- "Load More" button for random sort only -->
     {#if $hasMore && $sortBy === 'random'}
       <button class="load-more-btn" on:click={loadMore} disabled={$loading} style="margin: 2em auto; display: block;">
         {#if $loading}Loading...{/if}
