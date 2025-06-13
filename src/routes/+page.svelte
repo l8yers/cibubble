@@ -1,18 +1,16 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import VideoGrid from '$lib/components/VideoGrid.svelte';
   import SortBar from '$lib/components/SortBar.svelte';
   import { writable, get } from 'svelte/store';
   import * as utils from '$lib/utils.js';
   import '../app.css';
 
-  // --- Filter UI state ---
   import {
     selectedChannel, selectedPlaylist, selectedLevels, sortBy, selectedCountry,
     selectedTags, hideWatched, searchTerm
   } from '$lib/stores/videos.js';
 
-  // --- Infinite loading state ---
   const PAGE_SIZE = 30;
   let videos = writable([]);
   let loading = writable(false);
@@ -22,7 +20,46 @@
 
   let searchOpen = writable(false);
 
-  // --- URL <-> Filters helpers (as before) ---
+  // ---- Intersection Observer Fix ----
+  let sentinel;
+  let observerInstance;
+
+  // Clean up previous observer, attach to new sentinel
+  function setupObserver() {
+    if (observerInstance) {
+      observerInstance.disconnect();
+      observerInstance = null;
+    }
+    if (sentinel && $hasMore && $sortBy !== 'random') {
+      observerInstance = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (
+              entry.isIntersecting &&
+              get(hasMore) &&
+              !get(loading) &&
+              get(sortBy) !== 'random'
+            ) {
+              loadMore();
+            }
+          });
+        },
+        { root: null, rootMargin: '0px', threshold: 0.1 }
+      );
+      observerInstance.observe(sentinel);
+    }
+  }
+
+  // Set up and tear down the observer reactively when sentinel changes!
+  $: if (sentinel) {
+    setupObserver();
+  }
+
+  onDestroy(() => {
+    if (observerInstance) observerInstance.disconnect();
+  });
+
+  // --- Filter/URL logic, fetchVideos, handleSortBarChange, etc. as before ---
   function filtersToQuery({
     levels,
     tags,
@@ -30,8 +67,7 @@
     channel,
     playlist,
     sort,
-    search,
-    // Optionally: hideWatched, searchOpen
+    search
   }) {
     const params = new URLSearchParams();
     if (levels?.size && levels.size < 3) params.set('level', Array.from(levels).join(','));
@@ -41,7 +77,6 @@
     if (playlist) params.set('playlist', playlist);
     if (sort && sort !== 'random') params.set('sort', sort);
     if (search) params.set('search', search);
-    // Optionally: if (hideWatched) params.set('hideWatched', '1');
     return params.toString();
   }
 
@@ -72,7 +107,6 @@
     history.replaceState({}, '', url);
   }
 
-  // --- MAIN fetch function ---
   async function fetchVideos({ append = false } = {}) {
     loading.set(true);
     errorMsg.set('');
@@ -87,14 +121,13 @@
       sort: get(sortBy),
       search: get(searchTerm)
     });
-const res = await fetch(`/api/videos?${query}`);
-if (!res.ok) {
-  const errText = await res.text();
-  errorMsg.set('Error loading videos: ' + errText);
-  loading.set(false);
-  return;
-}
-
+    const res = await fetch(`/api/videos?${query}`);
+    if (!res.ok) {
+      const errText = await res.text();
+      errorMsg.set('Error loading videos: ' + errText);
+      loading.set(false);
+      return;
+    }
     const { videos: fetched, hasMore: more } = await res.json();
     if (append) {
       videos.update(vs => [...vs, ...fetched]);
@@ -105,20 +138,17 @@ if (!res.ok) {
     loading.set(false);
   }
 
-  // --- Load More Handler ---
   async function loadMore() {
     if (!get(hasMore) || get(loading)) return;
     page.update(p => p + 1);
     await fetchVideos({ append: true });
   }
 
-  // --- Reset videos on filter/sort/search change ---
   function resetAndFetch() {
     page.set(1);
     fetchVideos({ append: false });
   }
 
-  // --- On mount: get filters from URL, fetch first page ---
   onMount(() => {
     const filters = queryToFilters(window.location.search);
     if (filters.levels.size) selectedLevels.set(filters.levels);
@@ -128,19 +158,15 @@ if (!res.ok) {
     if (filters.playlist) selectedPlaylist.set(filters.playlist);
     sortBy.set(filters.sort);
     searchTerm.set(filters.search);
-    // Optionally: searchOpen.set(filters.searchOpen);
-
     resetAndFetch();
   });
 
-  // --- When filters change, update URL and refetch videos ---
   function handleSortBarChange(e) {
     selectedLevels.set(e.detail.selectedLevels);
     sortBy.set(e.detail.sortBy);
     selectedCountry.set(e.detail.selectedCountry);
     selectedTags.set(e.detail.selectedTags);
     searchTerm.set(e.detail.searchTerm);
-    // Optionally: if ('searchOpen' in e.detail) searchOpen.set(e.detail.searchOpen);
     updateUrlFromFilters();
     resetAndFetch();
   }
@@ -166,7 +192,6 @@ if (!res.ok) {
     resetAndFetch();
   }
 
-  // Filter/Sort options (as before)
   const levels = [
     { value: 'easy', label: 'Easy' },
     { value: 'intermediate', label: 'Intermediate' },
@@ -240,7 +265,12 @@ if (!res.ok) {
       {filterByChannel}
       {filterByPlaylist}
     />
-    {#if $hasMore}
+    <!-- Infinite scroll for all sorts EXCEPT random -->
+    {#if $hasMore && $sortBy !== 'random'}
+      <div bind:this={sentinel} style="height: 2em;"></div>
+    {/if}
+    <!-- "Load More" button for random sort only -->
+    {#if $hasMore && $sortBy === 'random'}
       <button class="load-more-btn" on:click={loadMore} disabled={$loading} style="margin: 2em auto; display: block;">
         {#if $loading}Loading...{/if}
         {#if !$loading}Load More{/if}
@@ -248,6 +278,7 @@ if (!res.ok) {
     {/if}
   {/if}
 </div>
+
 
 <style>
   .load-more-btn {
@@ -268,3 +299,4 @@ if (!res.ok) {
   }
 
 </style>
+
