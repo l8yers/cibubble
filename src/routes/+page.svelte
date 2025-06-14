@@ -23,7 +23,7 @@
   let sentinel;
   let observerInstance;
 
-  // Levels and filter options (define these first so you can reference them in sanitizing code)
+  // Levels and filter options
   const levels = [
     { value: 'easy', label: 'Easy' },
     { value: 'intermediate', label: 'Intermediate' },
@@ -83,7 +83,8 @@
   // --- URL <-> Filters helpers ---
   function filtersToQuery({ levels, tags, country, channel, playlist, sort, search }) {
     const params = new URLSearchParams();
-  params.set('level', Array.from(levels).join(',')); // ✅ Always send levels    if (tags?.size) params.set('tags', Array.from(tags).join(','));
+    params.set('level', Array.from(levels).join(','));
+    if (tags?.size) params.set('tags', Array.from(tags).join(','));
     if (country) params.set('country', country);
     if (channel) params.set('channel', channel);
     if (playlist) params.set('playlist', playlist);
@@ -162,21 +163,21 @@
     fetchVideos({ append: false });
   }
 
-function handleSortBarChange(e) {
-  const rawLevels = e.detail.selectedLevels;
-  const safeLevels = new Set(Array.from(rawLevels).filter(lvl => validLevels.has(lvl)));
+  function handleSortBarChange(e) {
+    const rawLevels = e.detail.selectedLevels;
+    const safeLevels = new Set(Array.from(rawLevels).filter(lvl => validLevels.has(lvl)));
 
-  selectedLevels.set(safeLevels); // ✅ Use the cleaned version
-  selectedTags.set(new Set(e.detail.selectedTags));
-  sortBy.set(e.detail.sortBy);
-  selectedCountry.set(e.detail.selectedCountry);
-  hideWatched.set(e.detail.hideWatched);
-  searchTerm.set(e.detail.searchTerm);
-  searchOpen = e.detail.searchOpen;
+    selectedLevels.set(safeLevels);
+    selectedTags.set(new Set(e.detail.selectedTags));
+    sortBy.set(e.detail.sortBy);
+    selectedCountry.set(e.detail.selectedCountry);
+    hideWatched.set(e.detail.hideWatched);
+    searchTerm.set(e.detail.searchTerm);
+    searchOpen = e.detail.searchOpen;
 
-  updateUrlFromFilters();
-  resetAndFetch();
-}
+    updateUrlFromFilters();
+    resetAndFetch();
+  }
   function filterByChannel(channelId) {
     selectedChannel.set(channelId);
     updateUrlFromFilters();
@@ -198,23 +199,18 @@ function handleSortBarChange(e) {
     resetAndFetch();
   }
 
-  // --- The "secret sauce": first-load vs SPA reactivity ---
   let firstLoad = true;
   let lastQuery = '';
 
   // First load: set filters from URL and fetch
   onMount(() => {
     const filters = queryToFilters(window.location.search);
-
-    // SANITIZE LEVELS HERE
-const safeLevels = new Set(
-  Array.from(filters.levels).filter(lvl => validLevels.has(lvl))
-);
-selectedLevels.set(
-  safeLevels.size ? safeLevels : new Set(['easy', 'intermediate', 'advanced'])
-);
-    selectedLevels.set(safeLevels.size ? safeLevels : new Set());
-
+    const safeLevels = new Set(
+      Array.from(filters.levels).filter(lvl => validLevels.has(lvl))
+    );
+    selectedLevels.set(
+      safeLevels.size ? safeLevels : new Set(['easy', 'intermediate', 'advanced'])
+    );
     selectedTags.set(filters.tags.size ? filters.tags : new Set());
     selectedCountry.set(filters.country || '');
     selectedChannel.set(filters.channel || '');
@@ -227,76 +223,72 @@ selectedLevels.set(
   });
 
   // SPA: Listen for URL query changes after first load
-$: if (!firstLoad && $page.url.search !== lastQuery) {
-  lastQuery = $page.url.search;
-  const filters = queryToFilters($page.url.search);
+  $: if (!firstLoad && $page.url.search !== lastQuery) {
+    lastQuery = $page.url.search;
+    const filters = queryToFilters($page.url.search);
+    const safeLevels = new Set(
+      Array.from(filters.levels).filter(lvl => validLevels.has(lvl))
+    );
+    selectedLevels.set(
+      safeLevels.size ? safeLevels : new Set(['easy', 'intermediate', 'advanced'])
+    );
+    selectedTags.set(filters.tags.size ? filters.tags : new Set());
+    selectedCountry.set(filters.country || '');
+    selectedChannel.set(filters.channel || '');
+    selectedPlaylist.set(filters.playlist || '');
+    sortBy.set(filters.sort || 'random');
+    searchTerm.set(filters.search || '');
 
-  // SANITIZE LEVELS HERE TOO
-  const safeLevels = new Set(
-    Array.from(filters.levels).filter(lvl => validLevels.has(lvl))
-  );
-  selectedLevels.set(
-    safeLevels.size ? safeLevels : new Set(['easy', 'intermediate', 'advanced'])
-  );
-
-  selectedTags.set(filters.tags.size ? filters.tags : new Set());
-  selectedCountry.set(filters.country || '');
-  selectedChannel.set(filters.channel || '');
-  selectedPlaylist.set(filters.playlist || '');
-  sortBy.set(filters.sort || 'random');
-  searchTerm.set(filters.search || '');
-
-  resetAndFetch();
-}
-
+    resetAndFetch();
+  }
 </script>
+
 
 
 <div class="page-container">
   <div class="sortbar-container">
-<SortBar
-  {levels}
-  {sortChoices}
-  {countryOptions}
-  {tagOptions}
-  selectedLevels={Array.from($selectedLevels)}
-  sortBy={$sortBy}
-  selectedCountry={$selectedCountry}
-  selectedTags={Array.from($selectedTags)}
-  hideWatched={$hideWatched}
-  searchTerm={$searchTerm}
-  searchOpen={searchOpen}
-  on:change={handleSortBarChange}
-/>
-
+    <SortBar
+      {levels}
+      {sortChoices}
+      {countryOptions}
+      {tagOptions}
+      selectedLevels={Array.from($selectedLevels)}
+      sortBy={$sortBy}
+      selectedCountry={$selectedCountry}
+      selectedTags={Array.from($selectedTags)}
+      hideWatched={$hideWatched}
+      searchTerm={$searchTerm}
+      searchOpen={searchOpen}
+      on:change={handleSortBarChange}
+    />
   </div>
 
-{#if $selectedChannel}
-  <div class="chip-info">
-    <span>
-      <b>Filtered by channel:</b>
-      {#if $videos.length > 0}
-        {$videos[0].channel?.name ?? $videos[0].channel_name ?? $selectedChannel}
-      {:else}
-        {$selectedChannel}
-      {/if}
-    </span>
-    <button on:click={clearChannelFilter} class="clear-btn clear-btn--blue">✕ Clear</button>
-  </div>
-{/if}
-{#if $selectedPlaylist}
-  <div class="chip-warning">
-    <span>
-      <b>Filtered by playlist:</b>
-      {#if $videos.length > 0}
-        {$videos[0].playlist?.title ?? $selectedPlaylist}
-      {:else}
-        {$selectedPlaylist}
-      {/if}
-    </span>
-    <button on:click={clearPlaylistFilter} class="clear-btn clear-btn--purple">✕ Clear</button>
-  </div>
-{/if}
+  {#if $selectedChannel}
+    <div class="chip-info">
+      <span>
+        <b>Filtered by channel:</b>
+        {#if $videos.length > 0}
+          {$videos[0].channel?.name ?? $videos[0].channel_name ?? $selectedChannel}
+        {:else}
+          {$selectedChannel}
+        {/if}
+      </span>
+      <button on:click={clearChannelFilter} class="clear-btn clear-btn--blue">✕ Clear</button>
+    </div>
+  {/if}
+  {#if $selectedPlaylist}
+    <div class="chip-warning">
+      <span>
+        <b>Filtered by playlist:</b>
+        {#if $videos.length > 0}
+          {$videos[0].playlist?.title ?? $selectedPlaylist}
+        {:else}
+          {$selectedPlaylist}
+        {/if}
+      </span>
+      <button on:click={clearPlaylistFilter} class="clear-btn clear-btn--purple">✕ Clear</button>
+    </div>
+  {/if}
   {#if $loading && $videos.length === 0}
     <p class="loading-more">Loading videos…</p>
   {:else if $errorMsg}

@@ -141,6 +141,7 @@ async function getPlaylistVideos(playlistId) {
     durations = await fetchVideoDurations(videoIds);
   }
 
+  // --- CHANGES HERE: Add published date ---
   return videos.map(v => ({
     id: v.contentDetails.videoId,
     title: v.snippet.title,
@@ -150,6 +151,7 @@ async function getPlaylistVideos(playlistId) {
     length: durations[v.contentDetails.videoId] ?? null,
     playlist_id: playlistId,
     created: new Date().toISOString(),
+    published: v.contentDetails?.videoPublishedAt || v.snippet?.publishedAt || null,
     level: "notyet",
     playlist_position: v.snippet.position ?? null,
   }));
@@ -241,7 +243,7 @@ export async function POST({ request }) {
       }
     }
 
-    // Upsert videos with durations!
+    // --- CHANGES HERE: Upsert with published date ---
     if (allVideos.length > 0) {
       const { error: videoError } = await supabase.from('videos').upsert(allVideos.map(v => ({
         id: v.id,
@@ -253,6 +255,7 @@ export async function POST({ request }) {
         length: v.length,
         level: v.level,
         created: v.created,
+        published: v.published || null,
         playlist_position: v.playlist_position
       })));
       if (videoError) {

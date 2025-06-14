@@ -1,30 +1,21 @@
 <script>
-  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   import { Sparkles, BarChart3, Search, Globe, Tag } from 'lucide-svelte';
 
-  // All state is controlled by parent, always up to date
   export let levels = [];
   export let sortChoices = [];
   export let countryOptions = [];
   export let tagOptions = [];
-  export let selectedLevels = []; // now an array!
+  export let selectedLevels = [];
   export let sortBy;
   export let selectedCountry;
-  export let selectedTags = [];   // now an array!
+  export let selectedTags = [];
   export let hideWatched;
   export let searchTerm;
   export let searchOpen = false;
 
   const dispatch = createEventDispatcher();
 
-  // --- Dropdown state (UI only) ---
-  let showSortDropdown = false;
-  let showLevelDropdown = false;
-  let showCountryDropdown = false;
-  let showTagDropdown = false;
-  let sortDropdownRef, levelsDropdownRef, tagDropdownRef, countryDropdownRef;
-
-  // --- Handler helpers (all stateless) ---
   function emitChange(data = {}) {
     dispatch('change', {
       selectedLevels,
@@ -34,7 +25,7 @@
       hideWatched,
       searchTerm,
       searchOpen,
-      ...data // override any changed value
+      ...data
     });
   }
 
@@ -74,7 +65,13 @@
     emitChange({ searchOpen: !searchOpen, searchTerm: searchOpen ? '' : searchTerm });
   }
 
-  // --- Close dropdowns on outside click ---
+  // Dropdown state (UI only)
+  let showSortDropdown = false;
+  let showLevelDropdown = false;
+  let showCountryDropdown = false;
+  let showTagDropdown = false;
+  let sortDropdownRef, levelsDropdownRef, tagDropdownRef, countryDropdownRef;
+
   function handleDocumentClick(event) {
     if (showSortDropdown && sortDropdownRef && !sortDropdownRef.contains(event.target)) showSortDropdown = false;
     if (showLevelDropdown && levelsDropdownRef && !levelsDropdownRef.contains(event.target)) showLevelDropdown = false;
@@ -109,44 +106,43 @@
       {/if}
     </div>
 
-<!-- Levels Dropdown -->
-<div class="dropdown" bind:this={levelsDropdownRef}>
-  <button
-    class="dropdown-btn"
-    aria-expanded={showLevelDropdown}
-    on:click={() => showLevelDropdown = !showLevelDropdown}
-    type="button"
-  >
-    <BarChart3 size={18} style="margin-right:7px;vertical-align:-3px;color:#f365a0;" />
-    Levels
-    <svg width="12" height="9" style="margin-left:7px;" fill="none">
-      <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
-    </svg>
-  </button>
-  {#if showLevelDropdown}
-    <div class="dropdown-content">
-      <div class="levels-list">
-        {#each levels as lvl}
-          <label class="level-checkbox">
-            <input
-              type="checkbox"
-              checked={selectedLevels.includes(lvl.value)}
-              on:change={() => handleToggleLevel(lvl.value)}
-            />
-            <span>{lvl.label}</span>
-          </label>
-        {/each}
-      </div>
+    <!-- Levels Dropdown -->
+    <div class="dropdown" bind:this={levelsDropdownRef}>
       <button
-        style="margin-top:0.5em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;"
-        on:click={handleToggleAllLevels}
+        class="dropdown-btn"
+        aria-expanded={showLevelDropdown}
+        on:click={() => showLevelDropdown = !showLevelDropdown}
+        type="button"
       >
-        Toggle all
+        <BarChart3 size={18} style="margin-right:7px;vertical-align:-3px;color:#f365a0;" />
+        Levels
+        <svg width="12" height="9" style="margin-left:7px;" fill="none">
+          <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+        </svg>
       </button>
+      {#if showLevelDropdown}
+        <div class="dropdown-content">
+          <div class="levels-list">
+            {#each levels as lvl}
+              <label class="level-checkbox">
+                <input
+                  type="checkbox"
+                  checked={selectedLevels.includes(lvl.value)}
+                  on:change={() => handleToggleLevel(lvl.value)}
+                />
+                <span>{lvl.label}</span>
+              </label>
+            {/each}
+          </div>
+          <button
+            style="margin-top:0.5em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;"
+            on:click={handleToggleAllLevels}
+          >
+            Toggle all
+          </button>
+        </div>
+      {/if}
     </div>
-  {/if}
-</div>
-
 
     <!-- Tags Dropdown -->
     <div class="dropdown" bind:this={tagDropdownRef}>
@@ -284,9 +280,6 @@
 		border: 1.2px solid #bbb;
 		color: #1d1d1d;
 	}
-	.hide-watched-btn {
-		/* Neutral; red only for switch below */
-	}
 	.hide-watched-btn .switch-slider {
 		width: 36px;
 		height: 20px;
@@ -351,7 +344,6 @@
 		gap: 0.6em;
 		font-size: 1.03em;
 	}
-	/* --- Search Bar --- */
 	.search-bar-container {
 		display: flex;
 		align-items: center;
@@ -406,7 +398,6 @@
 	.search-toggle:hover svg {
 		stroke: #2e9be6;
 	}
-
 	@media (max-width: 900px) {
 		.controls-bar {
 			flex-direction: column;
@@ -430,4 +421,3 @@
 		}
 	}
 </style>
-
