@@ -3,19 +3,17 @@
   import { supabase } from '$lib/supabaseClient';
   import { page } from '$app/stores';
   import { user } from '$lib/stores/user.js';
+  import { watchedIds } from '$lib/stores/videos.js';
   import VideoWatchTracker from '$lib/components/VideoWatchTracker.svelte';
   import SideBar from '$lib/components/SideBar.svelte';
   import * as utils from '$lib/utils.js';
 
   let video = null;
   let loading = true;
-
   $: id = $page.params.id;
 
   onMount(async () => {
     loading = true;
-    // Use $user instead of direct supabase.auth.getSession()
-    // Fetch main video
     const { data: vid } = await supabase
       .from('videos')
       .select('*, playlist:playlist_id(title), channel:channel_id(name,country,tags)')
@@ -24,6 +22,17 @@
     video = vid;
     loading = false;
   });
+
+  // If you want instant update after marking watched, do:
+  function markWatchedLocally() {
+    if (video?.id) {
+      watchedIds.update(ids => {
+        const next = new Set(ids);
+        next.add(video.id);
+        return next;
+      });
+    }
+  }
 </script>
 
 {#if loading}
@@ -45,7 +54,11 @@
           allowfullscreen
         ></iframe>
         {#if $user}
-          <VideoWatchTracker videoId={video.id} videoDuration={video.length} userId={$user.id} />
+          <!--
+            Pass markWatchedLocally as a callback to your VideoWatchTracker so it can update watchedIds instantly.
+            Or, call markWatchedLocally() manually when you save a watch event.
+          -->
+          <VideoWatchTracker videoId={video.id} videoDuration={video.length} userId={$user.id} on:watched={markWatchedLocally} />
         {/if}
       </div>
       <div class="player-title">{video.title}</div>
@@ -73,20 +86,15 @@
   gap: 2.5rem;
   max-width: 1550px;
   margin: 0 auto;
-  padding: 0;
   height: 100vh;
   min-height: 100vh;
-  background: var(--bg-main, #fff);
-  box-sizing: border-box;
 }
-
 .player-main-col {
   display: flex;
   flex-direction: column;
   overflow: hidden;
   padding: 2.3rem 0 1.2rem 0;
 }
-
 .player-video-box {
   width: 100%;
   aspect-ratio: 16/9;
@@ -97,13 +105,11 @@
   overflow: hidden;
   margin-bottom: 0.4rem;
   position: relative;
-  flex-shrink: 0;
 }
-
 .player-title {
   font-size: 1.38rem;
   font-weight: 800;
-  color: var(--text-main, #1a1a1a);
+  color: #1a1a1a;
   max-width: 98vw;
   margin-bottom: 0.25rem;
   line-height: 1.21;
@@ -141,42 +147,12 @@
   color: #adadad;
   margin-left: auto;
 }
-
 .player-sidebar {
   display: flex;
   flex-direction: column;
   overflow-x: visible;
   box-sizing: border-box;
   padding: 1.7rem 2px 1.3rem 2px;
-}
-
-.player-sidebar::-webkit-scrollbar {
-  width: 10px;
-  background: #eee;
-  border-radius: 7px;
-}
-.player-sidebar::-webkit-scrollbar-thumb {
-  background: #e0e0e0;
-  border-radius: 7px;
-}
-
-@media (max-width: 1200px) {
-  .player-container {
-    max-width: 99vw;
-    padding: 0;
-    height: 100vh;
-  }
-  .player-sidebar {
-    max-height: 40vh;
-    height: 40vh;
-    overflow-y: auto;
-    margin-top: 2rem;
-  }
-}
-@media (max-width: 800px) {
-  .player-container {
-    padding: 0;
-  }
 }
 .player-loading {
   text-align: center;

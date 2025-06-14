@@ -1,7 +1,8 @@
-// src/lib/stores/videos.js
 import { writable, derived } from 'svelte/store';
 import { fetchAllVideos } from '../api/videos.js';
 import { filterAndSortVideos } from '../services/videoFilters.js';
+import { supabase } from '$lib/supabaseClient';
+import { user } from '$lib/stores/user.js';
 
 // Core video state
 export const allVideos = writable([]);
@@ -29,7 +30,28 @@ export async function loadVideos() {
   loading.set(false);
 }
 
-// The derived store gives you the filtered/sorted video list for the grid
+// Fetch watched video IDs for the current user
+export async function loadWatchedVideos() {
+  const { data: currentUser } = await supabase.auth.getUser();
+  const userId = currentUser?.user?.id;
+  if (!userId) {
+    watchedIds.set(new Set());
+    return;
+  }
+
+  let { data, error } = await supabase
+    .from('watch_sessions')
+    .select('video_id')
+    .eq('user_id', userId);
+
+  if (error || !data) {
+    watchedIds.set(new Set());
+    return;
+  }
+  watchedIds.set(new Set(data.map(row => row.video_id)));
+}
+
+// (Optional: Derived store if you use it elsewhere, can delete if not used)
 export const filteredVideos = derived(
   [
     allVideos, selectedChannel, selectedPlaylist, selectedLevels,

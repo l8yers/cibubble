@@ -56,6 +56,7 @@ export async function updatePassword(newPassword) {
   return { error, data };
 }
 
+// Keep Svelte store in sync with Supabase on all auth events
 supabase.auth.onAuthStateChange((event, session) => {
   user.set(session?.user || null);
 });
