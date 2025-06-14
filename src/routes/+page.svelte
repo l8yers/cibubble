@@ -6,6 +6,18 @@
   import * as utils from '$lib/utils.js';
   import '../app.css';
 
+
+  // import { getTagsForChannel } from '$lib/api/tags.js'; // <-- comment this out for now
+
+async function getTagsForChannel(channelId) {
+  const { data, error } = await supabase
+    .from('channel_tags')
+    .select('tag:tag_id(id,name)')
+    .eq('channel_id', channelId);
+  if (error) return [];
+  return (data || []).map(row => row.tag);
+}
+
   import {
     selectedChannel,
     selectedPlaylist,
@@ -321,3 +333,23 @@
     {/if}
   {/if}
 </div>
+
+<style>
+	.load-more-btn {
+  padding: 0.9em 2.4em;
+  font-size: 1.17em;
+  background: #fafbff;
+  border: 1.6px solid #d6d6ee;
+  border-radius: 13px;
+  box-shadow: 0 2px 12px #ececec80;
+  font-weight: 700;
+  cursor: pointer;
+  margin: 2em auto 0 auto;
+  transition: background 0.15s;
+  display: block;
+}
+.load-more-btn:disabled {
+  opacity: 0.66;
+  cursor: not-allowed;
+}
+</style>
