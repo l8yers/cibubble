@@ -75,11 +75,18 @@ export async function GET({ url }) {
   if (playlist) query = query.eq('playlist_id', playlist);
   if (search) query = query.ilike('title', `%${search}%`);
 
-  if (sort === 'new') query = query.order('created_at', { ascending: false });
-  else if (sort === 'old') query = query.order('created_at', { ascending: true });
-  else if (sort === 'easy') query = query.order('level', { ascending: true });
-  else if (sort === 'hard') query = query.order('level', { ascending: false });
-  else query = query.order('id', { ascending: false });
+  // --- PATCH: handle sorting ---
+  if (sort === 'new') {
+    query = query.order('created_at', { ascending: false });
+  } else if (sort === 'old') {
+    query = query.order('created_at', { ascending: true });
+  } else if (sort === 'short') {
+    query = query.order('length', { ascending: true });
+  } else if (sort === 'long') {
+    query = query.order('length', { ascending: false });
+  } else {
+    query = query.order('id', { ascending: false });
+  }
 
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
