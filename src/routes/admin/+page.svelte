@@ -1,7 +1,7 @@
 <script>
 	import { supabase } from '$lib/supabaseClient';
 	import { user } from '$lib/stores/user.js';
-	import { get } from 'svelte/store';
+    import { get } from 'svelte/store';
 
 	const countryOptions = [
 		'Argentina','Canary Islands','Chile','Colombia','Costa Rica','Cuba','Dominican Republic','Ecuador','El Salvador','Equatorial Guinea','France','Guatemala','Italy','Latin America','Mexico','Panama','Paraguay','Peru','Puerto Rico','Spain','United States','Uruguay','Venezuela'
@@ -60,7 +60,6 @@
 		return `${h}h ${m}m`;
 	}
 
-	// PATCH: Send user.id as added_by
 	async function importChannel() {
 		message = '';
 		importing = true;
@@ -71,7 +70,7 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					url,
-					added_by: u?.id || null // <--- Use UUID!
+					added_by: u?.id || null // PATCH: use user id
 				})
 			});
 			const json = await res.json();
@@ -162,18 +161,31 @@
 		else showTagsFor = channelId;
 	}
 
+	// PATCH: Update tags in both channels (as text) and all related videos (as array)
 	async function setChannelTags(chan) {
 		if (!chan._tagsSet) return;
 		savingTags[chan.id] = true;
 		for (const t of chan._tagsSet) {
 			if (!tagOptions.includes(t)) tagOptions = [...tagOptions, t];
 		}
+		const tagsArray = Array.from(chan._tagsSet);
+
+		// Update channel (comma-separated string)
 		await supabase
 			.from('channels')
 			.update({
-				tags: Array.from(chan._tagsSet).join(', ')
+				tags: tagsArray.join(', ')
 			})
 			.eq('id', chan.id);
+
+		// Update all videos for this channel (array)
+		await supabase
+			.from('videos')
+			.update({
+				tags: tagsArray
+			})
+			.eq('channel_id', chan.id);
+
 		message = '✅ Tags updated';
 		chan._tagsDirty = false;
 		await refresh();
@@ -270,6 +282,7 @@
 
 	refresh();
 </script>
+
 
 <div class="admin-main">
 	<h2 style="margin-bottom:1.1em;">CIBUBBLE Admin Tools</h2>
