@@ -55,3 +55,7 @@ export async function updatePassword(newPassword) {
   await loadUser();
   return { error, data };
 }
+
+supabase.auth.onAuthStateChange((event, session) => {
+  user.set(session?.user || null);
+});
