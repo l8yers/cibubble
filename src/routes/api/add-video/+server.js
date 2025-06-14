@@ -8,7 +8,6 @@ const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || process.env.VITE_YOUTUBE_
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// --- Duration Parsing Utility ---
 function parseDuration(iso) {
   const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
   return (
@@ -75,7 +74,6 @@ async function getChannelInfo(channelId) {
     thumbnail: c.snippet.thumbnails?.default?.url || '',
     description: c.snippet.description,
     uploadsPlaylistId: c.contentDetails?.relatedPlaylists?.uploads
-    // DO NOT trust c.snippet.country – it's basically never present!
   };
 }
 
@@ -145,7 +143,6 @@ async function getAllUploads(uploadsPlaylistId) {
   return videos.map(v => ({ ...v, playlist_id: null }));
 }
 
-// --- MAIN ENTRY POINT ---
 export async function POST({ request }) {
   try {
     if (!YOUTUBE_API_KEY) return json({ error: 'Missing YouTube API key' }, { status: 500 });
@@ -224,7 +221,7 @@ export async function POST({ request }) {
       }
     }
 
-    // --- FINAL PATCH: Upsert videos with country, added_by, tags[] ---
+    // PATCH: Use UUID for added_by
     if (allVideos.length > 0) {
       const videosToUpsert = allVideos.map(v => ({
         id: v.id,
@@ -238,9 +235,9 @@ export async function POST({ request }) {
         created: v.created,
         playlist_position: v.playlist_position,
         level: level || v.level || 'notyet',
-        country: country || null,   // <-- Set country from admin for each video
+        country: country || null,
         tags: Array.isArray(tagArr) ? tagArr : [],
-        added_by: added_by || null
+        added_by: added_by || null // <-- PATCH: use UUID
       }));
 
       const { error: videoError } = await supabase.from('videos').upsert(videosToUpsert);

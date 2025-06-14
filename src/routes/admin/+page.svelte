@@ -1,5 +1,7 @@
 <script>
 	import { supabase } from '$lib/supabaseClient';
+	import { user } from '$lib/stores/user.js';
+	import { get } from 'svelte/store';
 
 	const countryOptions = [
 		'Argentina','Canary Islands','Chile','Colombia','Costa Rica','Cuba','Dominican Republic','Ecuador','El Salvador','Equatorial Guinea','France','Guatemala','Italy','Latin America','Mexico','Panama','Paraguay','Peru','Puerto Rico','Spain','United States','Uruguay','Venezuela'
@@ -58,14 +60,19 @@
 		return `${h}h ${m}m`;
 	}
 
+	// PATCH: Send user.id as added_by
 	async function importChannel() {
 		message = '';
 		importing = true;
 		try {
+			const u = get(user);
 			const res = await fetch('/api/add-video', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ url })
+				body: JSON.stringify({
+					url,
+					added_by: u?.id || null // <--- Use UUID!
+				})
 			});
 			const json = await res.json();
 			if (json.error) message = `❌ ${json.error}`;
@@ -266,7 +273,6 @@
 
 <div class="admin-main">
 	<h2 style="margin-bottom:1.1em;">CIBUBBLE Admin Tools</h2>
-	<!-- STATS BAR RESTORED -->
 	<div class="stats-bar">
 		<div class="stat-chip"><span class="stat-label">Videos</span> {adminStats.videos}</div>
 		<div class="stat-chip"><span class="stat-label">Channels</span> {adminStats.channels}</div>
