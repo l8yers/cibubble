@@ -193,6 +193,9 @@
 				}
 				// Get normalized tags
 				const _tags = await getTagsForChannel(chan.id);
+
+    console.log('Channel object:', chan, '_tags:', _tags);
+
 				return {
 					...chan,
 					_country: chan.country || '',
