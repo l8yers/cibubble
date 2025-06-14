@@ -254,41 +254,17 @@
 
 	refresh();
 </script>
-
 <div class="admin-main">
 	<h2 style="margin-bottom:1.1em;">CIBUBBLE Admin Tools</h2>
 	<div class="stats-bar">
-		<div class="stat-chip"><span class="stat-label">Videos</span> {adminStats.videos}</div>
-		<div class="stat-chip"><span class="stat-label">Channels</span> {adminStats.channels}</div>
-		<div class="stat-chip"><span class="stat-label">Playlists</span> {adminStats.playlists}</div>
-		<div class="stat-chip">
-			<span class="stat-label">Total Time</span>
-			{formatTime(adminStats.runningTime)}
-		</div>
-		<div class="stat-chip level easy">
-			<span class="stat-label">Easy</span>
-			{adminStats.byLevel.easy}<span class="stat-time"
-				>{formatTime(adminStats.timeByLevel.easy)}</span
-			>
-		</div>
-		<div class="stat-chip level intermediate">
-			<span class="stat-label">Intermediate</span>
-			{adminStats.byLevel.intermediate}<span class="stat-time"
-				>{formatTime(adminStats.timeByLevel.intermediate)}</span
-			>
-		</div>
-		<div class="stat-chip level advanced">
-			<span class="stat-label">Advanced</span>
-			{adminStats.byLevel.advanced}<span class="stat-time"
-				>{formatTime(adminStats.timeByLevel.advanced)}</span
-			>
-		</div>
-		<div class="stat-chip level notyet">
-			<span class="stat-label">Not Yet</span>
-			{adminStats.byLevel.notyet}<span class="stat-time"
-				>{formatTime(adminStats.timeByLevel.notyet)}</span
-			>
-		</div>
+		<div class="stat-chip"><b>Videos:</b> {adminStats.videos}</div>
+		<div class="stat-chip"><b>Channels:</b> {adminStats.channels}</div>
+		<div class="stat-chip"><b>Playlists:</b> {adminStats.playlists}</div>
+		<div class="stat-chip"><b>Total Time:</b> {formatTime(adminStats.runningTime)}</div>
+		<div class="stat-chip stat-easy"><b>Easy:</b> {adminStats.byLevel.easy} <span>{formatTime(adminStats.timeByLevel.easy)}</span></div>
+		<div class="stat-chip stat-int"><b>Intermediate:</b> {adminStats.byLevel.intermediate} <span>{formatTime(adminStats.timeByLevel.intermediate)}</span></div>
+		<div class="stat-chip stat-adv"><b>Advanced:</b> {adminStats.byLevel.advanced} <span>{formatTime(adminStats.timeByLevel.advanced)}</span></div>
+		<div class="stat-chip stat-notyet"><b>Not Yet:</b> {adminStats.byLevel.notyet} <span>{formatTime(adminStats.timeByLevel.notyet)}</span></div>
 	</div>
 
 	<div class="row">
@@ -298,25 +274,18 @@
 			bind:value={url}
 			aria-label="YouTube Channel Link"
 		/>
-		<button
-			on:click={importChannel}
-			disabled={!url || importing}
-			aria-label="Import Channel"
-			style="margin-left:10px;">{importing ? 'Importing…' : 'Import Channel'}</button>
-		<button on:click={refresh} disabled={refreshing} aria-label="Refresh"
-			>{refreshing ? 'Refreshing…' : '↻ Refresh'}</button>
-		<button
-			style="margin-left:auto;"
-			on:click={clearDatabase}
-			disabled={clearing}
-			aria-label="Clear Database">{clearing ? 'Clearing…' : 'Clear Database'}</button>
+		<button class="main-btn" on:click={importChannel} disabled={!url || importing} aria-label="Import Channel">
+			{importing ? 'Importing…' : 'Import Channel'}
+		</button>
+		<button class="main-btn" on:click={refresh} disabled={refreshing} aria-label="Refresh">
+			{refreshing ? 'Refreshing…' : '↻ Refresh'}
+		</button>
+		<button class="danger-btn" on:click={clearDatabase} disabled={clearing} aria-label="Clear Database">
+			{clearing ? 'Clearing…' : 'Clear Database'}
+		</button>
 	</div>
 	{#if message}
-		<div style="margin:1em 0 1.2em 0; color:{message.startsWith('✅')
-				? '#27ae60'
-				: '#c0392b'}; font-weight:500;">
-			{message}
-		</div>
+		<div class="admin-message" style="margin:1em 0 1.2em 0;">{message}</div>
 	{/if}
 
 	<table class="admin-table">
@@ -334,7 +303,6 @@
 			{#each channels as chan}
 				<tr>
 					<td>
-						<img class="channel-thumb" src={chan.thumbnail} alt={chan.name} />
 						<span style="font-weight:600;">{chan.name}</span>
 					</td>
 					<td>
@@ -345,10 +313,7 @@
 							{/each}
 						</select>
 						{#if chan.country !== chan._country}
-							<button
-								on:click={() => setChannelCountry(chan.id, chan._country)}
-								disabled={settingCountry[chan.id]}
-							>
+							<button class="main-btn small" on:click={() => setChannelCountry(chan.id, chan._country)} disabled={settingCountry[chan.id]}>
 								{settingCountry[chan.id] ? 'Saving…' : 'Save'}
 							</button>
 						{/if}
@@ -365,12 +330,12 @@
 						{/if}
 						<div>
 							<button
-								style="background:#e3e3e3;color:#222;margin-top:6px;font-size:0.97em"
+								class="main-btn light"
 								on:click={() => toggleTagsFor(chan.id)}
 								aria-expanded={showTagsFor === chan.id}
 								aria-label={showTagsFor === chan.id ? 'Hide tags' : 'Set tags'}
 							>
-								{showTagsFor === chan.id ? 'Hide Tags ▲' : 'Set Tags ▼'}
+								{showTagsFor === chan.id ? '▲ Hide Tags' : '▼ Set Tags'}
 							</button>
 						</div>
 					</td>
@@ -387,31 +352,22 @@
 								<option value={lvl.value}>{lvl.label}</option>
 							{/each}
 						</select>
-						<button
-							on:click={() => setChannelLevel(chan.id, chan._newLevel)}
-							disabled={!chan._newLevel || settingLevel[chan.id]}
-							aria-label="Set channel level"
-							style="margin-top:6px"
-						>
+						<button class="main-btn small" on:click={() => setChannelLevel(chan.id, chan._newLevel)} disabled={!chan._newLevel || settingLevel[chan.id]}>
 							{settingLevel[chan.id] ? 'Setting…' : 'Set Level'}
 						</button>
 					</td>
 					<td>
 						<button
-							style="background:#eee;color:#222;font-size:0.97em"
+							class="main-btn light"
 							on:click={() => togglePlaylistsFor(chan.id)}
 							aria-expanded={showPlaylistsFor === chan.id}
 							aria-label={showPlaylistsFor === chan.id ? 'Hide playlists' : 'Show playlists'}
 						>
-							{showPlaylistsFor === chan.id ? 'Hide Playlists ▲' : 'Show Playlists ▼'}
+							{showPlaylistsFor === chan.id ? '▲ Hide Playlists' : '▼ Show Playlists'}
 						</button>
 					</td>
 					<td>
-						<button
-							style="background:#bbb;"
-							on:click={() => deleteChannel(chan.id)}
-							disabled={!!deleting[chan.id]}
-						>
+						<button class="danger-btn small" on:click={() => deleteChannel(chan.id)} disabled={!!deleting[chan.id]}>
 							{deleting[chan.id] ? 'Deleting…' : 'Delete'}
 						</button>
 					</td>
@@ -419,11 +375,7 @@
 				{#if showTagsFor === chan.id}
 					<tr class="collapsible-row">
 						<td class="tags-cell" colspan="6">
-							<TagManager
-								channelId={chan.id}
-								currentTags={chan._tags}
-								onTagChanged={refresh}
-							/>
+							<TagManager channelId={chan.id} currentTags={chan._tags} onTagChanged={refresh} />
 						</td>
 					</tr>
 				{/if}
@@ -464,13 +416,12 @@
 															<option value={lvl.value}>{lvl.label}</option>
 														{/each}
 													</select>
-													<button
+													<button class="main-btn small"
 														style="margin-left:0.6em"
 														on:click={() => setPlaylistLevel(pl.id, pl._newLevel)}
 														disabled={!pl._newLevel || settingPlaylistLevel[pl.id]}
 														aria-label="Set playlist level"
-														>{settingPlaylistLevel[pl.id] ? 'Setting…' : 'Set'}</button
-													>
+													>{settingPlaylistLevel[pl.id] ? 'Setting…' : 'Set'}</button>
 												</td>
 											</tr>
 										{/each}
@@ -497,10 +448,44 @@
 		background: #fff;
 		border-radius: 13px;
 		border: 1px solid #ececec;
-		box-shadow: 0 2px 18px #ececec;
+		box-shadow: 0 2px 18px #ececec20;
 		padding: 2.1rem 1.5vw 1.6rem 1.5vw;
 		font-family: Inter, Arial, sans-serif;
 	}
+	.stats-bar {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.7em 1.2em;
+		margin: 0 0 1.1em 0;
+		padding: 0.7em 0.6em;
+		background: #f6f6fb;
+		border-radius: 8px;
+		box-shadow: none;
+		align-items: center;
+	}
+	.stat-chip {
+		display: flex;
+		align-items: center;
+		gap: 0.4em;
+		background: #fff;
+		border-radius: 7px;
+		font-size: 1.01em;
+		padding: 0.24em 0.75em 0.24em 0.6em;
+		box-shadow: 0 1px 3px #ececec30;
+		color: #23292f;
+		font-weight: 500;
+		border: 1px solid #ececec;
+	}
+	.stat-chip span {
+		color: #777;
+		font-size: 0.97em;
+		font-weight: 400;
+		margin-left: 0.2em;
+	}
+	.stat-easy { border-left: 5px solid #16a085;}
+	.stat-int { border-left: 5px solid #f5a623;}
+	.stat-adv { border-left: 5px solid #e93c2f;}
+	.stat-notyet { border-left: 5px solid #b2b2b2;}
 	.row {
 		display: flex;
 		gap: 0.7em;
@@ -508,22 +493,45 @@
 		align-items: center;
 		flex-wrap: wrap;
 	}
-	.channel-tags-list {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.25em;
-		margin-bottom: 3px;
+	.main-btn, .danger-btn {
+		font-size: 1em;
+		font-weight: 600;
+		padding: 0.4em 1.2em;
+		border-radius: 9px;
+		border: none;
+		margin-left: 0.4em;
+		cursor: pointer;
+		transition: background 0.13s, color 0.13s, border 0.13s;
 	}
-	.tag-pill {
-		background: #e9f6ff;
-		color: #2562e9;
-		padding: 0.13em 0.68em;
-		border-radius: 8px;
-		font-size: 0.95em;
-		margin-bottom:2px;
-		display:inline-flex;
-		align-items:center;
+	.main-btn { background: #f1f6fb; color: #244fa2; }
+	.main-btn:hover, .main-btn:focus { background: #dbeafe; color: #152449;}
+	.main-btn.light { background: #f7f7fa; color: #262626; font-weight: 500;}
+	.main-btn.light:hover { background: #edeffd;}
+	.main-btn.small { padding: 0.21em 0.7em; font-size: 0.96em; margin-left:0.2em; }
+	.danger-btn { background: #fbeaea; color: #be2231; }
+	.danger-btn:hover { background: #f9d7da; color: #b12c2c; }
+	.admin-message { font-weight:500; color: #2562e9; }
+	.admin-table { width: 100%; margin: 1.5em 0 0 0; border-collapse: collapse; background: #fff; font-size: 1em;}
+	.admin-table th, .admin-table td { padding: 0.27em 0.4em; border-bottom: 1px solid #f2f2f2; text-align: left; vertical-align: middle; font-size: 0.98em;}
+	.admin-table th { color: #e93c2f; font-weight: 700; font-size: 1.04em; letter-spacing: 0.01em;}
+	.admin-table td { vertical-align: middle; font-size: 0.98em;}
+	.channel-tags-list { display: flex; flex-wrap: wrap; gap: 0.24em; margin-bottom: 3px;}
+	.tag-pill { background: #e9f6ff; color: #2562e9; padding: 0.13em 0.68em; border-radius: 8px; font-size: 0.95em; margin-bottom:2px; display:inline-flex; align-items:center;}
+	.collapsible-row .tags-cell, .collapsible-row .playlists-cell { padding: 0.5em 0.8em !important; background: #f6faff; font-size: 0.96em;}
+	.playlist-table { width: 100%; margin-top: 0.6em; background: none; font-size: 0.96em; border-collapse: collapse;}
+	.playlist-table th, .playlist-table td { padding: 0.19em 0.27em; border-bottom: 1px solid #f4f4fa; text-align: left;}
+	@media (max-width: 900px) {
+		.admin-main { padding: 1em 0.4em 1em 0.4em;}
+		.admin-table th, .admin-table td { font-size: 0.93em; padding: 0.18em 0.21em;}
+		.chip { font-size: 0.83em; min-height: 18px; padding: 1px 3px 1px 2px;}
+		.collapsible-cell, .playlists-cell, .tags-cell { padding: 0.32em 0.3em !important;}
+		.playlist-table th, .playlist-table td { font-size: 0.91em; padding: 0.13em 0.1em;}
+		.stat-chip { font-size: 0.93em; padding: 0.18em 0.5em 0.18em 0.4em;}
 	}
-	/* ... (rest of your styles remain unchanged) ... */
-	/* Keep your existing styles for the rest */
+	@media (max-width: 600px) {
+		.admin-table th, .admin-table td { font-size: 0.91em; padding: 0.11em 0.06em;}
+		.chip { font-size: 0.75em; min-height: 14px;}
+		.collapsible-cell, .playlists-cell, .tags-cell { padding: 0.15em 0.06em !important;}
+		.stat-chip { font-size: 0.88em; padding: 0.11em 0.32em 0.11em 0.21em;}
+	}
 </style>
