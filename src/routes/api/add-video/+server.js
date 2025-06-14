@@ -57,10 +57,7 @@ async function getChannelIdFromHandle(handle) {
   let data = await res.json();
 
   if (data.items && data.items.length > 0) {
-    console.log('Found channel via forHandle:', data.items[0].id, data.items[0].snippet.title);
     return data.items[0].id;
-  } else {
-    console.warn('Channel not found via forHandle:', handleOnly, data);
   }
 
   // 2. Try legacy forUsername
@@ -69,10 +66,7 @@ async function getChannelIdFromHandle(handle) {
   data = await res.json();
 
   if (data.items && data.items.length > 0) {
-    console.log('Found channel via forUsername:', data.items[0].id, data.items[0].snippet.title);
     return data.items[0].id;
-  } else {
-    console.warn('Channel not found via forUsername:', handleOnly, data);
   }
 
   // 3. Fallback: Search (last resort, not as reliable)
@@ -82,12 +76,9 @@ async function getChannelIdFromHandle(handle) {
 
   if (data.items && data.items.length > 0) {
     const channelId = data.items[0].snippet.channelId;
-    console.log('Found channel via search:', channelId, data.items[0].snippet.title);
     return channelId;
-  } else {
-    console.error('Channel not found via any method:', handleOnly, data);
-    return null;
   }
+  return null;
 }
 
 async function getChannelInfo(channelId) {
@@ -124,6 +115,17 @@ async function getPlaylists(channelId) {
   }));
 }
 
+// --- PATCH: FILTER BAD VIDEOS AND SHORT VIDEOS ---
+function isGoodVideo(v, durations) {
+  const title = v.snippet?.title?.toLowerCase() ?? '';
+  if (!title) return false;
+  if (title === 'deleted video' || title === 'private video') return false;
+  const vid = v.contentDetails?.videoId;
+  if (!vid || !durations[vid]) return false;
+  if (durations[vid] < 180) return false; // under 3 minutes
+  return true;
+}
+
 async function getPlaylistVideos(playlistId) {
   let videos = [];
   let nextPage = '';
@@ -141,23 +143,25 @@ async function getPlaylistVideos(playlistId) {
     durations = await fetchVideoDurations(videoIds);
   }
 
-  // --- CHANGES HERE: Add published date ---
-  return videos.map(v => ({
-    id: v.contentDetails.videoId,
-    title: v.snippet.title,
-    channel_id: v.snippet.channelId,
-    channel_name: v.snippet.channelTitle,
-    thumbnail: v.snippet.thumbnails?.high?.url || v.snippet.thumbnails?.default?.url || '',
-    length: durations[v.contentDetails.videoId] ?? null,
-    playlist_id: playlistId,
-    created: new Date().toISOString(),
-    published: v.contentDetails?.videoPublishedAt || v.snippet?.publishedAt || null,
-    level: "notyet",
-    playlist_position: v.snippet.position ?? null,
-  }));
+  // --- PATCHED: FILTER videos here ---
+  return videos
+    .filter(v => isGoodVideo(v, durations))
+    .map(v => ({
+      id: v.contentDetails.videoId,
+      title: v.snippet.title,
+      channel_id: v.snippet.channelId,
+      channel_name: v.snippet.channelTitle,
+      thumbnail: v.snippet.thumbnails?.high?.url || v.snippet.thumbnails?.default?.url || '',
+      length: durations[v.contentDetails.videoId] ?? null,
+      playlist_id: playlistId,
+      created: new Date().toISOString(),
+      level: "notyet",
+      playlist_position: v.snippet.position ?? null,
+    }));
 }
 
 async function getAllUploads(uploadsPlaylistId) {
+  // getPlaylistVideos now already filters!
   const videos = await getPlaylistVideos(uploadsPlaylistId);
   return videos.map(v => ({ ...v, playlist_id: null }));
 }
@@ -182,15 +186,11 @@ export async function POST({ request }) {
       }
     }
 
-    console.log(`[IMPORT] Importing channel with ID: ${channelId} (via: ${resolvedVia})`);
-
     // Get channel info
     const channel = await getChannelInfo(channelId);
     if (!channel) {
-      console.error(`[IMPORT] Could not fetch channel info for ID: ${channelId}`);
       return json({ error: 'Could not fetch channel info.' }, { status: 404 });
     }
-    console.log(`[IMPORT] Fetched channel info: ${channel.id} "${channel.name}"`);
 
     // Insert/update channel
     const { error: channelError } = await supabase.from('channels').upsert([{
@@ -200,7 +200,6 @@ export async function POST({ request }) {
       description: channel.description
     }]);
     if (channelError) {
-      console.error(`[IMPORT] Error upserting channel:`, channelError);
       return json({ error: 'Failed to upsert channel.' }, { status: 500 });
     }
 
@@ -209,7 +208,6 @@ export async function POST({ request }) {
     if (playlists.length > 0) {
       const { error: playlistError } = await supabase.from('playlists').upsert(playlists);
       if (playlistError) {
-        console.error(`[IMPORT] Error upserting playlists:`, playlistError);
         return json({ error: 'Failed to upsert playlists.' }, { status: 500 });
       }
     }
@@ -243,7 +241,7 @@ export async function POST({ request }) {
       }
     }
 
-    // --- CHANGES HERE: Upsert with published date ---
+    // Upsert videos with durations!
     if (allVideos.length > 0) {
       const { error: videoError } = await supabase.from('videos').upsert(allVideos.map(v => ({
         id: v.id,
@@ -255,11 +253,9 @@ export async function POST({ request }) {
         length: v.length,
         level: v.level,
         created: v.created,
-        published: v.published || null,
         playlist_position: v.playlist_position
       })));
       if (videoError) {
-        console.error(`[IMPORT] Error upserting videos:`, videoError);
         return json({ error: 'Failed to upsert videos.' }, { status: 500 });
       }
     }
@@ -271,7 +267,6 @@ export async function POST({ request }) {
       videos_added: allVideos.length
     });
   } catch (err) {
-    console.error("[IMPORT ERROR]", err);
     return json({ error: err.message || 'Unknown error' }, { status: 500 });
   }
 }
