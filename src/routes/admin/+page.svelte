@@ -192,9 +192,13 @@
 		savingTags[chan.id] = false;
 	}
 
+	// PATCH: Update country in both channels and all related videos
 	async function setChannelCountry(channelId, country) {
 		settingCountry[channelId] = true;
+		// Update channel
 		await supabase.from('channels').update({ country }).eq('id', channelId);
+		// Update all videos for this channel
+		await supabase.from('videos').update({ country }).eq('channel_id', channelId);
 		message = '✅ Country updated';
 		await refresh();
 		settingCountry[channelId] = false;
