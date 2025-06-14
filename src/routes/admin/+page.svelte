@@ -4,14 +4,11 @@
 	import { get } from 'svelte/store';
 	import TagManager from '$lib/components/TagManager.svelte';
 	import { getTagsForChannel } from '$lib/api/tags.js';
+	import AdminStatsBar from '$lib/components/AdminStatsBar.svelte';
 
-
-
-	
 	const countryOptions = [
 		'Argentina','Canary Islands','Chile','Colombia','Costa Rica','Cuba','Dominican Republic','Ecuador','El Salvador','Equatorial Guinea','France','Guatemala','Italy','Latin America','Mexico','Panama','Paraguay','Peru','Puerto Rico','Spain','United States','Uruguay','Venezuela'
 	];
-
 	const levels = [
 		{ value: '', label: 'Set Level' },
 		{ value: 'easy', label: 'Easy' },
@@ -40,18 +37,8 @@
 		channels: 0,
 		playlists: 0,
 		runningTime: 0,
-		byLevel: {
-			easy: 0,
-			intermediate: 0,
-			advanced: 0,
-			notyet: 0
-		},
-		timeByLevel: {
-			easy: 0,
-			intermediate: 0,
-			advanced: 0,
-			notyet: 0
-		}
+		byLevel: { easy: 0, intermediate: 0, advanced: 0, notyet: 0 },
+		timeByLevel: { easy: 0, intermediate: 0, advanced: 0, notyet: 0 }
 	};
 
 	function formatTime(sec) {
@@ -68,15 +55,11 @@
 			const res = await fetch('/api/add-video', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					url,
-					added_by: u?.id || null // PATCH: use user id
-				})
+				body: JSON.stringify({ url, added_by: u?.id || null })
 			});
 			const json = await res.json();
 			if (json.error) message = `❌ ${json.error}`;
-			else
-				message = `✅ Imported channel "${json.channel?.name}". ${json.playlists_count} playlists, ${json.videos_added} videos.`;
+			else message = `✅ Imported channel "${json.channel?.name}". ${json.playlists_count} playlists, ${json.videos_added} videos.`;
 			await refresh();
 		} catch (e) {
 			message = '❌ Import failed.';
@@ -161,19 +144,16 @@
 		else showTagsFor = channelId;
 	}
 
-	// PATCH: Update country in both channels and all related videos
 	async function setChannelCountry(channelId, country) {
 		settingCountry[channelId] = true;
-		// Update channel
 		await supabase.from('channels').update({ country }).eq('id', channelId);
-		// Update all videos for this channel
 		await supabase.from('videos').update({ country }).eq('channel_id', channelId);
 		message = '✅ Country updated';
 		await refresh();
 		settingCountry[channelId] = false;
 	}
 
-	// Refactored refresh: get tags for each channel from normalized channel_tags
+	// ---- REFRESH: load channels + tags + stats
 	async function refresh() {
 		refreshing = true;
 		let { data, error } = await supabase.from('channels').select('*');
@@ -191,55 +171,35 @@
 					const uniqueLevels = Array.from(new Set(levelsArr));
 					_mainLevel = uniqueLevels.length === 1 ? (uniqueLevels[0] || '') : 'mixed';
 				}
-				// Get normalized tags
 				const _tags = await getTagsForChannel(chan.id);
-
-    console.log('Channel object:', chan, '_tags:', _tags);
-
 				return {
 					...chan,
 					_country: chan.country || '',
-					_tags, // normalized tags array for this channel
+					_tags,
 					_newLevel: '',
 					_mainLevel
 				};
 			})
 		);
 
-		// --- Admin stats ---
 		const { count: videosCount } = await supabase.from('videos').select('id', { count: 'exact', head: true });
 		const { count: playlistsCount } = await supabase.from('playlists').select('id', { count: 'exact', head: true });
 		const { count: channelsCount } = await supabase.from('channels').select('id', { count: 'exact', head: true });
 
-		let byLevel = {
-			easy: 0,
-			intermediate: 0,
-			advanced: 0,
-			notyet: 0
-		};
-		let timeByLevel = {
-			easy: 0,
-			intermediate: 0,
-			advanced: 0,
-			notyet: 0
-		};
-
+		let byLevel = { easy: 0, intermediate: 0, advanced: 0, notyet: 0 };
+		let timeByLevel = { easy: 0, intermediate: 0, advanced: 0, notyet: 0 };
 		for (const lvl of Object.keys(byLevel)) {
 			const eqLevel = lvl === 'notyet' ? '' : lvl;
 			const { count } = await supabase.from('videos').select('id', { count: 'exact', head: true }).eq('level', eqLevel);
 			byLevel[lvl] = count || 0;
 			const { data: levelVids } = await supabase.from('videos').select('length').eq('level', eqLevel);
-			if (levelVids) {
-				timeByLevel[lvl] = levelVids.reduce((sum, v) => sum + (v.length || 0), 0);
-			} else {
-				timeByLevel[lvl] = 0;
-			}
+			if (levelVids) timeByLevel[lvl] = levelVids.reduce((sum, v) => sum + (v.length || 0), 0);
+			else timeByLevel[lvl] = 0;
 		}
 		const { data: vidsTime } = await supabase.from('videos').select('length');
 		let runningTime = 0;
-		if (vidsTime) {
-			runningTime = vidsTime.reduce((sum, v) => sum + (v.length || 0), 0);
-		}
+		if (vidsTime) runningTime = vidsTime.reduce((sum, v) => sum + (v.length || 0), 0);
+
 		adminStats = {
 			videos: videosCount || 0,
 			playlists: playlistsCount || 0,
@@ -254,18 +214,10 @@
 
 	refresh();
 </script>
+
 <div class="admin-main">
-	<h2 style="margin-bottom:1.1em;">CIBUBBLE Admin Tools</h2>
-	<div class="stats-bar">
-		<div class="stat-chip"><b>Videos:</b> {adminStats.videos}</div>
-		<div class="stat-chip"><b>Channels:</b> {adminStats.channels}</div>
-		<div class="stat-chip"><b>Playlists:</b> {adminStats.playlists}</div>
-		<div class="stat-chip"><b>Total Time:</b> {formatTime(adminStats.runningTime)}</div>
-		<div class="stat-chip stat-easy"><b>Easy:</b> {adminStats.byLevel.easy} <span>{formatTime(adminStats.timeByLevel.easy)}</span></div>
-		<div class="stat-chip stat-int"><b>Intermediate:</b> {adminStats.byLevel.intermediate} <span>{formatTime(adminStats.timeByLevel.intermediate)}</span></div>
-		<div class="stat-chip stat-adv"><b>Advanced:</b> {adminStats.byLevel.advanced} <span>{formatTime(adminStats.timeByLevel.advanced)}</span></div>
-		<div class="stat-chip stat-notyet"><b>Not Yet:</b> {adminStats.byLevel.notyet} <span>{formatTime(adminStats.timeByLevel.notyet)}</span></div>
-	</div>
+	<h2 style="margin-bottom:1.1em;">Admin Tools</h2>
+	<AdminStatsBar/> 
 
 	<div class="row">
 		<input
@@ -329,14 +281,7 @@
 							<span style="color:#aaa;">No tags</span>
 						{/if}
 						<div>
-							<button
-								class="main-btn light"
-								on:click={() => toggleTagsFor(chan.id)}
-								aria-expanded={showTagsFor === chan.id}
-								aria-label={showTagsFor === chan.id ? 'Hide tags' : 'Set tags'}
-							>
-								{showTagsFor === chan.id ? '▲ Hide Tags' : '▼ Set Tags'}
-							</button>
+							<TagManager channelId={chan.id} currentTags={chan._tags} onTagChanged={refresh} />
 						</div>
 					</td>
 					<td>
@@ -372,13 +317,6 @@
 						</button>
 					</td>
 				</tr>
-				{#if showTagsFor === chan.id}
-					<tr class="collapsible-row">
-						<td class="tags-cell" colspan="6">
-							<TagManager channelId={chan.id} currentTags={chan._tags} onTagChanged={refresh} />
-						</td>
-					</tr>
-				{/if}
 				{#if showPlaylistsFor === chan.id}
 					<tr class="collapsible-row">
 						<td class="playlists-cell" colspan="6">
@@ -523,14 +461,16 @@
 	@media (max-width: 900px) {
 		.admin-main { padding: 1em 0.4em 1em 0.4em;}
 		.admin-table th, .admin-table td { font-size: 0.93em; padding: 0.18em 0.21em;}
-		.chip { font-size: 0.83em; min-height: 18px; padding: 1px 3px 1px 2px;}
+		.channel-tags-list { gap: 0.18em; }
+		.tag-pill { font-size: 0.85em; }
 		.collapsible-cell, .playlists-cell, .tags-cell { padding: 0.32em 0.3em !important;}
 		.playlist-table th, .playlist-table td { font-size: 0.91em; padding: 0.13em 0.1em;}
 		.stat-chip { font-size: 0.93em; padding: 0.18em 0.5em 0.18em 0.4em;}
 	}
 	@media (max-width: 600px) {
 		.admin-table th, .admin-table td { font-size: 0.91em; padding: 0.11em 0.06em;}
-		.chip { font-size: 0.75em; min-height: 14px;}
+		.channel-tags-list { gap: 0.08em; }
+		.tag-pill { font-size: 0.75em; }
 		.collapsible-cell, .playlists-cell, .tags-cell { padding: 0.15em 0.06em !important;}
 		.stat-chip { font-size: 0.88em; padding: 0.11em 0.32em 0.11em 0.21em;}
 	}

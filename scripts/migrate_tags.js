@@ -2,6 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 
+
 // Use your Supabase keys here or pull from env vars
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
