@@ -28,6 +28,7 @@
 	},
 	"dependencies": {
 		"@supabase/supabase-js": "^2.50.0",
-		"lucide-svelte": "^0.513.0"
+		"lucide-svelte": "^0.513.0",
+		"papaparse": "^5.5.3"
 	}
 }

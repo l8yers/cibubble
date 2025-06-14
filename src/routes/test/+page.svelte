@@ -1,89 +1,131 @@
 <script>
-  import { supabase } from '$lib/supabaseClient';
-  import { onMount } from 'svelte';
+	let url = '';
+	let tags = '';
+	let country = '';
+	let level = 'intermediate';
+	let added_by = '';
+	let result = null;
+	let error = '';
 
-  let stats = {
-    totalVideos: 0,
-    totalSeconds: 0,
-    perLevel: [],
-    unlevelledCount: 0,
-    unlevelledSeconds: 0
-  };
-  let loading = false;
-  let error = '';
+	const levels = [
+		{ value: 'easy', label: 'Easy' },
+		{ value: 'intermediate', label: 'Intermediate' },
+		{ value: 'advanced', label: 'Advanced' },
+		{ value: 'notyet', label: 'Not Yet Rated' }
+	];
 
-  function formatTime(sec) {
-    if (!sec || sec === 0) return '0h 0m';
-    const h = Math.floor(sec / 3600);
-    const m = Math.floor((sec % 3600) / 60) % 60;
-    return `${h}h ${m}m`;
-  }
-
-  async function fetchTestStats() {
-    loading = true;
-    error = '';
-    // Total videos and time
-    let { data: all, error: e1 } = await supabase
-      .from('videos')
-      .select('id, length, level');
-
-    if (e1 || !all) {
-      error = 'Failed to load videos';
-      loading = false;
-      return;
-    }
-    const levels = ['easy', 'intermediate', 'advanced'];
-    const totalVideos = all.length;
-    const totalSeconds = all.reduce((sum, v) => sum + (v.length || 0), 0);
-
-    // Stats by level (no double-counting)
-    let perLevel = levels.map(lvl => {
-      const vids = all.filter(v => v.level === lvl);
-      const count = vids.length;
-      const secs = vids.reduce((sum, v) => sum + (v.length || 0), 0);
-      return { level: lvl, count, secs };
-    });
-
-    // Any videos without a level
-    const unlevelled = all.filter(v => !v.level || v.level === '');
-    const unlevelledCount = unlevelled.length;
-    const unlevelledSeconds = unlevelled.reduce((sum, v) => sum + (v.length || 0), 0);
-
-    stats = {
-      totalVideos,
-      totalSeconds,
-      perLevel,
-      unlevelledCount,
-      unlevelledSeconds
-    };
-    loading = false;
-  }
-
-  onMount(fetchTestStats);
+	async function testImport() {
+		error = '';
+		result = null;
+		const data = { url, tags, country, level, added_by };
+		console.log('POSTing:', data);
+		try {
+			const res = await fetch('/api/add-video', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(data)
+			});
+			const json = await res.json();
+			console.log('API response:', json);
+			if (json.error) {
+				error = json.error;
+			} else {
+				result = json;
+			}
+		} catch (err) {
+			error = err.message;
+		}
+	}
 </script>
 
-<div class="test-stats" style="margin:2em 0 1em 0; background:#f8fafd; border-radius:10px; padding:1.3em 2em;">
-  <h3 style="font-size:1.22em;margin-bottom:0.7em;color:#1c61b2;">Test Stats Panel</h3>
-  {#if loading}
-    <div>Loading stats…</div>
-  {:else if error}
-    <div style="color:#c0392b;">{error}</div>
-  {:else}
-    <div><b>Total Videos:</b> {stats.totalVideos}</div>
-    <div><b>Total Time:</b> {formatTime(stats.totalSeconds)}</div>
-    <div style="margin:0.8em 0 0.3em 0;">
-      {#each stats.perLevel as pl}
-        <div>
-          <span style="font-weight:600;color:#f365a0;">{pl.level.charAt(0).toUpperCase() + pl.level.slice(1)}:</span>
-          {pl.count} <span style="color:#aaa;font-size:0.96em;">{formatTime(pl.secs)}</span>
-        </div>
-      {/each}
-    </div>
-    <div style="margin-top:0.6em;color:#ff831a;">
-      <b>Unlevelled Videos:</b> {stats.unlevelledCount}
-      {#if stats.unlevelledCount > 0}
-        <span style="color:#aaa;">({formatTime(stats.unlevelledSeconds)})</span>
-      {/if}
-    </div>
-  {/if}
+<div class="test-add-video">
+	<h2>Test /api/add-video</h2>
+	<div class="form">
+		<input
+			type="text"
+			placeholder="YouTube Channel Link or @handle"
+			bind:value={url}
+			class="input"
+		/>
+		<input
+			type="text"
+			placeholder="Tags (comma separated)"
+			bind:value={tags}
+			class="input"
+		/>
+		<input
+			type="text"
+			placeholder="Country"
+			bind:value={country}
+			class="input"
+		/>
+		<select bind:value={level} class="input">
+			{#each levels as lvl}
+				<option value={lvl.value}>{lvl.label}</option>
+			{/each}
+		</select>
+		<input
+			type="text"
+			placeholder="Added By (optional UUID)"
+			bind:value={added_by}
+			class="input"
+		/>
+		<button on:click={testImport} class="btn">Import</button>
+	</div>
+
+	{#if error}
+		<div class="error">❌ {error}</div>
+	{/if}
+
+	{#if result}
+		<pre class="result">{JSON.stringify(result, null, 2)}</pre>
+	{/if}
 </div>
+
+<style>
+	.test-add-video {
+		max-width: 480px;
+		margin: 3rem auto;
+		padding: 2rem;
+		background: #fff;
+		border-radius: 13px;
+		box-shadow: 0 2px 16px #d5e3f8;
+	}
+	.form {
+		display: flex;
+		flex-direction: column;
+		gap: 1em;
+	}
+	.input, select {
+		padding: 0.7em;
+		border: 1.2px solid #e3e8ee;
+		border-radius: 8px;
+		font-size: 1em;
+	}
+	.btn {
+		padding: 0.7em 1.4em;
+		border-radius: 8px;
+		background: #2562e9;
+		color: #fff;
+		font-weight: 700;
+		cursor: pointer;
+		border: none;
+		transition: background 0.15s;
+	}
+	.btn:hover {
+		background: #e93c2f;
+	}
+	.error {
+		color: #b12c2c;
+		font-weight: 700;
+		margin: 1em 0;
+	}
+	.result {
+		margin-top: 1.5em;
+		background: #f6faff;
+		padding: 1em;
+		border-radius: 10px;
+		color: #181818;
+		font-size: 0.99em;
+	}
+</style>

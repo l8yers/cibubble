@@ -150,19 +150,30 @@ export async function POST({ request }) {
     const { url, tags, level, added_by, country } = await request.json();
 
     const extracted = extractChannelIdOrHandle(url);
-    if (!extracted) return json({ error: 'Invalid YouTube channel link.' }, { status: 400 });
+    if (!extracted) {
+      console.error('Invalid YouTube channel link:', url);
+      return json({ error: 'Invalid YouTube channel link.' }, { status: 400 });
+    }
 
     let channelId = extracted.id;
     if (!channelId && extracted.handle) {
       channelId = await getChannelIdFromHandle(extracted.handle);
       if (!channelId) {
+        console.error('Channel not found (handle could not be resolved):', extracted.handle);
         return json({ error: 'Channel not found (handle could not be resolved).' }, { status: 404 });
       }
     }
 
     const channel = await getChannelInfo(channelId);
     if (!channel) {
+      console.error('Could not fetch channel info for channelId:', channelId);
       return json({ error: 'Could not fetch channel info.' }, { status: 404 });
+    }
+    if (!channel.name || !channel.name.trim()) {
+      console.error('Channel info missing name:', channel);
+      return json({
+        error: `Channel "${channelId}" is missing a name. This can happen if the YouTube API did not return info, the channel is deleted/private, or your API quota is exceeded.`,
+      }, { status: 400 });
     }
 
     // Normalize tags as array of lowercased, trimmed strings
@@ -174,23 +185,28 @@ export async function POST({ request }) {
     }
 
     // --- Upsert channel (with country!) ---
-    const { error: channelError } = await supabase.from('channels').upsert([{
+    const channelObj = {
       id: channel.id,
       name: channel.name,
       thumbnail: channel.thumbnail,
       description: channel.description,
       tags: tagArr.join(', '),
       country: country || null
-    }]);
+    };
+    console.log('Upserting channel:', channelObj);
+
+    const { error: channelError } = await supabase.from('channels').upsert([channelObj]);
     if (channelError) {
+      console.error('Supabase channel upsert error:', channelError);
       return json({ error: 'Failed to upsert channel.' }, { status: 500 });
     }
 
     // Upsert playlists
-    const playlists = await getPlaylists(channelId);
+    const playlists = await getPlaylists(channel.id);
     if (playlists.length > 0) {
       const { error: playlistError } = await supabase.from('playlists').upsert(playlists);
       if (playlistError) {
+        console.error('Supabase playlists upsert error:', playlistError);
         return json({ error: 'Failed to upsert playlists.' }, { status: 500 });
       }
     }
@@ -242,6 +258,7 @@ export async function POST({ request }) {
 
       const { error: videoError } = await supabase.from('videos').upsert(videosToUpsert);
       if (videoError) {
+        console.error('Supabase videos upsert error:', videoError);
         return json({ error: 'Failed to upsert videos: ' + videoError.message }, { status: 500 });
       }
     }
@@ -253,6 +270,7 @@ export async function POST({ request }) {
       videos_added: allVideos.length
     });
   } catch (err) {
+    console.error('Caught server error:', err);
     return json({ error: err.message || 'Unknown error' }, { status: 500 });
   }
 }

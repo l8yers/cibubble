@@ -41,6 +41,82 @@
 		timeByLevel: { easy: 0, intermediate: 0, advanced: 0, notyet: 0 }
 	};
 
+	// BULK UPLOAD STATE
+	let csvInput;
+	let csvFile = null;
+	let csvRows = [];
+	let bulkUploading = false;
+
+	function handleCsvFile(e) {
+		csvFile = e.target.files[0];
+	}
+
+	// Simple native CSV parser (for spreadsheet-style CSVs)
+	function parseCsv(text) {
+		const lines = text.trim().split('\n').filter(line => line.trim() !== '');
+		if (!lines.length) return [];
+		const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+		return lines.slice(1).map(line => {
+			const values = line.split(',').map(v => v.trim());
+			const row = {};
+			header.forEach((key, i) => row[key] = values[i] || '');
+			return row;
+		});
+	}
+
+	async function uploadCsv() {
+		if (!csvFile) return;
+		bulkUploading = true;
+		message = '';
+		const reader = new FileReader();
+		reader.onload = async (event) => {
+			const text = event.target.result;
+			csvRows = parseCsv(text);
+			const failures = [];
+			let total = 0, added = 0;
+			for (const row of csvRows) {
+				total++;
+				const url = row.youtube || row.link || row['youtube link'] || row['YouTube Link'] || row['url'];
+				const tags = row.tags || '';
+				const country = row.country || '';
+				const level = row.level || '';
+				if (!url) {
+					failures.push({ row, error: "Missing YouTube link" });
+					continue;
+				}
+				try {
+					const u = get(user);
+					const res = await fetch('/api/add-video', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							url,
+							tags,
+							country,
+							level,
+							added_by: u?.id || null
+						})
+					});
+					const json = await res.json();
+					if (json.error) failures.push({ row, error: json.error });
+					else added++;
+				} catch (err) {
+					failures.push({ row, error: err.message });
+				}
+			}
+			message = `✅ Uploaded ${added}/${total} rows.`;
+			if (failures.length) {
+				message += ` ${failures.length} failed (see console for details)`;
+				console.warn('Bulk upload failures:', failures);
+			}
+			await refresh();
+			bulkUploading = false;
+			csvFile = null;
+			if (csvInput) csvInput.value = '';
+		};
+		reader.readAsText(csvFile);
+	}
+
 	function formatTime(sec) {
 		const h = Math.floor(sec / 3600);
 		const m = Math.floor((sec % 3600) / 60);
@@ -157,8 +233,9 @@
 	async function refresh() {
 		refreshing = true;
 		let { data, error } = await supabase.from('channels').select('*');
+		console.log("Channels fetch:", { data, error });
 		if (error) {
-			message = error.message;
+			message = "Channels error: " + (error.message ?? error);
 			refreshing = false;
 			return;
 		}
@@ -238,6 +315,28 @@
 		</button>
 		<button class="danger-btn import-btn" on:click={clearDatabase} disabled={clearing} aria-label="Clear Database">
 			{clearing ? 'Clearing…' : 'Clear Database'}
+		</button>
+	</div>
+
+	<!-- Bulk Upload CSV -->
+	<div class="import-bar" style="margin-top:1.2em;">
+		<span class="import-videos-title">BULK UPLOAD CSV</span>
+		<input
+			type="file"
+			accept=".csv"
+			bind:this={csvInput}
+			on:change={handleCsvFile}
+			aria-label="Select CSV file"
+			class="import-input"
+			style="min-width:unset;max-width:220px"
+		/>
+		<button
+			class="main-btn import-btn"
+			on:click={uploadCsv}
+			disabled={!csvFile || bulkUploading}
+			aria-label="Bulk Upload"
+		>
+			{bulkUploading ? 'Uploading…' : 'Upload CSV'}
 		</button>
 	</div>
 
@@ -396,7 +495,6 @@
 		font-family: Inter, Arial, sans-serif;
 	}
 
-	/* --- Import Section Styles --- */
 	.import-bar {
 		display: flex;
 		align-items: center;
@@ -439,7 +537,6 @@
 		margin-left: 0.7em;
 	}
 
-	/* --- Table/General Styles (unchanged) --- */
 	.admin-message { font-weight:500; color: #2562e9; }
 	.admin-table { width: 100%; margin: 1.5em 0 0 0; border-collapse: collapse; background: #fff; font-size: 1em;}
 	.admin-table th, .admin-table td { padding: 0.27em 0.4em; border-bottom: 1px solid #f2f2f2; text-align: left; vertical-align: middle; font-size: 0.98em;}
