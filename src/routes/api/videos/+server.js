@@ -77,9 +77,9 @@ export async function GET({ url }) {
 
   // --- PATCH: handle sorting ---
   if (sort === 'new') {
-    query = query.order('created_at', { ascending: false });
+    query = query.order('published', { ascending: false });
   } else if (sort === 'old') {
-    query = query.order('created_at', { ascending: true });
+    query = query.order('published', { ascending: true });
   } else if (sort === 'short') {
     query = query.order('length', { ascending: true });
   } else if (sort === 'long') {

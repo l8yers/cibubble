@@ -27,18 +27,26 @@ export function filterAndSortVideos(videos, {
       (v.channel?.country || "").trim().toLowerCase() === selectedCountry.trim().toLowerCase()
     );
   }
+
+  // ---- FIXED TAG FILTER ----
   if (selectedTags.size > 0) {
     filtered = filtered.filter(v => {
-      const tags = (v.channel?.tags || "")
-        .split(",")
-        .map(t => t.trim().toLowerCase())
-        .filter(Boolean);
+      let tags = [];
+      if (Array.isArray(v.tags)) {
+        tags = v.tags.map(t => t.trim().toLowerCase());
+      } else if (typeof v.tags === 'string') {
+        tags = v.tags.split(',').map(t => t.trim().toLowerCase());
+      } else if (v.channel?.tags) {
+        tags = v.channel.tags.split(',').map(t => t.trim().toLowerCase());
+      }
+
       for (let tag of selectedTags) {
         if (tags.includes(tag.toLowerCase())) return true;
       }
       return false;
     });
   }
+
   if (searchTerm) {
     const s = searchTerm.toLowerCase();
     filtered = filtered.filter(v =>

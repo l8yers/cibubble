@@ -10,7 +10,6 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // --- Duration Parsing Utility ---
 function parseDuration(iso) {
-  // "PT1H2M10S" → seconds
   const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
   return (
     (parseInt(m?.[1] || 0) * 3600) +
@@ -19,7 +18,6 @@ function parseDuration(iso) {
   );
 }
 
-// --- Fetch durations for an array of video IDs ---
 async function fetchVideoDurations(videoIds) {
   let results = [];
   for (let i = 0; i < videoIds.length; i += 50) {
@@ -34,11 +32,9 @@ async function fetchVideoDurations(videoIds) {
       })));
     }
   }
-  // Reduce to { id: length, ... }
   return results.reduce((acc, v) => ({ ...acc, [v.id]: v.length }), {});
 }
 
-// --- Extracts channel ID or handle from a YouTube URL ---
 function extractChannelIdOrHandle(url) {
   const channelIdMatch = url.match(/youtube\.com\/channel\/([a-zA-Z0-9_-]+)/);
   if (channelIdMatch) return { id: channelIdMatch[1], type: "id" };
@@ -47,33 +43,19 @@ function extractChannelIdOrHandle(url) {
   return null;
 }
 
-// --- Robust channel ID resolution for @handles, usernames, etc. ---
 async function getChannelIdFromHandle(handle) {
   const handleOnly = handle.startsWith('@') ? handle.slice(1) : handle;
-
-  // 1. Try forHandle (new YouTube @handle system)
   let url = `https://www.googleapis.com/youtube/v3/channels?part=id,snippet,contentDetails&forHandle=${encodeURIComponent(handleOnly)}&key=${YOUTUBE_API_KEY}`;
   let res = await fetch(url);
   let data = await res.json();
-
-  if (data.items && data.items.length > 0) {
-    return data.items[0].id;
-  }
-
-  // 2. Try legacy forUsername
+  if (data.items && data.items.length > 0) return data.items[0].id;
   url = `https://www.googleapis.com/youtube/v3/channels?part=id,snippet,contentDetails&forUsername=${encodeURIComponent(handleOnly)}&key=${YOUTUBE_API_KEY}`;
   res = await fetch(url);
   data = await res.json();
-
-  if (data.items && data.items.length > 0) {
-    return data.items[0].id;
-  }
-
-  // 3. Fallback: Search (last resort, not as reliable)
+  if (data.items && data.items.length > 0) return data.items[0].id;
   url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(handleOnly)}&key=${YOUTUBE_API_KEY}`;
   res = await fetch(url);
   data = await res.json();
-
   if (data.items && data.items.length > 0) {
     const channelId = data.items[0].snippet.channelId;
     return channelId;
@@ -92,7 +74,8 @@ async function getChannelInfo(channelId) {
     name: c.snippet.title,
     thumbnail: c.snippet.thumbnails?.default?.url || '',
     description: c.snippet.description,
-    uploadsPlaylistId: c.contentDetails?.relatedPlaylists?.uploads,
+    uploadsPlaylistId: c.contentDetails?.relatedPlaylists?.uploads
+    // DO NOT trust c.snippet.country – it's basically never present!
   };
 }
 
@@ -115,14 +98,13 @@ async function getPlaylists(channelId) {
   }));
 }
 
-// --- PATCH: FILTER BAD VIDEOS AND SHORT VIDEOS ---
 function isGoodVideo(v, durations) {
   const title = v.snippet?.title?.toLowerCase() ?? '';
   if (!title) return false;
   if (title === 'deleted video' || title === 'private video') return false;
   const vid = v.contentDetails?.videoId;
   if (!vid || !durations[vid]) return false;
-  if (durations[vid] < 180) return false; // under 3 minutes
+  if (durations[vid] < 180) return false;
   return true;
 }
 
@@ -136,14 +118,11 @@ async function getPlaylistVideos(playlistId) {
     if (data.items) videos.push(...data.items);
     nextPage = data.nextPageToken || '';
   } while (nextPage);
-
   const videoIds = videos.map(v => v.contentDetails.videoId).filter(Boolean);
   let durations = {};
   if (videoIds.length) {
     durations = await fetchVideoDurations(videoIds);
   }
-
-  // --- PATCHED: FILTER videos here ---
   return videos
     .filter(v => isGoodVideo(v, durations))
     .map(v => ({
@@ -154,6 +133,7 @@ async function getPlaylistVideos(playlistId) {
       thumbnail: v.snippet.thumbnails?.high?.url || v.snippet.thumbnails?.default?.url || '',
       length: durations[v.contentDetails.videoId] ?? null,
       playlist_id: playlistId,
+      published: v.snippet.publishedAt,
       created: new Date().toISOString(),
       level: "notyet",
       playlist_position: v.snippet.position ?? null,
@@ -161,7 +141,6 @@ async function getPlaylistVideos(playlistId) {
 }
 
 async function getAllUploads(uploadsPlaylistId) {
-  // getPlaylistVideos now already filters!
   const videos = await getPlaylistVideos(uploadsPlaylistId);
   return videos.map(v => ({ ...v, playlist_id: null }));
 }
@@ -171,39 +150,46 @@ export async function POST({ request }) {
   try {
     if (!YOUTUBE_API_KEY) return json({ error: 'Missing YouTube API key' }, { status: 500 });
 
-    const { url } = await request.json();
+    const { url, tags, level, added_by, country } = await request.json();
+
     const extracted = extractChannelIdOrHandle(url);
     if (!extracted) return json({ error: 'Invalid YouTube channel link.' }, { status: 400 });
 
     let channelId = extracted.id;
-    let resolvedVia = 'direct';
-
     if (!channelId && extracted.handle) {
       channelId = await getChannelIdFromHandle(extracted.handle);
-      resolvedVia = 'handle';
       if (!channelId) {
         return json({ error: 'Channel not found (handle could not be resolved).' }, { status: 404 });
       }
     }
 
-    // Get channel info
     const channel = await getChannelInfo(channelId);
     if (!channel) {
       return json({ error: 'Could not fetch channel info.' }, { status: 404 });
     }
 
-    // Insert/update channel
+    // Normalize tags as array of lowercased, trimmed strings
+    let tagArr = [];
+    if (Array.isArray(tags)) {
+      tagArr = tags.map(t => t.trim().toLowerCase()).filter(Boolean);
+    } else if (typeof tags === 'string') {
+      tagArr = tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+    }
+
+    // --- Upsert channel (with country!) ---
     const { error: channelError } = await supabase.from('channels').upsert([{
       id: channel.id,
       name: channel.name,
       thumbnail: channel.thumbnail,
-      description: channel.description
+      description: channel.description,
+      tags: tagArr.join(', '),
+      country: country || null
     }]);
     if (channelError) {
       return json({ error: 'Failed to upsert channel.' }, { status: 500 });
     }
 
-    // Get and upsert playlists
+    // Upsert playlists
     const playlists = await getPlaylists(channelId);
     if (playlists.length > 0) {
       const { error: playlistError } = await supabase.from('playlists').upsert(playlists);
@@ -212,20 +198,17 @@ export async function POST({ request }) {
       }
     }
 
-    // Get all playlist videos (with durations)
+    // Gather all videos
     let playlistVideos = [];
     for (const pl of playlists) {
       const vids = await getPlaylistVideos(pl.id);
       playlistVideos.push(...vids);
     }
-
-    // Get "uploads" videos (videos not necessarily in playlists)
     let uploadsVideos = [];
     if (channel.uploadsPlaylistId) {
       uploadsVideos = await getAllUploads(channel.uploadsPlaylistId);
     }
 
-    // Merge playlist videos and uploads, prefer playlist if duplicate id
     const seen = new Set();
     const allVideos = [];
     for (const v of playlistVideos) {
@@ -241,9 +224,9 @@ export async function POST({ request }) {
       }
     }
 
-    // Upsert videos with durations!
+    // --- FINAL PATCH: Upsert videos with country, added_by, tags[] ---
     if (allVideos.length > 0) {
-      const { error: videoError } = await supabase.from('videos').upsert(allVideos.map(v => ({
+      const videosToUpsert = allVideos.map(v => ({
         id: v.id,
         playlist_id: v.playlist_id,
         channel_id: v.channel_id,
@@ -251,12 +234,18 @@ export async function POST({ request }) {
         channel_name: v.channel_name,
         thumbnail: v.thumbnail,
         length: v.length,
-        level: v.level,
+        published: v.published,
         created: v.created,
-        playlist_position: v.playlist_position
-      })));
+        playlist_position: v.playlist_position,
+        level: level || v.level || 'notyet',
+        country: country || null,   // <-- Set country from admin for each video
+        tags: Array.isArray(tagArr) ? tagArr : [],
+        added_by: added_by || null
+      }));
+
+      const { error: videoError } = await supabase.from('videos').upsert(videosToUpsert);
       if (videoError) {
-        return json({ error: 'Failed to upsert videos.' }, { status: 500 });
+        return json({ error: 'Failed to upsert videos: ' + videoError.message }, { status: 500 });
       }
     }
 

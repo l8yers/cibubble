@@ -369,5 +369,5 @@
 		opacity: 0.66;
 		cursor: not-allowed;
 	}
-	/* ...other CSS from your app... */
+
 </style>
