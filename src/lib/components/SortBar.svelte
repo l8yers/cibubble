@@ -7,10 +7,10 @@
   export let sortChoices = [];
   export let countryOptions = [];
   export let tagOptions = [];
-  export let selectedLevels;
+  export let selectedLevels = []; // now an array!
   export let sortBy;
   export let selectedCountry;
-  export let selectedTags;
+  export let selectedTags = [];   // now an array!
   export let hideWatched;
   export let searchTerm;
   export let searchOpen = false;
@@ -42,11 +42,11 @@
     const next = new Set(selectedLevels);
     if (next.has(lvl)) next.delete(lvl);
     else next.add(lvl);
-    emitChange({ selectedLevels: next });
+    emitChange({ selectedLevels: Array.from(next) });
   }
   function handleToggleAllLevels() {
-    if (selectedLevels.size === levels.length) emitChange({ selectedLevels: new Set() });
-    else emitChange({ selectedLevels: new Set(levels.map(l => l.value)) });
+    if (selectedLevels.length === levels.length) emitChange({ selectedLevels: [] });
+    else emitChange({ selectedLevels: levels.map(l => l.value) });
   }
   function handleSetSort(val) {
     emitChange({ sortBy: val });
@@ -59,10 +59,10 @@
     const next = new Set(selectedTags);
     if (next.has(tag)) next.delete(tag);
     else next.add(tag);
-    emitChange({ selectedTags: next });
+    emitChange({ selectedTags: Array.from(next) });
   }
   function handleClearTags() {
-    emitChange({ selectedTags: new Set() });
+    emitChange({ selectedTags: [] });
   }
   function handleHideWatched() {
     emitChange({ hideWatched: !hideWatched });
@@ -109,34 +109,44 @@
       {/if}
     </div>
 
-    <!-- Levels Dropdown -->
-    <div class="dropdown" bind:this={levelsDropdownRef}>
-      <button class="dropdown-btn" aria-expanded={showLevelDropdown} on:click={() => showLevelDropdown = !showLevelDropdown} type="button">
-        <BarChart3 size={18} style="margin-right:7px;vertical-align:-3px;color:#44c366;" />
-        Levels
-        <svg width="12" height="9" style="margin-left:7px;" fill="none">
-          <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
-        </svg>
+<!-- Levels Dropdown -->
+<div class="dropdown" bind:this={levelsDropdownRef}>
+  <button
+    class="dropdown-btn"
+    aria-expanded={showLevelDropdown}
+    on:click={() => showLevelDropdown = !showLevelDropdown}
+    type="button"
+  >
+    <BarChart3 size={18} style="margin-right:7px;vertical-align:-3px;color:#f365a0;" />
+    Levels
+    <svg width="12" height="9" style="margin-left:7px;" fill="none">
+      <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+    </svg>
+  </button>
+  {#if showLevelDropdown}
+    <div class="dropdown-content">
+      <div class="levels-list">
+        {#each levels as lvl}
+          <label class="level-checkbox">
+            <input
+              type="checkbox"
+              checked={selectedLevels.includes(lvl.value)}
+              on:change={() => handleToggleLevel(lvl.value)}
+            />
+            <span>{lvl.label}</span>
+          </label>
+        {/each}
+      </div>
+      <button
+        style="margin-top:0.5em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;"
+        on:click={handleToggleAllLevels}
+      >
+        Toggle all
       </button>
-      {#if showLevelDropdown}
-        <div class="dropdown-content">
-          <div style="margin-bottom:0.5em;font-size:1em;font-weight:600;">Include</div>
-          <div class="levels-list">
-            {#each levels as lvl}
-              <label class="level-checkbox">
-                <input type="checkbox" checked={selectedLevels.has(lvl.value)} on:change={() => handleToggleLevel(lvl.value)} />
-                <span>{lvl.label}</span>
-              </label>
-            {/each}
-          </div>
-          <div style="margin-top:0.4em;">
-            <button style="font-size:0.97em;color:#176cda;background:none;border:none;cursor:pointer;" on:click={handleToggleAllLevels}>
-              {selectedLevels.size === levels.length ? 'Clear all' : 'Select all'}
-            </button>
-          </div>
-        </div>
-      {/if}
     </div>
+  {/if}
+</div>
+
 
     <!-- Tags Dropdown -->
     <div class="dropdown" bind:this={tagDropdownRef}>
@@ -151,7 +161,7 @@
         <div class="dropdown-content">
           {#each tagOptions as tag}
             <label class="level-checkbox">
-              <input type="checkbox" checked={selectedTags.has(tag)} on:change={() => handleToggleTag(tag)} />
+              <input type="checkbox" checked={selectedTags.includes(tag)} on:change={() => handleToggleTag(tag)} />
               <span>{tag}</span>
             </label>
           {/each}
@@ -420,3 +430,4 @@
 		}
 	}
 </style>
+

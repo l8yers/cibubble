@@ -23,6 +23,35 @@
   let sentinel;
   let observerInstance;
 
+  // Levels and filter options (define these first so you can reference them in sanitizing code)
+  const levels = [
+    { value: 'easy', label: 'Easy' },
+    { value: 'intermediate', label: 'Intermediate' },
+    { value: 'advanced', label: 'Advanced' }
+  ];
+  const validLevels = new Set(levels.map(l => l.value));
+
+  const sortChoices = [
+    { value: 'random', label: 'Random' },
+    { value: 'easy', label: 'Easy' },
+    { value: 'hard', label: 'Hard' },
+    { value: 'long', label: 'Long' },
+    { value: 'short', label: 'Short' },
+    { value: 'new', label: 'New' },
+    { value: 'old', label: 'Old' }
+  ];
+  let countryOptions = [
+    'Spain', 'Mexico', 'Argentina', 'Colombia', 'Chile', 'Various', 'Peru',
+    'Guatemala', 'Uruguay', 'Dominican Republic', 'Venezuela', 'Costa Rica', 'Cuba',
+    'Ecuador', 'Paraguay', 'Panama', 'Canary Islands', 'Italy', 'Puerto Rico',
+    'Equatorial Guinea', 'DUBS', 'Not Native Speaker', 'AI Voice', 'Latin America'
+  ].sort();
+  let tagOptions = [
+    'For Learners', 'Kids Show', 'Dubbed Show', 'Videogames', 'News', 'History', 'Science',
+    'Travel', 'Lifestyle', 'Personal Development', 'Cooking', 'Music', 'Comedy',
+    'Native Show', 'Education', 'Sports', 'Current Events'
+  ].sort();
+
   // Infinite Scroll setup
   function setupObserver() {
     if (observerInstance) {
@@ -54,8 +83,7 @@
   // --- URL <-> Filters helpers ---
   function filtersToQuery({ levels, tags, country, channel, playlist, sort, search }) {
     const params = new URLSearchParams();
-    if (levels?.size && levels.size < 3) params.set('level', Array.from(levels).join(','));
-    if (tags?.size) params.set('tags', Array.from(tags).join(','));
+  params.set('level', Array.from(levels).join(',')); // ✅ Always send levels    if (tags?.size) params.set('tags', Array.from(tags).join(','));
     if (country) params.set('country', country);
     if (channel) params.set('channel', channel);
     if (playlist) params.set('playlist', playlist);
@@ -134,19 +162,21 @@
     fetchVideos({ append: false });
   }
 
-  function handleSortBarChange(e) {
-    selectedLevels.set(e.detail.selectedLevels);
-    sortBy.set(e.detail.sortBy);
-    selectedCountry.set(e.detail.selectedCountry);
-    selectedTags.set(e.detail.selectedTags);
-    hideWatched.set(e.detail.hideWatched);
-    searchTerm.set(e.detail.searchTerm);
-    searchOpen = e.detail.searchOpen;
+function handleSortBarChange(e) {
+  const rawLevels = e.detail.selectedLevels;
+  const safeLevels = new Set(Array.from(rawLevels).filter(lvl => validLevels.has(lvl)));
 
-    updateUrlFromFilters();
-    resetAndFetch();
-  }
+  selectedLevels.set(safeLevels); // ✅ Use the cleaned version
+  selectedTags.set(new Set(e.detail.selectedTags));
+  sortBy.set(e.detail.sortBy);
+  selectedCountry.set(e.detail.selectedCountry);
+  hideWatched.set(e.detail.hideWatched);
+  searchTerm.set(e.detail.searchTerm);
+  searchOpen = e.detail.searchOpen;
 
+  updateUrlFromFilters();
+  resetAndFetch();
+}
   function filterByChannel(channelId) {
     selectedChannel.set(channelId);
     updateUrlFromFilters();
@@ -175,7 +205,16 @@
   // First load: set filters from URL and fetch
   onMount(() => {
     const filters = queryToFilters(window.location.search);
-    selectedLevels.set(filters.levels.size ? filters.levels : new Set());
+
+    // SANITIZE LEVELS HERE
+const safeLevels = new Set(
+  Array.from(filters.levels).filter(lvl => validLevels.has(lvl))
+);
+selectedLevels.set(
+  safeLevels.size ? safeLevels : new Set(['easy', 'intermediate', 'advanced'])
+);
+    selectedLevels.set(safeLevels.size ? safeLevels : new Set());
+
     selectedTags.set(filters.tags.size ? filters.tags : new Set());
     selectedCountry.set(filters.country || '');
     selectedChannel.set(filters.channel || '');
@@ -188,63 +227,48 @@
   });
 
   // SPA: Listen for URL query changes after first load
-  $: if (!firstLoad && $page.url.search !== lastQuery) {
-    lastQuery = $page.url.search;
-    const filters = queryToFilters($page.url.search);
-    selectedLevels.set(filters.levels.size ? filters.levels : new Set());
-    selectedTags.set(filters.tags.size ? filters.tags : new Set());
-    selectedCountry.set(filters.country || '');
-    selectedChannel.set(filters.channel || '');
-    selectedPlaylist.set(filters.playlist || '');
-    sortBy.set(filters.sort || 'random');
-    searchTerm.set(filters.search || '');
+$: if (!firstLoad && $page.url.search !== lastQuery) {
+  lastQuery = $page.url.search;
+  const filters = queryToFilters($page.url.search);
 
-    resetAndFetch();
-  }
+  // SANITIZE LEVELS HERE TOO
+  const safeLevels = new Set(
+    Array.from(filters.levels).filter(lvl => validLevels.has(lvl))
+  );
+  selectedLevels.set(
+    safeLevels.size ? safeLevels : new Set(['easy', 'intermediate', 'advanced'])
+  );
 
-  const levels = [
-    { value: 'easy', label: 'Easy' },
-    { value: 'intermediate', label: 'Intermediate' },
-    { value: 'advanced', label: 'Advanced' }
-  ];
-  const sortChoices = [
-    { value: 'random', label: 'Random' },
-    { value: 'easy', label: 'Easy' },
-    { value: 'hard', label: 'Hard' },
-    { value: 'long', label: 'Long' },
-    { value: 'short', label: 'Short' },
-    { value: 'new', label: 'New' },
-    { value: 'old', label: 'Old' }
-  ];
-  let countryOptions = [
-    'Spain', 'Mexico', 'Argentina', 'Colombia', 'Chile', 'Various', 'Peru',
-    'Guatemala', 'Uruguay', 'Dominican Republic', 'Venezuela', 'Costa Rica', 'Cuba',
-    'Ecuador', 'Paraguay', 'Panama', 'Canary Islands', 'Italy', 'Puerto Rico',
-    'Equatorial Guinea', 'DUBS', 'Not Native Speaker', 'AI Voice', 'Latin America'
-  ].sort();
-  let tagOptions = [
-    'For Learners', 'Kids Show', 'Dubbed Show', 'Videogames', 'News', 'History', 'Science',
-    'Travel', 'Lifestyle', 'Personal Development', 'Cooking', 'Music', 'Comedy',
-    'Native Show', 'Education', 'Sports', 'Current Events'
-  ].sort();
+  selectedTags.set(filters.tags.size ? filters.tags : new Set());
+  selectedCountry.set(filters.country || '');
+  selectedChannel.set(filters.channel || '');
+  selectedPlaylist.set(filters.playlist || '');
+  sortBy.set(filters.sort || 'random');
+  searchTerm.set(filters.search || '');
+
+  resetAndFetch();
+}
+
 </script>
+
 
 <div class="page-container">
   <div class="sortbar-container">
-    <SortBar
-      {levels}
-      {sortChoices}
-      {countryOptions}
-      {tagOptions}
-      selectedLevels={$selectedLevels}
-      sortBy={$sortBy}
-      selectedCountry={$selectedCountry}
-      selectedTags={$selectedTags}
-      hideWatched={$hideWatched}
-      searchTerm={$searchTerm}
-      searchOpen={searchOpen}
-      on:change={handleSortBarChange}
-    />
+<SortBar
+  {levels}
+  {sortChoices}
+  {countryOptions}
+  {tagOptions}
+  selectedLevels={Array.from($selectedLevels)}
+  sortBy={$sortBy}
+  selectedCountry={$selectedCountry}
+  selectedTags={Array.from($selectedTags)}
+  hideWatched={$hideWatched}
+  searchTerm={$searchTerm}
+  searchOpen={searchOpen}
+  on:change={handleSortBarChange}
+/>
+
   </div>
 
 {#if $selectedChannel}
