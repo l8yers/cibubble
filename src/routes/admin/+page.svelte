@@ -219,23 +219,28 @@
 	<h2 style="margin-bottom:1.1em;">Admin Tools</h2>
 	<AdminStatsBar/> 
 
-	<div class="row">
+	<!-- Clean Import Bar -->
+	<div class="import-bar">
+		<span class="import-videos-title">ADD VIDEOS</span>
 		<input
 			type="text"
 			placeholder="Paste YouTube channel link or @handle…"
 			bind:value={url}
 			aria-label="YouTube Channel Link"
+			class="import-input"
+			on:keydown={(e) => { if (e.key === 'Enter' && url && !importing) importChannel(); }}
 		/>
-		<button class="main-btn" on:click={importChannel} disabled={!url || importing} aria-label="Import Channel">
+		<button class="main-btn import-btn" on:click={importChannel} disabled={!url || importing} aria-label="Import Channel">
 			{importing ? 'Importing…' : 'Import Channel'}
 		</button>
-		<button class="main-btn" on:click={refresh} disabled={refreshing} aria-label="Refresh">
+		<button class="main-btn import-btn" on:click={refresh} disabled={refreshing} aria-label="Refresh">
 			{refreshing ? 'Refreshing…' : '↻ Refresh'}
 		</button>
-		<button class="danger-btn" on:click={clearDatabase} disabled={clearing} aria-label="Clear Database">
+		<button class="danger-btn import-btn" on:click={clearDatabase} disabled={clearing} aria-label="Clear Database">
 			{clearing ? 'Clearing…' : 'Clear Database'}
 		</button>
 	</div>
+
 	{#if message}
 		<div class="admin-message" style="margin:1em 0 1.2em 0;">{message}</div>
 	{/if}
@@ -390,47 +395,61 @@
 		padding: 2.1rem 1.5vw 1.6rem 1.5vw;
 		font-family: Inter, Arial, sans-serif;
 	}
-	.stats-bar {
+
+	/* --- Import Section Styles --- */
+	.import-bar {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 0.7em 1.2em;
-		margin: 0 0 1.1em 0;
-		padding: 0.7em 0.6em;
-		background: #f6f6fb;
+		align-items: center;
+		gap: 1.2em;
+		background: #f8fafd;
+		padding: 1.05em 1em 1em 1em;
+		border-radius: 10px;
+		margin-bottom: 1.7em;
+		box-shadow: 0 2px 12px #eaf0fa30;
+	}
+	.import-videos-title {
+		font-size: 1.09em;
+		font-weight: 900;
+		color: #e93c2f;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		margin-right: 1em;
+		margin-bottom: 0;
+	}
+	.import-input {
+		min-width: 320px;
+		max-width: 440px;
+		font-size: 1.06em;
+		padding: 0.55em 1em;
 		border-radius: 8px;
-		box-shadow: none;
-		align-items: center;
-	}
-	.stat-chip {
-		display: flex;
-		align-items: center;
-		gap: 0.4em;
+		border: 1.4px solid #e3e8ee;
 		background: #fff;
-		border-radius: 7px;
-		font-size: 1.01em;
-		padding: 0.24em 0.75em 0.24em 0.6em;
-		box-shadow: 0 1px 3px #ececec30;
-		color: #23292f;
-		font-weight: 500;
-		border: 1px solid #ececec;
+		font-family: inherit;
+		transition: border 0.14s;
 	}
-	.stat-chip span {
-		color: #777;
-		font-size: 0.97em;
-		font-weight: 400;
-		margin-left: 0.2em;
+	.import-input:focus {
+		border-color: #2562e9;
+		outline: none;
 	}
-	.stat-easy { border-left: 5px solid #16a085;}
-	.stat-int { border-left: 5px solid #f5a623;}
-	.stat-adv { border-left: 5px solid #e93c2f;}
-	.stat-notyet { border-left: 5px solid #b2b2b2;}
-	.row {
-		display: flex;
-		gap: 0.7em;
-		margin-bottom: 1.2em;
-		align-items: center;
-		flex-wrap: wrap;
+	.import-btn {
+		font-size: 1em;
+		padding: 0.45em 1.4em;
 	}
+	.danger-btn.import-btn {
+		margin-left: 0.7em;
+	}
+
+	/* --- Table/General Styles (unchanged) --- */
+	.admin-message { font-weight:500; color: #2562e9; }
+	.admin-table { width: 100%; margin: 1.5em 0 0 0; border-collapse: collapse; background: #fff; font-size: 1em;}
+	.admin-table th, .admin-table td { padding: 0.27em 0.4em; border-bottom: 1px solid #f2f2f2; text-align: left; vertical-align: middle; font-size: 0.98em;}
+	.admin-table th { color: #e93c2f; font-weight: 700; font-size: 1.04em; letter-spacing: 0.01em;}
+	.admin-table td { vertical-align: middle; font-size: 0.98em;}
+	.channel-tags-list { display: flex; flex-wrap: wrap; gap: 0.24em; margin-bottom: 3px;}
+	.tag-pill { background: #e9f6ff; color: #2562e9; padding: 0.13em 0.68em; border-radius: 8px; font-size: 0.95em; margin-bottom:2px; display:inline-flex; align-items:center;}
+	.collapsible-row .tags-cell, .collapsible-row .playlists-cell { padding: 0.5em 0.8em !important; background: #f6faff; font-size: 0.96em;}
+	.playlist-table { width: 100%; margin-top: 0.6em; background: none; font-size: 0.96em; border-collapse: collapse;}
+	.playlist-table th, .playlist-table td { padding: 0.19em 0.27em; border-bottom: 1px solid #f4f4fa; text-align: left;}
 	.main-btn, .danger-btn {
 		font-size: 1em;
 		font-weight: 600;
@@ -448,16 +467,7 @@
 	.main-btn.small { padding: 0.21em 0.7em; font-size: 0.96em; margin-left:0.2em; }
 	.danger-btn { background: #fbeaea; color: #be2231; }
 	.danger-btn:hover { background: #f9d7da; color: #b12c2c; }
-	.admin-message { font-weight:500; color: #2562e9; }
-	.admin-table { width: 100%; margin: 1.5em 0 0 0; border-collapse: collapse; background: #fff; font-size: 1em;}
-	.admin-table th, .admin-table td { padding: 0.27em 0.4em; border-bottom: 1px solid #f2f2f2; text-align: left; vertical-align: middle; font-size: 0.98em;}
-	.admin-table th { color: #e93c2f; font-weight: 700; font-size: 1.04em; letter-spacing: 0.01em;}
-	.admin-table td { vertical-align: middle; font-size: 0.98em;}
-	.channel-tags-list { display: flex; flex-wrap: wrap; gap: 0.24em; margin-bottom: 3px;}
-	.tag-pill { background: #e9f6ff; color: #2562e9; padding: 0.13em 0.68em; border-radius: 8px; font-size: 0.95em; margin-bottom:2px; display:inline-flex; align-items:center;}
-	.collapsible-row .tags-cell, .collapsible-row .playlists-cell { padding: 0.5em 0.8em !important; background: #f6faff; font-size: 0.96em;}
-	.playlist-table { width: 100%; margin-top: 0.6em; background: none; font-size: 0.96em; border-collapse: collapse;}
-	.playlist-table th, .playlist-table td { padding: 0.19em 0.27em; border-bottom: 1px solid #f4f4fa; text-align: left;}
+
 	@media (max-width: 900px) {
 		.admin-main { padding: 1em 0.4em 1em 0.4em;}
 		.admin-table th, .admin-table td { font-size: 0.93em; padding: 0.18em 0.21em;}
@@ -465,13 +475,12 @@
 		.tag-pill { font-size: 0.85em; }
 		.collapsible-cell, .playlists-cell, .tags-cell { padding: 0.32em 0.3em !important;}
 		.playlist-table th, .playlist-table td { font-size: 0.91em; padding: 0.13em 0.1em;}
-		.stat-chip { font-size: 0.93em; padding: 0.18em 0.5em 0.18em 0.4em;}
+		.import-bar { flex-direction: column; gap: 1em; }
 	}
 	@media (max-width: 600px) {
 		.admin-table th, .admin-table td { font-size: 0.91em; padding: 0.11em 0.06em;}
 		.channel-tags-list { gap: 0.08em; }
 		.tag-pill { font-size: 0.75em; }
 		.collapsible-cell, .playlists-cell, .tags-cell { padding: 0.15em 0.06em !important;}
-		.stat-chip { font-size: 0.88em; padding: 0.11em 0.32em 0.11em 0.21em;}
 	}
 </style>
