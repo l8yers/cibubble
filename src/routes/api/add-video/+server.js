@@ -2,11 +2,34 @@ import { json } from '@sveltejs/kit';
 import { createClient } from '@supabase/supabase-js';
 
 // Server keys for SSR
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
-const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || process.env.VITE_YOUTUBE_API_KEY || import.meta.env.VITE_YOUTUBE_API_KEY;
+const SUPABASE_URL =
+  process.env.SUPABASE_URL ||
+  process.env.VITE_SUPABASE_URL ||
+  import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY =
+  process.env.SUPABASE_ANON_KEY ||
+  process.env.VITE_SUPABASE_ANON_KEY ||
+  import.meta.env.VITE_SUPABASE_ANON_KEY;
+const YOUTUBE_API_KEY =
+  process.env.YOUTUBE_API_KEY ||
+  process.env.VITE_YOUTUBE_API_KEY ||
+  import.meta.env.VITE_YOUTUBE_API_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// --- TAG NORMALIZER ---
+function normalizeTags(raw) {
+  let arr = [];
+  if (Array.isArray(raw)) {
+    arr = raw;
+  } else if (typeof raw === 'string') {
+    arr = raw.split(',');
+  }
+  arr = arr
+    .map((t) => String(t || '').trim().toLowerCase())
+    .filter(Boolean);
+  return [...new Set(arr)];
+}
 
 function parseDuration(iso) {
   const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
@@ -20,15 +43,17 @@ function parseDuration(iso) {
 async function fetchVideoDurations(videoIds) {
   let results = [];
   for (let i = 0; i < videoIds.length; i += 50) {
-    const ids = videoIds.slice(i, i + 50).join(",");
+    const ids = videoIds.slice(i, i + 50).join(',');
     const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${YOUTUBE_API_KEY}`;
     const res = await fetch(url);
     const data = await res.json();
     if (data.items) {
-      results.push(...data.items.map(v => ({
-        id: v.id,
-        length: parseDuration(v.contentDetails.duration)
-      })));
+      results.push(
+        ...data.items.map((v) => ({
+          id: v.id,
+          length: parseDuration(v.contentDetails.duration),
+        }))
+      );
     }
   }
   return results.reduce((acc, v) => ({ ...acc, [v.id]: v.length }), {});
@@ -36,9 +61,9 @@ async function fetchVideoDurations(videoIds) {
 
 function extractChannelIdOrHandle(url) {
   const channelIdMatch = url.match(/youtube\.com\/channel\/([a-zA-Z0-9_-]+)/);
-  if (channelIdMatch) return { id: channelIdMatch[1], type: "id" };
+  if (channelIdMatch) return { id: channelIdMatch[1], type: 'id' };
   const handleMatch = url.match(/youtube\.com\/@([a-zA-Z0-9_]+)/);
-  if (handleMatch) return { handle: handleMatch[1], type: "handle" };
+  if (handleMatch) return { handle: handleMatch[1], type: 'handle' };
   return null;
 }
 
@@ -73,7 +98,7 @@ async function getChannelInfo(channelId) {
     name: c.snippet.title,
     thumbnail: c.snippet.thumbnails?.default?.url || '',
     description: c.snippet.description,
-    uploadsPlaylistId: c.contentDetails?.relatedPlaylists?.uploads
+    uploadsPlaylistId: c.contentDetails?.relatedPlaylists?.uploads,
   };
 }
 
@@ -87,7 +112,7 @@ async function getPlaylists(channelId) {
     if (data.items) playlists.push(...data.items);
     nextPage = data.nextPageToken || '';
   } while (nextPage);
-  return playlists.map(pl => ({
+  return playlists.map((pl) => ({
     id: pl.id,
     channel_id: pl.snippet.channelId,
     title: pl.snippet.title,
@@ -116,14 +141,14 @@ async function getPlaylistVideos(playlistId) {
     if (data.items) videos.push(...data.items);
     nextPage = data.nextPageToken || '';
   } while (nextPage);
-  const videoIds = videos.map(v => v.contentDetails.videoId).filter(Boolean);
+  const videoIds = videos.map((v) => v.contentDetails.videoId).filter(Boolean);
   let durations = {};
   if (videoIds.length) {
     durations = await fetchVideoDurations(videoIds);
   }
   return videos
-    .filter(v => isGoodVideo(v, durations))
-    .map(v => ({
+    .filter((v) => isGoodVideo(v, durations))
+    .map((v) => ({
       id: v.contentDetails.videoId,
       title: v.snippet.title,
       channel_id: v.snippet.channelId,
@@ -133,19 +158,20 @@ async function getPlaylistVideos(playlistId) {
       playlist_id: playlistId,
       published: v.snippet.publishedAt,
       created: new Date().toISOString(),
-      level: "notyet",
+      level: 'notyet',
       playlist_position: v.snippet.position ?? null,
     }));
 }
 
 async function getAllUploads(uploadsPlaylistId) {
   const videos = await getPlaylistVideos(uploadsPlaylistId);
-  return videos.map(v => ({ ...v, playlist_id: null }));
+  return videos.map((v) => ({ ...v, playlist_id: null }));
 }
 
 export async function POST({ request }) {
   try {
-    if (!YOUTUBE_API_KEY) return json({ error: 'Missing YouTube API key' }, { status: 500 });
+    if (!YOUTUBE_API_KEY)
+      return json({ error: 'Missing YouTube API key' }, { status: 500 });
 
     const { url, tags, level, added_by, country } = await request.json();
 
@@ -171,18 +197,16 @@ export async function POST({ request }) {
     }
     if (!channel.name || !channel.name.trim()) {
       console.error('Channel info missing name:', channel);
-      return json({
-        error: `Channel "${channelId}" is missing a name. This can happen if the YouTube API did not return info, the channel is deleted/private, or your API quota is exceeded.`,
-      }, { status: 400 });
+      return json(
+        {
+          error: `Channel "${channelId}" is missing a name. This can happen if the YouTube API did not return info, the channel is deleted/private, or your API quota is exceeded.`,
+        },
+        { status: 400 }
+      );
     }
 
-    // Normalize tags as array of lowercased, trimmed strings
-    let tagArr = [];
-    if (Array.isArray(tags)) {
-      tagArr = tags.map(t => t.trim().toLowerCase()).filter(Boolean);
-    } else if (typeof tags === 'string') {
-      tagArr = tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
-    }
+    // --- TAGS: Normalize once, use both ways ---
+    const tagArr = normalizeTags(tags);
 
     // --- Upsert channel (with country!) ---
     const channelObj = {
@@ -190,8 +214,8 @@ export async function POST({ request }) {
       name: channel.name,
       thumbnail: channel.thumbnail,
       description: channel.description,
-      tags: tagArr.join(', '),
-      country: country || null
+      tags: tagArr.join(', '), // TEXT for channel
+      country: country || null,
     };
     console.log('Upserting channel:', channelObj);
 
@@ -239,7 +263,7 @@ export async function POST({ request }) {
 
     // PATCH: Use UUID for added_by
     if (allVideos.length > 0) {
-      const videosToUpsert = allVideos.map(v => ({
+      const videosToUpsert = allVideos.map((v) => ({
         id: v.id,
         playlist_id: v.playlist_id,
         channel_id: v.channel_id,
@@ -252,8 +276,8 @@ export async function POST({ request }) {
         playlist_position: v.playlist_position,
         level: level || v.level || 'notyet',
         country: country || null,
-        tags: Array.isArray(tagArr) ? tagArr : [],
-        added_by: added_by || null // <-- PATCH: use UUID
+        tags: tagArr, // ARRAY for videos
+        added_by: added_by || null, // UUID
       }));
 
       const { error: videoError } = await supabase.from('videos').upsert(videosToUpsert);
@@ -267,7 +291,7 @@ export async function POST({ request }) {
       success: true,
       channel,
       playlists_count: playlists.length,
-      videos_added: allVideos.length
+      videos_added: allVideos.length,
     });
   } catch (err) {
     console.error('Caught server error:', err);

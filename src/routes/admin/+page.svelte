@@ -4,6 +4,15 @@
 	import { get } from 'svelte/store';
 	import TagManager from '$lib/components/TagManager.svelte';
 	import { getTagsForChannel } from '$lib/api/tags.js';
+	import { onMount, onDestroy } from 'svelte';
+
+	function normalizeTags(raw) {
+		let arr = [];
+		if (Array.isArray(raw)) arr = raw;
+		else if (typeof raw === 'string') arr = raw.split(',');
+		arr = arr.map(t => String(t || '').trim().toLowerCase()).filter(Boolean);
+		return [...new Set(arr)];
+	}
 
 	const countryOptions = [
 		'Argentina','Canary Islands','Chile','Colombia','Costa Rica','Cuba','Dominican Republic','Ecuador','El Salvador','Equatorial Guinea','France','Guatemala','Italy','Latin America','Mexico','Panama','Paraguay','Peru','Puerto Rico','Spain','United States','Uruguay','Venezuela'
@@ -31,18 +40,19 @@
 	let settingLevel = {};
 	let settingPlaylistLevel = {};
 
-
-	// BULK UPLOAD STATE
+	// BULK UPLOAD STATE & PROGRESS
 	let csvInput;
 	let csvFile = null;
 	let csvRows = [];
 	let bulkUploading = false;
+	let currentRow = 0;
+	let totalRows = 0;
+	let uploadFailures = [];
 
 	function handleCsvFile(e) {
 		csvFile = e.target.files[0];
 	}
 
-	// Simple native CSV parser (for spreadsheet-style CSVs)
 	function parseCsv(text) {
 		const lines = text.trim().split('\n').filter(line => line.trim() !== '');
 		if (!lines.length) return [];
@@ -58,21 +68,25 @@
 	async function uploadCsv() {
 		if (!csvFile) return;
 		bulkUploading = true;
+		currentRow = 0;
+		totalRows = 0;
+		uploadFailures = [];
 		message = '';
 		const reader = new FileReader();
 		reader.onload = async (event) => {
 			const text = event.target.result;
 			csvRows = parseCsv(text);
-			const failures = [];
-			let total = 0, added = 0;
-			for (const row of csvRows) {
-				total++;
+			totalRows = csvRows.length;
+			let added = 0;
+			for (let i = 0; i < csvRows.length; i++) {
+				currentRow = i + 1;
+				const row = csvRows[i];
 				const url = row.youtube || row.link || row['youtube link'] || row['YouTube Link'] || row['url'];
-				const tags = row.tags || '';
+				const tags = normalizeTags(row.tags || '');
 				const country = row.country || '';
 				const level = row.level || '';
 				if (!url) {
-					failures.push({ row, error: "Missing YouTube link" });
+					uploadFailures.push({ row, error: "Missing YouTube link" });
 					continue;
 				}
 				try {
@@ -89,24 +103,44 @@
 						})
 					});
 					const json = await res.json();
-					if (json.error) failures.push({ row, error: json.error });
-					else added++;
+					if (json.error) {
+						uploadFailures.push({ row, error: json.error });
+					} else {
+						added++;
+					}
 				} catch (err) {
-					failures.push({ row, error: err.message });
+					uploadFailures.push({ row, error: err.message });
 				}
 			}
-			message = `✅ Uploaded ${added}/${total} rows.`;
-			if (failures.length) {
-				message += ` ${failures.length} failed (see console for details)`;
-				console.warn('Bulk upload failures:', failures);
+			message = `✅ Uploaded ${added}/${totalRows} rows.`;
+			if (uploadFailures.length) {
+				message += ` ${uploadFailures.length} failed (see details below)`;
+				console.warn('Bulk upload failures:', uploadFailures);
 			}
 			await refresh();
 			bulkUploading = false;
 			csvFile = null;
 			if (csvInput) csvInput.value = '';
+			currentRow = 0;
+			totalRows = 0;
 		};
 		reader.readAsText(csvFile);
 	}
+
+	// Leave-page warning while uploading
+	function handleBeforeUnload(event) {
+		if (bulkUploading) {
+			event.preventDefault();
+			event.returnValue = 'Uploads are still in progress!';
+			return event.returnValue;
+		}
+	}
+	onMount(() => {
+		window.addEventListener('beforeunload', handleBeforeUnload);
+	});
+	onDestroy(() => {
+		window.removeEventListener('beforeunload', handleBeforeUnload);
+	});
 
 	function formatTime(sec) {
 		const h = Math.floor(sec / 3600);
@@ -220,7 +254,6 @@
 		settingCountry[channelId] = false;
 	}
 
-	// ---- REFRESH: load channels + tags + stats
 	async function refresh() {
 		refreshing = true;
 		let { data, error } = await supabase.from('channels').select('*');
@@ -254,6 +287,7 @@
 
 	refresh();
 </script>
+
 
 <div class="admin-main">
 	<h2 style="margin-bottom:1.1em;">Admin Tools</h2>

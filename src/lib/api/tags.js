@@ -41,18 +41,33 @@ export async function getAllTags() {
 
 // Get tags for a given channel
 export async function getTagsForChannel(channelId) {
+  // First, try the join table method (for old channels)
   const { data, error } = await supabase
     .from('channel_tags')
     .select('tag_id, tags(name)')
     .eq('channel_id', channelId);
 
-  if (error) return [];
-  if (!data) return [];
-  return data.map(row => ({
-    id: row.tag_id,
-    name: row.tags?.name
-  })).filter(t => t.name);
+  // If there are joined tags, use them
+  if (!error && data && data.length > 0) {
+    return data
+      .map(row => ({ id: row.tag_id, name: row.tags?.name }))
+      .filter(t => t.name);
+  }
+
+  // Otherwise, fall back to the comma-separated tags field on channels
+  const { data: channelRow } = await supabase
+    .from('channels')
+    .select('tags')
+    .eq('id', channelId)
+    .maybeSingle();
+
+  if (!channelRow || !channelRow.tags) return [];
+  return channelRow.tags
+    .split(',')
+    .map(t => ({ name: t.trim() }))
+    .filter(t => t.name);
 }
+
 
 // Get top N tags
 export async function getTopTags(limit = 20) {
