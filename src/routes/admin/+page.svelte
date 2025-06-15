@@ -4,7 +4,6 @@
 	import { get } from 'svelte/store';
 	import TagManager from '$lib/components/TagManager.svelte';
 	import { getTagsForChannel } from '$lib/api/tags.js';
-	import AdminStatsBar from '$lib/components/AdminStatsBar.svelte';
 
 	const countryOptions = [
 		'Argentina','Canary Islands','Chile','Colombia','Costa Rica','Cuba','Dominican Republic','Ecuador','El Salvador','Equatorial Guinea','France','Guatemala','Italy','Latin America','Mexico','Panama','Paraguay','Peru','Puerto Rico','Spain','United States','Uruguay','Venezuela'
@@ -32,14 +31,6 @@
 	let settingLevel = {};
 	let settingPlaylistLevel = {};
 
-	let adminStats = {
-		videos: 0,
-		channels: 0,
-		playlists: 0,
-		runningTime: 0,
-		byLevel: { easy: 0, intermediate: 0, advanced: 0, notyet: 0 },
-		timeByLevel: { easy: 0, intermediate: 0, advanced: 0, notyet: 0 }
-	};
 
 	// BULK UPLOAD STATE
 	let csvInput;
@@ -258,34 +249,6 @@
 				};
 			})
 		);
-
-		const { count: videosCount } = await supabase.from('videos').select('id', { count: 'exact', head: true });
-		const { count: playlistsCount } = await supabase.from('playlists').select('id', { count: 'exact', head: true });
-		const { count: channelsCount } = await supabase.from('channels').select('id', { count: 'exact', head: true });
-
-		let byLevel = { easy: 0, intermediate: 0, advanced: 0, notyet: 0 };
-		let timeByLevel = { easy: 0, intermediate: 0, advanced: 0, notyet: 0 };
-		for (const lvl of Object.keys(byLevel)) {
-			const eqLevel = lvl === 'notyet' ? '' : lvl;
-			const { count } = await supabase.from('videos').select('id', { count: 'exact', head: true }).eq('level', eqLevel);
-			byLevel[lvl] = count || 0;
-			const { data: levelVids } = await supabase.from('videos').select('length').eq('level', eqLevel);
-			if (levelVids) timeByLevel[lvl] = levelVids.reduce((sum, v) => sum + (v.length || 0), 0);
-			else timeByLevel[lvl] = 0;
-		}
-		const { data: vidsTime } = await supabase.from('videos').select('length');
-		let runningTime = 0;
-		if (vidsTime) runningTime = vidsTime.reduce((sum, v) => sum + (v.length || 0), 0);
-
-		adminStats = {
-			videos: videosCount || 0,
-			playlists: playlistsCount || 0,
-			channels: channelsCount || 0,
-			runningTime,
-			byLevel,
-			timeByLevel
-		};
-
 		refreshing = false;
 	}
 
@@ -294,7 +257,6 @@
 
 <div class="admin-main">
 	<h2 style="margin-bottom:1.1em;">Admin Tools</h2>
-	<AdminStatsBar/> 
 
 	<!-- Clean Import Bar -->
 	<div class="import-bar">
