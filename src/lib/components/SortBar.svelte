@@ -5,13 +5,13 @@
   export let levels = [];
   export let sortChoices = [];
   export let countryOptions = [];
-  export let tagOptions = [];
+  export let tagOptions = []; // These are backend-normalised, e.g. ["for learners"]
   export let selectedLevels = [];
   export let sortBy = 'new';
-  export let selectedCountry;
+  export let selectedCountry = '';
   export let selectedTags = [];
-  export let hideWatched;
-  export let searchTerm;
+  export let hideWatched = false;
+  export let searchTerm = '';
   export let searchOpen = false;
 
   const dispatch = createEventDispatcher();
@@ -29,6 +29,7 @@
     });
   }
 
+  // Level filter
   function handleToggleLevel(lvl) {
     const next = new Set(selectedLevels);
     if (next.has(lvl)) next.delete(lvl);
@@ -39,13 +40,19 @@
     if (selectedLevels.length === levels.length) emitChange({ selectedLevels: [] });
     else emitChange({ selectedLevels: levels.map(l => l.value) });
   }
+
+  // Sort dropdown
   function handleSetSort(val) {
     emitChange({ sortBy: val });
     showSortDropdown = false;
   }
+
+  // Country filter
   function handleSetCountry(c) {
     emitChange({ selectedCountry: c === selectedCountry ? '' : c });
   }
+
+  // TAGS FILTER (multi-select, friendly display)
   function handleToggleTag(tag) {
     const next = new Set(selectedTags);
     if (next.has(tag)) next.delete(tag);
@@ -55,6 +62,8 @@
   function handleClearTags() {
     emitChange({ selectedTags: [] });
   }
+
+  // Misc
   function handleHideWatched() {
     emitChange({ hideWatched: !hideWatched });
   }
@@ -82,6 +91,11 @@
     document.addEventListener('click', handleDocumentClick);
     return () => document.removeEventListener('click', handleDocumentClick);
   });
+
+  // Title case util for friendly tag display
+  function toTitleCase(str) {
+    return str.replace(/\w\S*/g, txt => txt.charAt(0).toUpperCase() + txt.slice(1));
+  }
 </script>
 
 <div class="controls-bar">
@@ -148,7 +162,7 @@
       {/if}
     </div>
 
-    <!-- Tags Dropdown -->
+    <!-- TAGS FILTER Dropdown (multi-select, friendly display) -->
     <div class="dropdown" bind:this={tagDropdownRef}>
       <button class="dropdown-btn" aria-expanded={showTagDropdown} on:click={() => showTagDropdown = !showTagDropdown} type="button">
         <Tag size={18} style="margin-right:7px;vertical-align:-3px;color:#f2a02b;" />
@@ -161,8 +175,12 @@
         <div class="dropdown-content">
           {#each tagOptions as tag}
             <label class="level-checkbox">
-              <input type="checkbox" checked={selectedTags.includes(tag)} on:change={() => handleToggleTag(tag)} />
-              <span>{tag}</span>
+              <input
+                type="checkbox"
+                checked={selectedTags.includes(tag)}
+                on:change={() => handleToggleTag(tag)}
+              />
+              <span>{toTitleCase(tag)}</span>
             </label>
           {/each}
           <button style="margin-top:0.5em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;" on:click={handleClearTags}>

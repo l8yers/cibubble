@@ -30,20 +30,20 @@ export function filterAndSortVideos(videos, {
 
   // ---- FIXED TAG FILTER ----
   if (selectedTags.size > 0) {
+    // Convert selectedTags Set to lower-case array once for comparison
+    const tagList = Array.from(selectedTags, t => t.toLowerCase().trim());
     filtered = filtered.filter(v => {
+      // Accept tags as array or comma-separated string
       let tags = [];
       if (Array.isArray(v.tags)) {
-        tags = v.tags.map(t => t.trim().toLowerCase());
+        tags = v.tags.map(t => t.toLowerCase().trim());
       } else if (typeof v.tags === 'string') {
-        tags = v.tags.split(',').map(t => t.trim().toLowerCase());
+        tags = v.tags.split(',').map(t => t.toLowerCase().trim());
       } else if (v.channel?.tags) {
-        tags = v.channel.tags.split(',').map(t => t.trim().toLowerCase());
+        tags = v.channel.tags.split(',').map(t => t.toLowerCase().trim());
       }
-
-      for (let tag of selectedTags) {
-        if (tags.includes(tag.toLowerCase())) return true;
-      }
-      return false;
+      // Does this video have ANY of the selected tags?
+      return tagList.some(tag => tags.includes(tag));
     });
   }
 
