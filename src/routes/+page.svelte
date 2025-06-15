@@ -1,4 +1,12 @@
 <script>
+    // Patch: Force default sort in URL
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('sort')) {
+      params.set('sort', 'new');
+      window.location.search = params.toString();
+    }
+  }
   import { page } from '$app/stores';
   import { onMount, onDestroy } from 'svelte';
   import VideoGrid from '$lib/components/VideoGrid.svelte';
@@ -226,7 +234,7 @@ async function getTagsForChannel(channelId) {
     selectedCountry.set(filters.country || '');
     selectedChannel.set(filters.channel || '');
     selectedPlaylist.set(filters.playlist || '');
-    sortBy.set(filters.sort || 'random');
+    sortBy.set(filters.sort || 'new');
     searchTerm.set(filters.search || '');
 
     resetAndFetch();
@@ -245,7 +253,7 @@ async function getTagsForChannel(channelId) {
     selectedCountry.set(filters.country || '');
     selectedChannel.set(filters.channel || '');
     selectedPlaylist.set(filters.playlist || '');
-    sortBy.set(filters.sort || 'random');
+    sortBy.set(filters.sort || 'new');
     searchTerm.set(filters.search || '');
 
     resetAndFetch();

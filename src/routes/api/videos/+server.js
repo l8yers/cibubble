@@ -1,4 +1,3 @@
-// src/routes/api/videos/+server.js
 import { json } from '@sveltejs/kit';
 import { supabase } from '$lib/supabaseClient';
 
@@ -11,7 +10,7 @@ export async function GET({ url }) {
   const country = url.searchParams.get('country');
   const channel = url.searchParams.get('channel');
   const playlist = url.searchParams.get('playlist');
-  const sort = url.searchParams.get('sort') ?? 'random';
+  const sort = url.searchParams.get('sort') ?? 'new';  // <--- PATCHED TO "new"
   const search = url.searchParams.get('search') ?? '';
 
   // ✅ If no levels selected, return no results

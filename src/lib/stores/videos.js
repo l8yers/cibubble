@@ -13,7 +13,7 @@ export const errorMsg = writable('');
 export const selectedChannel = writable('');
 export const selectedPlaylist = writable('');
 export const selectedLevels = writable(new Set(['easy', 'intermediate', 'advanced']));
-export const sortBy = writable('random');
+export const sortBy = writable('new'); // <- default is now "new"
 export const selectedCountry = writable('');
 export const selectedTags = writable(new Set());
 export const hideWatched = writable(false);
@@ -51,7 +51,7 @@ export async function loadWatchedVideos() {
   watchedIds.set(new Set(data.map(row => row.video_id)));
 }
 
-// (Optional: Derived store if you use it elsewhere, can delete if not used)
+// Derived store (if used)
 export const filteredVideos = derived(
   [
     allVideos, selectedChannel, selectedPlaylist, selectedLevels,

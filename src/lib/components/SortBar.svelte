@@ -7,7 +7,7 @@
   export let countryOptions = [];
   export let tagOptions = [];
   export let selectedLevels = [];
-  export let sortBy;
+  export let sortBy = 'new';
   export let selectedCountry;
   export let selectedTags = [];
   export let hideWatched;
@@ -98,8 +98,12 @@
       {#if showSortDropdown}
         <div class="dropdown-content">
           {#each sortChoices as opt}
-            <div style="padding:0.32em 0.2em;cursor:pointer;" on:click={() => handleSetSort(opt.value)}>
-              {opt.label}
+            <div
+              class:active-sort-option={opt.value === sortBy}
+              style="padding:0.32em 0.2em;cursor:pointer;display:flex;align-items:center;"
+              on:click={() => handleSetSort(opt.value)}
+            >
+              <span>{opt.label}</span>
             </div>
           {/each}
         </div>
@@ -398,6 +402,18 @@
 	.search-toggle:hover svg {
 		stroke: #2e9be6;
 	}
+
+	/* ACTIVE SORT HIGHLIGHT */
+	.active-sort-option {
+		background: #e5f2fd;
+		font-weight: 700;
+		color: #2e9be6;
+		border-radius: 6px;
+	}
+	.active-sort-option:hover {
+		background: #cbe5fb;
+	}
+
 	@media (max-width: 900px) {
 		.controls-bar {
 			flex-direction: column;
