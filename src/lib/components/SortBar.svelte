@@ -5,7 +5,6 @@
   export let levels = [];
   export let sortChoices = [];
   export let countryOptions = [];
-  export let tagOptions = []; // These are backend-normalised, e.g. ["for learners"]
   export let selectedLevels = [];
   export let sortBy = 'new';
   export let selectedCountry = '';
@@ -56,7 +55,7 @@
     emitChange({ selectedCountry: c === selectedCountry ? '' : c });
   }
 
-  // TAGS FILTER (multi-select, friendly display)
+  // TAGS FILTER (Top + All tags, no search)
   function handleToggleTag(tag) {
     const next = new Set(selectedTags);
     if (next.has(tag)) next.delete(tag);
@@ -117,6 +116,133 @@
     hideWatched !== false ||
     searchTerm !== '' ||
     selectedChannel !== '';
+
+  // --- Top Tags (hardcoded from your latest top 10) ---
+  const topTags = [
+    "history",
+    "for learners",
+    "personal development",
+    "children's science",
+    "current events",
+    "videogames",
+    "health",
+    "news",
+    "lifestyle",
+    "random facts"
+  ];
+
+  // --- All Tags: deduped, sorted, lowercased, split on / and trimmed (from your CSV) ---
+  const allTags = [
+    "ai voice",
+    "animated stories",
+    "animation",
+    "animals",
+    "art",
+    "argentina",
+    "bags",
+    "baseball",
+    "business",
+    "canary islands",
+    "challenges",
+    "children's history",
+    "children's science",
+    "children's stories",
+    "colombia",
+    "comedy",
+    "comedy jokes test rain",
+    "cooking",
+    "cost of living",
+    "country life",
+    "creepy",
+    "critiques",
+    "current events",
+    "cuba",
+    "culture",
+    "debates",
+    "dubbed show",
+    "education",
+    "el salvador",
+    "equatorial guinea",
+    "facts",
+    "fashion",
+    "finance",
+    "fitness",
+    "food reviews",
+    "for learners",
+    "france",
+    "gardening",
+    "geography",
+    "gravy",
+    "guatemala",
+    "health",
+    "heart",
+    "history",
+    "how it's made",
+    "human mind",
+    "iceland",
+    "interviews",
+    "italy",
+    "jam",
+    "jam toast",
+    "journalist",
+    "kid's show",
+    "kids show",
+    "kpop",
+    "language learning",
+    "latin america",
+    "law",
+    "level",
+    "life",
+    "life in iceland",
+    "life in japan",
+    "life in korea",
+    "lifestyle",
+    "lifestyle in japan",
+    "main",
+    "manufacturing",
+    "mexico",
+    "mindfullness",
+    "montessori",
+    "motivation",
+    "music",
+    "nasa",
+    "nature",
+    "news",
+    "not native speaker",
+    "panama",
+    "paraguay",
+    "peru",
+    "personal development",
+    "philosophy",
+    "playlists",
+    "politics",
+    "pop culture",
+    "positive affirmations",
+    "psychology",
+    "pyschology",
+    "puerto rico",
+    "random facts",
+    "re sales",
+    "relationships",
+    "religion",
+    "science",
+    "shorts",
+    "sobriety",
+    "spain",
+    "sports",
+    "storytelling",
+    "street interviews",
+    "tarot",
+    "tech",
+    "test",
+    "travel",
+    "true crime",
+    "uruguay",
+    "various",
+    "videogames",
+    "weather"
+  ].sort((a, b) => a.localeCompare(b));
+
 </script>
 
 <div class="controls-bar">
@@ -183,7 +309,7 @@
       {/if}
     </div>
 
-    <!-- TAGS FILTER Dropdown (multi-select, friendly display) -->
+    <!-- TAGS FILTER Dropdown (Top + All, no search) -->
     <div class="dropdown" bind:this={tagDropdownRef}>
       <button class="dropdown-btn" aria-expanded={showTagDropdown} on:click={() => showTagDropdown = !showTagDropdown} type="button">
         <Tag size={18} style="margin-right:7px;vertical-align:-3px;color:#f2a02b;" />
@@ -193,18 +319,43 @@
         </svg>
       </button>
       {#if showTagDropdown}
-        <div class="dropdown-content">
-          {#each tagOptions as tag}
-            <label class="level-checkbox">
-              <input
-                type="checkbox"
-                checked={selectedTags.includes(tag)}
-                on:change={() => handleToggleTag(tag)}
-              />
-              <span>{toTitleCase(tag)}</span>
-            </label>
-          {/each}
-          <button style="margin-top:0.5em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;" on:click={handleClearTags}>
+        <div class="dropdown-content tags-dropdown-content">
+
+          <!-- TOP TAGS -->
+          <div style="margin-bottom:0.7em;">
+            <div class="dropdown-label" style="font-weight:700; font-size:1.01em;">Top Tags</div>
+            {#each topTags as tag}
+              <label class="level-checkbox">
+                <input
+                  type="checkbox"
+                  checked={selectedTags.includes(tag)}
+                  on:change={() => handleToggleTag(tag)}
+                />
+                <span>{toTitleCase(tag)}</span>
+              </label>
+            {/each}
+          </div>
+
+          <hr style="margin:0.5em 0 0.5em 0;" />
+
+          <!-- ALL OTHER TAGS -->
+          <div>
+            <div class="dropdown-label" style="font-weight:700; font-size:1.01em;">All Tags</div>
+            {#each allTags as tag}
+              {#if !topTags.includes(tag)}
+                <label class="level-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={selectedTags.includes(tag)}
+                    on:change={() => handleToggleTag(tag)}
+                  />
+                  <span>{toTitleCase(tag)}</span>
+                </label>
+              {/if}
+            {/each}
+          </div>
+
+          <button style="margin-top:0.7em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;" on:click={handleClearTags}>
             Clear all
           </button>
         </div>
@@ -424,6 +575,8 @@
 		top: 110%;
 		left: 0;
 		font-size: 1em;
+		max-height: 350px;
+		overflow-y: auto;
 	}
 	.levels-list {
 		display: flex;
