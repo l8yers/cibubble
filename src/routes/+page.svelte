@@ -3,6 +3,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import VideoGrid from '$lib/components/VideoGrid.svelte';
 	import SortBar from '$lib/components/SortBar.svelte';
+	import FilterChip from '$lib/components/FilterChip.svelte';
 	import * as utils from '$lib/utils.js';
 	import '../app.css';
 
@@ -52,184 +53,200 @@
 		{ value: 'old', label: 'Old' }
 	];
 	let countryOptions = [
-		'Spain', 'Mexico', 'Argentina', 'Colombia', 'Chile', 'Various', 'Peru', 'Guatemala',
-		'Uruguay', 'Dominican Republic', 'Venezuela', 'Costa Rica', 'Cuba', 'Ecuador',
-		'Paraguay', 'Panama', 'Canary Islands', 'Puerto Rico', 'Equatorial Guinea',
+		'Spain',
+		'Mexico',
+		'Argentina',
+		'Colombia',
+		'Chile',
+		'Various',
+		'Peru',
+		'Guatemala',
+		'Uruguay',
+		'Dominican Republic',
+		'Venezuela',
+		'Costa Rica',
+		'Cuba',
+		'Ecuador',
+		'Paraguay',
+		'Panama',
+		'Canary Islands',
+		'Puerto Rico',
+		'Equatorial Guinea',
 		'Latin America'
 	].sort();
 	let tagOptions = [
-	  '80s',
-	  'acting',
-	  'animal',
-	  'animated stories',
-	  'anthropology',
-	  'ants',
-	  'archeology',
-	  'architecture',
-	  'art',
-	  'art history',
-	  'astronomy',
-	  'av',
-	  'baseball',
-	  'basketball',
-	  'boardgames',
-	  'books',
-	  'books, myths, legends',
-	  'boxing',
-	  'boxing history',
-	  'business',
-	  'business scandals',
-	  'calligraphy',
-	  'caravan',
-	  'challenge',
-	  'challenges',
-	  'chat',
-	  'chess',
-	  "children's history",
-	  "children's science",
-	  "children's stories",
-	  'chinese grammar',
-	  'climbing',
-	  'coffee',
-	  'comedy',
-	  'cooking',
-	  'crafts',
-	  'creepy',
-	  'creepy facts',
-	  'critiques',
-	  'crochet',
-	  'culture',
-	  'current events',
-	  'dallas cowboys',
-	  'debates',
-	  'design',
-	  'dramatized stories',
-	  'drawing',
-	  'dubbed show',
-	  'dubbing industry',
-	  'economy',
-	  'education',
-	  'facts',
-	  'film',
-	  'finance',
-	  'fitness',
-	  'food',
-	  'food reviews',
-	  'for learners',
-	  'futbol',
-	  'futbol discussion',
-	  'games',
-	  'gameshow',
-	  'gaming',
-	  'gardening',
-	  'geography',
-	  'geoguesser',
-	  'graphic design',
-	  'greek myths',
-	  'guitars',
-	  'harry potter disc',
-	  'health',
-	  'hip hop',
-	  'history',
-	  'hobby',
-	  'home design',
-	  "how it's made",
-	  'human mind',
-	  'humanities',
-	  'interviews',
-	  'journaling',
-	  'journalist',
-	  "kid's show",
-	  'kids',
-	  'kpop',
-	  'language learning',
-	  'law',
-	  'life',
-	  'life in canada',
-	  'life in china',
-	  'life in colombia',
-	  'life in cuba',
-	  'life in guatemala',
-	  'life in iceland',
-	  'life in japan',
-	  'life in korea',
-	  'life in mexico',
-	  'life in spain',
-	  'life in uruguay',
-	  'lifestyle',
-	  'lifestyle in australia',
-	  'lifestyle in germany',
-	  'lifestyle in japan',
-	  'lifestyle in mexico city',
-	  'literature',
-	  'makeup',
-	  'manufacturing',
-	  'martial arts',
-	  'math',
-	  'meditation',
-	  'mental health',
-	  'mindfullness',
-	  'minecraft',
-	  'minimalism',
-	  'montessori',
-	  'movie',
-	  'movie discussion',
-	  'movie reviews',
-	  'music',
-	  'music theory',
-	  'mystery',
-	  'mythology',
-	  'nasa',
-	  'native movie',
-	  'native show',
-	  'native story podcast',
-	  'nature',
-	  'nba history',
-	  'news',
-	  'organizing',
-	  'paranormal',
-	  'personal developement',
-	  'personal development',
-	  'philosophy',
-	  'photography',
-	  'physics',
-	  'politics',
-	  'pop culture',
-	  'positive affirmations',
-	  'product testing',
-	  'psychology',
-	  'psycology',
-	  'pyschology',
-	  'random',
-	  'random facts',
-	  're sales',
-	  'reality competition',
-	  'reality show',
-	  'relationships',
-	  'religion',
-	  'scary stories',
-	  'science',
-	  'skiing',
-	  'sobriety',
-	  'social experiment',
-	  'sports',
-	  'stories',
-	  'storytelling',
-	  'street interviews',
-	  'survival',
-	  'tarot',
-	  'taylor swift breakdown',
-	  'tech',
-	  'travel',
-	  'true crime',
-	  'tv ads',
-	  'video essays',
-	  'video game reviews',
-	  'videogame discussion',
-	  'videogames',
-	  'weather',
-	  'writing tips',
-	  'yoga'
+		'80s',
+		'acting',
+		'animal',
+		'animated stories',
+		'anthropology',
+		'ants',
+		'archeology',
+		'architecture',
+		'art',
+		'art history',
+		'astronomy',
+		'av',
+		'baseball',
+		'basketball',
+		'boardgames',
+		'books',
+		'books, myths, legends',
+		'boxing',
+		'boxing history',
+		'business',
+		'business scandals',
+		'calligraphy',
+		'caravan',
+		'challenge',
+		'challenges',
+		'chat',
+		'chess',
+		"children's history",
+		"children's science",
+		"children's stories",
+		'chinese grammar',
+		'climbing',
+		'coffee',
+		'comedy',
+		'cooking',
+		'crafts',
+		'creepy',
+		'creepy facts',
+		'critiques',
+		'crochet',
+		'culture',
+		'current events',
+		'dallas cowboys',
+		'debates',
+		'design',
+		'dramatized stories',
+		'drawing',
+		'dubbed show',
+		'dubbing industry',
+		'economy',
+		'education',
+		'facts',
+		'film',
+		'finance',
+		'fitness',
+		'food',
+		'food reviews',
+		'for learners',
+		'futbol',
+		'futbol discussion',
+		'games',
+		'gameshow',
+		'gaming',
+		'gardening',
+		'geography',
+		'geoguesser',
+		'graphic design',
+		'greek myths',
+		'guitars',
+		'harry potter disc',
+		'health',
+		'hip hop',
+		'history',
+		'hobby',
+		'home design',
+		"how it's made",
+		'human mind',
+		'humanities',
+		'interviews',
+		'journaling',
+		'journalist',
+		"kid's show",
+		'kids',
+		'kpop',
+		'language learning',
+		'law',
+		'life',
+		'life in canada',
+		'life in china',
+		'life in colombia',
+		'life in cuba',
+		'life in guatemala',
+		'life in iceland',
+		'life in japan',
+		'life in korea',
+		'life in mexico',
+		'life in spain',
+		'life in uruguay',
+		'lifestyle',
+		'lifestyle in australia',
+		'lifestyle in germany',
+		'lifestyle in japan',
+		'lifestyle in mexico city',
+		'literature',
+		'makeup',
+		'manufacturing',
+		'martial arts',
+		'math',
+		'meditation',
+		'mental health',
+		'mindfullness',
+		'minecraft',
+		'minimalism',
+		'montessori',
+		'movie',
+		'movie discussion',
+		'movie reviews',
+		'music',
+		'music theory',
+		'mystery',
+		'mythology',
+		'nasa',
+		'native movie',
+		'native show',
+		'native story podcast',
+		'nature',
+		'nba history',
+		'news',
+		'organizing',
+		'paranormal',
+		'personal developement',
+		'personal development',
+		'philosophy',
+		'photography',
+		'physics',
+		'politics',
+		'pop culture',
+		'positive affirmations',
+		'product testing',
+		'psychology',
+		'psycology',
+		'pyschology',
+		'random',
+		'random facts',
+		're sales',
+		'reality competition',
+		'reality show',
+		'relationships',
+		'religion',
+		'scary stories',
+		'science',
+		'skiing',
+		'sobriety',
+		'social experiment',
+		'sports',
+		'stories',
+		'storytelling',
+		'street interviews',
+		'survival',
+		'tarot',
+		'taylor swift breakdown',
+		'tech',
+		'travel',
+		'true crime',
+		'tv ads',
+		'video essays',
+		'video game reviews',
+		'videogame discussion',
+		'videogames',
+		'weather',
+		'writing tips',
+		'yoga'
 	].sort();
 
 	function setupObserver() {
@@ -323,22 +340,58 @@
 	}
 	function filterByChannel(channelId) {
 		selectedChannel.set(channelId);
-		updateUrlFromFilters({ selectedLevels, selectedTags, selectedCountry, selectedChannel, selectedPlaylist, sortBy, searchTerm, get });
+		updateUrlFromFilters({
+			selectedLevels,
+			selectedTags,
+			selectedCountry,
+			selectedChannel,
+			selectedPlaylist,
+			sortBy,
+			searchTerm,
+			get
+		});
 		resetAndFetch();
 	}
 	function clearChannelFilter() {
 		selectedChannel.set('');
-		updateUrlFromFilters({ selectedLevels, selectedTags, selectedCountry, selectedChannel, selectedPlaylist, sortBy, searchTerm, get });
+		updateUrlFromFilters({
+			selectedLevels,
+			selectedTags,
+			selectedCountry,
+			selectedChannel,
+			selectedPlaylist,
+			sortBy,
+			searchTerm,
+			get
+		});
 		resetAndFetch();
 	}
 	function filterByPlaylist(playlistTitle) {
 		selectedPlaylist.set(playlistTitle);
-		updateUrlFromFilters({ selectedLevels, selectedTags, selectedCountry, selectedChannel, selectedPlaylist, sortBy, searchTerm, get });
+		updateUrlFromFilters({
+			selectedLevels,
+			selectedTags,
+			selectedCountry,
+			selectedChannel,
+			selectedPlaylist,
+			sortBy,
+			searchTerm,
+			get
+		});
 		resetAndFetch();
 	}
 	function clearPlaylistFilter() {
 		selectedPlaylist.set('');
-		updateUrlFromFilters({ selectedLevels, selectedTags, selectedCountry, selectedChannel, selectedPlaylist, sortBy, searchTerm, get });
+		updateUrlFromFilters({
+			selectedLevels,
+			selectedTags,
+			selectedCountry,
+			selectedChannel,
+			selectedPlaylist,
+			sortBy,
+			searchTerm,
+			get
+		});
 		resetAndFetch();
 	}
 
@@ -389,83 +442,82 @@
 		userChannels.set([]);
 	}
 </script>
-<div class="page-container">
-  <div class="sortbar-container">
-    <SortBar
-      {levels}
-      {sortChoices}
-      {countryOptions}
-      {tagOptions}
-      selectedLevels={Array.from($selectedLevels)}
-      sortBy={$sortBy}
-      selectedCountry={$selectedCountry}
-      selectedTags={Array.from($selectedTags)}
-      hideWatched={$hideWatched}
-      searchTerm={$searchTerm}
-      {searchOpen}
-      myChannels={$userChannels}
-      selectedChannel={$selectedChannel}
-      on:change={handleSortBarChange}
-    />
-  </div> <!-- <-- close sortbar-container here! -->
 
-  {#if $selectedChannel}
-    <div class="chip-info">
-      <span>
-        <b>Filtered by channel:</b>
-        {#if $videos.length > 0}
-          {$videos[0].channel?.name ?? $videos[0].channel_name ?? $selectedChannel}
-        {:else}
-          {$selectedChannel}
-        {/if}
-      </span>
-      <button on:click={clearChannelFilter} class="clear-btn clear-btn--blue">✕ Clear</button>
-    </div>
-  {/if}
-  {#if $selectedPlaylist}
-    <div class="chip-warning">
-      <span>
-        <b>Filtered by playlist:</b>
-        {#if $videos.length > 0}
-          {$videos[0].playlist?.title ?? $selectedPlaylist}
-        {:else}
-          {$selectedPlaylist}
-        {/if}
-      </span>
-      <button on:click={clearPlaylistFilter} class="clear-btn clear-btn--purple">✕ Clear</button>
-    </div>
-  {/if}
-  {#if $loading && $videos.length === 0}
-    <p class="loading-more">Loading videos…</p>
-  {:else if $errorMsg}
-    <div class="error">{$errorMsg}</div>
-  {:else if !$loading && $videos.length === 0}
-    <div class="loading-more text-muted">No videos match your filters.</div>
-  {:else}
-    <VideoGrid
-      videos={filteredVideos}
-      getBestThumbnail={utils.getBestThumbnail}
-      difficultyColor={utils.difficultyColor}
-      difficultyLabel={utils.difficultyLabel}
-      formatLength={utils.formatLength}
-      {filterByChannel}
-      {filterByPlaylist}
-    />
-    {#if $hasMore && $sortBy !== 'random'}
-      <div bind:this={sentinel} style="height: 2em;"></div>
-    {/if}
-    {#if $hasMore && $sortBy === 'random'}
-      <button
-        class="load-more-btn"
-        on:click={loadMore}
-        disabled={$loading}
-        style="margin: 2em auto; display: block;"
-      >
-        {#if $loading}Loading...{/if}
-        {#if !$loading}Load More{/if}
-      </button>
-    {/if}
-  {/if}
+<div class="page-container">
+	<div class="sortbar-container">
+		<SortBar
+			{levels}
+			{sortChoices}
+			{countryOptions}
+			{tagOptions}
+			selectedLevels={Array.from($selectedLevels)}
+			sortBy={$sortBy}
+			selectedCountry={$selectedCountry}
+			selectedTags={Array.from($selectedTags)}
+			hideWatched={$hideWatched}
+			searchTerm={$searchTerm}
+			{searchOpen}
+			myChannels={$userChannels}
+			selectedChannel={$selectedChannel}
+			on:change={handleSortBarChange}
+		/>
+	</div>
+
+	{#if $selectedChannel}
+		<FilterChip
+			type="info"
+			label="Filtered by channel"
+			value={$videos.length > 0
+				? ($videos[0].channel?.name ?? $videos[0].channel_name ?? $selectedChannel)
+				: $selectedChannel}
+			onClear={clearChannelFilter}
+			clearClass="clear-btn--blue"
+		/>
+	{/if}
+
+	{#if $selectedPlaylist}
+		<FilterChip
+			type="warning"
+			label="Filtered by playlist"
+			value={$videos.length > 0
+				? ($videos[0].playlist?.title ?? $selectedPlaylist)
+				: $selectedPlaylist}
+			onClear={clearPlaylistFilter}
+			clearClass="clear-btn--purple"
+		/>
+	{/if}
+
+	{#if $loading && $videos.length === 0}
+		<p class="loading-more">Loading videos…</p>
+	{:else if $errorMsg}
+		<div class="error">{$errorMsg}</div>
+	{:else if !$loading && $videos.length === 0}
+		<div class="loading-more text-muted">No videos match your filters.</div>
+	{:else}
+		<VideoGrid
+			videos={filteredVideos}
+			getBestThumbnail={utils.getBestThumbnail}
+			difficultyColor={utils.difficultyColor}
+			difficultyLabel={utils.difficultyLabel}
+			formatLength={utils.formatLength}
+			{filterByChannel}
+			{filterByPlaylist}
+		/>
+		{#if $hasMore && $sortBy !== 'random'}
+			<div bind:this={sentinel} style="height: 2em;"></div>
+		{/if}
+		{#if $hasMore && $sortBy === 'random'}
+			<button
+				class="load-more-btn"
+				on:click={loadMore}
+				disabled={$loading}
+				style="margin: 2em auto; display: block;"
+			>
+				{#if $loading}Loading...{/if}
+				{#if !$loading}Load More{/if}
+			</button>
+		{/if}
+	{/if}
 </div>
 
 <style>
