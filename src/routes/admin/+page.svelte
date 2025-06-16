@@ -137,6 +137,7 @@
 	}
 	onMount(() => {
 		window.addEventListener('beforeunload', handleBeforeUnload);
+		refresh();
 	});
 	onDestroy(() => {
 		window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -256,36 +257,46 @@
 
 	async function refresh() {
 		refreshing = true;
-		let { data, error } = await supabase.from('channels').select('*');
-		console.log("Channels fetch:", { data, error });
-		if (error) {
-			message = "Channels error: " + (error.message ?? error);
+		try {
+			let { data, error } = await supabase.from('channels').select('*');
+			console.log("Channels fetch:", { data, error });
+			if (error) {
+				message = "Channels error: " + (error.message ?? error);
+				channels = [];
+				return;
+			}
+			channels = await Promise.all(
+				(data || []).map(async (chan) => {
+					const { data: vids } = await supabase.from('videos').select('level').eq('channel_id', chan.id);
+					let _mainLevel = '';
+					if (vids && vids.length > 0) {
+						const levelsArr = vids.map((v) => v.level || '');
+						const uniqueLevels = Array.from(new Set(levelsArr));
+						_mainLevel = uniqueLevels.length === 1 ? (uniqueLevels[0] || '') : 'mixed';
+					}
+					let _tags = [];
+					try {
+						_tags = await getTagsForChannel(chan.id);
+					} catch (e) {
+						_tags = [];
+					}
+					return {
+						...chan,
+						_country: chan.country || '',
+						_tags,
+						_newLevel: '',
+						_mainLevel
+					};
+				})
+			);
+		} catch (e) {
+			message = "Refresh error: " + e.message;
+			channels = [];
+		} finally {
 			refreshing = false;
-			return;
 		}
-		channels = await Promise.all(
-			(data || []).map(async (chan) => {
-				const { data: vids } = await supabase.from('videos').select('level').eq('channel_id', chan.id);
-				let _mainLevel = '';
-				if (vids && vids.length > 0) {
-					const levelsArr = vids.map((v) => v.level || '');
-					const uniqueLevels = Array.from(new Set(levelsArr));
-					_mainLevel = uniqueLevels.length === 1 ? (uniqueLevels[0] || '') : 'mixed';
-				}
-				const _tags = await getTagsForChannel(chan.id);
-				return {
-					...chan,
-					_country: chan.country || '',
-					_tags,
-					_newLevel: '',
-					_mainLevel
-				};
-			})
-		);
-		refreshing = false;
 	}
 
-	refresh();
 </script>
 
 
