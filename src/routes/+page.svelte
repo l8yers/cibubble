@@ -19,6 +19,8 @@
 	} from '$lib/stores/videos.js';
 
 	import { writable, get } from 'svelte/store';
+	import { filtersToQuery, queryToFilters } from '$lib/utils/filters.js';
+	import { updateUrlFromFilters } from '$lib/utils/url.js';
 
 	// --- NEW: Saved Channels imports ---
 	import { user } from '$lib/stores/user.js';
@@ -53,183 +55,182 @@
 		'Spain', 'Mexico', 'Argentina', 'Colombia', 'Chile', 'Various', 'Peru', 'Guatemala',
 		'Uruguay', 'Dominican Republic', 'Venezuela', 'Costa Rica', 'Cuba', 'Ecuador',
 		'Paraguay', 'Panama', 'Canary Islands', 'Puerto Rico', 'Equatorial Guinea',
-		  'Latin America'
+		'Latin America'
 	].sort();
-let tagOptions = [
-  '80s',
-  'acting',
-  'animal',
-  'animated stories',
-  'anthropology',
-  'ants',
-  'archeology',
-  'architecture',
-  'art',
-  'art history',
-  'astronomy',
-  'av',
-  'baseball',
-  'basketball',
-  'boardgames',
-  'books',
-  'books, myths, legends',
-  'boxing',
-  'boxing history',
-  'business',
-  'business scandals',
-  'calligraphy',
-  'caravan',
-  'challenge',
-  'challenges',
-  'chat',
-  'chess',
-  "children's history",
-  "children's science",
-  "children's stories",
-  'chinese grammar',
-  'climbing',
-  'coffee',
-  'comedy',
-  'cooking',
-  'crafts',
-  'creepy',
-  'creepy facts',
-  'critiques',
-  'crochet',
-  'culture',
-  'current events',
-  'dallas cowboys',
-  'debates',
-  'design',
-  'dramatized stories',
-  'drawing',
-  'dubbed show',
-  'dubbing industry',
-  'economy',
-  'education',
-  'facts',
-  'film',
-  'finance',
-  'fitness',
-  'food',
-  'food reviews',
-  'for learners',
-  'futbol',
-  'futbol discussion',
-  'games',
-  'gameshow',
-  'gaming',
-  'gardening',
-  'geography',
-  'geoguesser',
-  'graphic design',
-  'greek myths',
-  'guitars',
-  'harry potter disc',
-  'health',
-  'hip hop',
-  'history',
-  'hobby',
-  'home design',
-  "how it's made",
-  'human mind',
-  'humanities',
-  'interviews',
-  'journaling',
-  'journalist',
-  "kid's show",
-  'kids',
-  'kpop',
-  'language learning',
-  'law',
-  'life',
-  'life in canada',
-  'life in china',
-  'life in colombia',
-  'life in cuba',
-  'life in guatemala',
-  'life in iceland',
-  'life in japan',
-  'life in korea',
-  'life in mexico',
-  'life in spain',
-  'life in uruguay',
-  'lifestyle',
-  'lifestyle in australia',
-  'lifestyle in germany',
-  'lifestyle in japan',
-  'lifestyle in mexico city',
-  'literature',
-  'makeup',
-  'manufacturing',
-  'martial arts',
-  'math',
-  'meditation',
-  'mental health',
-  'mindfullness',
-  'minecraft',
-  'minimalism',
-  'montessori',
-  'movie',
-  'movie discussion',
-  'movie reviews',
-  'music',
-  'music theory',
-  'mystery',
-  'mythology',
-  'nasa',
-  'native movie',
-  'native show',
-  'native story podcast',
-  'nature',
-  'nba history',
-  'news',
-  'organizing',
-  'paranormal',
-  'personal developement',
-  'personal development',
-  'philosophy',
-  'photography',
-  'physics',
-  'politics',
-  'pop culture',
-  'positive affirmations',
-  'product testing',
-  'psychology',
-  'psycology',
-  'pyschology',
-  'random',
-  'random facts',
-  're sales',
-  'reality competition',
-  'reality show',
-  'relationships',
-  'religion',
-  'scary stories',
-  'science',
-  'skiing',
-  'sobriety',
-  'social experiment',
-  'sports',
-  'stories',
-  'storytelling',
-  'street interviews',
-  'survival',
-  'tarot',
-  'taylor swift breakdown',
-  'tech',
-  'travel',
-  'true crime',
-  'tv ads',
-  'video essays',
-  'video game reviews',
-  'videogame discussion',
-  'videogames',
-  'weather',
-  'writing tips',
-  'yoga'
-].sort();
-
+	let tagOptions = [
+	  '80s',
+	  'acting',
+	  'animal',
+	  'animated stories',
+	  'anthropology',
+	  'ants',
+	  'archeology',
+	  'architecture',
+	  'art',
+	  'art history',
+	  'astronomy',
+	  'av',
+	  'baseball',
+	  'basketball',
+	  'boardgames',
+	  'books',
+	  'books, myths, legends',
+	  'boxing',
+	  'boxing history',
+	  'business',
+	  'business scandals',
+	  'calligraphy',
+	  'caravan',
+	  'challenge',
+	  'challenges',
+	  'chat',
+	  'chess',
+	  "children's history",
+	  "children's science",
+	  "children's stories",
+	  'chinese grammar',
+	  'climbing',
+	  'coffee',
+	  'comedy',
+	  'cooking',
+	  'crafts',
+	  'creepy',
+	  'creepy facts',
+	  'critiques',
+	  'crochet',
+	  'culture',
+	  'current events',
+	  'dallas cowboys',
+	  'debates',
+	  'design',
+	  'dramatized stories',
+	  'drawing',
+	  'dubbed show',
+	  'dubbing industry',
+	  'economy',
+	  'education',
+	  'facts',
+	  'film',
+	  'finance',
+	  'fitness',
+	  'food',
+	  'food reviews',
+	  'for learners',
+	  'futbol',
+	  'futbol discussion',
+	  'games',
+	  'gameshow',
+	  'gaming',
+	  'gardening',
+	  'geography',
+	  'geoguesser',
+	  'graphic design',
+	  'greek myths',
+	  'guitars',
+	  'harry potter disc',
+	  'health',
+	  'hip hop',
+	  'history',
+	  'hobby',
+	  'home design',
+	  "how it's made",
+	  'human mind',
+	  'humanities',
+	  'interviews',
+	  'journaling',
+	  'journalist',
+	  "kid's show",
+	  'kids',
+	  'kpop',
+	  'language learning',
+	  'law',
+	  'life',
+	  'life in canada',
+	  'life in china',
+	  'life in colombia',
+	  'life in cuba',
+	  'life in guatemala',
+	  'life in iceland',
+	  'life in japan',
+	  'life in korea',
+	  'life in mexico',
+	  'life in spain',
+	  'life in uruguay',
+	  'lifestyle',
+	  'lifestyle in australia',
+	  'lifestyle in germany',
+	  'lifestyle in japan',
+	  'lifestyle in mexico city',
+	  'literature',
+	  'makeup',
+	  'manufacturing',
+	  'martial arts',
+	  'math',
+	  'meditation',
+	  'mental health',
+	  'mindfullness',
+	  'minecraft',
+	  'minimalism',
+	  'montessori',
+	  'movie',
+	  'movie discussion',
+	  'movie reviews',
+	  'music',
+	  'music theory',
+	  'mystery',
+	  'mythology',
+	  'nasa',
+	  'native movie',
+	  'native show',
+	  'native story podcast',
+	  'nature',
+	  'nba history',
+	  'news',
+	  'organizing',
+	  'paranormal',
+	  'personal developement',
+	  'personal development',
+	  'philosophy',
+	  'photography',
+	  'physics',
+	  'politics',
+	  'pop culture',
+	  'positive affirmations',
+	  'product testing',
+	  'psychology',
+	  'psycology',
+	  'pyschology',
+	  'random',
+	  'random facts',
+	  're sales',
+	  'reality competition',
+	  'reality show',
+	  'relationships',
+	  'religion',
+	  'scary stories',
+	  'science',
+	  'skiing',
+	  'sobriety',
+	  'social experiment',
+	  'sports',
+	  'stories',
+	  'storytelling',
+	  'street interviews',
+	  'survival',
+	  'tarot',
+	  'taylor swift breakdown',
+	  'tech',
+	  'travel',
+	  'true crime',
+	  'tv ads',
+	  'video essays',
+	  'video game reviews',
+	  'videogame discussion',
+	  'videogames',
+	  'weather',
+	  'writing tips',
+	  'yoga'
+	].sort();
 
 	function setupObserver() {
 		if (observerInstance) {
@@ -254,45 +255,6 @@ let tagOptions = [
 	onDestroy(() => {
 		if (observerInstance) observerInstance.disconnect();
 	});
-
-	function filtersToQuery({ levels, tags, country, channel, playlist, sort, search }) {
-		const params = new URLSearchParams();
-		params.set('level', Array.from(levels).join(','));
-		if (tags?.size) params.set('tags', Array.from(tags).join(','));
-		if (country) params.set('country', country);
-		if (channel) params.set('channel', channel);
-		if (playlist) params.set('playlist', playlist);
-		if (sort && sort !== 'random') params.set('sort', sort);
-		if (search) params.set('search', search);
-		return params.toString();
-	}
-
-	function queryToFilters(qs) {
-		const params = new URLSearchParams(qs);
-		return {
-			levels: new Set((params.get('level') || '').split(',').filter(Boolean)),
-			tags: new Set((params.get('tags') || '').split(',').filter(Boolean)),
-			country: params.get('country') || '',
-			channel: params.get('channel') || '',
-			playlist: params.get('playlist') || '',
-			sort: params.get('sort') || 'new',  // Default to "new" if missing!
-			search: params.get('search') || ''
-		};
-	}
-
-	function updateUrlFromFilters() {
-		const query = filtersToQuery({
-			levels: get(selectedLevels),
-			tags: get(selectedTags),
-			country: get(selectedCountry),
-			channel: get(selectedChannel),
-			playlist: get(selectedPlaylist),
-			sort: get(sortBy),
-			search: get(searchTerm)
-		});
-		const url = query ? `?${query}` : window.location.pathname;
-		history.replaceState({}, '', url);
-	}
 
 	async function fetchVideos({ append = false } = {}) {
 		loading.set(true);
@@ -346,35 +308,43 @@ let tagOptions = [
 		hideWatched.set(e.detail.hideWatched);
 		searchTerm.set(e.detail.searchTerm);
 		searchOpen = e.detail.searchOpen;
-		selectedChannel.set(e.detail.selectedChannel ?? ''); // <-- ADDED for channel filter
-		updateUrlFromFilters();
+		selectedChannel.set(e.detail.selectedChannel ?? '');
+		updateUrlFromFilters({
+			selectedLevels,
+			selectedTags,
+			selectedCountry,
+			selectedChannel,
+			selectedPlaylist,
+			sortBy,
+			searchTerm,
+			get
+		});
 		resetAndFetch();
 	}
 	function filterByChannel(channelId) {
 		selectedChannel.set(channelId);
-		updateUrlFromFilters();
+		updateUrlFromFilters({ selectedLevels, selectedTags, selectedCountry, selectedChannel, selectedPlaylist, sortBy, searchTerm, get });
 		resetAndFetch();
 	}
 	function clearChannelFilter() {
 		selectedChannel.set('');
-		updateUrlFromFilters();
+		updateUrlFromFilters({ selectedLevels, selectedTags, selectedCountry, selectedChannel, selectedPlaylist, sortBy, searchTerm, get });
 		resetAndFetch();
 	}
 	function filterByPlaylist(playlistTitle) {
 		selectedPlaylist.set(playlistTitle);
-		updateUrlFromFilters();
+		updateUrlFromFilters({ selectedLevels, selectedTags, selectedCountry, selectedChannel, selectedPlaylist, sortBy, searchTerm, get });
 		resetAndFetch();
 	}
 	function clearPlaylistFilter() {
 		selectedPlaylist.set('');
-		updateUrlFromFilters();
+		updateUrlFromFilters({ selectedLevels, selectedTags, selectedCountry, selectedChannel, selectedPlaylist, sortBy, searchTerm, get });
 		resetAndFetch();
 	}
 
 	let firstLoad = true;
 	let lastQuery = '';
 
-	// ---- Set defaults from URL (with default sort 'new') ----
 	onMount(() => {
 		const filters = queryToFilters(window.location.search);
 		const safeLevels = new Set(Array.from(filters.levels).filter((lvl) => validLevels.has(lvl)));
@@ -385,14 +355,13 @@ let tagOptions = [
 		selectedCountry.set(filters.country || '');
 		selectedChannel.set(filters.channel || '');
 		selectedPlaylist.set(filters.playlist || '');
-		sortBy.set(filters.sort || 'new');  // <<-- default to 'new'
+		sortBy.set(filters.sort || 'new');
 		searchTerm.set(filters.search || '');
 
 		resetAndFetch();
 		firstLoad = false;
 	});
 
-	// SPA: Listen for URL query changes after first load
 	$: if (!firstLoad && $page.url.search !== lastQuery) {
 		lastQuery = $page.url.search;
 		const filters = queryToFilters($page.url.search);
@@ -412,7 +381,6 @@ let tagOptions = [
 
 	$: filteredVideos = $hideWatched ? $videos.filter((v) => !$watchedIds.has(v.id)) : $videos;
 
-	// --- NEW: Load saved channels when user logs in/logs out ---
 	$: if ($user) {
 		getUserSavedChannels($user.id)
 			.then((chs) => userChannels.set(chs))
@@ -499,7 +467,6 @@ let tagOptions = [
     {/if}
   {/if}
 </div>
-
 
 <style>
 	.load-more-btn {
