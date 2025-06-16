@@ -5,7 +5,7 @@
   export let levels = [];
   export let sortChoices = [];
   export let countryOptions = [];
-  export let tagOptions = []; // These are backend-normalised, e.g. ["for learners"]
+  export let tagOptions = [];
   export let selectedLevels = [];
   export let sortBy = 'new';
   export let selectedCountry = '';
@@ -28,6 +28,28 @@
       ...data
     });
   }
+
+  // Reset filters handler
+  function handleResetFilters() {
+    emitChange({
+      selectedLevels: levels.map(l => l.value),
+      sortBy: 'new',
+      selectedCountry: '',
+      selectedTags: [],
+      hideWatched: false,
+      searchTerm: '',
+      searchOpen: false
+    });
+  }
+
+  // Helper to check if filters are not default
+  $: filtersChanged =
+    sortBy !== 'new' ||
+    selectedCountry !== '' ||
+    selectedTags.length > 0 ||
+    selectedLevels.length !== levels.length ||
+    hideWatched !== false ||
+    searchTerm !== '';
 
   // Level filter
   function handleToggleLevel(lvl) {
@@ -214,6 +236,13 @@
         </div>
       {/if}
     </div>
+
+    <!-- RESET FILTERS BUTTON (lowercase, only visible if not defaults) -->
+    {#if filtersChanged}
+      <button class="reset-filters-btn" type="button" on:click={handleResetFilters}>
+        reset filters
+      </button>
+    {/if}
   </div>
   <div class="controls-right">
     <button
@@ -432,6 +461,26 @@
 		background: #cbe5fb;
 	}
 
+	.reset-filters-btn {
+		margin-left: 0.6em;
+		font-weight: 800;
+		color: #e93c2f !important;
+		background: none;
+		border: none;
+		font-size: 1em;
+		cursor: pointer;
+		letter-spacing: 0.03em;
+		padding: 0.45em 0.7em;
+		border-radius: 8px;
+		transition: text-decoration 0.11s;
+		text-transform: none;
+	}
+	.reset-filters-btn:hover,
+	.reset-filters-btn:focus-visible {
+		text-decoration: underline;
+		background: none;
+		outline: none;
+	}
 	@media (max-width: 900px) {
 		.controls-bar {
 			flex-direction: column;
