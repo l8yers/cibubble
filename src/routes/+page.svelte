@@ -52,8 +52,8 @@
 	let countryOptions = [
 		'Spain', 'Mexico', 'Argentina', 'Colombia', 'Chile', 'Various', 'Peru', 'Guatemala',
 		'Uruguay', 'Dominican Republic', 'Venezuela', 'Costa Rica', 'Cuba', 'Ecuador',
-		'Paraguay', 'Panama', 'Canary Islands', 'Italy', 'Puerto Rico', 'Equatorial Guinea',
-		'DUBS', 'Not Native Speaker', 'AI Voice', 'Latin America'
+		'Paraguay', 'Panama', 'Canary Islands', 'Puerto Rico', 'Equatorial Guinea',
+		  'Latin America'
 	].sort();
 let tagOptions = [
   '80s',

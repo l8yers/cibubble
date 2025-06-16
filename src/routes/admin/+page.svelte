@@ -6,14 +6,6 @@
 	import { getTagsForChannel } from '$lib/api/tags.js';
 	import { onMount, onDestroy } from 'svelte';
 
-	function normalizeTags(raw) {
-		let arr = [];
-		if (Array.isArray(raw)) arr = raw;
-		else if (typeof raw === 'string') arr = raw.split(',');
-		arr = arr.map(t => String(t || '').trim().toLowerCase()).filter(Boolean);
-		return [...new Set(arr)];
-	}
-
 	const countryOptions = [
 		'Argentina','Canary Islands','Chile','Colombia','Costa Rica','Cuba','Dominican Republic','Ecuador','El Salvador','Equatorial Guinea','France','Guatemala','Italy','Latin America','Mexico','Panama','Paraguay','Peru','Puerto Rico','Spain','United States','Uruguay','Venezuela'
 	];
@@ -30,24 +22,63 @@
 	let importing = false;
 	let clearing = false;
 	let deleting = {};
-	let channels = [];
+	let allChannels = [];
 	let refreshing = false;
 	let showPlaylistsFor = null;
 	let playlists = [];
 	let playlistsLoading = false;
-	let showTagsFor = null;
 	let settingCountry = {};
 	let settingLevel = {};
 	let settingPlaylistLevel = {};
 
-	// BULK UPLOAD STATE & PROGRESS
+	// Pagination & search
+	let search = '';
+	let currentPage = 1;
+	const channelsPerPage = 12;
+	let totalPages = 1;
+	let filteredChannels = [];
+
+	// CSV BULK UPLOAD STATE
 	let csvInput;
 	let csvFile = null;
-	let csvRows = [];
 	let bulkUploading = false;
-	let currentRow = 0;
-	let totalRows = 0;
 	let uploadFailures = [];
+
+	function stripAccent(str) {
+		return (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+	}
+
+	$: {
+		let s = stripAccent(search.trim().toLowerCase());
+		let filtered = !s
+			? allChannels
+			: allChannels.filter(chan =>
+				stripAccent(chan.name || '').toLowerCase().includes(s)
+				|| stripAccent(chan.country || '').toLowerCase().includes(s)
+				|| (chan._tags || []).some(t => stripAccent(t.name || '').toLowerCase().includes(s))
+			);
+		totalPages = Math.max(1, Math.ceil(filtered.length / channelsPerPage));
+		if (currentPage > totalPages) currentPage = totalPages;
+		filteredChannels = filtered.slice((currentPage - 1) * channelsPerPage, currentPage * channelsPerPage);
+	}
+
+	function onSearchInput(e) {
+		search = e.target.value;
+		currentPage = 1;
+	}
+
+	function goToPage(p) {
+		if (p < 1 || p > totalPages) return;
+		currentPage = p;
+	}
+
+	function normalizeTags(raw) {
+		let arr = [];
+		if (Array.isArray(raw)) arr = raw;
+		else if (typeof raw === 'string') arr = raw.split(',');
+		arr = arr.map(t => String(t || '').trim().toLowerCase()).filter(Boolean);
+		return [...new Set(arr)];
+	}
 
 	function handleCsvFile(e) {
 		csvFile = e.target.files[0];
@@ -68,19 +99,14 @@
 	async function uploadCsv() {
 		if (!csvFile) return;
 		bulkUploading = true;
-		currentRow = 0;
-		totalRows = 0;
 		uploadFailures = [];
 		message = '';
 		const reader = new FileReader();
 		reader.onload = async (event) => {
 			const text = event.target.result;
-			csvRows = parseCsv(text);
-			totalRows = csvRows.length;
+			const csvRows = parseCsv(text);
 			let added = 0;
-			for (let i = 0; i < csvRows.length; i++) {
-				currentRow = i + 1;
-				const row = csvRows[i];
+			for (let row of csvRows) {
 				const url = row.youtube || row.link || row['youtube link'] || row['YouTube Link'] || row['url'];
 				const tags = normalizeTags(row.tags || '');
 				const country = row.country || '';
@@ -103,31 +129,22 @@
 						})
 					});
 					const json = await res.json();
-					if (json.error) {
-						uploadFailures.push({ row, error: json.error });
-					} else {
-						added++;
-					}
+					if (json.error) uploadFailures.push({ row, error: json.error });
+					else added++;
 				} catch (err) {
 					uploadFailures.push({ row, error: err.message });
 				}
 			}
-			message = `✅ Uploaded ${added}/${totalRows} rows.`;
-			if (uploadFailures.length) {
-				message += ` ${uploadFailures.length} failed (see details below)`;
-				console.warn('Bulk upload failures:', uploadFailures);
-			}
+			message = `✅ Uploaded ${added}/${csvRows.length} rows.`;
+			if (uploadFailures.length) message += ` ${uploadFailures.length} failed (see details below)`;
 			await refresh();
 			bulkUploading = false;
 			csvFile = null;
 			if (csvInput) csvInput.value = '';
-			currentRow = 0;
-			totalRows = 0;
 		};
 		reader.readAsText(csvFile);
 	}
 
-	// Leave-page warning while uploading
 	function handleBeforeUnload(event) {
 		if (bulkUploading) {
 			event.preventDefault();
@@ -142,12 +159,6 @@
 	onDestroy(() => {
 		window.removeEventListener('beforeunload', handleBeforeUnload);
 	});
-
-	function formatTime(sec) {
-		const h = Math.floor(sec / 3600);
-		const m = Math.floor((sec % 3600) / 60);
-		return `${h}h ${m}m`;
-	}
 
 	async function importChannel() {
 		message = '';
@@ -184,21 +195,21 @@
 
 	async function deleteChannel(id) {
 		if (!confirm('Delete this channel and ALL its videos/playlists?')) return;
-		deleting[id] = true;
+		deleting = { ...deleting, [id]: true };
 		await supabase.from('videos').delete().eq('channel_id', id);
 		await supabase.from('playlists').delete().eq('channel_id', id);
 		await supabase.from('channels').delete().eq('id', id);
 		await refresh();
-		deleting[id] = false;
+		deleting = { ...deleting, [id]: false };
 	}
 
 	async function setChannelLevel(channelId, level) {
 		if (!level) return;
-		settingLevel[channelId] = true;
+		settingLevel = { ...settingLevel, [channelId]: true };
 		await supabase.from('videos').update({ level }).eq('channel_id', channelId);
 		message = `✅ All videos for this channel set to "${levels.find((l) => l.value === level)?.label}"`;
 		await refresh();
-		settingLevel[channelId] = false;
+		settingLevel = { ...settingLevel, [channelId]: false };
 	}
 
 	async function togglePlaylistsFor(channelId) {
@@ -232,40 +243,34 @@
 
 	async function setPlaylistLevel(playlistId, level) {
 		if (!level) return;
-		settingPlaylistLevel[playlistId] = true;
+		settingPlaylistLevel = { ...settingPlaylistLevel, [playlistId]: true };
 		await supabase.from('videos').update({ level }).eq('playlist_id', playlistId);
 		message = `✅ All videos for this playlist set to "${levels.find((l) => l.value === level)?.label}"`;
 		playlists = playlists.map((pl) =>
 			pl.id === playlistId ? { ...pl, currentLevel: level, _newLevel: '' } : pl
 		);
-		settingPlaylistLevel[playlistId] = false;
-	}
-
-	function toggleTagsFor(channelId) {
-		if (showTagsFor === channelId) showTagsFor = null;
-		else showTagsFor = channelId;
+		settingPlaylistLevel = { ...settingPlaylistLevel, [playlistId]: false };
 	}
 
 	async function setChannelCountry(channelId, country) {
-		settingCountry[channelId] = true;
+		settingCountry = { ...settingCountry, [channelId]: true };
 		await supabase.from('channels').update({ country }).eq('id', channelId);
 		await supabase.from('videos').update({ country }).eq('channel_id', channelId);
 		message = '✅ Country updated';
 		await refresh();
-		settingCountry[channelId] = false;
+		settingCountry = { ...settingCountry, [channelId]: false };
 	}
 
 	async function refresh() {
 		refreshing = true;
 		try {
 			let { data, error } = await supabase.from('channels').select('*');
-			console.log("Channels fetch:", { data, error });
 			if (error) {
 				message = "Channels error: " + (error.message ?? error);
-				channels = [];
+				allChannels = [];
 				return;
 			}
-			channels = await Promise.all(
+			allChannels = await Promise.all(
 				(data || []).map(async (chan) => {
 					const { data: vids } = await supabase.from('videos').select('level').eq('channel_id', chan.id);
 					let _mainLevel = '';
@@ -277,9 +282,7 @@
 					let _tags = [];
 					try {
 						_tags = await getTagsForChannel(chan.id);
-					} catch (e) {
-						_tags = [];
-					}
+					} catch (e) { _tags = []; }
 					return {
 						...chan,
 						_country: chan.country || '',
@@ -289,31 +292,23 @@
 					};
 				})
 			);
+			currentPage = 1;
 		} catch (e) {
 			message = "Refresh error: " + e.message;
-			channels = [];
+			allChannels = [];
 		} finally {
 			refreshing = false;
 		}
 	}
-
 </script>
-
 
 <div class="admin-main">
 	<h2 style="margin-bottom:1.1em;">Admin Tools</h2>
-
-	<!-- Clean Import Bar -->
+	<!-- Import Bar -->
 	<div class="import-bar">
 		<span class="import-videos-title">ADD VIDEOS</span>
-		<input
-			type="text"
-			placeholder="Paste YouTube channel link or @handle…"
-			bind:value={url}
-			aria-label="YouTube Channel Link"
-			class="import-input"
-			on:keydown={(e) => { if (e.key === 'Enter' && url && !importing) importChannel(); }}
-		/>
+		<input type="text" placeholder="Paste YouTube channel link or @handle…" bind:value={url} aria-label="YouTube Channel Link" class="import-input"
+			on:keydown={(e) => { if (e.key === 'Enter' && url && !importing) importChannel(); }} />
 		<button class="main-btn import-btn" on:click={importChannel} disabled={!url || importing} aria-label="Import Channel">
 			{importing ? 'Importing…' : 'Import Channel'}
 		</button>
@@ -324,33 +319,33 @@
 			{clearing ? 'Clearing…' : 'Clear Database'}
 		</button>
 	</div>
-
 	<!-- Bulk Upload CSV -->
 	<div class="import-bar" style="margin-top:1.2em;">
 		<span class="import-videos-title">BULK UPLOAD CSV</span>
-		<input
-			type="file"
-			accept=".csv"
-			bind:this={csvInput}
-			on:change={handleCsvFile}
-			aria-label="Select CSV file"
-			class="import-input"
-			style="min-width:unset;max-width:220px"
-		/>
-		<button
-			class="main-btn import-btn"
-			on:click={uploadCsv}
-			disabled={!csvFile || bulkUploading}
-			aria-label="Bulk Upload"
-		>
+		<input type="file" accept=".csv" bind:this={csvInput} on:change={handleCsvFile} aria-label="Select CSV file" class="import-input"
+			style="min-width:unset;max-width:220px" />
+		<button class="main-btn import-btn" on:click={uploadCsv} disabled={!csvFile || bulkUploading} aria-label="Bulk Upload">
 			{bulkUploading ? 'Uploading…' : 'Upload CSV'}
 		</button>
 	</div>
-
+	<!-- Search & Pagination -->
+	<div class="import-bar" style="margin-top:1.2em; justify-content: space-between;">
+		<div style="display:flex; align-items:center; gap:1.2em;">
+			<span class="import-videos-title" style="color:#2562e9;">SEARCH CHANNELS</span>
+			<input type="text" class="import-input" placeholder="Type to search by name, country or tag…" value={search} on:input={onSearchInput}
+				style="max-width:330px;" aria-label="Search Channels" autocomplete="off" />
+		</div>
+		{#if totalPages > 1}
+			<div style="display:flex; align-items:center; gap:0.5em;">
+				<button class="main-btn small" on:click={() => goToPage(currentPage-1)} disabled={currentPage === 1}>&lt; Prev</button>
+				<span style="font-weight:600;">Page {currentPage} / {totalPages}</span>
+				<button class="main-btn small" on:click={() => goToPage(currentPage+1)} disabled={currentPage === totalPages}>Next &gt;</button>
+			</div>
+		{/if}
+	</div>
 	{#if message}
 		<div class="admin-message" style="margin:1em 0 1.2em 0;">{message}</div>
 	{/if}
-
 	<table class="admin-table">
 		<thead>
 			<tr>
@@ -363,11 +358,9 @@
 			</tr>
 		</thead>
 		<tbody>
-			{#each channels as chan}
+			{#each filteredChannels as chan}
 				<tr>
-					<td>
-						<span style="font-weight:600;">{chan.name}</span>
-					</td>
+					<td><span style="font-weight:600;">{chan.name}</span></td>
 					<td>
 						<select bind:value={chan._country} aria-label="Select country">
 							<option value="">No Country</option>
@@ -424,7 +417,7 @@
 					</td>
 					<td>
 						<button class="danger-btn small" on:click={() => deleteChannel(chan.id)} disabled={!!deleting[chan.id]}>
-							{deleting[chan.id] ? 'Deleting…' : 'Delete'}
+								{deleting[chan.id] ? 'Deleting…' : 'Delete'}
 						</button>
 					</td>
 				</tr>
@@ -481,7 +474,7 @@
 					</tr>
 				{/if}
 			{/each}
-			{#if channels.length === 0}
+			{#if filteredChannels.length === 0}
 				<tr>
 					<td colspan="6" style="text-align:center;color:#999;">No channels found.</td>
 				</tr>

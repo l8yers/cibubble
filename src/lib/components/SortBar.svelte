@@ -366,7 +366,7 @@
     <div class="dropdown" bind:this={countryDropdownRef}>
       <button class="dropdown-btn" aria-expanded={showCountryDropdown} on:click={() => showCountryDropdown = !showCountryDropdown} type="button">
         <Globe size={18} style="margin-right:7px;vertical-align:-3px;color:#c367f2;" />
-        Countries
+        Country
         <svg width="12" height="9" style="margin-left:7px;" fill="none">
           <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
         </svg>
