@@ -1,25 +1,21 @@
 <script>
   import { createEventDispatcher, onMount } from 'svelte';
-  import { Sparkles, BarChart3, Search, Globe, Tag } from 'lucide-svelte';
+  import { Sparkles, BarChart3, Search, Globe, Tag, User } from 'lucide-svelte';
 
   export let levels = [];
   export let sortChoices = [];
   export let countryOptions = [];
-  export let tagOptions = [];
+  export let tagOptions = []; // These are backend-normalised, e.g. ["for learners"]
   export let selectedLevels = [];
   export let sortBy = 'new';
   export let selectedCountry = '';
   export let selectedTags = [];
   export let hideWatched = false;
+  export let searchTerm = '';
+  export let searchOpen = false;
 
-  // For "My Channels" dropdown
   export let myChannels = [];
   export let selectedChannel = '';
-
-  // Search state
-  let searchTerm = '';
-  let searchOpen = false;
-  let searchInputRef;
 
   const dispatch = createEventDispatcher();
 
@@ -31,35 +27,11 @@
       selectedTags,
       hideWatched,
       searchTerm,
+      searchOpen,
       selectedChannel,
       ...data
     });
   }
-
-  // Reset filters handler
-  function handleResetFilters() {
-    emitChange({
-      selectedLevels: levels.map(l => l.value),
-      sortBy: 'new',
-      selectedCountry: '',
-      selectedTags: [],
-      hideWatched: false,
-      searchTerm: '',
-      selectedChannel: ''
-    });
-    searchTerm = '';
-    searchOpen = false;
-  }
-
-  // Helper to check if filters are not default
-  $: filtersChanged =
-    sortBy !== 'new' ||
-    selectedCountry !== '' ||
-    selectedTags.length > 0 ||
-    selectedLevels.length !== levels.length ||
-    hideWatched !== false ||
-    searchTerm !== '' ||
-    selectedChannel !== '';
 
   // Level filter
   function handleToggleLevel(lvl) {
@@ -74,20 +46,17 @@
   }
 
   // Sort dropdown
-  let showSortDropdown = false;
   function handleSetSort(val) {
     emitChange({ sortBy: val });
     showSortDropdown = false;
   }
 
   // Country filter
-  let showCountryDropdown = false;
   function handleSetCountry(c) {
     emitChange({ selectedCountry: c === selectedCountry ? '' : c });
   }
 
-  // TAGS FILTER (multi-select)
-  let showTagDropdown = false;
+  // TAGS FILTER (multi-select, friendly display)
   function handleToggleTag(tag) {
     const next = new Set(selectedTags);
     if (next.has(tag)) next.delete(tag);
@@ -102,48 +71,29 @@
   function handleHideWatched() {
     emitChange({ hideWatched: !hideWatched });
   }
+  function handleSearchInput(val) {
+    emitChange({ searchTerm: val });
+  }
+  function handleToggleSearch() {
+    emitChange({ searchOpen: !searchOpen, searchTerm: searchOpen ? '' : searchTerm });
+  }
 
-  // Channels dropdown
+  // Dropdown state (UI only)
+  let showSortDropdown = false;
+  let showLevelDropdown = false;
+  let showCountryDropdown = false;
+  let showTagDropdown = false;
   let showMyChannelsDropdown = false;
+  let sortDropdownRef, levelsDropdownRef, tagDropdownRef, countryDropdownRef, myChannelsDropdownRef;
+
   function handleSetChannel(channelId) {
     emitChange({ selectedChannel: channelId });
     showMyChannelsDropdown = false;
   }
 
-  // Title case util for tag display
-  function toTitleCase(str) {
-    return str.replace(/\w\S*/g, txt => txt.charAt(0).toUpperCase() + txt.slice(1));
-  }
-
-  // --- Minimal search handlers ---
-  function handleSearchInput(e) {
-    searchTerm = e.target.value;
-    emitChange({ searchTerm });
-  }
-  function openSearch() {
-    searchOpen = true;
-    // wait a tick so input appears, then focus
-    setTimeout(() => {
-      if (searchInputRef) searchInputRef.focus();
-    }, 0);
-  }
-  function closeSearch() {
-    searchOpen = false;
-    searchTerm = '';
-    emitChange({ searchTerm: '' });
-  }
-
-  // Close search on ESC
-  function handleSearchKey(e) {
-    if (e.key === "Escape") {
-      closeSearch();
-    }
-  }
-
-  // Close dropdowns on outside click
-  let sortDropdownRef, levelsDropdownRef, tagDropdownRef, countryDropdownRef, myChannelsDropdownRef;
   function handleDocumentClick(event) {
     if (showSortDropdown && sortDropdownRef && !sortDropdownRef.contains(event.target)) showSortDropdown = false;
+    if (showLevelDropdown && levelsDropdownRef && !levelsDropdownRef.contains(event.target)) showLevelDropdown = false;
     if (showTagDropdown && tagDropdownRef && !tagDropdownRef.contains(event.target)) showTagDropdown = false;
     if (showCountryDropdown && countryDropdownRef && !countryDropdownRef.contains(event.target)) showCountryDropdown = false;
     if (showMyChannelsDropdown && myChannelsDropdownRef && !myChannelsDropdownRef.contains(event.target)) showMyChannelsDropdown = false;
@@ -152,6 +102,11 @@
     document.addEventListener('click', handleDocumentClick);
     return () => document.removeEventListener('click', handleDocumentClick);
   });
+
+  // Title case util for friendly tag display
+  function toTitleCase(str) {
+    return str.replace(/\w\S*/g, txt => txt.charAt(0).toUpperCase() + txt.slice(1));
+  }
 </script>
 
 <div class="controls-bar">
@@ -275,7 +230,8 @@
     {#if myChannels && myChannels.length}
       <div class="dropdown" bind:this={myChannelsDropdownRef}>
         <button class="dropdown-btn" aria-expanded={showMyChannelsDropdown} on:click={() => showMyChannelsDropdown = !showMyChannelsDropdown} type="button">
-          MY CHANNELS
+          <User size={18} style="margin-right:7px;vertical-align:-3px;color:#7950f2;" />
+          My Channels
           <svg width="12" height="9" style="margin-left:7px;" fill="none">
             <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
           </svg>
@@ -304,13 +260,6 @@
         {/if}
       </div>
     {/if}
-
-    <!-- RESET FILTERS BUTTON (lowercase, only visible if not defaults) -->
-    {#if filtersChanged}
-      <button class="reset-filters-btn" type="button" on:click={handleResetFilters}>
-        reset filters
-      </button>
-    {/if}
   </div>
   <div class="controls-right">
     <button
@@ -325,22 +274,19 @@
     <div class="search-bar-container">
       {#if searchOpen}
         <input
-          class="new-search-input"
           type="text"
+          class="search-input"
           placeholder="Search videos…"
-          bind:this={searchInputRef}
           value={searchTerm}
-          on:input={handleSearchInput}
-          on:blur={closeSearch}
-          on:keydown={handleSearchKey}
+          on:input={e => handleSearchInput(e.target.value)}
           autofocus
         />
       {/if}
       <button
-        class="new-search-toggle"
-        type="button"
+        class="search-toggle"
+        title="Search"
+        on:click={handleToggleSearch}
         aria-label="Search"
-        on:click={openSearch}
       >
         <Search size={22} style="color:#2e9be6;" />
       </button>
@@ -349,244 +295,212 @@
 </div>
 
 <style>
-.controls-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1.2em;
-    max-width: 1380px;
-    margin: 2em auto 2em auto;
-    background: #f7f7fb;
-    padding: 0.7em 1.2em 0.7em 1.2em;
-    border-radius: 18px;
-    border: 1.7px solid #ececec;
-    box-shadow: 0 2px 16px #ececec60;
-    position: relative;
-    overflow: visible;
-    flex-wrap: nowrap;
-}
+	.controls-bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1.2em;
+		max-width: 1700px;  /* <<-- was 1380px */
+		margin: 2em auto 2em auto;
+		background: #f7f7fb;
+		padding: 0.7em 1.2em 0.7em 1.2em;
+		border-radius: 18px;
+		border: 1.7px solid #ececec;
+		box-shadow: 0 2px 16px #ececec60;
+		position: relative;
+		overflow-x: visible;
+	}
+	.controls-left {
+		display: flex;
+		align-items: center;
+		gap: 1.2em;
+	}
+	.controls-right {
+		margin-left: auto;
+		display: flex;
+		align-items: center;
+		gap: 1.1em;
+	}
+	.dropdown {
+		position: relative;
+		min-width: 120px;
+	}
+	.dropdown-btn {
+		padding: 0.42em 1.1em;
+		font-size: 1.05em;
+		border-radius: 12px;
+		border: 1.2px solid #ececec;
+		background: #f9f9f9;
+		color: #1d1d1d;
+		font-weight: 600;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		gap: 0.65em;
+		min-width: 110px;
+		transition:
+			border 0.11s,
+			background 0.11s;
+	}
+	.dropdown-btn[aria-expanded='true'],
+	.dropdown-btn[aria-pressed='true'] {
+		background: #f1f5fb;
+		border: 1.2px solid #bbb;
+		color: #1d1d1d;
+	}
+	.hide-watched-btn .switch-slider {
+		width: 36px;
+		height: 20px;
+		background: #e8e8e8;
+		border-radius: 8px;
+		position: relative;
+		display: inline-block;
+		transition: background 0.13s;
+		margin-right: 0.65em;
+		vertical-align: middle;
+	}
+	.hide-watched-btn[aria-pressed='true'] .switch-slider {
+		background: #fd2b23;
+	}
+	.hide-watched-btn .switch-slider::before {
+		content: '';
+		position: absolute;
+		width: 15px;
+		height: 15px;
+		left: 2.2px;
+		top: 2.2px;
+		background: #fff;
+		border-radius: 50%;
+		transition:
+			transform 0.13s,
+			box-shadow 0.13s;
+		box-shadow: 0 1px 2px #0002;
+	}
+	.hide-watched-btn[aria-pressed='true'] .switch-slider::before {
+		transform: translateX(14px);
+		box-shadow: 0 1px 4px #fd2b2333;
+	}
+	.switch-label-text {
+		font-size: 1.05em;
+		font-weight: 600;
+		letter-spacing: 0.03em;
+		font-family: inherit;
+		color: inherit;
+	}
+	.dropdown-content {
+		position: absolute;
+		z-index: 1000;
+		background: #fff;
+		border: 1.3px solid #e8e8e8;
+		border-radius: 8px;
+		box-shadow: 0 2px 18px #eee;
+		min-width: 180px;
+		padding: 0.8em 0.6em;
+		top: 110%;
+		left: 0;
+		font-size: 1em;
+	}
+	.levels-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.6em;
+		margin: 0.3em 0 0.4em 0;
+	}
+	.level-checkbox {
+		display: flex;
+		align-items: center;
+		gap: 0.6em;
+		font-size: 1.03em;
+	}
+	.search-bar-container {
+		display: flex;
+		align-items: center;
+		position: relative;
+		gap: 0.7em;
+	}
+	.search-input {
+		transition:
+			width 0.2s,
+			opacity 0.2s,
+			box-shadow 0.13s,
+			border 0.13s;
+		width: 180px;
+		max-width: 50vw;
+		order: -1;
+		margin-right: 0.3em;
+		opacity: 1;
+		font-size: 1.05em;
+		border-radius: 12px;
+		border: 1.2px solid #ececec;
+		background: #f9f9f9;
+		color: #1d1d1d;
+		font-weight: 500;
+		padding: 0.42em 1.1em;
+		box-shadow: 0 2px 8px #ececec60;
+		outline: none;
+	}
+	.search-input:focus {
+		border: 1.2px solid #bbb;
+		background: #f1f5fb;
+		box-shadow: 0 2px 16px #bbb2;
+	}
+	.search-toggle {
+		z-index: 2;
+		background: none;
+		border: none;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		padding: 0.3em;
+		margin-left: 0;
+		border-radius: 50%;
+		transition: background 0.18s;
+	}
+	.search-toggle:hover,
+	.search-toggle:focus-visible {
+		background: #e5f2fd;
+	}
+	.search-toggle svg {
+		transition: stroke 0.15s;
+	}
+	.search-toggle:hover svg {
+		stroke: #2e9be6;
+	}
 
-.controls-left,
-.controls-right {
-    display: flex;
-    align-items: center;
-    gap: 1.2em;
-    min-width: 0;
-}
-.controls-right {
-    margin-left: auto;
-    gap: 1.1em;
-    min-width: 0;
-}
+	/* ACTIVE SORT HIGHLIGHT */
+	.active-sort-option {
+		background: #e5f2fd;
+		font-weight: 700;
+		color: #2e9be6;
+		border-radius: 6px;
+	}
+	.active-sort-option:hover {
+		background: #cbe5fb;
+	}
 
-.search-bar-container {
-    display: flex;
-    align-items: center;
-    position: relative;
-    gap: 0.4em;
-    min-width: 0;
-}
-
-.new-search-input {
-    width: 180px;
-    min-width: 80px;
-    opacity: 1;
-    pointer-events: auto;
-    padding: 0.38em 1.1em;
-    margin-right: 0.2em;
-    border: 1.2px solid #ececec;
-    font-size: 1.05em;
-    font-weight: 500;
-    border-radius: 12px;
-    background: #f9f9f9;
-    color: #1d1d1d;
-    box-shadow: 0 2px 8px #ececec60;
-    outline: none;
-    flex-shrink: 1;
-    height: 2.2em;
-    transition: width 0.2s, opacity 0.2s, margin 0.2s;
-}
-.new-search-input:focus {
-    border: 1.2px solid #bbb;
-    background: #f1f5fb;
-    box-shadow: 0 2px 16px #bbb2;
-}
-.new-search-toggle {
-    z-index: 2;
-    background: none;
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    padding: 0.3em;
-    margin-left: 0;
-    border-radius: 50%;
-    transition: background 0.18s;
-}
-.new-search-toggle:hover,
-.new-search-toggle:focus-visible {
-    background: #e5f2fd;
-}
-.new-search-toggle svg {
-    transition: stroke 0.15s;
-}
-.new-search-toggle:hover svg {
-    stroke: #2e9be6;
-}
-
-.dropdown {
-    position: relative;
-    min-width: 120px;
-}
-.dropdown-btn {
-    padding: 0.42em 1.1em;
-    font-size: 1.05em;
-    border-radius: 12px;
-    border: 1.2px solid #ececec;
-    background: #f9f9f9;
-    color: #1d1d1d;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 0.65em;
-    min-width: 110px;
-    transition:
-        border 0.11s,
-        background 0.11s;
-}
-.dropdown-btn[aria-expanded='true'],
-.dropdown-btn[aria-pressed='true'] {
-    background: #f1f5fb;
-    border: 1.2px solid #bbb;
-    color: #1d1d1d;
-}
-.hide-watched-btn .switch-slider {
-    width: 36px;
-    height: 20px;
-    background: #e8e8e8;
-    border-radius: 8px;
-    position: relative;
-    display: inline-block;
-    transition: background 0.13s;
-    margin-right: 0.65em;
-    vertical-align: middle;
-}
-.hide-watched-btn[aria-pressed='true'] .switch-slider {
-    background: #fd2b23;
-}
-.hide-watched-btn .switch-slider::before {
-    content: '';
-    position: absolute;
-    width: 15px;
-    height: 15px;
-    left: 2.2px;
-    top: 2.2px;
-    background: #fff;
-    border-radius: 50%;
-    transition:
-        transform 0.13s,
-        box-shadow 0.13s;
-    box-shadow: 0 1px 2px #0002;
-}
-.hide-watched-btn[aria-pressed='true'] .switch-slider::before {
-    transform: translateX(14px);
-    box-shadow: 0 1px 4px #fd2b2333;
-}
-.switch-label-text {
-    font-size: 1.05em;
-    font-weight: 600;
-    letter-spacing: 0.03em;
-    font-family: inherit;
-    color: inherit;
-}
-.dropdown-content {
-    position: absolute;
-    z-index: 2222;
-    background: #fff;
-    border: 1.3px solid #e8e8e8;
-    border-radius: 8px;
-    box-shadow: 0 2px 18px #eee;
-    min-width: 180px;
-    padding: 0.8em 0.6em;
-    top: 110%;
-    left: 0;
-    font-size: 1em;
-    overflow: visible;
-    max-height: 70vh;
-}
-.levels-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.6em;
-    margin: 0.3em 0 0.4em 0;
-}
-.level-checkbox {
-    display: flex;
-    align-items: center;
-    gap: 0.6em;
-    font-size: 1.03em;
-}
-.active-sort-option {
-    background: #e5f2fd;
-    font-weight: 700;
-    color: #2e9be6;
-    border-radius: 6px;
-}
-.active-sort-option:hover {
-    background: #cbe5fb;
-}
-
-.reset-filters-btn {
-    margin-left: 0.6em;
-    font-weight: 800;
-    color: #e93c2f !important;
-    background: none;
-    border: none;
-    font-size: 1em;
-    cursor: pointer;
-    letter-spacing: 0.03em;
-    padding: 0.45em 0.7em;
-    border-radius: 8px;
-    transition: text-decoration 0.11s;
-    text-transform: none;
-}
-.reset-filters-btn:hover,
-.reset-filters-btn:focus-visible {
-    text-decoration: underline;
-    background: none;
-    outline: none;
-}
-
-@media (max-width: 900px) {
-    .controls-bar {
-        flex-direction: column;
-        align-items: stretch;
-        padding: 0.7em 0.8em;
-    }
-    .controls-left,
-    .controls-right {
-        margin-left: 0;
-        justify-content: flex-start;
-        min-width: unset;
-        gap: 1.2em;
-    }
-    .controls-right {
-        justify-content: flex-end;
-        margin-top: 0.7em;
-    }
-    .search-bar-container {
-        width: 100%;
-    }
-    .new-search-input {
-        width: 100vw;
-        max-width: 110px;
-    }
-}
-@media (max-width: 600px) {
-    .new-search-input {
-        width: 110px;
-        max-width: 98vw;
-    }
-}
+	@media (max-width: 900px) {
+		.controls-bar {
+			flex-direction: column;
+			align-items: stretch;
+			padding: 0.7em 0.8em;
+		}
+		.controls-left,
+		.controls-right {
+			margin-left: 0;
+			justify-content: flex-start;
+		}
+		.controls-right {
+			justify-content: flex-end;
+			margin-top: 0.7em;
+		}
+	}
+	@media (max-width: 600px) {
+		 .controls-bar {
+		  max-width: 99vw;
+		}
+		.search-input {
+			width: 110px;
+			font-size: 0.96em;
+		}
+	}
 </style>
