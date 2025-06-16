@@ -107,6 +107,16 @@
   function toTitleCase(str) {
     return str.replace(/\w\S*/g, txt => txt.charAt(0).toUpperCase() + txt.slice(1));
   }
+
+  // Helper to check if filters are not default
+  $: filtersChanged =
+    sortBy !== 'new' ||
+    selectedCountry !== '' ||
+    selectedTags.length > 0 ||
+    selectedLevels.length !== levels.length ||
+    hideWatched !== false ||
+    searchTerm !== '' ||
+    selectedChannel !== '';
 </script>
 
 <div class="controls-bar">
@@ -260,6 +270,21 @@
         {/if}
       </div>
     {/if}
+
+    <!-- RESET FILTERS BUTTON (only visible if not defaults) -->
+    {#if filtersChanged}
+      <button class="reset-filters-btn" type="button" on:click={() => emitChange({
+        selectedLevels: levels.map(l => l.value),
+        sortBy: 'new',
+        selectedCountry: '',
+        selectedTags: [],
+        hideWatched: false,
+        searchTerm: '',
+        selectedChannel: ''
+      })}>
+        reset filters
+      </button>
+    {/if}
   </div>
   <div class="controls-right">
     <button
@@ -300,7 +325,7 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 1.2em;
-		max-width: 1700px;  /* <<-- was 1380px */
+		max-width: 1700px;
 		margin: 2em auto 2em auto;
 		background: #f7f7fb;
 		padding: 0.7em 1.2em 0.7em 1.2em;
@@ -467,6 +492,27 @@
 		stroke: #2e9be6;
 	}
 
+	.reset-filters-btn {
+		margin-left: 0.6em;
+		font-weight: 800;
+		color: #e93c2f !important;
+		background: none;
+		border: none;
+		font-size: 1em;
+		cursor: pointer;
+		letter-spacing: 0.03em;
+		padding: 0.45em 0.7em;
+		border-radius: 8px;
+		transition: text-decoration 0.11s;
+		text-transform: none;
+	}
+	.reset-filters-btn:hover,
+	.reset-filters-btn:focus-visible {
+		text-decoration: underline;
+		background: none;
+		outline: none;
+	}
+
 	/* ACTIVE SORT HIGHLIGHT */
 	.active-sort-option {
 		background: #e5f2fd;
@@ -495,7 +541,7 @@
 		}
 	}
 	@media (max-width: 600px) {
-		 .controls-bar {
+		.controls-bar {
 		  max-width: 99vw;
 		}
 		.search-input {
