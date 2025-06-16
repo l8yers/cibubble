@@ -1,29 +1,10 @@
 <script>
-	// Patch: Force default sort in URL
-	if (typeof window !== 'undefined') {
-		const params = new URLSearchParams(window.location.search);
-		if (!params.has('sort')) {
-			params.set('sort', 'new');
-			window.location.search = params.toString();
-		}
-	}
 	import { page } from '$app/stores';
 	import { onMount, onDestroy } from 'svelte';
 	import VideoGrid from '$lib/components/VideoGrid.svelte';
 	import SortBar from '$lib/components/SortBar.svelte';
 	import * as utils from '$lib/utils.js';
 	import '../app.css';
-
-	// import { getTagsForChannel } from '$lib/api/tags.js'; // <-- comment this out for now
-
-	async function getTagsForChannel(channelId) {
-		const { data, error } = await supabase
-			.from('channel_tags')
-			.select('tag:tag_id(id,name)')
-			.eq('channel_id', channelId);
-		if (error) return [];
-		return (data || []).map((row) => row.tag);
-	}
 
 	import {
 		selectedChannel,
@@ -39,7 +20,7 @@
 
 	import { writable, get } from 'svelte/store';
 
-	const PAGE_SIZE = 30;
+	const PAGE_SIZE = 50;
 	const videos = writable([]);
 	const loading = writable(false);
 	const errorMsg = writable('');
@@ -64,52 +45,17 @@
 		{ value: 'old', label: 'Old' }
 	];
 	let countryOptions = [
-		'Spain',
-		'Mexico',
-		'Argentina',
-		'Colombia',
-		'Chile',
-		'Various',
-		'Peru',
-		'Guatemala',
-		'Uruguay',
-		'Dominican Republic',
-		'Venezuela',
-		'Costa Rica',
-		'Cuba',
-		'Ecuador',
-		'Paraguay',
-		'Panama',
-		'Canary Islands',
-		'Italy',
-		'Puerto Rico',
-		'Equatorial Guinea',
-		'DUBS',
-		'Not Native Speaker',
-		'AI Voice',
-		'Latin America'
+		'Spain', 'Mexico', 'Argentina', 'Colombia', 'Chile', 'Various', 'Peru', 'Guatemala',
+		'Uruguay', 'Dominican Republic', 'Venezuela', 'Costa Rica', 'Cuba', 'Ecuador',
+		'Paraguay', 'Panama', 'Canary Islands', 'Italy', 'Puerto Rico', 'Equatorial Guinea',
+		'DUBS', 'Not Native Speaker', 'AI Voice', 'Latin America'
 	].sort();
 	let tagOptions = [
-		'for learners',
-		'kids show',
-		'dubbed show',
-		'videogames',
-		'news',
-		'history',
-		'science',
-		'travel',
-		'lifestyle',
-		'personal development',
-		'cooking',
-		'music',
-		'comedy',
-		'native show',
-		'education',
-		'sports',
-		'current events'
+		'for learners', 'kids show', 'dubbed show', 'videogames', 'news', 'history', 'science',
+		'travel', 'lifestyle', 'personal development', 'cooking', 'music', 'comedy',
+		'native show', 'education', 'sports', 'current events'
 	].sort();
 
-	// Infinite Scroll
 	function setupObserver() {
 		if (observerInstance) {
 			observerInstance.disconnect();
@@ -134,7 +80,6 @@
 		if (observerInstance) observerInstance.disconnect();
 	});
 
-	// URL <-> Filters
 	function filtersToQuery({ levels, tags, country, channel, playlist, sort, search }) {
 		const params = new URLSearchParams();
 		params.set('level', Array.from(levels).join(','));
@@ -155,7 +100,7 @@
 			country: params.get('country') || '',
 			channel: params.get('channel') || '',
 			playlist: params.get('playlist') || '',
-			sort: params.get('sort') || 'random',
+			sort: params.get('sort') || 'new',  // Default to "new" if missing!
 			search: params.get('search') || ''
 		};
 	}
@@ -174,7 +119,6 @@
 		history.replaceState({}, '', url);
 	}
 
-	// Main fetch function
 	async function fetchVideos({ append = false } = {}) {
 		loading.set(true);
 		errorMsg.set('');
@@ -220,7 +164,6 @@
 	function handleSortBarChange(e) {
 		const rawLevels = e.detail.selectedLevels;
 		const safeLevels = new Set(Array.from(rawLevels).filter((lvl) => validLevels.has(lvl)));
-
 		selectedLevels.set(safeLevels);
 		selectedTags.set(new Set(e.detail.selectedTags));
 		sortBy.set(e.detail.sortBy);
@@ -228,7 +171,6 @@
 		hideWatched.set(e.detail.hideWatched);
 		searchTerm.set(e.detail.searchTerm);
 		searchOpen = e.detail.searchOpen;
-
 		updateUrlFromFilters();
 		resetAndFetch();
 	}
@@ -256,7 +198,7 @@
 	let firstLoad = true;
 	let lastQuery = '';
 
-	// First load: set filters from URL and fetch
+	// ---- Set defaults from URL (with default sort 'new') ----
 	onMount(() => {
 		const filters = queryToFilters(window.location.search);
 		const safeLevels = new Set(Array.from(filters.levels).filter((lvl) => validLevels.has(lvl)));
@@ -267,7 +209,7 @@
 		selectedCountry.set(filters.country || '');
 		selectedChannel.set(filters.channel || '');
 		selectedPlaylist.set(filters.playlist || '');
-		sortBy.set(filters.sort || 'new');
+		sortBy.set(filters.sort || 'new');  // <<-- default to 'new'
 		searchTerm.set(filters.search || '');
 
 		resetAndFetch();
@@ -292,9 +234,9 @@
 		resetAndFetch();
 	}
 
-	// Hide watched filtering (main new bit)
 	$: filteredVideos = $hideWatched ? $videos.filter((v) => !$watchedIds.has(v.id)) : $videos;
 </script>
+
 
 <div class="page-container">
 	<div class="sortbar-container">
@@ -344,7 +286,7 @@
 		<p class="loading-more">Loading videos…</p>
 	{:else if $errorMsg}
 		<div class="error">{$errorMsg}</div>
-	{:else if $videos.length === 0}
+	{:else if !$loading && $videos.length === 0}
 		<div class="loading-more text-muted">No videos match your filters.</div>
 	{:else}
 		<VideoGrid
