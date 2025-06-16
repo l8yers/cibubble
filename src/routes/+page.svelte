@@ -20,6 +20,11 @@
 
 	import { writable, get } from 'svelte/store';
 
+	// --- NEW: Saved Channels imports ---
+	import { user } from '$lib/stores/user.js';
+	import { userChannels } from '$lib/stores/userChannels.js';
+	import { getUserSavedChannels } from '$lib/api/userChannels.js';
+
 	const PAGE_SIZE = 50;
 	const videos = writable([]);
 	const loading = writable(false);
@@ -171,6 +176,7 @@
 		hideWatched.set(e.detail.hideWatched);
 		searchTerm.set(e.detail.searchTerm);
 		searchOpen = e.detail.searchOpen;
+		selectedChannel.set(e.detail.selectedChannel ?? ''); // <-- ADDED for channel filter
 		updateUrlFromFilters();
 		resetAndFetch();
 	}
@@ -235,85 +241,95 @@
 	}
 
 	$: filteredVideos = $hideWatched ? $videos.filter((v) => !$watchedIds.has(v.id)) : $videos;
+
+	// --- NEW: Load saved channels when user logs in/logs out ---
+	$: if ($user) {
+		getUserSavedChannels($user.id)
+			.then((chs) => userChannels.set(chs))
+			.catch(() => userChannels.set([]));
+	} else {
+		userChannels.set([]);
+	}
 </script>
-
-
 <div class="page-container">
-	<div class="sortbar-container">
-		<SortBar
-			{levels}
-			{sortChoices}
-			{countryOptions}
-			{tagOptions}
-			selectedLevels={Array.from($selectedLevels)}
-			sortBy={$sortBy}
-			selectedCountry={$selectedCountry}
-			selectedTags={Array.from($selectedTags)}
-			hideWatched={$hideWatched}
-			searchTerm={$searchTerm}
-			{searchOpen}
-			on:change={handleSortBarChange}
-		/>
-	</div>
+  <div class="sortbar-container">
+    <SortBar
+      {levels}
+      {sortChoices}
+      {countryOptions}
+      {tagOptions}
+      selectedLevels={Array.from($selectedLevels)}
+      sortBy={$sortBy}
+      selectedCountry={$selectedCountry}
+      selectedTags={Array.from($selectedTags)}
+      hideWatched={$hideWatched}
+      searchTerm={$searchTerm}
+      {searchOpen}
+      myChannels={$userChannels}
+      selectedChannel={$selectedChannel}
+      on:change={handleSortBarChange}
+    />
+  </div> <!-- <-- close sortbar-container here! -->
 
-	{#if $selectedChannel}
-		<div class="chip-info">
-			<span>
-				<b>Filtered by channel:</b>
-				{#if $videos.length > 0}
-					{$videos[0].channel?.name ?? $videos[0].channel_name ?? $selectedChannel}
-				{:else}
-					{$selectedChannel}
-				{/if}
-			</span>
-			<button on:click={clearChannelFilter} class="clear-btn clear-btn--blue">✕ Clear</button>
-		</div>
-	{/if}
-	{#if $selectedPlaylist}
-		<div class="chip-warning">
-			<span>
-				<b>Filtered by playlist:</b>
-				{#if $videos.length > 0}
-					{$videos[0].playlist?.title ?? $selectedPlaylist}
-				{:else}
-					{$selectedPlaylist}
-				{/if}
-			</span>
-			<button on:click={clearPlaylistFilter} class="clear-btn clear-btn--purple">✕ Clear</button>
-		</div>
-	{/if}
-	{#if $loading && $videos.length === 0}
-		<p class="loading-more">Loading videos…</p>
-	{:else if $errorMsg}
-		<div class="error">{$errorMsg}</div>
-	{:else if !$loading && $videos.length === 0}
-		<div class="loading-more text-muted">No videos match your filters.</div>
-	{:else}
-		<VideoGrid
-			videos={filteredVideos}
-			getBestThumbnail={utils.getBestThumbnail}
-			difficultyColor={utils.difficultyColor}
-			difficultyLabel={utils.difficultyLabel}
-			formatLength={utils.formatLength}
-			{filterByChannel}
-			{filterByPlaylist}
-		/>
-		{#if $hasMore && $sortBy !== 'random'}
-			<div bind:this={sentinel} style="height: 2em;"></div>
-		{/if}
-		{#if $hasMore && $sortBy === 'random'}
-			<button
-				class="load-more-btn"
-				on:click={loadMore}
-				disabled={$loading}
-				style="margin: 2em auto; display: block;"
-			>
-				{#if $loading}Loading...{/if}
-				{#if !$loading}Load More{/if}
-			</button>
-		{/if}
-	{/if}
+  {#if $selectedChannel}
+    <div class="chip-info">
+      <span>
+        <b>Filtered by channel:</b>
+        {#if $videos.length > 0}
+          {$videos[0].channel?.name ?? $videos[0].channel_name ?? $selectedChannel}
+        {:else}
+          {$selectedChannel}
+        {/if}
+      </span>
+      <button on:click={clearChannelFilter} class="clear-btn clear-btn--blue">✕ Clear</button>
+    </div>
+  {/if}
+  {#if $selectedPlaylist}
+    <div class="chip-warning">
+      <span>
+        <b>Filtered by playlist:</b>
+        {#if $videos.length > 0}
+          {$videos[0].playlist?.title ?? $selectedPlaylist}
+        {:else}
+          {$selectedPlaylist}
+        {/if}
+      </span>
+      <button on:click={clearPlaylistFilter} class="clear-btn clear-btn--purple">✕ Clear</button>
+    </div>
+  {/if}
+  {#if $loading && $videos.length === 0}
+    <p class="loading-more">Loading videos…</p>
+  {:else if $errorMsg}
+    <div class="error">{$errorMsg}</div>
+  {:else if !$loading && $videos.length === 0}
+    <div class="loading-more text-muted">No videos match your filters.</div>
+  {:else}
+    <VideoGrid
+      videos={filteredVideos}
+      getBestThumbnail={utils.getBestThumbnail}
+      difficultyColor={utils.difficultyColor}
+      difficultyLabel={utils.difficultyLabel}
+      formatLength={utils.formatLength}
+      {filterByChannel}
+      {filterByPlaylist}
+    />
+    {#if $hasMore && $sortBy !== 'random'}
+      <div bind:this={sentinel} style="height: 2em;"></div>
+    {/if}
+    {#if $hasMore && $sortBy === 'random'}
+      <button
+        class="load-more-btn"
+        on:click={loadMore}
+        disabled={$loading}
+        style="margin: 2em auto; display: block;"
+      >
+        {#if $loading}Loading...{/if}
+        {#if !$loading}Load More{/if}
+      </button>
+    {/if}
+  {/if}
 </div>
+
 
 <style>
 	.load-more-btn {
