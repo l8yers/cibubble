@@ -1,473 +1,537 @@
 <script>
-  import { createEventDispatcher, onMount } from 'svelte';
-  import { Sparkles, BarChart3, Search, Globe, Tag, User } from 'lucide-svelte';
+	import { createEventDispatcher, onMount } from 'svelte';
+	import { Sparkles, BarChart3, Search, Globe, Tag, User } from 'lucide-svelte';
 
-  export let levels = [];
-  export let sortChoices = [];
-  export let countryOptions = [];
-  export let selectedLevels = [];
-  export let sortBy = 'new';
-  export let selectedCountry = '';
-  export let selectedTags = [];
-  export let hideWatched = false;
-  export let searchTerm = '';
-  export let searchOpen = false;
+	export let levels = [];
+	export let sortChoices = [];
+	export let countryOptions = [];
+	export let selectedLevels = [];
+	export let sortBy = 'new';
+	export let selectedCountry = '';
+	export let selectedTags = [];
+	export let hideWatched = false;
+	export let searchTerm = '';
+	export let searchOpen = false;
 
-  export let myChannels = [];
-  export let selectedChannel = '';
+	export let myChannels = [];
+	export let selectedChannel = '';
 
-  const dispatch = createEventDispatcher();
+	const dispatch = createEventDispatcher();
 
-  function emitChange(data = {}) {
-    dispatch('change', {
-      selectedLevels,
-      sortBy,
-      selectedCountry,
-      selectedTags,
-      hideWatched,
-      searchTerm,
-      searchOpen,
-      selectedChannel,
-      ...data
-    });
-  }
+	function emitChange(data = {}) {
+		dispatch('change', {
+			selectedLevels,
+			sortBy,
+			selectedCountry,
+			selectedTags,
+			hideWatched,
+			searchTerm,
+			searchOpen,
+			selectedChannel,
+			...data
+		});
+	}
 
-  // Level filter
-  function handleToggleLevel(lvl) {
-    const next = new Set(selectedLevels);
-    if (next.has(lvl)) next.delete(lvl);
-    else next.add(lvl);
-    emitChange({ selectedLevels: Array.from(next) });
-  }
-  function handleToggleAllLevels() {
-    if (selectedLevels.length === levels.length) emitChange({ selectedLevels: [] });
-    else emitChange({ selectedLevels: levels.map(l => l.value) });
-  }
+	// Level filter
+	function handleToggleLevel(lvl) {
+		const next = new Set(selectedLevels);
+		if (next.has(lvl)) next.delete(lvl);
+		else next.add(lvl);
+		emitChange({ selectedLevels: Array.from(next) });
+	}
+	function handleToggleAllLevels() {
+		if (selectedLevels.length === levels.length) emitChange({ selectedLevels: [] });
+		else emitChange({ selectedLevels: levels.map((l) => l.value) });
+	}
 
-  // Sort dropdown
-  function handleSetSort(val) {
-    emitChange({ sortBy: val });
-    showSortDropdown = false;
-  }
+	// Sort dropdown
+	function handleSetSort(val) {
+		emitChange({ sortBy: val });
+		showSortDropdown = false;
+	}
 
-  // Country filter
-  function handleSetCountry(c) {
-    emitChange({ selectedCountry: c === selectedCountry ? '' : c });
-  }
+	// Country filter
+	function handleSetCountry(c) {
+		emitChange({ selectedCountry: c === selectedCountry ? '' : c });
+	}
 
-  // TAGS FILTER (Top + All tags, no search)
-  function handleToggleTag(tag) {
-    const next = new Set(selectedTags);
-    if (next.has(tag)) next.delete(tag);
-    else next.add(tag);
-    emitChange({ selectedTags: Array.from(next) });
-  }
-  function handleClearTags() {
-    emitChange({ selectedTags: [] });
-  }
+	// TAGS FILTER (Top + All tags, no search)
+	function handleToggleTag(tag) {
+		const next = new Set(selectedTags);
+		if (next.has(tag)) next.delete(tag);
+		else next.add(tag);
+		emitChange({ selectedTags: Array.from(next) });
+	}
+	function handleClearTags() {
+		emitChange({ selectedTags: [] });
+	}
 
-  // Misc
-  function handleHideWatched() {
-    emitChange({ hideWatched: !hideWatched });
-  }
-  function handleSearchInput(val) {
-    emitChange({ searchTerm: val });
-  }
-  function handleToggleSearch() {
-    emitChange({ searchOpen: !searchOpen, searchTerm: searchOpen ? '' : searchTerm });
-  }
+	// Misc
+	function handleHideWatched() {
+		emitChange({ hideWatched: !hideWatched });
+	}
+	function handleSearchInput(val) {
+		emitChange({ searchTerm: val });
+	}
+	function handleToggleSearch() {
+		emitChange({ searchOpen: !searchOpen, searchTerm: searchOpen ? '' : searchTerm });
+	}
 
-  // Dropdown state (UI only)
-  let showSortDropdown = false;
-  let showLevelDropdown = false;
-  let showCountryDropdown = false;
-  let showTagDropdown = false;
-  let showMyChannelsDropdown = false;
-  let sortDropdownRef, levelsDropdownRef, tagDropdownRef, countryDropdownRef, myChannelsDropdownRef;
+	// Dropdown state (UI only)
+	let showSortDropdown = false;
+	let showLevelDropdown = false;
+	let showCountryDropdown = false;
+	let showTagDropdown = false;
+	let showMyChannelsDropdown = false;
+	let sortDropdownRef, levelsDropdownRef, tagDropdownRef, countryDropdownRef, myChannelsDropdownRef;
 
-  function handleSetChannel(channelId) {
-    emitChange({ selectedChannel: channelId });
-    showMyChannelsDropdown = false;
-  }
+	function handleSetChannel(channelId) {
+		emitChange({ selectedChannel: channelId });
+		showMyChannelsDropdown = false;
+	}
 
-  function handleDocumentClick(event) {
-    if (showSortDropdown && sortDropdownRef && !sortDropdownRef.contains(event.target)) showSortDropdown = false;
-    if (showLevelDropdown && levelsDropdownRef && !levelsDropdownRef.contains(event.target)) showLevelDropdown = false;
-    if (showTagDropdown && tagDropdownRef && !tagDropdownRef.contains(event.target)) showTagDropdown = false;
-    if (showCountryDropdown && countryDropdownRef && !countryDropdownRef.contains(event.target)) showCountryDropdown = false;
-    if (showMyChannelsDropdown && myChannelsDropdownRef && !myChannelsDropdownRef.contains(event.target)) showMyChannelsDropdown = false;
-  }
-  onMount(() => {
-    document.addEventListener('click', handleDocumentClick);
-    return () => document.removeEventListener('click', handleDocumentClick);
-  });
+	function handleDocumentClick(event) {
+		if (showSortDropdown && sortDropdownRef && !sortDropdownRef.contains(event.target))
+			showSortDropdown = false;
+		if (showLevelDropdown && levelsDropdownRef && !levelsDropdownRef.contains(event.target))
+			showLevelDropdown = false;
+		if (showTagDropdown && tagDropdownRef && !tagDropdownRef.contains(event.target))
+			showTagDropdown = false;
+		if (showCountryDropdown && countryDropdownRef && !countryDropdownRef.contains(event.target))
+			showCountryDropdown = false;
+		if (
+			showMyChannelsDropdown &&
+			myChannelsDropdownRef &&
+			!myChannelsDropdownRef.contains(event.target)
+		)
+			showMyChannelsDropdown = false;
+	}
+	onMount(() => {
+		document.addEventListener('click', handleDocumentClick);
+		return () => document.removeEventListener('click', handleDocumentClick);
+	});
 
-  // Title case util for friendly tag display
-  function toTitleCase(str) {
-    return str.replace(/\w\S*/g, txt => txt.charAt(0).toUpperCase() + txt.slice(1));
-  }
+	// Title case util for friendly tag display
+	function toTitleCase(str) {
+		return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1));
+	}
 
-  // Helper to check if filters are not default
-  $: filtersChanged =
-    sortBy !== 'new' ||
-    selectedCountry !== '' ||
-    selectedTags.length > 0 ||
-    selectedLevels.length !== levels.length ||
-    hideWatched !== false ||
-    searchTerm !== '' ||
-    selectedChannel !== '';
+	// Helper to check if filters are not default
+	$: filtersChanged =
+		sortBy !== 'new' ||
+		selectedCountry !== '' ||
+		selectedTags.length > 0 ||
+		selectedLevels.length !== levels.length ||
+		hideWatched !== false ||
+		searchTerm !== '' ||
+		selectedChannel !== '';
 
-  // --- Top Tags (hardcoded from your latest top 10) ---
-  const topTags = [
-    "history",
-    "for learners",
-    "personal development",
-    "children's science",
-    "current events",
-    "videogames",
-    "health",
-    "news",
-    "lifestyle",
-    "random facts"
-  ];
+	// --- Top Tags (hardcoded from your latest top 10) ---
+	const topTags = [
+		'history',
+		'for learners',
+		'personal development',
+		"children's science",
+		'current events',
+		'videogames',
+		'health',
+		'news',
+		'lifestyle',
+		'random facts'
+	];
 
-  // --- All Tags: deduped, sorted, lowercased, split on / and trimmed (from your CSV) ---
-  const allTags = [
-    "ai voice",
-    "animated stories",
-    "animation",
-    "animals",
-    "art",
-    "argentina",
-    "bags",
-    "baseball",
-    "business",
-    "canary islands",
-    "challenges",
-    "children's history",
-    "children's science",
-    "children's stories",
-    "colombia",
-    "comedy",
-    "comedy jokes test rain",
-    "cooking",
-    "cost of living",
-    "country life",
-    "creepy",
-    "critiques",
-    "current events",
-    "cuba",
-    "culture",
-    "debates",
-    "dubbed show",
-    "education",
-    "el salvador",
-    "equatorial guinea",
-    "facts",
-    "fashion",
-    "finance",
-    "fitness",
-    "food reviews",
-    "for learners",
-    "france",
-    "gardening",
-    "geography",
-    "gravy",
-    "guatemala",
-    "health",
-    "heart",
-    "history",
-    "how it's made",
-    "human mind",
-    "iceland",
-    "interviews",
-    "italy",
-    "jam",
-    "jam toast",
-    "journalist",
-    "kid's show",
-    "kids show",
-    "kpop",
-    "language learning",
-    "latin america",
-    "law",
-    "level",
-    "life",
-    "life in iceland",
-    "life in japan",
-    "life in korea",
-    "lifestyle",
-    "lifestyle in japan",
-    "main",
-    "manufacturing",
-    "mexico",
-    "mindfullness",
-    "montessori",
-    "motivation",
-    "music",
-    "nasa",
-    "nature",
-    "news",
-    "not native speaker",
-    "panama",
-    "paraguay",
-    "peru",
-    "personal development",
-    "philosophy",
-    "playlists",
-    "politics",
-    "pop culture",
-    "positive affirmations",
-    "psychology",
-    "pyschology",
-    "puerto rico",
-    "random facts",
-    "re sales",
-    "relationships",
-    "religion",
-    "science",
-    "shorts",
-    "sobriety",
-    "spain",
-    "sports",
-    "storytelling",
-    "street interviews",
-    "tarot",
-    "tech",
-    "test",
-    "travel",
-    "true crime",
-    "uruguay",
-    "various",
-    "videogames",
-    "weather"
-  ].sort((a, b) => a.localeCompare(b));
-
+	// --- All Tags: deduped, sorted, lowercased, split on / and trimmed (from your CSV) ---
+	const allTags = [
+		'ai voice',
+		'animated stories',
+		'animation',
+		'animals',
+		'art',
+		'argentina',
+		'bags',
+		'baseball',
+		'business',
+		'canary islands',
+		'challenges',
+		"children's history",
+		"children's science",
+		"children's stories",
+		'colombia',
+		'comedy',
+		'comedy jokes test rain',
+		'cooking',
+		'cost of living',
+		'country life',
+		'creepy',
+		'critiques',
+		'current events',
+		'cuba',
+		'culture',
+		'debates',
+		'dubbed show',
+		'education',
+		'el salvador',
+		'equatorial guinea',
+		'facts',
+		'fashion',
+		'finance',
+		'fitness',
+		'food reviews',
+		'for learners',
+		'france',
+		'gardening',
+		'geography',
+		'gravy',
+		'guatemala',
+		'health',
+		'heart',
+		'history',
+		"how it's made",
+		'human mind',
+		'iceland',
+		'interviews',
+		'italy',
+		'jam',
+		'jam toast',
+		'journalist',
+		"kid's show",
+		'kids show',
+		'kpop',
+		'language learning',
+		'latin america',
+		'law',
+		'level',
+		'life',
+		'life in iceland',
+		'life in japan',
+		'life in korea',
+		'lifestyle',
+		'lifestyle in japan',
+		'main',
+		'manufacturing',
+		'mexico',
+		'mindfullness',
+		'montessori',
+		'motivation',
+		'music',
+		'nasa',
+		'nature',
+		'news',
+		'not native speaker',
+		'panama',
+		'paraguay',
+		'peru',
+		'personal development',
+		'philosophy',
+		'playlists',
+		'politics',
+		'pop culture',
+		'positive affirmations',
+		'psychology',
+		'pyschology',
+		'puerto rico',
+		'random facts',
+		're sales',
+		'relationships',
+		'religion',
+		'science',
+		'shorts',
+		'sobriety',
+		'spain',
+		'sports',
+		'storytelling',
+		'street interviews',
+		'tarot',
+		'tech',
+		'test',
+		'travel',
+		'true crime',
+		'uruguay',
+		'various',
+		'videogames',
+		'weather'
+	].sort((a, b) => a.localeCompare(b));
 </script>
 
 <div class="controls-bar">
-  <div class="controls-left">
-    <!-- Sort Dropdown -->
-    <div class="dropdown" bind:this={sortDropdownRef}>
-      <button class="dropdown-btn" aria-expanded={showSortDropdown} on:click={() => showSortDropdown = !showSortDropdown} type="button">
-        <Sparkles size={18} style="margin-right:7px;vertical-align:-3px;color:#2e9be6;" />
-        Sort by
-        <svg width="12" height="9" style="margin-left:7px;" fill="none">
-          <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
-        </svg>
-      </button>
-      {#if showSortDropdown}
-        <div class="dropdown-content">
-          {#each sortChoices as opt}
-            <div
-              class:active-sort-option={opt.value === sortBy}
-              style="padding:0.32em 0.2em;cursor:pointer;display:flex;align-items:center;"
-              on:click={() => handleSetSort(opt.value)}
-            >
-              <span>{opt.label}</span>
-            </div>
-          {/each}
-        </div>
-      {/if}
-    </div>
+	<div class="controls-left">
+		<!-- Sort Dropdown -->
+		<div class="dropdown" bind:this={sortDropdownRef}>
+			<button
+				class="dropdown-btn"
+				aria-expanded={showSortDropdown}
+				on:click={() => (showSortDropdown = !showSortDropdown)}
+				type="button"
+			>
+				<Sparkles size={18} style="margin-right:7px;vertical-align:-3px;color:#2e9be6;" />
+				Sort by
+				<svg width="12" height="9" style="margin-left:7px;" fill="none">
+					<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+				</svg>
+			</button>
+			{#if showSortDropdown}
+				<div class="dropdown-content">
+					{#each sortChoices as opt}
+						<div
+							class:active-sort-option={opt.value === sortBy}
+							style="padding:0.32em 0.2em;cursor:pointer;display:flex;align-items:center;"
+							on:click={() => handleSetSort(opt.value)}
+						>
+							<span>{opt.label}</span>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
 
-    <!-- Levels Dropdown -->
-    <div class="dropdown" bind:this={levelsDropdownRef}>
-      <button
-        class="dropdown-btn"
-        aria-expanded={showLevelDropdown}
-        on:click={() => showLevelDropdown = !showLevelDropdown}
-        type="button"
-      >
-        <BarChart3 size={18} style="margin-right:7px;vertical-align:-3px;color:#f365a0;" />
-        Levels
-        <svg width="12" height="9" style="margin-left:7px;" fill="none">
-          <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
-        </svg>
-      </button>
-      {#if showLevelDropdown}
-        <div class="dropdown-content">
-          <div class="levels-list">
-            {#each levels as lvl}
-              <label class="level-checkbox">
-                <input
-                  type="checkbox"
-                  checked={selectedLevels.includes(lvl.value)}
-                  on:change={() => handleToggleLevel(lvl.value)}
-                />
-                <span>{lvl.label}</span>
-              </label>
-            {/each}
-          </div>
-          <button
-            style="margin-top:0.5em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;"
-            on:click={handleToggleAllLevels}
-          >
-            Toggle all
-          </button>
-        </div>
-      {/if}
-    </div>
+		<!-- Levels Dropdown -->
+		<div class="dropdown" bind:this={levelsDropdownRef}>
+			<button
+				class="dropdown-btn"
+				aria-expanded={showLevelDropdown}
+				on:click={() => (showLevelDropdown = !showLevelDropdown)}
+				type="button"
+			>
+				<BarChart3 size={18} style="margin-right:7px;vertical-align:-3px;color:#f365a0;" />
+				Levels
+				<svg width="12" height="9" style="margin-left:7px;" fill="none">
+					<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+				</svg>
+			</button>
+			{#if showLevelDropdown}
+				<div class="dropdown-content">
+					<div class="levels-list">
+						{#each levels as lvl}
+							<label class="level-checkbox">
+								<input
+									type="checkbox"
+									checked={selectedLevels.includes(lvl.value)}
+									on:change={() => handleToggleLevel(lvl.value)}
+								/>
+								<span>{lvl.label}</span>
+							</label>
+						{/each}
+					</div>
+					<button
+						style="margin-top:0.5em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;"
+						on:click={handleToggleAllLevels}
+					>
+						Toggle all
+					</button>
+				</div>
+			{/if}
+		</div>
 
-    <!-- TAGS FILTER Dropdown (Top + All, no search) -->
-    <div class="dropdown" bind:this={tagDropdownRef}>
-      <button class="dropdown-btn" aria-expanded={showTagDropdown} on:click={() => showTagDropdown = !showTagDropdown} type="button">
-        <Tag size={18} style="margin-right:7px;vertical-align:-3px;color:#f2a02b;" />
-        Tags
-        <svg width="12" height="9" style="margin-left:7px;" fill="none">
-          <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
-        </svg>
-      </button>
-      {#if showTagDropdown}
-        <div class="dropdown-content tags-dropdown-content">
+		<!-- TAGS FILTER Dropdown (Top + All, no search) -->
+		<div class="dropdown" bind:this={tagDropdownRef}>
+			<button
+				class="dropdown-btn"
+				aria-expanded={showTagDropdown}
+				on:click={() => (showTagDropdown = !showTagDropdown)}
+				type="button"
+			>
+				<Tag size={18} style="margin-right:7px;vertical-align:-3px;color:#f2a02b;" />
+				Tags
+				<svg width="12" height="9" style="margin-left:7px;" fill="none">
+					<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+				</svg>
+			</button>
+			{#if showTagDropdown}
+				<div class="dropdown-content tags-dropdown-content">
+					<!-- TOP TAGS -->
+					<div style="margin-bottom:0.7em;">
+						<div class="dropdown-label" style="font-weight:700; font-size:1.01em;">Top Tags</div>
+						{#each topTags as tag}
+							<label class="level-checkbox">
+								<input
+									type="checkbox"
+									checked={selectedTags.includes(tag)}
+									on:change={() => handleToggleTag(tag)}
+								/>
+								<span>{toTitleCase(tag)}</span>
+							</label>
+						{/each}
+					</div>
 
-          <!-- TOP TAGS -->
-          <div style="margin-bottom:0.7em;">
-            <div class="dropdown-label" style="font-weight:700; font-size:1.01em;">Top Tags</div>
-            {#each topTags as tag}
-              <label class="level-checkbox">
-                <input
-                  type="checkbox"
-                  checked={selectedTags.includes(tag)}
-                  on:change={() => handleToggleTag(tag)}
-                />
-                <span>{toTitleCase(tag)}</span>
-              </label>
-            {/each}
-          </div>
+					<hr style="margin:0.5em 0 0.5em 0;" />
 
-          <hr style="margin:0.5em 0 0.5em 0;" />
+					<!-- ALL OTHER TAGS -->
+					<div>
+						<div class="dropdown-label" style="font-weight:700; font-size:1.01em;">All Tags</div>
+						{#each allTags as tag}
+							{#if !topTags.includes(tag)}
+								<label class="level-checkbox">
+									<input
+										type="checkbox"
+										checked={selectedTags.includes(tag)}
+										on:change={() => handleToggleTag(tag)}
+									/>
+									<span>{toTitleCase(tag)}</span>
+								</label>
+							{/if}
+						{/each}
+					</div>
 
-          <!-- ALL OTHER TAGS -->
-          <div>
-            <div class="dropdown-label" style="font-weight:700; font-size:1.01em;">All Tags</div>
-            {#each allTags as tag}
-              {#if !topTags.includes(tag)}
-                <label class="level-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={selectedTags.includes(tag)}
-                    on:change={() => handleToggleTag(tag)}
-                  />
-                  <span>{toTitleCase(tag)}</span>
-                </label>
-              {/if}
-            {/each}
-          </div>
+					<button
+						style="margin-top:0.7em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;"
+						on:click={handleClearTags}
+					>
+						Clear all
+					</button>
+				</div>
+			{/if}
+		</div>
 
-          <button style="margin-top:0.7em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;" on:click={handleClearTags}>
-            Clear all
-          </button>
-        </div>
-      {/if}
-    </div>
+		<!-- Countries Dropdown -->
+		<div class="dropdown" bind:this={countryDropdownRef}>
+			<button
+				class="dropdown-btn"
+				aria-expanded={showCountryDropdown}
+				on:click={() => (showCountryDropdown = !showCountryDropdown)}
+				type="button"
+			>
+				<Globe size={18} style="margin-right:7px;vertical-align:-3px;color:#c367f2;" />
+				Country
+				<svg width="12" height="9" style="margin-left:7px;" fill="none">
+					<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+				</svg>
+			</button>
+			{#if showCountryDropdown}
+				<div class="dropdown-content">
+					<label class="level-checkbox">
+						<input
+							type="checkbox"
+							checked={selectedCountry === ''}
+							on:change={() => handleSetCountry('')}
+						/>
+						<span>All Countries</span>
+					</label>
+					{#each countryOptions as country}
+						<label class="level-checkbox">
+							<input
+								type="checkbox"
+								checked={selectedCountry === country}
+								on:change={() => handleSetCountry(country)}
+							/>
+							<span>{country}</span>
+						</label>
+					{/each}
+				</div>
+			{/if}
+		</div>
 
-    <!-- Countries Dropdown -->
-    <div class="dropdown" bind:this={countryDropdownRef}>
-      <button class="dropdown-btn" aria-expanded={showCountryDropdown} on:click={() => showCountryDropdown = !showCountryDropdown} type="button">
-        <Globe size={18} style="margin-right:7px;vertical-align:-3px;color:#c367f2;" />
-        Country
-        <svg width="12" height="9" style="margin-left:7px;" fill="none">
-          <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
-        </svg>
-      </button>
-      {#if showCountryDropdown}
-        <div class="dropdown-content">
-          <label class="level-checkbox">
-            <input type="checkbox" checked={selectedCountry === ''} on:change={() => handleSetCountry('')} />
-            <span>All Countries</span>
-          </label>
-          {#each countryOptions as country}
-            <label class="level-checkbox">
-              <input type="checkbox" checked={selectedCountry === country} on:change={() => handleSetCountry(country)} />
-              <span>{country}</span>
-            </label>
-          {/each}
-        </div>
-      {/if}
-    </div>
+		<!-- My Channels Dropdown -->
+		{#if myChannels && myChannels.length}
+			<div class="dropdown" bind:this={myChannelsDropdownRef}>
+				<button
+					class="dropdown-btn"
+					aria-expanded={showMyChannelsDropdown}
+					on:click={() => (showMyChannelsDropdown = !showMyChannelsDropdown)}
+					type="button"
+				>
+					<User size={18} style="margin-right:7px;vertical-align:-3px;color:#7950f2;" />
+					My Channels
+					<svg width="12" height="9" style="margin-left:7px;" fill="none">
+						<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+					</svg>
+				</button>
+				{#if showMyChannelsDropdown}
+					<div class="dropdown-content">
+						<label class="level-checkbox">
+							<input
+								type="checkbox"
+								checked={selectedChannel === ''}
+								on:change={() => handleSetChannel('')}
+							/>
+							<span>All Channels</span>
+						</label>
+						{#each myChannels as ch}
+							<label class="level-checkbox">
+								<input
+									type="checkbox"
+									checked={selectedChannel === ch.id}
+									on:change={() => handleSetChannel(ch.id)}
+								/>
+								<span>{ch.name}</span>
+							</label>
+						{/each}
+						<hr style="margin: 0.7em 0;" />
+						<a
+							href="/mychannels"
+							class="edit-my-channels-link"
+							style="display: flex; align-items: center; color: #7950f2; font-weight: 700; text-decoration: none; font-size: 1em; gap: 0.6em; padding: 0.2em 0.1em;"
+						>
+							<svg
+								width="18"
+								height="18"
+								fill="none"
+								stroke="#7950f2"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							>
+								<circle cx="9" cy="9" r="7.5" />
+								<path d="M12.5 7.5l-5 5" />
+								<path d="M7.5 7.5l5 5" />
+							</svg>
+							Edit My Channels
+						</a>
+					</div>
+				{/if}
+			</div>
+		{/if}
 
-    <!-- My Channels Dropdown -->
-    {#if myChannels && myChannels.length}
-      <div class="dropdown" bind:this={myChannelsDropdownRef}>
-        <button class="dropdown-btn" aria-expanded={showMyChannelsDropdown} on:click={() => showMyChannelsDropdown = !showMyChannelsDropdown} type="button">
-          <User size={18} style="margin-right:7px;vertical-align:-3px;color:#7950f2;" />
-          My Channels
-          <svg width="12" height="9" style="margin-left:7px;" fill="none">
-            <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
-          </svg>
-        </button>
-        {#if showMyChannelsDropdown}
-          <div class="dropdown-content">
-            <label class="level-checkbox">
-              <input
-                type="checkbox"
-                checked={selectedChannel === ''}
-                on:change={() => handleSetChannel('')}
-              />
-              <span>All Channels</span>
-            </label>
-            {#each myChannels as ch}
-              <label class="level-checkbox">
-                <input
-                  type="checkbox"
-                  checked={selectedChannel === ch.id}
-                  on:change={() => handleSetChannel(ch.id)}
-                />
-                <span>{ch.name}</span>
-              </label>
-            {/each}
-          </div>
-        {/if}
-      </div>
-    {/if}
-
-    <!-- RESET FILTERS BUTTON (only visible if not defaults) -->
-    {#if filtersChanged}
-      <button class="reset-filters-btn" type="button" on:click={() => emitChange({
-        selectedLevels: levels.map(l => l.value),
-        sortBy: 'new',
-        selectedCountry: '',
-        selectedTags: [],
-        hideWatched: false,
-        searchTerm: '',
-        selectedChannel: ''
-      })}>
-        reset filters
-      </button>
-    {/if}
-  </div>
-  <div class="controls-right">
-    <button
-      class="dropdown-btn hide-watched-btn"
-      type="button"
-      aria-pressed={hideWatched}
-      on:click={handleHideWatched}
-    >
-      <span class="switch-slider" aria-hidden="true"></span>
-      <span class="switch-label-text">Hide watched</span>
-    </button>
-    <div class="search-bar-container">
-      {#if searchOpen}
-        <input
-          type="text"
-          class="search-input"
-          placeholder="Search videos…"
-          value={searchTerm}
-          on:input={e => handleSearchInput(e.target.value)}
-          autofocus
-        />
-      {/if}
-      <button
-        class="search-toggle"
-        title="Search"
-        on:click={handleToggleSearch}
-        aria-label="Search"
-      >
-        <Search size={22} style="color:#2e9be6;" />
-      </button>
-    </div>
-  </div>
+		<!-- RESET FILTERS BUTTON (only visible if not defaults) -->
+		{#if filtersChanged}
+			<button
+				class="reset-filters-btn"
+				type="button"
+				on:click={() =>
+					emitChange({
+						selectedLevels: levels.map((l) => l.value),
+						sortBy: 'new',
+						selectedCountry: '',
+						selectedTags: [],
+						hideWatched: false,
+						searchTerm: '',
+						selectedChannel: ''
+					})}
+			>
+				reset filters
+			</button>
+		{/if}
+	</div>
+	<div class="controls-right">
+		<button
+			class="dropdown-btn hide-watched-btn"
+			type="button"
+			aria-pressed={hideWatched}
+			on:click={handleHideWatched}
+		>
+			<span class="switch-slider" aria-hidden="true"></span>
+			<span class="switch-label-text">Hide watched</span>
+		</button>
+		<div class="search-bar-container">
+			{#if searchOpen}
+				<input
+					type="text"
+					class="search-input"
+					placeholder="Search videos…"
+					value={searchTerm}
+					on:input={(e) => handleSearchInput(e.target.value)}
+					autofocus
+				/>
+			{/if}
+			<button
+				class="search-toggle"
+				title="Search"
+				on:click={handleToggleSearch}
+				aria-label="Search"
+			>
+				<Search size={22} style="color:#2e9be6;" />
+			</button>
+		</div>
+	</div>
 </div>
 
 <style>
@@ -695,7 +759,7 @@
 	}
 	@media (max-width: 600px) {
 		.controls-bar {
-		  max-width: 99vw;
+			max-width: 99vw;
 		}
 		.search-input {
 			width: 110px;
