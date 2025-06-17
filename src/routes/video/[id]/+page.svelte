@@ -127,6 +127,7 @@
   }
 </script>
 
+
 {#if loading}
   <div class="player-loading">Loading…</div>
 {:else if !video}
@@ -197,4 +198,9 @@
   color: #aaa;
   font-size: 1.1rem;
 }
+.player-sidebar {
+  padding: 1.7rem 2px 1.3rem 2px;
+}
+
+
 </style>

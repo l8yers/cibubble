@@ -207,6 +207,15 @@
   font-size: 0.98em;
 }
 
+.sidebar-root {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1em;
+  padding: 1.1rem 0 1.1rem 0;  /* ADD THIS */
+}
+
+
 .sidebar-card-list {
   flex: 1 1 0;
   overflow-y: auto;
