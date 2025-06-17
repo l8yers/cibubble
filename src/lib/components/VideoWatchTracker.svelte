@@ -1,12 +1,15 @@
 <script>
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
 
   export let videoId;
   export let videoDuration;
   export let userId;
+  export let suggestions = [];
+  export let autoplay = false;
 
-  // Tracking state
+  const dispatch = createEventDispatcher();
+
   let player;
   let pollingInterval = null;
   let lastTime = 0;
@@ -15,12 +18,7 @@
   let lastSavedSeconds = 0;
   let playerReady = false;
 
-  // Expose the playerReady state if you want to react in parent (optional)
-  export let ytReady = false;
-
-  // Attach YT
   function onYouTubeIframeAPIReady() {
-    ytReady = true;
     initPlayer();
   }
 
@@ -60,7 +58,6 @@
         await saveWatchSession(duration);
       }
     }, 1200);
-    // console.log("Watch polling started");
   }
 
   function stopWatchTimer() {
@@ -108,6 +105,14 @@
     if ([0, 2, 3].includes(event.data)) {
       flushProgress();
     }
+    // Handle autoplay here
+    if (event.data === 0 && autoplay && suggestions && suggestions.length) {
+      const idx = suggestions.findIndex(v => v.id === videoId);
+      const nextVid = suggestions[idx + 1];
+      if (nextVid) {
+        dispatch('playNextVideo', nextVid.id);
+      }
+    }
   }
 
   function handleBeforeUnload() {
@@ -115,14 +120,12 @@
   }
 
   onMount(() => {
-    // Attach global
     window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
     if (!window.YT) {
       const tag = document.createElement('script');
       tag.src = "https://www.youtube.com/iframe_api";
       document.body.appendChild(tag);
     } else {
-      ytReady = true;
       initPlayer();
     }
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -132,5 +135,6 @@
     stopWatchTimer();
     window.removeEventListener('beforeunload', handleBeforeUnload);
     flushProgress();
+    // Optionally: if (player && player.destroy) player.destroy();
   });
 </script>

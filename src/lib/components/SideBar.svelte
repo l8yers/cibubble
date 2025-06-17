@@ -3,18 +3,12 @@
   import { supabase } from '$lib/supabaseClient';
   import * as utils from '$lib/utils.js';
   import { ChartNoAxesColumnIncreasing } from 'lucide-svelte';
-
-  function makeChannelUrl(channelId) {
-    const params = new URLSearchParams(window.location.search);
-    params.set('channel', channelId);
-    return `/?${params.toString()}`;
-  }
+  import { autoplay } from '$lib/stores/autoplay.js';
 
   export let video;
 
   let suggestions = [];
   let loading = true;
-  let autoplay = true;
   let playlistTitle = '';
 
   function badgeColor(level) {
@@ -26,74 +20,68 @@
     }
   }
 
+  function makeChannelUrl(channelId) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('channel', channelId);
+    return `/?${params.toString()}`;
+  }
+
   $: if (video) fetchSuggestions();
 
-async function fetchSuggestions() {
-  loading = true;
-  suggestions = [];
-  playlistTitle = '';
+  async function fetchSuggestions() {
+    loading = true;
+    suggestions = [];
+    playlistTitle = '';
 
-  // Get up to 7 from the current channel
-  const { data: sameChannel } = await supabase
-    .from('videos')
-    .select('*, channel:channel_id(name)')
-    .eq('channel_id', video.channel_id)
-    .neq('id', video.id)
-    .limit(30);
+    if (video.playlist_id) {
+      const { data: playlistVids } = await supabase
+        .from('videos')
+        .select('*, channel:channel_id(name), playlist:playlist_id(title)')
+        .eq('playlist_id', video.playlist_id)
+        .neq('id', video.id)
+        .order('playlist_position', { ascending: true })
+        .limit(30);
+      suggestions = playlistVids || [];
+      if (playlistVids && playlistVids[0]?.playlist?.title) {
+        playlistTitle = playlistVids[0].playlist.title;
+      }
+    } else {
+      const { data: sameChannel } = await supabase
+        .from('videos')
+        .select('*, channel:channel_id(name)')
+        .eq('channel_id', video.channel_id)
+        .neq('id', video.id)
+        .limit(30);
+      const { data: otherChannelsRaw } = await supabase
+        .from('videos')
+        .select('*, channel:channel_id(name)')
+        .neq('channel_id', video.channel_id)
+        .neq('id', video.id)
+        .limit(400);
 
-  // Try to get a LOT of videos from other channels, to ensure we get enough unique
-  const { data: otherChannelsRaw } = await supabase
-    .from('videos')
-    .select('*, channel:channel_id(name)')
-    .neq('channel_id', video.channel_id)
-    .neq('id', video.id)
-    .limit(400); // Pull a very big pool
+      function shuffle(arr) {
+        return (arr || []).map(v => [Math.random(), v]).sort(([a], [b]) => a - b).map(([, v]) => v);
+      }
 
-  function shuffle(arr) {
-    return (arr || []).map(v => [Math.random(), v]).sort(([a], [b]) => a - b).map(([, v]) => v);
-  }
+      const channelMap = {};
+      for (const v of shuffle(otherChannelsRaw || [])) {
+        if (!channelMap[v.channel_id]) channelMap[v.channel_id] = v;
+      }
+      const otherVids = Object.values(channelMap).slice(0, 23);
+      let channelVids = shuffle(sameChannel || []).slice(0, 7);
 
-  // Map for unique channels
-  const channelMap = {};
-  for (const v of shuffle(otherChannelsRaw || [])) {
-    if (!channelMap[v.channel_id]) channelMap[v.channel_id] = v;
-  }
-  // Up to 23 unique other channels
-  const otherVids = Object.values(channelMap).slice(0, 23);
+      let suggestionsMixed = otherVids.slice();
+      let insertIndexes = shuffle([...Array(Math.min(15, suggestionsMixed.length)).keys()]).slice(0, channelVids.length);
 
-  // Up to 7 from current channel, shuffle
-  let channelVids = shuffle(sameChannel || []).slice(0, 7);
+      insertIndexes.forEach((idx, i) => {
+        let pos = Math.min(idx, suggestionsMixed.length);
+        suggestionsMixed.splice(pos, 0, channelVids[i]);
+      });
 
-  // Mix channel videos in first half for weighting
-  let suggestionsMixed = otherVids.slice();
-  let insertIndexes = shuffle([...Array(Math.min(15, suggestionsMixed.length)).keys()]).slice(0, channelVids.length);
-
-  insertIndexes.forEach((idx, i) => {
-    let pos = Math.min(idx, suggestionsMixed.length);
-    suggestionsMixed.splice(pos, 0, channelVids[i]);
-  });
-
-  // Only keep 30
-  suggestions = suggestionsMixed.slice(0, 30);
-
-  // Playlist logic as before
-  if (video.playlist_id) {
-    const { data: playlistVids } = await supabase
-      .from('videos')
-      .select('*, channel:channel_id(name), playlist:playlist_id(title)')
-      .eq('playlist_id', video.playlist_id)
-      .neq('id', video.id)
-      .order('playlist_position', { ascending: true })
-      .limit(30);
-    suggestions = playlistVids || [];
-    if (playlistVids && playlistVids[0]?.playlist?.title) {
-      playlistTitle = playlistVids[0].playlist.title;
+      suggestions = suggestionsMixed.slice(0, 30);
     }
+    loading = false;
   }
-
-  loading = false;
-}
-
 </script>
 
 <div class="sidebar-root">
@@ -105,7 +93,7 @@ async function fetchSuggestions() {
     </span>
     <div class="sidebar-toggles">
       <label class="toggle">
-        <input type="checkbox" bind:checked={autoplay} />
+        <input type="checkbox" bind:checked={$autoplay} />
         <span class="toggle-label">Autoplay</span>
       </label>
     </div>
@@ -117,8 +105,8 @@ async function fetchSuggestions() {
   {:else}
     <div class="sidebar-card-list">
       {#each suggestions as v, i (v.id)}
-        <a class="sidebar-card horizontal-card" href={`/video/${v.id}`} title={v.title}>
-          <span class="sidebar-thumb-wrapper">
+        <div class="sidebar-card horizontal-card">
+          <a class="sidebar-thumb-wrapper" href={`/video/${v.id}`} title={v.title}>
             <img
               class="sidebar-thumb"
               src={utils.getBestThumbnail(v)}
@@ -129,10 +117,10 @@ async function fetchSuggestions() {
             {#if v.length}
               <span class="length-inline">{utils.formatLength(v.length)}</span>
             {/if}
-          </span>
+          </a>
           <div class="sidebar-card-content">
             <div class="sidebar-title-row">
-              <span class="sidebar-card-title">{v.title}</span>
+              <a class="sidebar-card-title" href={`/video/${v.id}`}>{v.title}</a>
             </div>
             <div class="sidebar-card-meta">
               {#if v.level}
@@ -145,22 +133,23 @@ async function fetchSuggestions() {
                 </span>
               {/if}
               {#if !video.playlist_id && v.channel_id && (v.channel?.name || v.channel_name)}
-                <a
+                <span
                   class="meta-link"
                   style="color:#2e9be6;cursor:pointer;"
                   title={v.channel?.name ?? v.channel_name}
-                  href={makeChannelUrl(v.channel_id)}
-                  on:click|stopPropagation
+                  tabindex="0"
+                  on:click={() => window.location = makeChannelUrl(v.channel_id)}
+                  on:keydown={(e) => { if (e.key === "Enter") window.location = makeChannelUrl(v.channel_id); }}
                 >
                   {(v.channel?.name ?? v.channel_name).length > 14
                     ? (v.channel?.name ?? v.channel_name).slice(0, 13) + '…'
                     : (v.channel?.name ?? v.channel_name)
                   }
-                </a>
+                </span>
               {/if}
             </div>
           </div>
-        </a>
+        </div>
       {/each}
     </div>
   {/if}
@@ -240,7 +229,6 @@ async function fetchSuggestions() {
   border: 1px solid #ededed;
   text-decoration: none;
   min-height: 84px;
-  /* Only side paddings to close up space above/below thumb */
   padding: 0 0.7em 0 0.12em;
   gap: 1.05em;
   transition: none;
@@ -318,6 +306,7 @@ async function fetchSuggestions() {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  line-clamp: 2; /* standard property for future browser support */
   flex: 1;
   line-height: 1.16;
   color: #232323;
@@ -372,10 +361,12 @@ async function fetchSuggestions() {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: pointer;
 }
-.meta-link:hover {
+.meta-link:hover, .meta-link:focus {
   background: #e4e4e4;
   color: #e93c2f;
+  outline: 1.5px solid #e93c2f;
 }
 @media (max-width: 800px) {
   .sidebar-thumb-wrapper, .sidebar-thumb { width: 35vw; min-width: 50px; max-width: 100px; }
