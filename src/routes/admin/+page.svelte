@@ -2,13 +2,22 @@
 	import { supabase } from '$lib/supabaseClient';
 	import { user } from '$lib/stores/user.js';
 	import { get } from 'svelte/store';
-	import TagManager from '$lib/components/TagManager.svelte';
-	import { getTagsForChannel } from '$lib/api/tags.js';
 	import { onMount, onDestroy } from 'svelte';
+	import { getTagsForChannel } from '$lib/api/tags.js';
 
+	// ADMIN COMPONENTS
+	import AdminImportBar from '$lib/components/admin/AdminImportBar.svelte';
+	import AdminSearchBar from '$lib/components/admin/AdminSearchBar.svelte';
+	import AdminChannelTable from '$lib/components/admin/AdminChannelTable.svelte';
+
+	// UTILS
+	import { stripAccent, normalizeTags, parseCsv } from '$lib/adminutils.js';
+
+	// ----- CONSTANTS (local, not imported) -----
 	const countryOptions = [
 		'Argentina','Canary Islands','Chile','Colombia','Costa Rica','Cuba','Dominican Republic','Ecuador','El Salvador','Equatorial Guinea','France','Guatemala','Italy','Latin America','Mexico','Panama','Paraguay','Peru','Puerto Rico','Spain','United States','Uruguay','Venezuela'
 	];
+
 	const levels = [
 		{ value: '', label: 'Set Level' },
 		{ value: 'easy', label: 'Easy' },
@@ -17,6 +26,7 @@
 		{ value: 'notyet', label: 'Not Yet Rated' }
 	];
 
+	// ----- STATE -----
 	let url = '';
 	let message = '';
 	let importing = false;
@@ -44,10 +54,7 @@
 	let bulkUploading = false;
 	let uploadFailures = [];
 
-	function stripAccent(str) {
-		return (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-	}
-
+	// ----- REACTIVE FILTERING -----
 	$: {
 		let s = stripAccent(search.trim().toLowerCase());
 		let filtered = !s
@@ -72,28 +79,8 @@
 		currentPage = p;
 	}
 
-	function normalizeTags(raw) {
-		let arr = [];
-		if (Array.isArray(raw)) arr = raw;
-		else if (typeof raw === 'string') arr = raw.split(',');
-		arr = arr.map(t => String(t || '').trim().toLowerCase()).filter(Boolean);
-		return [...new Set(arr)];
-	}
-
 	function handleCsvFile(e) {
 		csvFile = e.target.files[0];
-	}
-
-	function parseCsv(text) {
-		const lines = text.trim().split('\n').filter(line => line.trim() !== '');
-		if (!lines.length) return [];
-		const header = lines[0].split(',').map(h => h.trim().toLowerCase());
-		return lines.slice(1).map(line => {
-			const values = line.split(',').map(v => v.trim());
-			const row = {};
-			header.forEach((key, i) => row[key] = values[i] || '');
-			return row;
-		});
 	}
 
 	async function uploadCsv() {
@@ -304,184 +291,49 @@
 
 <div class="admin-main">
 	<h2 style="margin-bottom:1.1em;">Admin Tools</h2>
-	<!-- Import Bar -->
-	<div class="import-bar">
-		<span class="import-videos-title">ADD VIDEOS</span>
-		<input type="text" placeholder="Paste YouTube channel link or @handle…" bind:value={url} aria-label="YouTube Channel Link" class="import-input"
-			on:keydown={(e) => { if (e.key === 'Enter' && url && !importing) importChannel(); }} />
-		<button class="main-btn import-btn" on:click={importChannel} disabled={!url || importing} aria-label="Import Channel">
-			{importing ? 'Importing…' : 'Import Channel'}
-		</button>
-		<button class="main-btn import-btn" on:click={refresh} disabled={refreshing} aria-label="Refresh">
-			{refreshing ? 'Refreshing…' : '↻ Refresh'}
-		</button>
-		<button class="danger-btn import-btn" on:click={clearDatabase} disabled={clearing} aria-label="Clear Database">
-			{clearing ? 'Clearing…' : 'Clear Database'}
-		</button>
-	</div>
-	<!-- Bulk Upload CSV -->
-	<div class="import-bar" style="margin-top:1.2em;">
-		<span class="import-videos-title">BULK UPLOAD CSV</span>
-		<input type="file" accept=".csv" bind:this={csvInput} on:change={handleCsvFile} aria-label="Select CSV file" class="import-input"
-			style="min-width:unset;max-width:220px" />
-		<button class="main-btn import-btn" on:click={uploadCsv} disabled={!csvFile || bulkUploading} aria-label="Bulk Upload">
-			{bulkUploading ? 'Uploading…' : 'Upload CSV'}
-		</button>
-	</div>
-	<!-- Search & Pagination -->
-	<div class="import-bar" style="margin-top:1.2em; justify-content: space-between;">
-		<div style="display:flex; align-items:center; gap:1.2em;">
-			<span class="import-videos-title" style="color:#2562e9;">SEARCH CHANNELS</span>
-			<input type="text" class="import-input" placeholder="Type to search by name, country or tag…" value={search} on:input={onSearchInput}
-				style="max-width:330px;" aria-label="Search Channels" autocomplete="off" />
-		</div>
-		{#if totalPages > 1}
-			<div style="display:flex; align-items:center; gap:0.5em;">
-				<button class="main-btn small" on:click={() => goToPage(currentPage-1)} disabled={currentPage === 1}>&lt; Prev</button>
-				<span style="font-weight:600;">Page {currentPage} / {totalPages}</span>
-				<button class="main-btn small" on:click={() => goToPage(currentPage+1)} disabled={currentPage === totalPages}>Next &gt;</button>
-			</div>
-		{/if}
-	</div>
-	{#if message}
-		<div class="admin-message" style="margin:1em 0 1.2em 0;">{message}</div>
-	{/if}
-	<table class="admin-table">
-		<thead>
-			<tr>
-				<th>Channel</th>
-				<th>Country</th>
-				<th>Tags</th>
-				<th>Level</th>
-				<th>Playlists</th>
-				<th>Actions</th>
-			</tr>
-		</thead>
-		<tbody>
-			{#each filteredChannels as chan}
-				<tr>
-					<td><span style="font-weight:600;">{chan.name}</span></td>
-					<td>
-						<select bind:value={chan._country} aria-label="Select country">
-							<option value="">No Country</option>
-							{#each countryOptions as country}
-								<option value={country}>{country}</option>
-							{/each}
-						</select>
-						{#if chan.country !== chan._country}
-							<button class="main-btn small" on:click={() => setChannelCountry(chan.id, chan._country)} disabled={settingCountry[chan.id]}>
-								{settingCountry[chan.id] ? 'Saving…' : 'Save'}
-							</button>
-						{/if}
-					</td>
-					<td>
-						{#if chan._tags && chan._tags.length > 0}
-							<div class="channel-tags-list">
-								{#each chan._tags as tag}
-									<span class="tag-pill">{tag.name}</span>
-								{/each}
-							</div>
-						{:else}
-							<span style="color:#aaa;">No tags</span>
-						{/if}
-						<div>
-							<TagManager channelId={chan.id} currentTags={chan._tags} onTagChanged={refresh} />
-						</div>
-					</td>
-					<td>
-						<select bind:value={chan._newLevel} aria-label="Set channel level">
-							<option value="">
-								{chan._mainLevel === 'mixed'
-									? '-- Mixed --'
-									: levels.find((lvl) => lvl.value === chan._mainLevel)?.label
-										? '-- ' + levels.find((lvl) => lvl.value === chan._mainLevel)?.label + ' --'
-										: '-- Not Set --'}
-							</option>
-							{#each levels as lvl}
-								<option value={lvl.value}>{lvl.label}</option>
-							{/each}
-						</select>
-						<button class="main-btn small" on:click={() => setChannelLevel(chan.id, chan._newLevel)} disabled={!chan._newLevel || settingLevel[chan.id]}>
-							{settingLevel[chan.id] ? 'Setting…' : 'Set Level'}
-						</button>
-					</td>
-					<td>
-						<button
-							class="main-btn light"
-							on:click={() => togglePlaylistsFor(chan.id)}
-							aria-expanded={showPlaylistsFor === chan.id}
-							aria-label={showPlaylistsFor === chan.id ? 'Hide playlists' : 'Show playlists'}
-						>
-							{showPlaylistsFor === chan.id ? '▲ Hide Playlists' : '▼ Show Playlists'}
-						</button>
-					</td>
-					<td>
-						<button class="danger-btn small" on:click={() => deleteChannel(chan.id)} disabled={!!deleting[chan.id]}>
-								{deleting[chan.id] ? 'Deleting…' : 'Delete'}
-						</button>
-					</td>
-				</tr>
-				{#if showPlaylistsFor === chan.id}
-					<tr class="collapsible-row">
-						<td class="playlists-cell" colspan="6">
-							{#if playlistsLoading}
-								<div>Loading playlists…</div>
-							{:else if playlists.length === 0}
-								<div>No playlists found for this channel.</div>
-							{:else}
-								<table class="playlist-table">
-									<thead>
-										<tr>
-											<th>Playlist</th>
-											<th>Videos</th>
-											<th>Set Level</th>
-										</tr>
-									</thead>
-									<tbody>
-										{#each playlists as pl}
-											<tr>
-												<td>{pl.title}</td>
-												<td>{pl.videos_count}</td>
-												<td>
-													<select bind:value={pl._newLevel} aria-label="Set playlist level">
-														<option value="">
-															--
-															{pl.currentLevel === ''
-																? 'Not Set'
-																: pl.currentLevel === 'mixed'
-																	? 'Mixed'
-																	: levels.find((lvl) => lvl.value === pl.currentLevel)?.label ||
-																		pl.currentLevel}
-															--
-														</option>
-														{#each levels as lvl}
-															<option value={lvl.value}>{lvl.label}</option>
-														{/each}
-													</select>
-													<button class="main-btn small"
-														style="margin-left:0.6em"
-														on:click={() => setPlaylistLevel(pl.id, pl._newLevel)}
-														disabled={!pl._newLevel || settingPlaylistLevel[pl.id]}
-														aria-label="Set playlist level"
-													>{settingPlaylistLevel[pl.id] ? 'Setting…' : 'Set'}</button>
-												</td>
-											</tr>
-										{/each}
-									</tbody>
-								</table>
-							{/if}
-						</td>
-					</tr>
-				{/if}
-			{/each}
-			{#if filteredChannels.length === 0}
-				<tr>
-					<td colspan="6" style="text-align:center;color:#999;">No channels found.</td>
-				</tr>
-			{/if}
-		</tbody>
-	</table>
+	<AdminImportBar
+		{url}
+		setUrl={v => url = v}
+		{importing}
+		{importChannel}
+		{refreshing}
+		{refresh}
+		{clearing}
+		{clearDatabase}
+		{csvInput}
+		{handleCsvFile}
+		{uploadCsv}
+		{csvFile}
+		{bulkUploading}
+	/>
+	<AdminSearchBar
+		{search}
+		{onSearchInput}
+		{totalPages}
+		{currentPage}
+		{goToPage}
+	/>
+	<AdminChannelTable
+		{filteredChannels}
+		countryOptions={countryOptions}
+		levels={levels}
+		{showPlaylistsFor}
+		{playlists}
+		{playlistsLoading}
+		{message}
+		{settingCountry}
+		{settingLevel}
+		{settingPlaylistLevel}
+		{deleting}
+		{setChannelCountry}
+		{setChannelLevel}
+		{togglePlaylistsFor}
+		{setPlaylistLevel}
+		{deleteChannel}
+		{refresh}
+	/>
 </div>
+
 
 <style>
 	.admin-main {
