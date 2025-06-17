@@ -111,31 +111,31 @@
             <div class="sidebar-title-row">
               <span class="sidebar-card-title">{v.title}</span>
             </div>
-            <div class="sidebar-card-meta">
-              {#if v.level}
-                <span
-                  class="ds-difficulty-badge"
-                  style="background: {badgeColor(v.level)};"
-                  title={v.level}
-                >
-                  <ChartNoAxesColumnIncreasing size={19} stroke-width="2.2" color="#fff" />
-                </span>
-              {/if}
-              {#if v.channel_id && (v.channel?.name || v.channel_name)}
-                <a
-                  class="meta-link"
-                  style="color:#2e9be6;cursor:pointer;"
-                  title={v.channel?.name ?? v.channel_name}
-                  href={makeChannelUrl(v.channel_id)}
-                  on:click|stopPropagation
-                >
-                  {(v.channel?.name ?? v.channel_name).length > 22
-                    ? (v.channel?.name ?? v.channel_name).slice(0, 19) + '…'
-                    : (v.channel?.name ?? v.channel_name)
-                  }
-                </a>
-              {/if}
-            </div>
+<div class="sidebar-card-meta">
+  {#if v.level}
+    <span
+      class="ds-difficulty-badge"
+      style="background: {badgeColor(v.level)};"
+      title={v.level}
+    >
+      <ChartNoAxesColumnIncreasing size={19} stroke-width="2.2" color="#fff" />
+    </span>
+  {/if}
+  {#if v.channel_id && (v.channel?.name || v.channel_name)}
+    <a
+      class="meta-link"
+      style="color:#2e9be6;cursor:pointer;"
+      title={v.channel?.name ?? v.channel_name}
+      href={makeChannelUrl(v.channel_id)}
+      on:click|stopPropagation
+    >
+      {(v.channel?.name ?? v.channel_name).length > 14
+        ? (v.channel?.name ?? v.channel_name).slice(0, 13) + '…'
+        : (v.channel?.name ?? v.channel_name)
+      }
+    </a>
+  {/if}
+</div>
           </div>
         </a>
       {/each}
@@ -149,6 +149,11 @@
   display: flex;
   flex-direction: column;
   gap: 0.1em;
+  /* Fixed height, or set as needed. Use 100vh for full viewport */
+  height: 100vh;
+  max-height: 100vh;
+  box-sizing: border-box;
+  background: #fff; /* optional: helps define the sidebar visually */
 }
 .sidebar-header {
   font-size: 1.08em;
@@ -192,10 +197,16 @@
 }
 
 .sidebar-card-list {
+  flex: 1 1 0;
+  overflow-y: auto;
+  /* This will allow the list to scroll when needed */
+  min-height: 0;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   gap: 0.6em;
   margin: 0.1em 0 0 0;
+  padding-bottom: 0.5em; /* optional: for visual breathing room at end */
 }
 
 .sidebar-card.horizontal-card {
@@ -337,11 +348,15 @@
   transition: background 0.13s, color 0.13s;
   display: flex;
   align-items: center;
-  max-width: 135px;
+  /* prevent wrap, force single line and ellipsis */
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 105px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 .meta-link:hover {
   background: #e4e4e4;
   color: #e93c2f;
