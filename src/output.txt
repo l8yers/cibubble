@@ -1,0 +1,3503 @@
+<script>
+	import { page } from '$app/stores';
+	import { onMount, onDestroy } from 'svelte';
+	import VideoGrid from '$lib/components/VideoGrid.svelte';
+	import SortBar from '$lib/components/SortBar.svelte';
+	import FilterChip from '$lib/components/FilterChip.svelte';
+  import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
+  import ErrorMessage from '$lib/components/ErrorMessage.svelte';
+	import * as utils from '$lib/utils.js';
+	import '../app.css';
+
+	import {
+		selectedChannel,
+		selectedPlaylist,
+		selectedLevels,
+		sortBy,
+		selectedCountry,
+		selectedTags,
+		hideWatched,
+		watchedIds,
+		searchTerm
+	} from '$lib/stores/videos.js';
+
+	import { writable, get } from 'svelte/store';
+	import { filtersToQuery, queryToFilters } from '$lib/utils/filters.js';
+	import { updateUrlFromFilters } from '$lib/utils/url.js';
+
+	import { LEVELS, VALID_LEVELS, SORT_CHOICES, COUNTRY_OPTIONS, TAG_OPTIONS } from '$lib/constants.js';
+
+	// --- NEW: Saved Channels imports ---
+	import { user } from '$lib/stores/user.js';
+	import { userChannels } from '$lib/stores/userChannels.js';
+	import { getUserSavedChannels } from '$lib/api/userChannels.js';
+
+	const PAGE_SIZE = 50;
+	const videos = writable([]);
+	const loading = writable(false);
+	const errorMsg = writable('');
+	const hasMore = writable(true);
+	const pageNum = writable(1);
+
+	let searchOpen = false;
+	let sentinel;
+	let observerInstance;
+
+	const levels = LEVELS;
+	const validLevels = VALID_LEVELS;
+	const sortChoices = SORT_CHOICES;
+	let countryOptions = COUNTRY_OPTIONS;
+	let tagOptions = TAG_OPTIONS;
+
+	function setupObserver() {
+		if (observerInstance) {
+			observerInstance.disconnect();
+			observerInstance = null;
+		}
+		if (sentinel && get(hasMore) && get(sortBy) !== 'random') {
+			observerInstance = new IntersectionObserver(
+				(entries) => {
+					entries.forEach((entry) => {
+						if (entry.isIntersecting && get(hasMore) && !get(loading) && get(sortBy) !== 'random') {
+							loadMore();
+						}
+					});
+				},
+				{ root: null, rootMargin: '0px', threshold: 0.1 }
+			);
+			observerInstance.observe(sentinel);
+		}
+	}
+	$: if (sentinel) setupObserver();
+	onDestroy(() => {
+		if (observerInstance) observerInstance.disconnect();
+	});
+
+	async function fetchVideos({ append = false } = {}) {
+		loading.set(true);
+		errorMsg.set('');
+		const query = new URLSearchParams({
+			page: get(pageNum),
+			pageSize: PAGE_SIZE,
+			levels: Array.from(get(selectedLevels)).join(','),
+			tags: Array.from(get(selectedTags)).join(','),
+			country: get(selectedCountry),
+			channel: get(selectedChannel),
+			playlist: get(selectedPlaylist),
+			sort: get(sortBy),
+			search: get(searchTerm)
+		});
+		const res = await fetch(`/api/videos?${query}`);
+		if (!res.ok) {
+			const errText = await res.text();
+			errorMsg.set('Error loading videos: ' + errText);
+			loading.set(false);
+			return;
+		}
+		const { videos: fetched, hasMore: more } = await res.json();
+		if (append) {
+			videos.update((vs) => [...vs, ...fetched]);
+		} else {
+			videos.set(fetched);
+		}
+		hasMore.set(more);
+		loading.set(false);
+	}
+
+	async function loadMore() {
+		if (!get(hasMore) || get(loading)) return;
+		pageNum.update((p) => p + 1);
+		await fetchVideos({ append: true });
+	}
+
+	function resetAndFetch() {
+		pageNum.set(1);
+		fetchVideos({ append: false });
+	}
+
+	function handleSortBarChange(e) {
+		const rawLevels = e.detail.selectedLevels;
+		const safeLevels = new Set(Array.from(rawLevels).filter((lvl) => validLevels.has(lvl)));
+		selectedLevels.set(safeLevels);
+		selectedTags.set(new Set(e.detail.selectedTags));
+		sortBy.set(e.detail.sortBy);
+		selectedCountry.set(e.detail.selectedCountry);
+		hideWatched.set(e.detail.hideWatched);
+		searchTerm.set(e.detail.searchTerm);
+		searchOpen = e.detail.searchOpen;
+		selectedChannel.set(e.detail.selectedChannel ?? '');
+		updateUrlFromFilters({
+			selectedLevels,
+			selectedTags,
+			selectedCountry,
+			selectedChannel,
+			selectedPlaylist,
+			sortBy,
+			searchTerm,
+			get
+		});
+		resetAndFetch();
+	}
+	function filterByChannel(channelId) {
+		selectedChannel.set(channelId);
+		updateUrlFromFilters({ selectedLevels, selectedTags, selectedCountry, selectedChannel, selectedPlaylist, sortBy, searchTerm, get });
+		resetAndFetch();
+	}
+	function clearChannelFilter() {
+		selectedChannel.set('');
+		updateUrlFromFilters({ selectedLevels, selectedTags, selectedCountry, selectedChannel, selectedPlaylist, sortBy, searchTerm, get });
+		resetAndFetch();
+	}
+	function filterByPlaylist(playlistTitle) {
+		selectedPlaylist.set(playlistTitle);
+		updateUrlFromFilters({ selectedLevels, selectedTags, selectedCountry, selectedChannel, selectedPlaylist, sortBy, searchTerm, get });
+		resetAndFetch();
+	}
+	function clearPlaylistFilter() {
+		selectedPlaylist.set('');
+		updateUrlFromFilters({ selectedLevels, selectedTags, selectedCountry, selectedChannel, selectedPlaylist, sortBy, searchTerm, get });
+		resetAndFetch();
+	}
+
+	let firstLoad = true;
+	let lastQuery = '';
+
+	onMount(() => {
+		const filters = queryToFilters(window.location.search);
+		const safeLevels = new Set(Array.from(filters.levels).filter((lvl) => validLevels.has(lvl)));
+		selectedLevels.set(
+			safeLevels.size ? safeLevels : new Set(['easy', 'intermediate', 'advanced'])
+		);
+		selectedTags.set(filters.tags.size ? filters.tags : new Set());
+		selectedCountry.set(filters.country || '');
+		selectedChannel.set(filters.channel || '');
+		selectedPlaylist.set(filters.playlist || '');
+		sortBy.set(filters.sort || 'new');
+		searchTerm.set(filters.search || '');
+
+		resetAndFetch();
+		firstLoad = false;
+	});
+
+	$: if (!firstLoad && $page.url.search !== lastQuery) {
+		lastQuery = $page.url.search;
+		const filters = queryToFilters($page.url.search);
+		const safeLevels = new Set(Array.from(filters.levels).filter((lvl) => validLevels.has(lvl)));
+		selectedLevels.set(
+			safeLevels.size ? safeLevels : new Set(['easy', 'intermediate', 'advanced'])
+		);
+		selectedTags.set(filters.tags.size ? filters.tags : new Set());
+		selectedCountry.set(filters.country || '');
+		selectedChannel.set(filters.channel || '');
+		selectedPlaylist.set(filters.playlist || '');
+		sortBy.set(filters.sort || 'new');
+		searchTerm.set(filters.search || '');
+
+		resetAndFetch();
+	}
+
+	$: filteredVideos = $hideWatched ? $videos.filter((v) => !$watchedIds.has(v.id)) : $videos;
+
+	$: if ($user) {
+		getUserSavedChannels($user.id)
+			.then((chs) => userChannels.set(chs))
+			.catch(() => userChannels.set([]));
+	} else {
+		userChannels.set([]);
+	}
+</script>
+
+<div class="page-container">
+  <div class="sortbar-container">
+    <SortBar
+      {levels}
+      {sortChoices}
+      {countryOptions}
+      {tagOptions}
+      selectedLevels={Array.from($selectedLevels)}
+      sortBy={$sortBy}
+      selectedCountry={$selectedCountry}
+      selectedTags={Array.from($selectedTags)}
+      hideWatched={$hideWatched}
+      searchTerm={$searchTerm}
+      {searchOpen}
+      myChannels={$userChannels}
+      selectedChannel={$selectedChannel}
+      on:change={handleSortBarChange}
+    />
+  </div>
+
+  {#if $selectedChannel}
+    <FilterChip
+      type="info"
+      label="Filtered by channel"
+      value={$videos.length > 0
+        ? $videos[0].channel?.name ?? $videos[0].channel_name ?? $selectedChannel
+        : $selectedChannel}
+      onClear={clearChannelFilter}
+      clearClass="clear-btn--blue"
+    />
+  {/if}
+
+  {#if $selectedPlaylist}
+    <FilterChip
+      type="warning"
+      label="Filtered by playlist"
+      value={$videos.length > 0
+        ? $videos[0].playlist?.title ?? $selectedPlaylist
+        : $selectedPlaylist}
+      onClear={clearPlaylistFilter}
+      clearClass="clear-btn--purple"
+    />
+  {/if}
+
+{#if $loading && $videos.length === 0}
+  <LoadingSpinner />
+{:else if $errorMsg}
+  <ErrorMessage message={$errorMsg} />
+  {:else if !$loading && $videos.length === 0}
+    <div class="loading-more text-muted">No videos match your filters.</div>
+  {:else}
+    <VideoGrid
+      videos={filteredVideos}
+      getBestThumbnail={utils.getBestThumbnail}
+      difficultyColor={utils.difficultyColor}
+      difficultyLabel={utils.difficultyLabel}
+      formatLength={utils.formatLength}
+      {filterByChannel}
+      {filterByPlaylist}
+    />
+    {#if $hasMore && $sortBy !== 'random'}
+      <div bind:this={sentinel} style="height: 2em;"></div>
+    {/if}
+    {#if $hasMore && $sortBy === 'random'}
+      <button
+        class="load-more-btn"
+        on:click={loadMore}
+        disabled={$loading}
+        style="margin: 2em auto; display: block;"
+      >
+        {#if $loading}Loading...{/if}
+        {#if !$loading}Load More{/if}
+      </button>
+    {/if}
+  {/if}
+</div>
+
+<style>
+	.load-more-btn {
+		padding: 0.9em 2.4em;
+		font-size: 1.17em;
+		background: #fafbff;
+		border: 1.6px solid #d6d6ee;
+		border-radius: 13px;
+		box-shadow: 0 2px 12px #ececec80;
+		font-weight: 700;
+		cursor: pointer;
+		margin: 2em auto 0 auto;
+		transition: background 0.15s;
+		display: block;
+	}
+	.load-more-btn:disabled {
+		opacity: 0.66;
+		cursor: not-allowed;
+	}
+</style>
+<script>
+	import { supabase } from '$lib/supabaseClient';
+	import { user } from '$lib/stores/user.js';
+	import { get } from 'svelte/store';
+	import TagManager from '$lib/components/TagManager.svelte';
+	import { getTagsForChannel } from '$lib/api/tags.js';
+	import { onMount, onDestroy } from 'svelte';
+
+	const countryOptions = [
+		'Argentina','Canary Islands','Chile','Colombia','Costa Rica','Cuba','Dominican Republic','Ecuador','El Salvador','Equatorial Guinea','France','Guatemala','Italy','Latin America','Mexico','Panama','Paraguay','Peru','Puerto Rico','Spain','United States','Uruguay','Venezuela'
+	];
+	const levels = [
+		{ value: '', label: 'Set Level' },
+		{ value: 'easy', label: 'Easy' },
+		{ value: 'intermediate', label: 'Intermediate' },
+		{ value: 'advanced', label: 'Advanced' },
+		{ value: 'notyet', label: 'Not Yet Rated' }
+	];
+
+	let url = '';
+	let message = '';
+	let importing = false;
+	let clearing = false;
+	let deleting = {};
+	let allChannels = [];
+	let refreshing = false;
+	let showPlaylistsFor = null;
+	let playlists = [];
+	let playlistsLoading = false;
+	let settingCountry = {};
+	let settingLevel = {};
+	let settingPlaylistLevel = {};
+
+	// Pagination & search
+	let search = '';
+	let currentPage = 1;
+	const channelsPerPage = 12;
+	let totalPages = 1;
+	let filteredChannels = [];
+
+	// CSV BULK UPLOAD STATE
+	let csvInput;
+	let csvFile = null;
+	let bulkUploading = false;
+	let uploadFailures = [];
+
+	function stripAccent(str) {
+		return (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+	}
+
+	$: {
+		let s = stripAccent(search.trim().toLowerCase());
+		let filtered = !s
+			? allChannels
+			: allChannels.filter(chan =>
+				stripAccent(chan.name || '').toLowerCase().includes(s)
+				|| stripAccent(chan.country || '').toLowerCase().includes(s)
+				|| (chan._tags || []).some(t => stripAccent(t.name || '').toLowerCase().includes(s))
+			);
+		totalPages = Math.max(1, Math.ceil(filtered.length / channelsPerPage));
+		if (currentPage > totalPages) currentPage = totalPages;
+		filteredChannels = filtered.slice((currentPage - 1) * channelsPerPage, currentPage * channelsPerPage);
+	}
+
+	function onSearchInput(e) {
+		search = e.target.value;
+		currentPage = 1;
+	}
+
+	function goToPage(p) {
+		if (p < 1 || p > totalPages) return;
+		currentPage = p;
+	}
+
+	function normalizeTags(raw) {
+		let arr = [];
+		if (Array.isArray(raw)) arr = raw;
+		else if (typeof raw === 'string') arr = raw.split(',');
+		arr = arr.map(t => String(t || '').trim().toLowerCase()).filter(Boolean);
+		return [...new Set(arr)];
+	}
+
+	function handleCsvFile(e) {
+		csvFile = e.target.files[0];
+	}
+
+	function parseCsv(text) {
+		const lines = text.trim().split('\n').filter(line => line.trim() !== '');
+		if (!lines.length) return [];
+		const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+		return lines.slice(1).map(line => {
+			const values = line.split(',').map(v => v.trim());
+			const row = {};
+			header.forEach((key, i) => row[key] = values[i] || '');
+			return row;
+		});
+	}
+
+	async function uploadCsv() {
+		if (!csvFile) return;
+		bulkUploading = true;
+		uploadFailures = [];
+		message = '';
+		const reader = new FileReader();
+		reader.onload = async (event) => {
+			const text = event.target.result;
+			const csvRows = parseCsv(text);
+			let added = 0;
+			for (let row of csvRows) {
+				const url = row.youtube || row.link || row['youtube link'] || row['YouTube Link'] || row['url'];
+				const tags = normalizeTags(row.tags || '');
+				const country = row.country || '';
+				const level = row.level || '';
+				if (!url) {
+					uploadFailures.push({ row, error: "Missing YouTube link" });
+					continue;
+				}
+				try {
+					const u = get(user);
+					const res = await fetch('/api/add-video', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							url,
+							tags,
+							country,
+							level,
+							added_by: u?.id || null
+						})
+					});
+					const json = await res.json();
+					if (json.error) uploadFailures.push({ row, error: json.error });
+					else added++;
+				} catch (err) {
+					uploadFailures.push({ row, error: err.message });
+				}
+			}
+			message = `✅ Uploaded ${added}/${csvRows.length} rows.`;
+			if (uploadFailures.length) message += ` ${uploadFailures.length} failed (see details below)`;
+			await refresh();
+			bulkUploading = false;
+			csvFile = null;
+			if (csvInput) csvInput.value = '';
+		};
+		reader.readAsText(csvFile);
+	}
+
+	function handleBeforeUnload(event) {
+		if (bulkUploading) {
+			event.preventDefault();
+			event.returnValue = 'Uploads are still in progress!';
+			return event.returnValue;
+		}
+	}
+	onMount(() => {
+		window.addEventListener('beforeunload', handleBeforeUnload);
+		refresh();
+	});
+	onDestroy(() => {
+		window.removeEventListener('beforeunload', handleBeforeUnload);
+	});
+
+	async function importChannel() {
+		message = '';
+		importing = true;
+		try {
+			const u = get(user);
+			const res = await fetch('/api/add-video', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ url, added_by: u?.id || null })
+			});
+			const json = await res.json();
+			if (json.error) message = `❌ ${json.error}`;
+			else message = `✅ Imported channel "${json.channel?.name}". ${json.playlists_count} playlists, ${json.videos_added} videos.`;
+			await refresh();
+		} catch (e) {
+			message = '❌ Import failed.';
+		}
+		importing = false;
+	}
+
+	async function clearDatabase() {
+		const confirmStr = prompt('Are you sure? Type DELETE to confirm clearing ALL data.');
+		if (confirmStr !== 'DELETE') return;
+		clearing = true;
+		message = '';
+		await supabase.from('videos').delete().neq('id', '');
+		await supabase.from('playlists').delete().neq('id', '');
+		await supabase.from('channels').delete().neq('id', '');
+		await refresh();
+		message = '✅ Database cleared.';
+		clearing = false;
+	}
+
+	async function deleteChannel(id) {
+		if (!confirm('Delete this channel and ALL its videos/playlists?')) return;
+		deleting = { ...deleting, [id]: true };
+		await supabase.from('videos').delete().eq('channel_id', id);
+		await supabase.from('playlists').delete().eq('channel_id', id);
+		await supabase.from('channels').delete().eq('id', id);
+		await refresh();
+		deleting = { ...deleting, [id]: false };
+	}
+
+	async function setChannelLevel(channelId, level) {
+		if (!level) return;
+		settingLevel = { ...settingLevel, [channelId]: true };
+		await supabase.from('videos').update({ level }).eq('channel_id', channelId);
+		message = `✅ All videos for this channel set to "${levels.find((l) => l.value === level)?.label}"`;
+		await refresh();
+		settingLevel = { ...settingLevel, [channelId]: false };
+	}
+
+	async function togglePlaylistsFor(channelId) {
+		if (showPlaylistsFor === channelId) {
+			showPlaylistsFor = null;
+			playlists = [];
+			return;
+		}
+		showPlaylistsFor = channelId;
+		playlistsLoading = true;
+		let { data, error } = await supabase.from('playlists').select('*').eq('channel_id', channelId);
+		if (!error) {
+			playlists = await Promise.all(
+				(data || []).map(async (pl) => {
+					const { data: vids } = await supabase.from('videos').select('level').eq('playlist_id', pl.id);
+					let currentLevel = '';
+					if (vids && vids.length > 0) {
+						const levelsArr = vids.map((v) => v.level || '');
+						const uniqueLevels = Array.from(new Set(levelsArr));
+						currentLevel = uniqueLevels.length === 1 ? (uniqueLevels[0] || '') : 'mixed';
+					}
+					const { count: videos_count } = await supabase.from('videos').select('id', { count: 'exact', head: true }).eq('playlist_id', pl.id);
+					return { ...pl, videos_count, _newLevel: '', currentLevel };
+				})
+			);
+		} else {
+			playlists = [];
+		}
+		playlistsLoading = false;
+	}
+
+	async function setPlaylistLevel(playlistId, level) {
+		if (!level) return;
+		settingPlaylistLevel = { ...settingPlaylistLevel, [playlistId]: true };
+		await supabase.from('videos').update({ level }).eq('playlist_id', playlistId);
+		message = `✅ All videos for this playlist set to "${levels.find((l) => l.value === level)?.label}"`;
+		playlists = playlists.map((pl) =>
+			pl.id === playlistId ? { ...pl, currentLevel: level, _newLevel: '' } : pl
+		);
+		settingPlaylistLevel = { ...settingPlaylistLevel, [playlistId]: false };
+	}
+
+	async function setChannelCountry(channelId, country) {
+		settingCountry = { ...settingCountry, [channelId]: true };
+		await supabase.from('channels').update({ country }).eq('id', channelId);
+		await supabase.from('videos').update({ country }).eq('channel_id', channelId);
+		message = '✅ Country updated';
+		await refresh();
+		settingCountry = { ...settingCountry, [channelId]: false };
+	}
+
+	async function refresh() {
+		refreshing = true;
+		try {
+			let { data, error } = await supabase.from('channels').select('*');
+			if (error) {
+				message = "Channels error: " + (error.message ?? error);
+				allChannels = [];
+				return;
+			}
+			allChannels = await Promise.all(
+				(data || []).map(async (chan) => {
+					const { data: vids } = await supabase.from('videos').select('level').eq('channel_id', chan.id);
+					let _mainLevel = '';
+					if (vids && vids.length > 0) {
+						const levelsArr = vids.map((v) => v.level || '');
+						const uniqueLevels = Array.from(new Set(levelsArr));
+						_mainLevel = uniqueLevels.length === 1 ? (uniqueLevels[0] || '') : 'mixed';
+					}
+					let _tags = [];
+					try {
+						_tags = await getTagsForChannel(chan.id);
+					} catch (e) { _tags = []; }
+					return {
+						...chan,
+						_country: chan.country || '',
+						_tags,
+						_newLevel: '',
+						_mainLevel
+					};
+				})
+			);
+			currentPage = 1;
+		} catch (e) {
+			message = "Refresh error: " + e.message;
+			allChannels = [];
+		} finally {
+			refreshing = false;
+		}
+	}
+</script>
+
+<div class="admin-main">
+	<h2 style="margin-bottom:1.1em;">Admin Tools</h2>
+	<!-- Import Bar -->
+	<div class="import-bar">
+		<span class="import-videos-title">ADD VIDEOS</span>
+		<input type="text" placeholder="Paste YouTube channel link or @handle…" bind:value={url} aria-label="YouTube Channel Link" class="import-input"
+			on:keydown={(e) => { if (e.key === 'Enter' && url && !importing) importChannel(); }} />
+		<button class="main-btn import-btn" on:click={importChannel} disabled={!url || importing} aria-label="Import Channel">
+			{importing ? 'Importing…' : 'Import Channel'}
+		</button>
+		<button class="main-btn import-btn" on:click={refresh} disabled={refreshing} aria-label="Refresh">
+			{refreshing ? 'Refreshing…' : '↻ Refresh'}
+		</button>
+		<button class="danger-btn import-btn" on:click={clearDatabase} disabled={clearing} aria-label="Clear Database">
+			{clearing ? 'Clearing…' : 'Clear Database'}
+		</button>
+	</div>
+	<!-- Bulk Upload CSV -->
+	<div class="import-bar" style="margin-top:1.2em;">
+		<span class="import-videos-title">BULK UPLOAD CSV</span>
+		<input type="file" accept=".csv" bind:this={csvInput} on:change={handleCsvFile} aria-label="Select CSV file" class="import-input"
+			style="min-width:unset;max-width:220px" />
+		<button class="main-btn import-btn" on:click={uploadCsv} disabled={!csvFile || bulkUploading} aria-label="Bulk Upload">
+			{bulkUploading ? 'Uploading…' : 'Upload CSV'}
+		</button>
+	</div>
+	<!-- Search & Pagination -->
+	<div class="import-bar" style="margin-top:1.2em; justify-content: space-between;">
+		<div style="display:flex; align-items:center; gap:1.2em;">
+			<span class="import-videos-title" style="color:#2562e9;">SEARCH CHANNELS</span>
+			<input type="text" class="import-input" placeholder="Type to search by name, country or tag…" value={search} on:input={onSearchInput}
+				style="max-width:330px;" aria-label="Search Channels" autocomplete="off" />
+		</div>
+		{#if totalPages > 1}
+			<div style="display:flex; align-items:center; gap:0.5em;">
+				<button class="main-btn small" on:click={() => goToPage(currentPage-1)} disabled={currentPage === 1}>&lt; Prev</button>
+				<span style="font-weight:600;">Page {currentPage} / {totalPages}</span>
+				<button class="main-btn small" on:click={() => goToPage(currentPage+1)} disabled={currentPage === totalPages}>Next &gt;</button>
+			</div>
+		{/if}
+	</div>
+	{#if message}
+		<div class="admin-message" style="margin:1em 0 1.2em 0;">{message}</div>
+	{/if}
+	<table class="admin-table">
+		<thead>
+			<tr>
+				<th>Channel</th>
+				<th>Country</th>
+				<th>Tags</th>
+				<th>Level</th>
+				<th>Playlists</th>
+				<th>Actions</th>
+			</tr>
+		</thead>
+		<tbody>
+			{#each filteredChannels as chan}
+				<tr>
+					<td><span style="font-weight:600;">{chan.name}</span></td>
+					<td>
+						<select bind:value={chan._country} aria-label="Select country">
+							<option value="">No Country</option>
+							{#each countryOptions as country}
+								<option value={country}>{country}</option>
+							{/each}
+						</select>
+						{#if chan.country !== chan._country}
+							<button class="main-btn small" on:click={() => setChannelCountry(chan.id, chan._country)} disabled={settingCountry[chan.id]}>
+								{settingCountry[chan.id] ? 'Saving…' : 'Save'}
+							</button>
+						{/if}
+					</td>
+					<td>
+						{#if chan._tags && chan._tags.length > 0}
+							<div class="channel-tags-list">
+								{#each chan._tags as tag}
+									<span class="tag-pill">{tag.name}</span>
+								{/each}
+							</div>
+						{:else}
+							<span style="color:#aaa;">No tags</span>
+						{/if}
+						<div>
+							<TagManager channelId={chan.id} currentTags={chan._tags} onTagChanged={refresh} />
+						</div>
+					</td>
+					<td>
+						<select bind:value={chan._newLevel} aria-label="Set channel level">
+							<option value="">
+								{chan._mainLevel === 'mixed'
+									? '-- Mixed --'
+									: levels.find((lvl) => lvl.value === chan._mainLevel)?.label
+										? '-- ' + levels.find((lvl) => lvl.value === chan._mainLevel)?.label + ' --'
+										: '-- Not Set --'}
+							</option>
+							{#each levels as lvl}
+								<option value={lvl.value}>{lvl.label}</option>
+							{/each}
+						</select>
+						<button class="main-btn small" on:click={() => setChannelLevel(chan.id, chan._newLevel)} disabled={!chan._newLevel || settingLevel[chan.id]}>
+							{settingLevel[chan.id] ? 'Setting…' : 'Set Level'}
+						</button>
+					</td>
+					<td>
+						<button
+							class="main-btn light"
+							on:click={() => togglePlaylistsFor(chan.id)}
+							aria-expanded={showPlaylistsFor === chan.id}
+							aria-label={showPlaylistsFor === chan.id ? 'Hide playlists' : 'Show playlists'}
+						>
+							{showPlaylistsFor === chan.id ? '▲ Hide Playlists' : '▼ Show Playlists'}
+						</button>
+					</td>
+					<td>
+						<button class="danger-btn small" on:click={() => deleteChannel(chan.id)} disabled={!!deleting[chan.id]}>
+								{deleting[chan.id] ? 'Deleting…' : 'Delete'}
+						</button>
+					</td>
+				</tr>
+				{#if showPlaylistsFor === chan.id}
+					<tr class="collapsible-row">
+						<td class="playlists-cell" colspan="6">
+							{#if playlistsLoading}
+								<div>Loading playlists…</div>
+							{:else if playlists.length === 0}
+								<div>No playlists found for this channel.</div>
+							{:else}
+								<table class="playlist-table">
+									<thead>
+										<tr>
+											<th>Playlist</th>
+											<th>Videos</th>
+											<th>Set Level</th>
+										</tr>
+									</thead>
+									<tbody>
+										{#each playlists as pl}
+											<tr>
+												<td>{pl.title}</td>
+												<td>{pl.videos_count}</td>
+												<td>
+													<select bind:value={pl._newLevel} aria-label="Set playlist level">
+														<option value="">
+															--
+															{pl.currentLevel === ''
+																? 'Not Set'
+																: pl.currentLevel === 'mixed'
+																	? 'Mixed'
+																	: levels.find((lvl) => lvl.value === pl.currentLevel)?.label ||
+																		pl.currentLevel}
+															--
+														</option>
+														{#each levels as lvl}
+															<option value={lvl.value}>{lvl.label}</option>
+														{/each}
+													</select>
+													<button class="main-btn small"
+														style="margin-left:0.6em"
+														on:click={() => setPlaylistLevel(pl.id, pl._newLevel)}
+														disabled={!pl._newLevel || settingPlaylistLevel[pl.id]}
+														aria-label="Set playlist level"
+													>{settingPlaylistLevel[pl.id] ? 'Setting…' : 'Set'}</button>
+												</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							{/if}
+						</td>
+					</tr>
+				{/if}
+			{/each}
+			{#if filteredChannels.length === 0}
+				<tr>
+					<td colspan="6" style="text-align:center;color:#999;">No channels found.</td>
+				</tr>
+			{/if}
+		</tbody>
+	</table>
+</div>
+
+<style>
+	.admin-main {
+		max-width: 1100px;
+		margin: 2.5rem auto 0 auto;
+		background: #fff;
+		border-radius: 13px;
+		border: 1px solid #ececec;
+		box-shadow: 0 2px 18px #ececec20;
+		padding: 2.1rem 1.5vw 1.6rem 1.5vw;
+		font-family: Inter, Arial, sans-serif;
+	}
+
+	.import-bar {
+		display: flex;
+		align-items: center;
+		gap: 1.2em;
+		background: #f8fafd;
+		padding: 1.05em 1em 1em 1em;
+		border-radius: 10px;
+		margin-bottom: 1.7em;
+		box-shadow: 0 2px 12px #eaf0fa30;
+	}
+	.import-videos-title {
+		font-size: 1.09em;
+		font-weight: 900;
+		color: #e93c2f;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		margin-right: 1em;
+		margin-bottom: 0;
+	}
+	.import-input {
+		min-width: 320px;
+		max-width: 440px;
+		font-size: 1.06em;
+		padding: 0.55em 1em;
+		border-radius: 8px;
+		border: 1.4px solid #e3e8ee;
+		background: #fff;
+		font-family: inherit;
+		transition: border 0.14s;
+	}
+	.import-input:focus {
+		border-color: #2562e9;
+		outline: none;
+	}
+	.import-btn {
+		font-size: 1em;
+		padding: 0.45em 1.4em;
+	}
+	.danger-btn.import-btn {
+		margin-left: 0.7em;
+	}
+
+	.admin-message { font-weight:500; color: #2562e9; }
+	.admin-table { width: 100%; margin: 1.5em 0 0 0; border-collapse: collapse; background: #fff; font-size: 1em;}
+	.admin-table th, .admin-table td { padding: 0.27em 0.4em; border-bottom: 1px solid #f2f2f2; text-align: left; vertical-align: middle; font-size: 0.98em;}
+	.admin-table th { color: #e93c2f; font-weight: 700; font-size: 1.04em; letter-spacing: 0.01em;}
+	.admin-table td { vertical-align: middle; font-size: 0.98em;}
+	.channel-tags-list { display: flex; flex-wrap: wrap; gap: 0.24em; margin-bottom: 3px;}
+	.tag-pill { background: #e9f6ff; color: #2562e9; padding: 0.13em 0.68em; border-radius: 8px; font-size: 0.95em; margin-bottom:2px; display:inline-flex; align-items:center;}
+	.collapsible-row .tags-cell, .collapsible-row .playlists-cell { padding: 0.5em 0.8em !important; background: #f6faff; font-size: 0.96em;}
+	.playlist-table { width: 100%; margin-top: 0.6em; background: none; font-size: 0.96em; border-collapse: collapse;}
+	.playlist-table th, .playlist-table td { padding: 0.19em 0.27em; border-bottom: 1px solid #f4f4fa; text-align: left;}
+	.main-btn, .danger-btn {
+		font-size: 1em;
+		font-weight: 600;
+		padding: 0.4em 1.2em;
+		border-radius: 9px;
+		border: none;
+		margin-left: 0.4em;
+		cursor: pointer;
+		transition: background 0.13s, color 0.13s, border 0.13s;
+	}
+	.main-btn { background: #f1f6fb; color: #244fa2; }
+	.main-btn:hover, .main-btn:focus { background: #dbeafe; color: #152449;}
+	.main-btn.light { background: #f7f7fa; color: #262626; font-weight: 500;}
+	.main-btn.light:hover { background: #edeffd;}
+	.main-btn.small { padding: 0.21em 0.7em; font-size: 0.96em; margin-left:0.2em; }
+	.danger-btn { background: #fbeaea; color: #be2231; }
+	.danger-btn:hover { background: #f9d7da; color: #b12c2c; }
+
+	@media (max-width: 900px) {
+		.admin-main { padding: 1em 0.4em 1em 0.4em;}
+		.admin-table th, .admin-table td { font-size: 0.93em; padding: 0.18em 0.21em;}
+		.channel-tags-list { gap: 0.18em; }
+		.tag-pill { font-size: 0.85em; }
+		.collapsible-cell, .playlists-cell, .tags-cell { padding: 0.32em 0.3em !important;}
+		.playlist-table th, .playlist-table td { font-size: 0.91em; padding: 0.13em 0.1em;}
+		.import-bar { flex-direction: column; gap: 1em; }
+	}
+	@media (max-width: 600px) {
+		.admin-table th, .admin-table td { font-size: 0.91em; padding: 0.11em 0.06em;}
+		.channel-tags-list { gap: 0.08em; }
+		.tag-pill { font-size: 0.75em; }
+		.collapsible-cell, .playlists-cell, .tags-cell { padding: 0.15em 0.06em !important;}
+	}
+</style>
+<script>
+  import { onMount } from 'svelte';
+  import { user, loadUser } from '$lib/stores/user.js';
+  import { supabase } from '$lib/supabaseClient.js';
+  import VideoCard from '$lib/components/VideoCard.svelte';
+  import * as utils from '$lib/utils.js';
+
+  let myVideos = [];
+  let watchedVideos = [];
+  let email = '';
+  let newEmail = '';
+  let newPassword = '';
+  let message = '';
+  let watchTime = 0;
+  let todayWatchTime = 0;
+  let activityDays = [];
+  let streak = 0;
+
+  function formatMinutes(seconds) {
+    if (!seconds) return '0 min';
+    const m = Math.round(seconds / 60);
+    return m > 0 ? `${m} min` : `${seconds} sec`;
+  }
+
+  function barColor(mins) {
+    if (mins >= 120) return '#e93c2f';
+    if (mins >= 60) return '#44c366';
+    if (mins >= 30) return '#f9c846';
+    if (mins >= 10) return '#f7ed85';
+    if (mins > 0) return '#b7f6ed';
+    return '#ececec';
+  }
+
+  // Fetch all user-dependent data when $user changes
+  $: if ($user) {
+    fetchAllUserData($user.id);
+  }
+
+  async function fetchAllUserData(userId) {
+    email = $user.email;
+    newEmail = email;
+
+    // Fetch user's videos
+    let { data: videos } = await supabase
+      .from('videos')
+      .select('*')
+      .eq('added_by', userId)
+      .order('created', { ascending: false });
+    myVideos = videos || [];
+
+    // --- Total watch time ---
+    let { data: allSessions } = await supabase
+      .from('watch_sessions')
+      .select('seconds')
+      .eq('user_id', userId);
+    watchTime = (allSessions ?? []).reduce((acc, s) => acc + (s.seconds || 0), 0);
+
+    // --- Today's watch time ---
+    const today = new Date().toISOString().slice(0, 10);
+    let { data: todaySessions } = await supabase
+      .from('watch_sessions')
+      .select('seconds')
+      .eq('user_id', userId)
+      .eq('date', today);
+    todayWatchTime = (todaySessions ?? []).reduce((acc, s) => acc + (s.seconds || 0), 0);
+
+    // --- Recent activity and streak ---
+    await fetchRecentActivity(userId);
+
+    // --- Watched videos (recent, ordered) ---
+    let { data: watchedSessions } = await supabase
+      .from('watch_sessions')
+      .select('video_id, date')
+      .eq('user_id', userId);
+
+    const videoMap = {};
+    for (const ws of watchedSessions ?? []) {
+      if (ws.video_id && ws.date) {
+        if (!videoMap[ws.video_id] || ws.date > videoMap[ws.video_id]) {
+          videoMap[ws.video_id] = ws.date;
+        }
+      }
+    }
+    const videoIds = Object.keys(videoMap);
+
+    if (videoIds.length) {
+      let { data: vids } = await supabase.from('videos').select('*').in('id', videoIds);
+      watchedVideos = (vids || [])
+        .map((v) => ({
+          ...v,
+          lastWatched: videoMap[v.id]
+        }))
+        .sort((a, b) => (b.lastWatched || '').localeCompare(a.lastWatched || ''));
+    } else {
+      watchedVideos = [];
+    }
+  }
+
+  // Activity/streak calendar
+  async function fetchRecentActivity(userId) {
+    const today = new Date();
+    const dates = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      dates.push(d.toISOString().slice(0, 10));
+    }
+    const fromDate = dates[0];
+    const toDate = dates[dates.length - 1];
+    let { data: sessions } = await supabase
+      .from('watch_sessions')
+      .select('date,seconds')
+      .eq('user_id', userId)
+      .gte('date', fromDate)
+      .lte('date', toDate);
+
+    const map = {};
+    (sessions || []).forEach((s) => {
+      map[s.date] = (map[s.date] || 0) + (s.seconds || 0);
+    });
+    activityDays = dates.map((date) => ({
+      date,
+      mins: Math.round((map[date] || 0) / 60)
+    }));
+
+    streak = 0;
+    for (let i = activityDays.length - 1; i >= 0; i--) {
+      if (activityDays[i].mins > 0) streak++;
+      else break;
+    }
+  }
+
+  // Account settings
+  async function updateEmail() {
+    message = '';
+    if (!newEmail || newEmail === email) {
+      message = 'No change.';
+      return;
+    }
+    const { error } = await supabase.auth.updateUser({ email: newEmail });
+    if (error) {
+      message = error.message;
+    } else {
+      message = 'Email updated! Please check your inbox to confirm.';
+      email = newEmail;
+    }
+  }
+
+  async function updatePassword() {
+    message = '';
+    if (!newPassword) {
+      message = 'Password cannot be empty.';
+      return;
+    }
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      message = error.message;
+    } else {
+      message = 'Password updated!';
+      newPassword = '';
+    }
+  }
+
+  // Make sure we call loadUser() once on mount for SSR hydration (it’s idempotent)
+  onMount(() => {
+    loadUser();
+  });
+</script>
+
+{#if !$user}
+	<div class="profile-main" style="text-align:center;">
+		<div style="margin:2em 0;">
+			Not logged in.<br /><a href="/login" class="video-link">Login here</a>
+		</div>
+	</div>
+{:else}
+	<div class="profile-main">
+		<div class="section-title">Progress</div>
+
+		<!-- STATS BOXES -->
+		<div class="stats-boxes-row">
+			<div class="stat-box">
+				<div class="stat-label">Total Watch Time</div>
+				<div class="stat-value">{formatMinutes(watchTime)}</div>
+			</div>
+			<div class="stat-box">
+				<div class="stat-label">Today's Watch Time</div>
+				<div class="stat-value">{formatMinutes(todayWatchTime)}</div>
+			</div>
+			<div class="stat-box">
+				<div class="stat-label">Streak</div>
+				<div class="stat-value">
+					<span style="font-size:2em;">🔥</span>
+					{streak} day{streak === 1 ? '' : 's'}
+				</div>
+			</div>
+		</div>
+
+		<!-- HISTORY SECTION -->
+		<div class="history-section">
+			<div class="history-header">
+				<span class="section-title" style="margin:0;">History</span>
+				<a href="/history" class="view-all-link">View all</a>
+			</div>
+			{#if watchedVideos.length === 0}
+				<div>No videos watched yet.</div>
+			{:else}
+				<div class="history-row">
+					{#each watchedVideos.slice(0, 15) as v}
+						<div class="history-card">
+							<VideoCard
+								video={v}
+								getBestThumbnail={utils.getBestThumbnail}
+								difficultyColor={utils.difficultyColor}
+								difficultyLabel={utils.difficultyLabel}
+								formatLength={utils.formatLength}
+								filterByChannel={null}
+								filterByPlaylist={null}
+							/>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+
+		<!-- MY VIDEOS SECTION -->
+		<div class="my-videos-section">
+			<div class="my-videos-header">
+				<span class="section-title" style="margin:0;">My Videos</span>
+				<a href="/my-videos" class="view-all-link">View all</a>
+			</div>
+			{#if myVideos.length === 0}
+				<div>You haven’t added any videos yet.</div>
+			{:else}
+				<div class="history-row">
+					{#each myVideos.slice(0, 15) as v}
+						<div class="history-card">
+							<VideoCard
+								video={v}
+								getBestThumbnail={utils.getBestThumbnail}
+								difficultyColor={utils.difficultyColor}
+								difficultyLabel={utils.difficultyLabel}
+								formatLength={utils.formatLength}
+								filterByChannel={null}
+								filterByPlaylist={null}
+							/>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+
+		<div class="section-title">Account</div>
+		<div class="profile-row"><b>Email:</b> {email}</div>
+		<div>
+			<input type="email" bind:value={newEmail} placeholder="New email" autocomplete="email" />
+			<button on:click={updateEmail}>Change Email</button>
+		</div>
+		<div>
+			<input
+				type="password"
+				bind:value={newPassword}
+				placeholder="New password"
+				autocomplete="new-password"
+			/>
+			<button on:click={updatePassword}>Change Password</button>
+		</div>
+		<div class="message">{message}</div>
+	</div>
+{/if}
+
+<style>
+	.profile-main {
+		max-width: 1200px;
+		margin: 2.2rem auto 0 auto;
+		padding: 2rem 3vw 2.3rem 3vw;
+		background: #fff;
+		border-radius: 14px;
+		border: 1px solid #ececec;
+		box-shadow: 0 2px 12px #ececec;
+	}
+	.section-title {
+		color: #181818;
+		font-size: 1.25rem;
+		font-weight: bold;
+		margin: 1.7em 0 1em 0;
+		letter-spacing: 0.3px;
+	}
+	/* Chunkier stats boxes */
+	.stats-boxes-row {
+		display: flex;
+		gap: 2.6em;
+		margin: 2.4em 0 2.5em 0;
+		flex-wrap: wrap;
+		align-items: stretch;
+	}
+	.stat-box {
+		background: #fafafa;
+		border-radius: 18px;
+		box-shadow: 0 2px 18px #ececec;
+		padding: 2em 3em 2em 3em;
+		min-width: 200px;
+		min-height: 108px;
+		flex: 1 1 210px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 0.8em;
+	}
+	.stat-label {
+		color: #aaa;
+		font-size: 1.19em;
+		font-weight: 600;
+		letter-spacing: 0.07em;
+		margin-bottom: 0.6em;
+	}
+	.stat-value {
+		font-size: 2.2em;
+		color: #222;
+		font-weight: 800;
+		letter-spacing: 0.02em;
+		display: flex;
+		align-items: center;
+		gap: 0.3em;
+	}
+	.calendar-box {
+		min-width: 270px;
+		padding: 1.5em 1.6em 1.2em 1.6em;
+		justify-content: start;
+		align-items: stretch;
+	}
+	.mini-calendar {
+		display: flex;
+		gap: 5px;
+		margin-bottom: 0.32em;
+		margin-top: 0.5em;
+		min-height: 19px;
+		justify-content: center;
+	}
+	.calendar-day {
+		width: 18px;
+		height: 28px;
+		border-radius: 7px;
+		background: #ececec;
+		outline: none;
+		box-shadow: 0 0 0 1px #e6e6e6;
+		transition: background 0.16s;
+	}
+	.calendar-today {
+		outline: 2.5px solid #2562e9;
+	}
+	.calendar-labels {
+		display: flex;
+		gap: 5px;
+		font-size: 0.97em;
+		color: #bbb;
+		justify-content: center;
+	}
+	.calendar-labels > div {
+		width: 18px;
+		text-align: center;
+	}
+	@media (max-width: 960px) {
+		.stats-boxes-row {
+			flex-direction: column;
+			gap: 1.8em;
+		}
+		.stat-box {
+			min-width: unset;
+			width: 100%;
+		}
+		.calendar-box {
+			min-width: unset;
+		}
+	}
+	/* History/my videos grid: match front page grid */
+	.history-section {
+		margin-top: 2.4em;
+	}
+	.history-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 1.2em;
+	}
+	.view-all-link {
+		font-size: 1em;
+		color: #2562e9;
+		text-decoration: none;
+		font-weight: 500;
+	}
+	.history-row {
+		display: flex;
+		gap: 1.5em;
+		overflow-x: auto;
+		padding-bottom: 0.7em;
+		scroll-snap-type: x mandatory;
+		-webkit-overflow-scrolling: touch;
+	}
+	.history-row::-webkit-scrollbar {
+		height: 9px;
+		background: #f6f6f6;
+	}
+	.history-row::-webkit-scrollbar-thumb {
+		background: #e5e5e5;
+		border-radius: 6px;
+	}
+	.history-card {
+		flex: 0 0 265px; /* Adjust width for card size */
+		scroll-snap-align: start;
+		min-width: 265px;
+		max-width: 320px;
+	}
+	.my-videos-section {
+		margin-top: 2.6em;
+	}
+	.my-videos-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 1.2em;
+	}
+	@media (max-width: 600px) {
+		.history-card {
+			flex-basis: 82vw;
+			min-width: 82vw;
+			max-width: 90vw;
+		}
+		.history-row {
+			gap: 1em;
+		}
+	}
+	.profile-row {
+		margin-bottom: 1.3em;
+	}
+	input[type='email'],
+	input[type='password'] {
+		width: 100%;
+		padding: 0.7em 1em;
+		font-size: 1.07rem;
+		border: 1px solid #ececec;
+		border-radius: 8px;
+		background: #fafafa;
+		margin-bottom: 0.9em;
+		color: #181818;
+	}
+	button {
+		padding: 0.6em 1.7em;
+		font-size: 1.04rem;
+		background: #e93c2f;
+		color: #fff;
+		border: none;
+		border-radius: 8px;
+		cursor: pointer;
+		font-weight: 600;
+		margin-right: 1em;
+		margin-bottom: 0.5em;
+		transition: background 0.18s;
+	}
+	button:hover {
+		background: #b8271b;
+	}
+	.message {
+		color: #26890d;
+		margin-bottom: 1em;
+		min-height: 1.5em;
+	}
+</style>
+<script>
+  import { signup, authError } from '$lib/stores/user.js';
+  import { goto } from '$app/navigation';
+
+  let email = '';
+  let password = '';
+  let message = '';
+
+  async function handleSignup() {
+    const { error } = await signup(email, password);
+    if (!error) {
+      message = 'Signup successful! Check your email to confirm.';
+      setTimeout(() => goto('/login'), 1200);
+    } else {
+      message = $authError;
+    }
+  }
+</script>
+
+<style>
+.auth-container {
+  max-width: 430px;
+  margin: 3rem auto;
+  background: #fff;
+  border-radius: 13px;
+  border: 1px solid #ececec;
+  box-shadow: 0 2px 12px #ececec;
+  padding: 2.1rem 2rem 1.4rem 2rem;
+  text-align: center;
+}
+input[type="email"],
+input[type="password"] {
+  width: 100%;
+  padding: 0.8em 1em;
+  margin-bottom: 1em;
+  border: 1px solid #ececec;
+  border-radius: 8px;
+  background: #fafafa;
+  font-size: 1.06rem;
+  color: #181818;
+}
+button {
+  width: 100%;
+  padding: 0.7em 0;
+  font-size: 1.09rem;
+  font-weight: 600;
+  background: #e93c2f;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  margin-top: 0.3em;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+button:hover { background: #b8271b; }
+.message {
+  margin-top: 1em;
+  color: #0b9203;
+  font-size: 1.04rem;
+  min-height: 1.5em;
+}
+</style>
+
+<div class="auth-container">
+  <h2>Sign Up</h2>
+  <input type="email" bind:value={email} placeholder="Email" autocomplete="email" />
+  <input type="password" bind:value={password} placeholder="Password" autocomplete="new-password" />
+  <button on:click={handleSignup}>Sign Up</button>
+  <div class="message">{message}</div>
+  <div style="margin-top:1em; color:#888;">
+    Already have an account?
+    <a href="/login" style="color:#e93c2f;">Log In</a>
+  </div>
+</div>
+<script>
+  import { onMount } from 'svelte';
+  import { loadUser, user } from '$lib/stores/user.js';
+  import { loadWatchedVideos } from '$lib/stores/videos.js';
+  import NavBar from '$lib/components/NavBar.svelte';
+
+  onMount(() => {
+    loadUser();
+  });
+
+  // Reactively load watchedIds when user changes (login/logout)
+  $: if ($user) {
+    loadWatchedVideos();
+  }
+</script>
+
+<NavBar />
+<slot />
+<script>
+  import { login, authError } from '$lib/stores/user.js';
+  import { goto } from '$app/navigation';
+
+  let email = '';
+  let password = '';
+  let message = '';
+
+  async function handleLogin() {
+    await login(email, password);
+    if (!$authError) {
+      message = 'Login successful! Redirecting…';
+      setTimeout(() => goto('/progress'), 1200);
+    } else {
+      message = $authError;
+    }
+  }
+</script>
+
+<style>
+.auth-container {
+  max-width: 430px;
+  margin: 3rem auto;
+  background: #fff;
+  border-radius: 13px;
+  border: 1px solid #ececec;
+  box-shadow: 0 2px 12px #ececec;
+  padding: 2.1rem 2rem 1.4rem 2rem;
+  text-align: center;
+}
+input[type="email"],
+input[type="password"] {
+  width: 100%;
+  padding: 0.8em 1em;
+  margin-bottom: 1em;
+  border: 1px solid #ececec;
+  border-radius: 8px;
+  background: #fafafa;
+  font-size: 1.06rem;
+  color: #181818;
+}
+button {
+  width: 100%;
+  padding: 0.7em 0;
+  font-size: 1.09rem;
+  font-weight: 600;
+  background: #e93c2f;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  margin-top: 0.3em;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+button:hover { background: #b8271b; }
+.message {
+  margin-top: 1em;
+  color: #0b9203;
+  font-size: 1.04rem;
+  min-height: 1.5em;
+}
+</style>
+
+<div class="auth-container">
+  <h2>Log In</h2>
+  <input type="email" bind:value={email} placeholder="Email" autocomplete="email" />
+  <input type="password" bind:value={password} placeholder="Password" autocomplete="current-password" />
+  <button on:click={handleLogin}>Log In</button>
+  <div class="message">{message}</div>
+  <div style="margin-top:1em; color:#888;">
+    Don't have an account?
+    <a href="/signup" style="color:#e93c2f;">Sign Up</a>
+  </div>
+</div>
+<script>
+  import { onMount } from 'svelte';
+  import { supabase } from '$lib/supabaseClient';
+  import { page } from '$app/stores';
+  import { user } from '$lib/stores/user.js';
+  import { watchedIds } from '$lib/stores/videos.js';
+  import VideoWatchTracker from '$lib/components/VideoWatchTracker.svelte';
+  import SideBar from '$lib/components/SideBar.svelte';
+  import * as utils from '$lib/utils.js';
+
+  let video = null;
+  let loading = true;
+  $: id = $page.params.id;
+
+  onMount(async () => {
+    loading = true;
+    const { data: vid } = await supabase
+      .from('videos')
+      .select('*, playlist:playlist_id(title), channel:channel_id(name,country,tags)')
+      .eq('id', id)
+      .maybeSingle();
+    video = vid;
+    loading = false;
+  });
+
+  // If you want instant update after marking watched, do:
+  function markWatchedLocally() {
+    if (video?.id) {
+      watchedIds.update(ids => {
+        const next = new Set(ids);
+        next.add(video.id);
+        return next;
+      });
+    }
+  }
+</script>
+
+{#if loading}
+  <div class="player-loading">Loading…</div>
+{:else if !video}
+  <div class="player-loading">Video not found.</div>
+{:else}
+  <div class="player-container">
+    <div class="player-main-col">
+      <div class="player-video-box">
+        <iframe
+          id="yt-player"
+          width="100%"
+          height="100%"
+          src={`https://www.youtube.com/embed/${video.id}?enablejsapi=1`}
+          title={video.title}
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen
+        ></iframe>
+        {#if $user}
+          <!--
+            Pass markWatchedLocally as a callback to your VideoWatchTracker so it can update watchedIds instantly.
+            Or, call markWatchedLocally() manually when you save a watch event.
+          -->
+          <VideoWatchTracker videoId={video.id} videoDuration={video.length} userId={$user.id} on:watched={markWatchedLocally} />
+        {/if}
+      </div>
+      <div class="player-title">{video.title}</div>
+      <div class="player-meta-row">
+        <span
+          class="player-diff-badge"
+          style="background: {utils.difficultyColor(video.level)};"
+        >{utils.difficultyLabel(video.level)}</span>
+        <span class="player-channel">{video.channel?.name ?? video.channel_name}</span>
+        {#if video.length}
+          <span class="player-duration">{utils.formatLength(video.length)}</span>
+        {/if}
+      </div>
+    </div>
+    <aside class="player-sidebar">
+      <SideBar {video} />
+    </aside>
+  </div>
+{/if}
+
+<style>
+.player-container {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 2.5rem;
+  max-width: 1550px;
+  margin: 0 auto;
+  height: 100vh;
+  min-height: 100vh;
+}
+.player-main-col {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 2.3rem 0 1.2rem 0;
+}
+.player-video-box {
+  width: 100%;
+  aspect-ratio: 16/9;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 2px 16px #ececec60;
+  border: 1.7px solid #ededed;
+  overflow: hidden;
+  margin-bottom: 0.4rem;
+  position: relative;
+}
+.player-title {
+  font-size: 1.38rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  max-width: 98vw;
+  margin-bottom: 0.25rem;
+  line-height: 1.21;
+  overflow-wrap: anywhere;
+}
+.player-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 1.0em;
+  font-size: 1.04em;
+  color: #888;
+}
+.player-diff-badge {
+  font-size: 1em;
+  font-weight: 700;
+  padding: 0.19em 1em;
+  border-radius: 13px;
+  color: #fff;
+  display: inline-block;
+  border: none;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px #e0e0e0;
+}
+.player-channel {
+  font-size: 1.01em;
+  color: #3c68ad;
+  font-weight: 500;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.player-duration {
+  font-size: 0.99em;
+  color: #adadad;
+  margin-left: auto;
+}
+.player-sidebar {
+  display: flex;
+  flex-direction: column;
+  overflow-x: visible;
+  box-sizing: border-box;
+  padding: 1.7rem 2px 1.3rem 2px;
+}
+.player-loading {
+  text-align: center;
+  margin-top: 3rem;
+  color: #aaa;
+  font-size: 1.1rem;
+}
+</style>
+// place files you want to import through the `$lib` alias in this folder.
+<script>
+  import { user, logout } from '$lib/stores/user.js';
+</script>
+
+<style>
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  padding: 0.8em 2vw;
+  border-bottom: 1px solid #ececec;
+}
+.logo-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65em;
+  text-decoration: none;
+}
+.logo-img {
+  height: 3.7em;
+  width: auto;
+  vertical-align: middle;
+}
+.logo-title {
+  font-size: 1.37em;
+  font-weight: bold;
+  letter-spacing: 1px;
+  color: #181818;
+}
+.nav-links {
+  display: flex;
+  gap: 1.6em;
+}
+.nav-link,
+.logout-btn {
+  color: #181818;
+  font-size: 1.08em;
+  font-weight: 600;
+  padding: 0.2em 0.6em;
+  border-radius: 7px;
+  text-decoration: none;
+  transition: background 0.18s, color 0.18s;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.nav-link:hover,
+.logout-btn:hover {
+  background: #f7f7f7;
+  color: #e93c2f;
+}
+.logout-btn {
+  font-family: inherit;
+}
+</style>
+
+
+<nav class="header">
+  <a href="/" class="logo-row">
+    <img src="/logo.png" alt="CIBUBBLE logo" class="logo-img" />
+  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="/">Home</a>
+    <a class="nav-link" href="/admin">ADMIN</a>
+    {#if $user}
+      <a class="nav-link" href="/progress">Progress</a>
+      <button class="logout-btn" on:click={logout}>Logout</button>
+    {:else}
+      <a class="nav-link" href="/signup">Sign Up</a>
+      <a class="nav-link" href="/login">Login</a>
+    {/if}
+  </div>
+</nav>
+<!-- src/lib/components/FilterChip.svelte -->
+<script>
+  export let type = 'info';     // e.g. 'info', 'warning', 'success'
+  export let label = '';
+  export let value = '';
+  export let onClear = () => {};
+  export let clearClass = '';
+</script>
+
+<div class="chip {type}">
+  <span>
+    <b>{label}:</b> {value}
+  </span>
+  <button class="clear-btn {clearClass}" on:click={onClear}>✕ Clear</button>
+</div>
+
+<style>
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7em;
+    background: #f6faff;
+    color: #2652a2;
+    border-radius: 8px;
+    padding: 0.32em 1.1em 0.32em 0.9em;
+    margin: 0.4em 0 0 0;
+    font-size: 1.04em;
+    font-weight: 500;
+    border: 1.3px solid #e3e9fa;
+  }
+  .chip.info    { background: #e9f6ff; color: #1b4c8a; }
+  .chip.warning { background: #fef6ed; color: #e2791b; }
+  .chip.success { background: #eafbea; color: #25722c; }
+  .chip.error   { background: #ffeaea; color: #b13b1c; }
+
+  .clear-btn {
+    margin-left: 1.1em;
+    background: none;
+    border: none;
+    color: #4068f3;
+    font-size: 1em;
+    cursor: pointer;
+    padding: 0.2em 0.5em;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: background 0.15s;
+  }
+  .clear-btn:hover { background: #f4f7ff; }
+  .clear-btn.clear-btn--blue { color: #2562e9; }
+  .clear-btn.clear-btn--purple { color: #ad30c9; }
+</style>
+<script>
+  import { onMount } from 'svelte';
+  import { supabase } from '$lib/supabaseClient';
+  import * as utils from '$lib/utils.js';
+
+  export let video;
+
+  let suggestions = [];
+  let loading = true;
+  let autoplay = true;
+  let skipWatched = false;
+
+  function shuffle(arr) {
+    return arr
+      .map(v => [Math.random(), v])
+      .sort(([a], [b]) => a - b)
+      .map(([, v]) => v);
+  }
+  function isWatched(v) {
+    return v.is_watched || false;
+  }
+
+  $: if (video) fetchSuggestions();
+
+  async function fetchSuggestions() {
+    loading = true;
+    suggestions = [];
+
+    if (video.playlist_id) {
+      const { data: playlistVids } = await supabase
+        .from('videos')
+        .select('*, playlist:playlist_id(title)')
+        .eq('playlist_id', video.playlist_id)
+        .neq('id', video.id)
+        .order('playlist_position', { ascending: true })
+        .limit(20);
+      suggestions = playlistVids || [];
+    } else {
+      const { data: sameChannel } = await supabase
+        .from('videos')
+        .select('*')
+        .eq('channel_id', video.channel_id)
+        .neq('id', video.id)
+        .limit(20);
+
+      const { data: otherChannels } = await supabase
+        .from('videos')
+        .select('*')
+        .neq('channel_id', video.channel_id)
+        .limit(40);
+
+      let channelVids = shuffle(sameChannel || []).slice(0, 4);
+      let otherVids = shuffle(otherChannels || []).slice(0, 4);
+      suggestions = [...channelVids, ...otherVids];
+    }
+    loading = false;
+  }
+</script>
+
+<div class="sidebar-root">
+  <div class="sidebar-header">
+    <span class="sidebar-title">
+      {video.playlist_id ? "More from this playlist" : "More videos like this"}
+    </span>
+    <div class="sidebar-toggles">
+      <label class="toggle">
+        <input type="checkbox" bind:checked={autoplay} />
+        <span class="toggle-label">Autoplay</span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" bind:checked={skipWatched} />
+        <span class="toggle-label">Skip watched</span>
+      </label>
+    </div>
+  </div>
+  {#if loading}
+    <div class="sidebar-loading">Loading…</div>
+  {:else if suggestions.length === 0}
+    <div class="sidebar-loading">No suggestions found.</div>
+  {:else}
+    <div class="sidebar-card-list">
+      {#each suggestions as v, i (v.id)}
+        {#if !skipWatched || !isWatched(v)}
+          <a class="sidebar-card" href={`/video/${v.id}`} title={v.title}>
+            <span class="thumb-wrapper">
+              <img
+                class="thumb"
+                src={utils.getBestThumbnail(v)}
+                alt={v.title}
+                loading="lazy"
+                on:error={(e) => e.target.src = '/images/no_thumb_nail.png'}
+              />
+              {#if v.length}
+                <span class="length-inline">{utils.formatLength(v.length)}</span>
+              {/if}
+            </span>
+            <div class="card-content">
+              <div class="sidebar-title-row">
+                <span class="sidebar-card-title">{v.title}</span>
+              </div>
+              <div class="sidebar-card-meta">
+                <span class="badge" style="background:{utils.difficultyColor(v.level)};">
+                  {utils.difficultyLabel(v.level)}
+                </span>
+              </div>
+            </div>
+          </a>
+        {/if}
+      {/each}
+    </div>
+  {/if}
+</div>
+
+<style>
+.sidebar-root {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1em;
+}
+.sidebar-header {
+  font-size: 1.08em;
+  font-weight: 700;
+  color: var(--text-secondary, #666);
+  margin-bottom: 0.2em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+}
+.sidebar-title {
+  font-weight: 800;
+  font-size: 1.1em;
+  color: var(--text-main, #232323);
+}
+.sidebar-toggles {
+  display: flex;
+  flex-direction: row;
+  gap: 1em;
+  margin-top: 0.1em;
+}
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.28em;
+  font-size: 0.97em;
+  border-radius: 13px;
+  background: #f8f8f8;
+  padding: 0.15em 0.5em 0.15em 0.3em;
+  box-shadow: 0 0.5px 2px #eee;
+  user-select: none;
+}
+.toggle input[type="checkbox"] {
+  accent-color: #e93c2f;
+  width: 1.08em;
+  height: 1.08em;
+}
+.toggle-label {
+  color: #444;
+  font-size: 0.98em;
+}
+
+/* List styling for sidebar cards */
+.sidebar-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+  margin: 0.2em 0 0 0;
+}
+
+.sidebar-card {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px #e8e8e8;
+  border: 1px solid #ededed;
+  transition: background 0.13s, box-shadow 0.10s, transform 0.09s;
+  text-decoration: none;
+  min-height: 110px;
+  padding: 0.18em 1em 0.18em 0.2em;
+  gap: 1.1em;
+  outline: none;
+}
+
+.sidebar-card:hover,
+.sidebar-card:focus {
+  background: #f7f5fa;
+  box-shadow: 0 3px 16px #e93c2f11;
+  transform: translateY(-1px) scale(1.013);
+}
+
+.thumb-wrapper {
+  position: relative;
+  width: 148px;
+  min-width: 148px;
+  max-width: 148px;
+  aspect-ratio: 16/9;
+  border-radius: 7px;
+  overflow: hidden;
+  background: #ededed;
+  box-shadow: 0 1px 8px #0001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 7px;
+  display: block;
+  background: #ededed;
+  min-height: 84px;
+}
+
+.length-inline {
+  position: absolute;
+  right: 0.55em;
+  bottom: 0.55em;
+  color: #fff;
+  background: #222c;
+  font-size: 0.97em;
+  padding: 0.14em 0.66em;
+  border-radius: 6px;
+  font-weight: 500;
+  opacity: 0.96;
+  box-shadow: 0 1px 4px #0002;
+  z-index: 9;
+  pointer-events: none;
+  max-width: 85%;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.card-content {
+  padding: 0.1em 0 0 0;
+  color: #222;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.sidebar-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 0.13em;
+}
+.sidebar-card-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  max-height: 2.5em;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  flex: 1;
+  line-height: 1.2;
+}
+.sidebar-card-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  margin-top: 0.36em;
+  font-size: 1em;
+}
+.badge {
+  display: inline-block;
+  font-size: 0.89em;
+  font-weight: 600;
+  padding: 0.17em 0.7em;
+  border-radius: 4px;
+  color: #fff;
+  background: #bbb;
+  letter-spacing: 0.01em;
+  border: 1.5px solid transparent;
+  text-shadow: 0 1px 4px #0001;
+  white-space: nowrap;
+}
+.sidebar-loading {
+  color: #aaa;
+  text-align: center;
+  margin: 1.1em 0;
+  font-size: 1em;
+}
+
+/* Responsive: smaller thumbs/cards for narrow sidebars */
+@media (max-width: 800px) {
+  .thumb-wrapper, .thumb { width: 95px; min-width: 95px; min-height: 56px;}
+  .sidebar-card { min-height: 56px; }
+  .sidebar-card-title { font-size: 0.97em; }
+}
+</style>
+<script>
+  import { onMount } from 'svelte';
+  import { getAllTags, addTagToChannel } from '$lib/api/tags.js';
+
+  export let channelId; // Pass the channel ID as a prop
+  export let currentTags = []; // Optional: array of tags already linked to this channel
+  export let onTagAdded = null; // Optional: callback to refresh parent
+
+  let allTags = [];
+  let tagInput = '';
+  let suggestions = [];
+
+  onMount(async () => {
+    allTags = await getAllTags();
+  });
+
+  $: suggestions = tagInput.length
+    ? allTags.filter(t =>
+        t.name.toLowerCase().includes(tagInput.toLowerCase()) &&
+        !currentTags.some(ct => ct.name === t.name)
+      )
+    : [];
+
+  async function handleAddTag() {
+    let tagName = tagInput.trim();
+    if (!tagName) return;
+    await addTagToChannel(channelId, tagName);
+    tagInput = '';
+    allTags = await getAllTags();
+    if (onTagAdded) onTagAdded(); // Parent can refresh channel tags if desired
+  }
+</script>
+
+<div class="tag-manager">
+  <input
+    type="text"
+    placeholder="Add tag…"
+    bind:value={tagInput}
+    on:keydown={(e) => e.key === 'Enter' && handleAddTag()}
+    list="tag-suggestions"
+    autocomplete="off"
+  />
+  <button on:click={handleAddTag}>Add</button>
+  {#if suggestions.length > 0}
+    <ul class="suggestions">
+      {#each suggestions as tag}
+        <li on:click={() => { tagInput = tag.name; handleAddTag(); }}>{tag.name}</li>
+      {/each}
+    </ul>
+  {/if}
+</div>
+
+<style>
+.tag-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+  max-width: 240px;
+}
+input[type="text"] {
+  font-size: 1em;
+  padding: 0.35em 0.7em;
+  border-radius: 6px;
+  border: 1.2px solid #ececec;
+  background: #fafaff;
+}
+button {
+  margin-top: 0.3em;
+  font-size: 0.97em;
+  border-radius: 6px;
+  background: #f5f8fc;
+  border: 1px solid #eee;
+  cursor: pointer;
+  padding: 0.25em 1.1em;
+}
+ul.suggestions {
+  margin: 0.2em 0 0 0;
+  padding: 0.2em 0.2em 0.2em 0.6em;
+  background: #fff;
+  border: 1px solid #ececec;
+  border-radius: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+  box-shadow: 0 2px 12px #eee;
+  list-style: none;
+}
+ul.suggestions li {
+  cursor: pointer;
+  padding: 0.18em 0;
+}
+ul.suggestions li:hover {
+  color: #e93c2f;
+  font-weight: bold;
+}
+</style>
+<!-- src/lib/components/ErrorMessage.svelte -->
+<script>
+  export let message = '';
+</script>
+
+{#if message}
+  <div class="error-message" role="alert">
+    <span class="icon">⚠️</span>
+    <span>{message}</span>
+  </div>
+{/if}
+
+<style>
+.error-message {
+  color: #c0392b;
+  background: #ffeaea;
+  border: 1.4px solid #fca5a5;
+  border-radius: 10px;
+  padding: 1.1em 1.4em;
+  margin: 2em 0 0.9em 0;
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  font-size: 1.12em;
+  font-weight: 500;
+  box-shadow: 0 2px 8px #fca5a530;
+}
+.icon {
+  font-size: 1.5em;
+  margin-right: 0.5em;
+}
+</style>
+<script>
+  export let video;
+  export let getBestThumbnail;
+  export let difficultyColor;
+  export let difficultyLabel;
+  export let formatLength;
+  export let filterByChannel;
+  export let filterByPlaylist;
+
+  import { ListMusic } from 'lucide-svelte';
+
+  // Generate a link preserving all existing filters but updating channel
+  function makeChannelUrl(channelId) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('channel', channelId);
+    return `/?${params.toString()}`;
+  }
+
+  // Generate a link preserving all existing filters but updating playlist
+  function makePlaylistUrl(playlistId) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('playlist', playlistId);
+    return `/?${params.toString()}`;
+  }
+</script>
+
+<div class="card">
+  <a href={`/video/${video.id}`}>
+    <span class="thumb-wrapper">
+      <img
+        class="thumb"
+        src={getBestThumbnail(video)}
+        alt={video.title}
+        loading="lazy"
+        on:error={(e) => e.target.src = '/images/no_thumb_nail.png'}
+      />
+      {#if video.length}
+        <span class="length-inline">{formatLength(video.length)}</span>
+      {/if}
+    </span>
+  </a>
+  <div class="card-body">
+    <div class="card-title-row">
+      <span class="card-title">{video.title}</span>
+    </div>
+    <div class="card-meta">
+      <span class="badge" style="background:{difficultyColor(video.level)};">
+        {difficultyLabel(video.level)}
+      </span>
+
+      {#if video.channel_id && (video.channel?.name || video.channel_name)}
+        <a
+          class="meta-link"
+          style="color:#2e9be6;cursor:pointer;"
+          title="Show all videos from this channel"
+          href={makeChannelUrl(video.channel_id)}
+        >
+          {video.channel?.name ?? video.channel_name}
+        </a>
+      {/if}
+
+      {#if video.playlist_id && video.playlist?.title}
+        <a
+          class="meta-link playlist-icon"
+          title="Show all videos in this playlist"
+          href={makePlaylistUrl(video.playlist_id)}
+        >
+          <ListMusic size={18} />
+          <span class="sr-only">{video.playlist.title}</span>
+        </a>
+      {/if}
+    </div>
+  </div>
+</div>
+
+<style>
+.card {
+  background: #fff;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px #e8e8e8;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #ededed;
+}
+
+.thumb-wrapper {
+  position: relative;
+  display: block;
+}
+
+.thumb {
+  width: 100%;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  background: #eee;
+  min-height: 112px;
+  display: block;
+  position: relative;
+  z-index: 1;
+}
+
+/* Duration label inside thumbnail, bottom right, always on top */
+.length-inline {
+  position: absolute;
+  right: 0.55em;
+  bottom: 0.55em;
+  color: #fff;
+  background: #222c;
+  font-size: 0.97em;
+  padding: 0.14em 0.66em;
+  border-radius: 6px;
+  font-weight: 500;
+  opacity: 0.96;
+  box-shadow: 0 1px 4px #0002;
+  z-index: 9;
+  pointer-events: none;
+  max-width: 85%;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.card-body {
+  padding: 1rem 1rem 0.7rem 1rem;
+  color: #222;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin-bottom: 0.2em;
+}
+.card-title {
+  font-size: 1.08rem;
+  font-weight: 600;
+  min-height: 2.2em;
+  max-height: 2.3em;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  flex: 1;
+}
+.card-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  margin-top: 0.6em;
+  font-size: 1em;
+}
+.badge {
+  display: inline-block;
+  font-size: 0.89em;
+  font-weight: 600;
+  padding: 0.18em 0.7em;
+  border-radius: 4px;
+  margin-right: 0.5em;
+  color: #fff;
+  background: #bbb;
+  letter-spacing: 0.01em;
+  border: 1.5px solid transparent;
+  text-shadow: 0 1px 4px #0001;
+  white-space: nowrap;
+}
+.meta-link {
+  color: #252525;
+  font-size: 0.97em;
+  text-decoration: none;
+  background: #f6f6f6;
+  border-radius: 3px;
+  padding: 0.12em 0.55em;
+  margin-right: 0.18em;
+  font-weight: 500;
+  transition: background 0.13s, color 0.13s;
+  display: flex;
+  align-items: center;
+}
+.meta-link:hover {
+  background: #e4e4e4;
+  color: #e93c2f;
+}
+.playlist-icon :global(svg) {
+  vertical-align: middle;
+  color: #9326e9;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
+</style>
+<script>
+  import { onMount, onDestroy } from 'svelte';
+  import { supabase } from '$lib/supabaseClient';
+
+  export let videoId;
+  export let videoDuration;
+  export let userId;
+
+  // Tracking state
+  let player;
+  let pollingInterval = null;
+  let lastTime = 0;
+  let watchSeconds = 0;
+  let markedAsWatched = false;
+  let lastSavedSeconds = 0;
+  let playerReady = false;
+
+  // Expose the playerReady state if you want to react in parent (optional)
+  export let ytReady = false;
+
+  // Attach YT
+  function onYouTubeIframeAPIReady() {
+    ytReady = true;
+    initPlayer();
+  }
+
+  function initPlayer() {
+    if (player || !document.getElementById('yt-player')) return;
+    player = new window.YT.Player('yt-player', {
+      events: {
+        'onReady': () => { playerReady = true; startWatchTimer(); },
+        'onStateChange': onPlayerStateChange
+      }
+    });
+  }
+
+  function startWatchTimer() {
+    if (pollingInterval) return;
+    lastTime = player.getCurrentTime?.() || 0;
+    pollingInterval = setInterval(async () => {
+      if (!userId || !player) return;
+      const currentTime = player.getCurrentTime?.() || 0;
+      let delta = currentTime - lastTime;
+      if (delta < 0) delta = 0;
+      if (delta > 5) delta = 1;
+      watchSeconds += delta;
+      lastTime = currentTime;
+
+      // Save every 8s
+      if (Math.floor(watchSeconds / 8) > Math.floor(lastSavedSeconds / 8) || watchSeconds - lastSavedSeconds >= 8) {
+        await savePartialWatchSession(Math.floor(watchSeconds));
+        lastSavedSeconds = watchSeconds;
+      }
+
+      // Save full duration if 90% watched
+      const duration = player.getDuration?.() || videoDuration || 1;
+      const percentWatched = Math.max(currentTime, watchSeconds) / duration;
+      if (!markedAsWatched && percentWatched >= 0.9 && userId) {
+        markedAsWatched = true;
+        await saveWatchSession(duration);
+      }
+    }, 1200);
+    // console.log("Watch polling started");
+  }
+
+  function stopWatchTimer() {
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      pollingInterval = null;
+      flushProgress();
+    }
+  }
+
+  async function savePartialWatchSession(seconds) {
+    if (!userId) return;
+    const today = new Date().toISOString().slice(0, 10);
+    await supabase.from('watch_sessions').upsert({
+      user_id: userId,
+      video_id: videoId,
+      seconds: Math.max(1, seconds),
+      date: today
+    }, { onConflict: ['user_id', 'video_id', 'date'] });
+  }
+
+  async function saveWatchSession(duration) {
+    if (!userId) return;
+    const today = new Date().toISOString().slice(0, 10);
+    await supabase.from('watch_sessions').upsert({
+      user_id: userId,
+      video_id: videoId,
+      seconds: Math.max(1, Math.round(duration)),
+      date: today
+    }, { onConflict: ['user_id', 'video_id', 'date'] });
+  }
+
+  function flushProgress() {
+    if (userId && watchSeconds > lastSavedSeconds) {
+      savePartialWatchSession(Math.floor(watchSeconds));
+      lastSavedSeconds = watchSeconds;
+    }
+  }
+
+  function onPlayerStateChange(event) {
+    stopWatchTimer();
+    if (event.data === 1) {
+      startWatchTimer();
+    }
+    if ([0, 2, 3].includes(event.data)) {
+      flushProgress();
+    }
+  }
+
+  function handleBeforeUnload() {
+    flushProgress();
+  }
+
+  onMount(() => {
+    // Attach global
+    window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+    if (!window.YT) {
+      const tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.body.appendChild(tag);
+    } else {
+      ytReady = true;
+      initPlayer();
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload);
+  });
+
+  onDestroy(() => {
+    stopWatchTimer();
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+    flushProgress();
+  });
+</script>
+<script>
+  import { createEventDispatcher, onMount } from 'svelte';
+  import { Sparkles, BarChart3, Search, Globe, Tag, User } from 'lucide-svelte';
+
+  export let levels = [];
+  export let sortChoices = [];
+  export let countryOptions = [];
+  export let selectedLevels = [];
+  export let sortBy = 'new';
+  export let selectedCountry = '';
+  export let selectedTags = [];
+  export let hideWatched = false;
+  export let searchTerm = '';
+  export let searchOpen = false;
+
+  export let myChannels = [];
+  export let selectedChannel = '';
+
+  const dispatch = createEventDispatcher();
+
+  function emitChange(data = {}) {
+    dispatch('change', {
+      selectedLevels,
+      sortBy,
+      selectedCountry,
+      selectedTags,
+      hideWatched,
+      searchTerm,
+      searchOpen,
+      selectedChannel,
+      ...data
+    });
+  }
+
+  // Level filter
+  function handleToggleLevel(lvl) {
+    const next = new Set(selectedLevels);
+    if (next.has(lvl)) next.delete(lvl);
+    else next.add(lvl);
+    emitChange({ selectedLevels: Array.from(next) });
+  }
+  function handleToggleAllLevels() {
+    if (selectedLevels.length === levels.length) emitChange({ selectedLevels: [] });
+    else emitChange({ selectedLevels: levels.map(l => l.value) });
+  }
+
+  // Sort dropdown
+  function handleSetSort(val) {
+    emitChange({ sortBy: val });
+    showSortDropdown = false;
+  }
+
+  // Country filter
+  function handleSetCountry(c) {
+    emitChange({ selectedCountry: c === selectedCountry ? '' : c });
+  }
+
+  // TAGS FILTER (Top + All tags, no search)
+  function handleToggleTag(tag) {
+    const next = new Set(selectedTags);
+    if (next.has(tag)) next.delete(tag);
+    else next.add(tag);
+    emitChange({ selectedTags: Array.from(next) });
+  }
+  function handleClearTags() {
+    emitChange({ selectedTags: [] });
+  }
+
+  // Misc
+  function handleHideWatched() {
+    emitChange({ hideWatched: !hideWatched });
+  }
+  function handleSearchInput(val) {
+    emitChange({ searchTerm: val });
+  }
+  function handleToggleSearch() {
+    emitChange({ searchOpen: !searchOpen, searchTerm: searchOpen ? '' : searchTerm });
+  }
+
+  // Dropdown state (UI only)
+  let showSortDropdown = false;
+  let showLevelDropdown = false;
+  let showCountryDropdown = false;
+  let showTagDropdown = false;
+  let showMyChannelsDropdown = false;
+  let sortDropdownRef, levelsDropdownRef, tagDropdownRef, countryDropdownRef, myChannelsDropdownRef;
+
+  function handleSetChannel(channelId) {
+    emitChange({ selectedChannel: channelId });
+    showMyChannelsDropdown = false;
+  }
+
+  function handleDocumentClick(event) {
+    if (showSortDropdown && sortDropdownRef && !sortDropdownRef.contains(event.target)) showSortDropdown = false;
+    if (showLevelDropdown && levelsDropdownRef && !levelsDropdownRef.contains(event.target)) showLevelDropdown = false;
+    if (showTagDropdown && tagDropdownRef && !tagDropdownRef.contains(event.target)) showTagDropdown = false;
+    if (showCountryDropdown && countryDropdownRef && !countryDropdownRef.contains(event.target)) showCountryDropdown = false;
+    if (showMyChannelsDropdown && myChannelsDropdownRef && !myChannelsDropdownRef.contains(event.target)) showMyChannelsDropdown = false;
+  }
+  onMount(() => {
+    document.addEventListener('click', handleDocumentClick);
+    return () => document.removeEventListener('click', handleDocumentClick);
+  });
+
+  // Title case util for friendly tag display
+  function toTitleCase(str) {
+    return str.replace(/\w\S*/g, txt => txt.charAt(0).toUpperCase() + txt.slice(1));
+  }
+
+  // Helper to check if filters are not default
+  $: filtersChanged =
+    sortBy !== 'new' ||
+    selectedCountry !== '' ||
+    selectedTags.length > 0 ||
+    selectedLevels.length !== levels.length ||
+    hideWatched !== false ||
+    searchTerm !== '' ||
+    selectedChannel !== '';
+
+  // --- Top Tags (hardcoded from your latest top 10) ---
+  const topTags = [
+    "history",
+    "for learners",
+    "personal development",
+    "children's science",
+    "current events",
+    "videogames",
+    "health",
+    "news",
+    "lifestyle",
+    "random facts"
+  ];
+
+  // --- All Tags: deduped, sorted, lowercased, split on / and trimmed (from your CSV) ---
+  const allTags = [
+    "ai voice",
+    "animated stories",
+    "animation",
+    "animals",
+    "art",
+    "argentina",
+    "bags",
+    "baseball",
+    "business",
+    "canary islands",
+    "challenges",
+    "children's history",
+    "children's science",
+    "children's stories",
+    "colombia",
+    "comedy",
+    "comedy jokes test rain",
+    "cooking",
+    "cost of living",
+    "country life",
+    "creepy",
+    "critiques",
+    "current events",
+    "cuba",
+    "culture",
+    "debates",
+    "dubbed show",
+    "education",
+    "el salvador",
+    "equatorial guinea",
+    "facts",
+    "fashion",
+    "finance",
+    "fitness",
+    "food reviews",
+    "for learners",
+    "france",
+    "gardening",
+    "geography",
+    "gravy",
+    "guatemala",
+    "health",
+    "heart",
+    "history",
+    "how it's made",
+    "human mind",
+    "iceland",
+    "interviews",
+    "italy",
+    "jam",
+    "jam toast",
+    "journalist",
+    "kid's show",
+    "kids show",
+    "kpop",
+    "language learning",
+    "latin america",
+    "law",
+    "level",
+    "life",
+    "life in iceland",
+    "life in japan",
+    "life in korea",
+    "lifestyle",
+    "lifestyle in japan",
+    "main",
+    "manufacturing",
+    "mexico",
+    "mindfullness",
+    "montessori",
+    "motivation",
+    "music",
+    "nasa",
+    "nature",
+    "news",
+    "not native speaker",
+    "panama",
+    "paraguay",
+    "peru",
+    "personal development",
+    "philosophy",
+    "playlists",
+    "politics",
+    "pop culture",
+    "positive affirmations",
+    "psychology",
+    "pyschology",
+    "puerto rico",
+    "random facts",
+    "re sales",
+    "relationships",
+    "religion",
+    "science",
+    "shorts",
+    "sobriety",
+    "spain",
+    "sports",
+    "storytelling",
+    "street interviews",
+    "tarot",
+    "tech",
+    "test",
+    "travel",
+    "true crime",
+    "uruguay",
+    "various",
+    "videogames",
+    "weather"
+  ].sort((a, b) => a.localeCompare(b));
+
+</script>
+
+<div class="controls-bar">
+  <div class="controls-left">
+    <!-- Sort Dropdown -->
+    <div class="dropdown" bind:this={sortDropdownRef}>
+      <button class="dropdown-btn" aria-expanded={showSortDropdown} on:click={() => showSortDropdown = !showSortDropdown} type="button">
+        <Sparkles size={18} style="margin-right:7px;vertical-align:-3px;color:#2e9be6;" />
+        Sort by
+        <svg width="12" height="9" style="margin-left:7px;" fill="none">
+          <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+        </svg>
+      </button>
+      {#if showSortDropdown}
+        <div class="dropdown-content">
+          {#each sortChoices as opt}
+            <div
+              class:active-sort-option={opt.value === sortBy}
+              style="padding:0.32em 0.2em;cursor:pointer;display:flex;align-items:center;"
+              on:click={() => handleSetSort(opt.value)}
+            >
+              <span>{opt.label}</span>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </div>
+
+    <!-- Levels Dropdown -->
+    <div class="dropdown" bind:this={levelsDropdownRef}>
+      <button
+        class="dropdown-btn"
+        aria-expanded={showLevelDropdown}
+        on:click={() => showLevelDropdown = !showLevelDropdown}
+        type="button"
+      >
+        <BarChart3 size={18} style="margin-right:7px;vertical-align:-3px;color:#f365a0;" />
+        Levels
+        <svg width="12" height="9" style="margin-left:7px;" fill="none">
+          <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+        </svg>
+      </button>
+      {#if showLevelDropdown}
+        <div class="dropdown-content">
+          <div class="levels-list">
+            {#each levels as lvl}
+              <label class="level-checkbox">
+                <input
+                  type="checkbox"
+                  checked={selectedLevels.includes(lvl.value)}
+                  on:change={() => handleToggleLevel(lvl.value)}
+                />
+                <span>{lvl.label}</span>
+              </label>
+            {/each}
+          </div>
+          <button
+            style="margin-top:0.5em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;"
+            on:click={handleToggleAllLevels}
+          >
+            Toggle all
+          </button>
+        </div>
+      {/if}
+    </div>
+
+    <!-- TAGS FILTER Dropdown (Top + All, no search) -->
+    <div class="dropdown" bind:this={tagDropdownRef}>
+      <button class="dropdown-btn" aria-expanded={showTagDropdown} on:click={() => showTagDropdown = !showTagDropdown} type="button">
+        <Tag size={18} style="margin-right:7px;vertical-align:-3px;color:#f2a02b;" />
+        Tags
+        <svg width="12" height="9" style="margin-left:7px;" fill="none">
+          <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+        </svg>
+      </button>
+      {#if showTagDropdown}
+        <div class="dropdown-content tags-dropdown-content">
+
+          <!-- TOP TAGS -->
+          <div style="margin-bottom:0.7em;">
+            <div class="dropdown-label" style="font-weight:700; font-size:1.01em;">Top Tags</div>
+            {#each topTags as tag}
+              <label class="level-checkbox">
+                <input
+                  type="checkbox"
+                  checked={selectedTags.includes(tag)}
+                  on:change={() => handleToggleTag(tag)}
+                />
+                <span>{toTitleCase(tag)}</span>
+              </label>
+            {/each}
+          </div>
+
+          <hr style="margin:0.5em 0 0.5em 0;" />
+
+          <!-- ALL OTHER TAGS -->
+          <div>
+            <div class="dropdown-label" style="font-weight:700; font-size:1.01em;">All Tags</div>
+            {#each allTags as tag}
+              {#if !topTags.includes(tag)}
+                <label class="level-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={selectedTags.includes(tag)}
+                    on:change={() => handleToggleTag(tag)}
+                  />
+                  <span>{toTitleCase(tag)}</span>
+                </label>
+              {/if}
+            {/each}
+          </div>
+
+          <button style="margin-top:0.7em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;" on:click={handleClearTags}>
+            Clear all
+          </button>
+        </div>
+      {/if}
+    </div>
+
+    <!-- Countries Dropdown -->
+    <div class="dropdown" bind:this={countryDropdownRef}>
+      <button class="dropdown-btn" aria-expanded={showCountryDropdown} on:click={() => showCountryDropdown = !showCountryDropdown} type="button">
+        <Globe size={18} style="margin-right:7px;vertical-align:-3px;color:#c367f2;" />
+        Country
+        <svg width="12" height="9" style="margin-left:7px;" fill="none">
+          <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+        </svg>
+      </button>
+      {#if showCountryDropdown}
+        <div class="dropdown-content">
+          <label class="level-checkbox">
+            <input type="checkbox" checked={selectedCountry === ''} on:change={() => handleSetCountry('')} />
+            <span>All Countries</span>
+          </label>
+          {#each countryOptions as country}
+            <label class="level-checkbox">
+              <input type="checkbox" checked={selectedCountry === country} on:change={() => handleSetCountry(country)} />
+              <span>{country}</span>
+            </label>
+          {/each}
+        </div>
+      {/if}
+    </div>
+
+    <!-- My Channels Dropdown -->
+    {#if myChannels && myChannels.length}
+      <div class="dropdown" bind:this={myChannelsDropdownRef}>
+        <button class="dropdown-btn" aria-expanded={showMyChannelsDropdown} on:click={() => showMyChannelsDropdown = !showMyChannelsDropdown} type="button">
+          <User size={18} style="margin-right:7px;vertical-align:-3px;color:#7950f2;" />
+          My Channels
+          <svg width="12" height="9" style="margin-left:7px;" fill="none">
+            <path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+          </svg>
+        </button>
+        {#if showMyChannelsDropdown}
+          <div class="dropdown-content">
+            <label class="level-checkbox">
+              <input
+                type="checkbox"
+                checked={selectedChannel === ''}
+                on:change={() => handleSetChannel('')}
+              />
+              <span>All Channels</span>
+            </label>
+            {#each myChannels as ch}
+              <label class="level-checkbox">
+                <input
+                  type="checkbox"
+                  checked={selectedChannel === ch.id}
+                  on:change={() => handleSetChannel(ch.id)}
+                />
+                <span>{ch.name}</span>
+              </label>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/if}
+
+    <!-- RESET FILTERS BUTTON (only visible if not defaults) -->
+    {#if filtersChanged}
+      <button class="reset-filters-btn" type="button" on:click={() => emitChange({
+        selectedLevels: levels.map(l => l.value),
+        sortBy: 'new',
+        selectedCountry: '',
+        selectedTags: [],
+        hideWatched: false,
+        searchTerm: '',
+        selectedChannel: ''
+      })}>
+        reset filters
+      </button>
+    {/if}
+  </div>
+  <div class="controls-right">
+    <button
+      class="dropdown-btn hide-watched-btn"
+      type="button"
+      aria-pressed={hideWatched}
+      on:click={handleHideWatched}
+    >
+      <span class="switch-slider" aria-hidden="true"></span>
+      <span class="switch-label-text">Hide watched</span>
+    </button>
+    <div class="search-bar-container">
+      {#if searchOpen}
+        <input
+          type="text"
+          class="search-input"
+          placeholder="Search videos…"
+          value={searchTerm}
+          on:input={e => handleSearchInput(e.target.value)}
+          autofocus
+        />
+      {/if}
+      <button
+        class="search-toggle"
+        title="Search"
+        on:click={handleToggleSearch}
+        aria-label="Search"
+      >
+        <Search size={22} style="color:#2e9be6;" />
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+	.controls-bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1.2em;
+		max-width: 1700px;
+		margin: 2em auto 2em auto;
+		background: #f7f7fb;
+		padding: 0.7em 1.2em 0.7em 1.2em;
+		border-radius: 18px;
+		border: 1.7px solid #ececec;
+		box-shadow: 0 2px 16px #ececec60;
+		position: relative;
+		overflow-x: visible;
+	}
+	.controls-left {
+		display: flex;
+		align-items: center;
+		gap: 1.2em;
+	}
+	.controls-right {
+		margin-left: auto;
+		display: flex;
+		align-items: center;
+		gap: 1.1em;
+	}
+	.dropdown {
+		position: relative;
+		min-width: 120px;
+	}
+	.dropdown-btn {
+		padding: 0.42em 1.1em;
+		font-size: 1.05em;
+		border-radius: 12px;
+		border: 1.2px solid #ececec;
+		background: #f9f9f9;
+		color: #1d1d1d;
+		font-weight: 600;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		gap: 0.65em;
+		min-width: 110px;
+		transition:
+			border 0.11s,
+			background 0.11s;
+	}
+	.dropdown-btn[aria-expanded='true'],
+	.dropdown-btn[aria-pressed='true'] {
+		background: #f1f5fb;
+		border: 1.2px solid #bbb;
+		color: #1d1d1d;
+	}
+	.hide-watched-btn .switch-slider {
+		width: 36px;
+		height: 20px;
+		background: #e8e8e8;
+		border-radius: 8px;
+		position: relative;
+		display: inline-block;
+		transition: background 0.13s;
+		margin-right: 0.65em;
+		vertical-align: middle;
+	}
+	.hide-watched-btn[aria-pressed='true'] .switch-slider {
+		background: #fd2b23;
+	}
+	.hide-watched-btn .switch-slider::before {
+		content: '';
+		position: absolute;
+		width: 15px;
+		height: 15px;
+		left: 2.2px;
+		top: 2.2px;
+		background: #fff;
+		border-radius: 50%;
+		transition:
+			transform 0.13s,
+			box-shadow 0.13s;
+		box-shadow: 0 1px 2px #0002;
+	}
+	.hide-watched-btn[aria-pressed='true'] .switch-slider::before {
+		transform: translateX(14px);
+		box-shadow: 0 1px 4px #fd2b2333;
+	}
+	.switch-label-text {
+		font-size: 1.05em;
+		font-weight: 600;
+		letter-spacing: 0.03em;
+		font-family: inherit;
+		color: inherit;
+	}
+	.dropdown-content {
+		position: absolute;
+		z-index: 1000;
+		background: #fff;
+		border: 1.3px solid #e8e8e8;
+		border-radius: 8px;
+		box-shadow: 0 2px 18px #eee;
+		min-width: 180px;
+		padding: 0.8em 0.6em;
+		top: 110%;
+		left: 0;
+		font-size: 1em;
+		max-height: 350px;
+		overflow-y: auto;
+	}
+	.levels-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.6em;
+		margin: 0.3em 0 0.4em 0;
+	}
+	.level-checkbox {
+		display: flex;
+		align-items: center;
+		gap: 0.6em;
+		font-size: 1.03em;
+	}
+	.search-bar-container {
+		display: flex;
+		align-items: center;
+		position: relative;
+		gap: 0.7em;
+	}
+	.search-input {
+		transition:
+			width 0.2s,
+			opacity 0.2s,
+			box-shadow 0.13s,
+			border 0.13s;
+		width: 180px;
+		max-width: 50vw;
+		order: -1;
+		margin-right: 0.3em;
+		opacity: 1;
+		font-size: 1.05em;
+		border-radius: 12px;
+		border: 1.2px solid #ececec;
+		background: #f9f9f9;
+		color: #1d1d1d;
+		font-weight: 500;
+		padding: 0.42em 1.1em;
+		box-shadow: 0 2px 8px #ececec60;
+		outline: none;
+	}
+	.search-input:focus {
+		border: 1.2px solid #bbb;
+		background: #f1f5fb;
+		box-shadow: 0 2px 16px #bbb2;
+	}
+	.search-toggle {
+		z-index: 2;
+		background: none;
+		border: none;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		padding: 0.3em;
+		margin-left: 0;
+		border-radius: 50%;
+		transition: background 0.18s;
+	}
+	.search-toggle:hover,
+	.search-toggle:focus-visible {
+		background: #e5f2fd;
+	}
+	.search-toggle svg {
+		transition: stroke 0.15s;
+	}
+	.search-toggle:hover svg {
+		stroke: #2e9be6;
+	}
+
+	.reset-filters-btn {
+		margin-left: 0.6em;
+		font-weight: 800;
+		color: #e93c2f !important;
+		background: none;
+		border: none;
+		font-size: 1em;
+		cursor: pointer;
+		letter-spacing: 0.03em;
+		padding: 0.45em 0.7em;
+		border-radius: 8px;
+		transition: text-decoration 0.11s;
+		text-transform: none;
+	}
+	.reset-filters-btn:hover,
+	.reset-filters-btn:focus-visible {
+		text-decoration: underline;
+		background: none;
+		outline: none;
+	}
+
+	/* ACTIVE SORT HIGHLIGHT */
+	.active-sort-option {
+		background: #e5f2fd;
+		font-weight: 700;
+		color: #2e9be6;
+		border-radius: 6px;
+	}
+	.active-sort-option:hover {
+		background: #cbe5fb;
+	}
+
+	@media (max-width: 900px) {
+		.controls-bar {
+			flex-direction: column;
+			align-items: stretch;
+			padding: 0.7em 0.8em;
+		}
+		.controls-left,
+		.controls-right {
+			margin-left: 0;
+			justify-content: flex-start;
+		}
+		.controls-right {
+			justify-content: flex-end;
+			margin-top: 0.7em;
+		}
+	}
+	@media (max-width: 600px) {
+		.controls-bar {
+		  max-width: 99vw;
+		}
+		.search-input {
+			width: 110px;
+			font-size: 0.96em;
+		}
+	}
+</style>
+<!-- src/lib/components/LoadingSpinner.svelte -->
+<div class="spinner-container" aria-label="Loading">
+  <div class="spinner"></div>
+</div>
+
+<style>
+.spinner-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 4em;
+}
+.spinner {
+  width: 2.1em;
+  height: 2.1em;
+  border: 3.5px solid #e0e4fa;
+  border-top: 3.5px solid #2562e9;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+  margin: 0 auto;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+</style>
+<script>
+  import VideoCard from '$lib/components/VideoCard.svelte';
+  export let videos = [];
+  export let getBestThumbnail;
+  export let difficultyColor;
+  export let difficultyLabel;
+  export let formatLength;
+  export let filterByChannel;
+  export let filterByPlaylist;
+</script>
+
+<div class="grid">
+  {#each videos as video}
+    <VideoCard
+      {video}
+      {getBestThumbnail}
+      {difficultyColor}
+      {difficultyLabel}
+      {formatLength}
+      {filterByChannel}
+      {filterByPlaylist}
+    />
+  {/each}
+</div>
+
+<style>
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1.3rem;
+  margin: 2rem 0;
+}
+@media (max-width: 1200px) {
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 800px) {
+  .grid {
+    grid-template-columns: repeat(1, 1fr);
+  }
+}
+</style>
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>
+:root {
+	--primary: #e93c2f;
+	--text-main: #181818;
+	--text-secondary: #666;
+	--bg-main: #fff;
+	--bg-light: #f7f7f7;
+	--border: #ececec;
+	--info-bg: #e9f6ff;
+	--info-color: #2562e9;
+	--warning-bg: #f6e9ff;
+	--warning-color: #9326e9;
+	--error-bg: #ffd3d3;
+	--error-border: #fca5a5;
+	--error-color: #b12c2c;
+	--radius-chip: 9px;
+	--radius-error: 11px;
+	--radius: 12px;
+}
+
+body {
+	background: var(--bg-main);
+	color: var(--text-main);
+	margin: 0;
+	padding: 0;
+	font-family: 'Inter', 'Segoe UI', 'Arial', sans-serif;
+}
+
+a {
+	color: var(--text-main);
+	text-decoration: none;
+	transition: color 0.2s;
+}
+a:hover {
+	color: var(--primary);
+}
+
+/* Main container */
+.page-container {
+	max-width: 1920px;
+	margin: 3rem auto;
+	padding: 0rem 2vw 0rem 2vw; /* Reduced top and bottom padding */
+	font-family: inherit;
+}
+.sortbar-container {
+	margin-bottom: 3rem;
+}
+
+/* Chips for "filtered by" */
+.chip-info {
+	background: var(--info-bg);
+	color: #134f74;
+	padding: 8px 13px;
+	border-radius: var(--radius-chip);
+	margin-bottom: 18px;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	font-size: 1.02em;
+	font-weight: 500;
+	box-shadow: 0 2px 9px #3bb1fc09;
+}
+.chip-warning {
+	background: var(--warning-bg);
+	color: #612e8b;
+	padding: 8px 13px;
+	border-radius: var(--radius-chip);
+	margin-bottom: 18px;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	font-size: 1.02em;
+	font-weight: 500;
+	box-shadow: 0 2px 9px #a773e809;
+}
+
+.clear-btn {
+	background: none;
+	border: none;
+	font-weight: 600;
+	font-size: 1.05em;
+	cursor: pointer;
+	padding: 2px 10px;
+	border-radius: 6px;
+	transition:
+		background 0.12s,
+		color 0.12s;
+	outline: none;
+}
+.clear-btn--blue {
+	color: var(--info-color);
+}
+.clear-btn--purple {
+	color: var(--warning-color);
+}
+.clear-btn--blue:hover {
+	background: #e3eaff;
+	color: #9326e9;
+}
+.clear-btn--purple:hover {
+	background: #f5e3ff;
+	color: #2562e9;
+}
+
+.loading-more {
+	text-align: center;
+	color: #2e9be6;
+	margin: 1.8em 0 2.2em 0;
+	font-size: 1.09em;
+	font-weight: 600;
+	opacity: 0.78;
+}
+
+.error {
+	color: var(--error-color);
+	font-weight: 700;
+	margin: 2em auto;
+	text-align: center;
+	background: var(--error-bg);
+	padding: 1em 2em;
+	border-radius: var(--radius-error);
+	max-width: 520px;
+	font-size: 1.07em;
+	border: 1.5px solid var(--error-border);
+}
+
+.text-muted {
+	color: #888;
+}
+
+@media (max-width: 600px) {
+	.page-container {
+		padding: 1rem 2vw 1rem 2vw;
+	}
+	.sortbar-container {
+		margin-bottom: 0.7rem;
+	}
+	.chip-info,
+	.chip-warning {
+		padding: 6px 8px;
+		font-size: 0.97em;
+		gap: 8px;
+	}
+}

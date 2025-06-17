@@ -98,7 +98,7 @@
 .player-video-box {
   width: 100%;
   aspect-ratio: 16/9;
-  border-radius: 16px;
+  border-radius: 6px;
   background: #fff;
   box-shadow: 0 2px 16px #ececec60;
   border: 1.7px solid #ededed;
