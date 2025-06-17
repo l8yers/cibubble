@@ -74,3 +74,11 @@ export const filteredVideos = derived(
     });
   }
 );
+
+export function markVideoWatched(videoId) {
+  watchedIds.update(ids => {
+    const next = new Set(ids);
+    next.add(videoId);
+    return next;
+  });
+}

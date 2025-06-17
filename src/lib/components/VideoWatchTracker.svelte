@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
+  import { markVideoWatched } from '$lib/stores/videos.js'; // <--- Import the mark watched helper!
 
   export let videoId;
   export let videoDuration;
@@ -16,7 +17,6 @@
   let watchSeconds = 0;
   let markedAsWatched = false;
   let lastSavedSeconds = 0;
-  let playerReady = false;
 
   function onYouTubeIframeAPIReady() {
     initPlayer();
@@ -26,7 +26,7 @@
     if (player || !document.getElementById('yt-player')) return;
     player = new window.YT.Player('yt-player', {
       events: {
-        'onReady': () => { playerReady = true; startWatchTimer(); },
+        'onReady': () => { startWatchTimer(); },
         'onStateChange': onPlayerStateChange
       }
     });
@@ -56,6 +56,7 @@
       if (!markedAsWatched && percentWatched >= 0.9 && userId) {
         markedAsWatched = true;
         await saveWatchSession(duration);
+        markVideoWatched(videoId);  // <-- update store with new Set (always safe)
       }
     }, 1200);
   }
