@@ -10,10 +10,9 @@ export async function GET({ url }) {
   const country = url.searchParams.get('country');
   const channel = url.searchParams.get('channel');
   const playlist = url.searchParams.get('playlist');
-  const sort = url.searchParams.get('sort') ?? 'new';  // <--- PATCHED TO "new"
+  const sort = url.searchParams.get('sort') ?? 'new';
   const search = url.searchParams.get('search') ?? '';
 
-  // ✅ If no levels selected, return no results
   if (Array.isArray(levels) && levels.length === 0) {
     return json({ videos: [], total: 0, hasMore: false });
   }
@@ -24,7 +23,17 @@ export async function GET({ url }) {
     if (levels && levels.length) idQuery = idQuery.in('level', levels);
     if (tags && tags.length) idQuery = idQuery.overlaps('tags', tags);
     if (country) idQuery = idQuery.eq('country', country);
-    if (channel) idQuery = idQuery.eq('channel_id', channel);
+
+    // PATCH: channel as list or eq
+    if (channel) {
+      const channelList = channel.split(',').filter(Boolean);
+      if (channelList.length > 1) {
+        idQuery = idQuery.in('channel_id', channelList);
+      } else {
+        idQuery = idQuery.eq('channel_id', channelList[0]);
+      }
+    }
+
     if (playlist) idQuery = idQuery.eq('playlist_id', playlist);
     if (search) idQuery = idQuery.ilike('title', `%${search}%`);
 
@@ -44,7 +53,17 @@ export async function GET({ url }) {
     if (levels && levels.length) dataQuery = dataQuery.in('level', levels);
     if (tags && tags.length) dataQuery = dataQuery.overlaps('tags', tags);
     if (country) dataQuery = dataQuery.eq('country', country);
-    if (channel) dataQuery = dataQuery.eq('channel_id', channel);
+
+    // PATCH: channel as list or eq
+    if (channel) {
+      const channelList = channel.split(',').filter(Boolean);
+      if (channelList.length > 1) {
+        dataQuery = dataQuery.in('channel_id', channelList);
+      } else {
+        dataQuery = dataQuery.eq('channel_id', channelList[0]);
+      }
+    }
+
     if (playlist) dataQuery = dataQuery.eq('playlist_id', playlist);
     if (search) dataQuery = dataQuery.ilike('title', `%${search}%`);
 
@@ -70,11 +89,20 @@ export async function GET({ url }) {
   if (levels && levels.length) query = query.in('level', levels);
   if (tags && tags.length) query = query.overlaps('tags', tags);
   if (country) query = query.eq('country', country);
-  if (channel) query = query.eq('channel_id', channel);
+
+  // PATCH: channel as list or eq
+  if (channel) {
+    const channelList = channel.split(',').filter(Boolean);
+    if (channelList.length > 1) {
+      query = query.in('channel_id', channelList);
+    } else {
+      query = query.eq('channel_id', channelList[0]);
+    }
+  }
+
   if (playlist) query = query.eq('playlist_id', playlist);
   if (search) query = query.ilike('title', `%${search}%`);
 
-  // --- PATCH: handle sorting ---
   if (sort === 'new') {
     query = query.order('published', { ascending: false });
   } else if (sort === 'old') {

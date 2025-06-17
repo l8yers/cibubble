@@ -4,8 +4,8 @@
 	import VideoGrid from '$lib/components/VideoGrid.svelte';
 	import SortBar from '$lib/components/SortBar.svelte';
 	import FilterChip from '$lib/components/FilterChip.svelte';
-  import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
-  import ErrorMessage from '$lib/components/ErrorMessage.svelte';
+	import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
+	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 	import * as utils from '$lib/utils.js';
 	import '../app.css';
 
@@ -73,16 +73,24 @@
 		if (observerInstance) observerInstance.disconnect();
 	});
 
+	// PATCHED fetchVideos
 	async function fetchVideos({ append = false } = {}) {
 		loading.set(true);
 		errorMsg.set('');
+
+		// --- PATCH: If All Channels selected in My Channels, show only user saved channels ---
+		let channelFilter = get(selectedChannel);
+		if (channelFilter === '' && get(userChannels).length > 0) {
+			channelFilter = get(userChannels).map(ch => ch.id).join(',');
+		}
+
 		const query = new URLSearchParams({
 			page: get(pageNum),
 			pageSize: PAGE_SIZE,
 			levels: Array.from(get(selectedLevels)).join(','),
 			tags: Array.from(get(selectedTags)).join(','),
 			country: get(selectedCountry),
-			channel: get(selectedChannel),
+			channel: channelFilter, // <-- PATCHED
 			playlist: get(selectedPlaylist),
 			sort: get(sortBy),
 			search: get(searchTerm)
@@ -251,10 +259,10 @@
     />
   {/if}
 
-{#if $loading && $videos.length === 0}
-  <LoadingSpinner />
-{:else if $errorMsg}
-  <ErrorMessage message={$errorMsg} />
+  {#if $loading && $videos.length === 0}
+    <LoadingSpinner />
+  {:else if $errorMsg}
+    <ErrorMessage message={$errorMsg} />
   {:else if !$loading && $videos.length === 0}
     <div class="loading-more text-muted">No videos match your filters.</div>
   {:else}
