@@ -28,49 +28,72 @@
 
   $: if (video) fetchSuggestions();
 
-  async function fetchSuggestions() {
-    loading = true;
-    suggestions = [];
-    playlistTitle = '';
+async function fetchSuggestions() {
+  loading = true;
+  suggestions = [];
+  playlistTitle = '';
 
-    if (video.playlist_id) {
-      const { data: playlistVids } = await supabase
-        .from('videos')
-        .select('*, channel:channel_id(name), playlist:playlist_id(title)')
-        .eq('playlist_id', video.playlist_id)
-        .neq('id', video.id)
-        .order('playlist_position', { ascending: true })
-        .limit(20);
-      suggestions = playlistVids || [];
-      if (playlistVids && playlistVids[0]?.playlist?.title) {
-        playlistTitle = playlistVids[0].playlist.title;
-      }
-    } else {
-      const { data: sameChannel } = await supabase
-        .from('videos')
-        .select('*, channel:channel_id(name)')
-        .eq('channel_id', video.channel_id)
-        .neq('id', video.id)
-        .limit(20);
+  // Get up to 7 from the current channel
+  const { data: sameChannel } = await supabase
+    .from('videos')
+    .select('*, channel:channel_id(name)')
+    .eq('channel_id', video.channel_id)
+    .neq('id', video.id)
+    .limit(30);
 
-      const { data: otherChannels } = await supabase
-        .from('videos')
-        .select('*, channel:channel_id(name)')
-        .neq('channel_id', video.channel_id)
-        .limit(40);
+  // Try to get a LOT of videos from other channels, to ensure we get enough unique
+  const { data: otherChannelsRaw } = await supabase
+    .from('videos')
+    .select('*, channel:channel_id(name)')
+    .neq('channel_id', video.channel_id)
+    .neq('id', video.id)
+    .limit(400); // Pull a very big pool
 
-      function shuffle(arr) {
-        return arr
-          .map(v => [Math.random(), v])
-          .sort(([a], [b]) => a - b)
-          .map(([, v]) => v);
-      }
-      let channelVids = shuffle(sameChannel || []).slice(0, 4);
-      let otherVids = shuffle(otherChannels || []).slice(0, 4);
-      suggestions = [...channelVids, ...otherVids];
-    }
-    loading = false;
+  function shuffle(arr) {
+    return (arr || []).map(v => [Math.random(), v]).sort(([a], [b]) => a - b).map(([, v]) => v);
   }
+
+  // Map for unique channels
+  const channelMap = {};
+  for (const v of shuffle(otherChannelsRaw || [])) {
+    if (!channelMap[v.channel_id]) channelMap[v.channel_id] = v;
+  }
+  // Up to 23 unique other channels
+  const otherVids = Object.values(channelMap).slice(0, 23);
+
+  // Up to 7 from current channel, shuffle
+  let channelVids = shuffle(sameChannel || []).slice(0, 7);
+
+  // Mix channel videos in first half for weighting
+  let suggestionsMixed = otherVids.slice();
+  let insertIndexes = shuffle([...Array(Math.min(15, suggestionsMixed.length)).keys()]).slice(0, channelVids.length);
+
+  insertIndexes.forEach((idx, i) => {
+    let pos = Math.min(idx, suggestionsMixed.length);
+    suggestionsMixed.splice(pos, 0, channelVids[i]);
+  });
+
+  // Only keep 30
+  suggestions = suggestionsMixed.slice(0, 30);
+
+  // Playlist logic as before
+  if (video.playlist_id) {
+    const { data: playlistVids } = await supabase
+      .from('videos')
+      .select('*, channel:channel_id(name), playlist:playlist_id(title)')
+      .eq('playlist_id', video.playlist_id)
+      .neq('id', video.id)
+      .order('playlist_position', { ascending: true })
+      .limit(30);
+    suggestions = playlistVids || [];
+    if (playlistVids && playlistVids[0]?.playlist?.title) {
+      playlistTitle = playlistVids[0].playlist.title;
+    }
+  }
+
+  loading = false;
+}
+
 </script>
 
 <div class="sidebar-root">
