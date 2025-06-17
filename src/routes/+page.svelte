@@ -25,9 +25,14 @@
 	import { filtersToQuery, queryToFilters } from '$lib/utils/filters.js';
 	import { updateUrlFromFilters } from '$lib/utils/url.js';
 
-	import { LEVELS, VALID_LEVELS, SORT_CHOICES, COUNTRY_OPTIONS, TAG_OPTIONS } from '$lib/constants.js';
+	import {
+		LEVELS,
+		VALID_LEVELS,
+		SORT_CHOICES,
+		COUNTRY_OPTIONS,
+		TAG_OPTIONS
+	} from '$lib/constants.js';
 
-	// --- NEW: Saved Channels imports ---
 	import { user } from '$lib/stores/user.js';
 	import { userChannels } from '$lib/stores/userChannels.js';
 	import { getUserSavedChannels } from '$lib/api/userChannels.js';
@@ -78,10 +83,17 @@
 		loading.set(true);
 		errorMsg.set('');
 
-		// --- PATCH: If All Channels selected in My Channels, show only user saved channels ---
+		// ---- PATCH for correct sentinel logic! ----
 		let channelFilter = get(selectedChannel);
-		if (channelFilter === '' && get(userChannels).length > 0) {
-			channelFilter = get(userChannels).map(ch => ch.id).join(',');
+
+		if (channelFilter === '__ALL__' && get(userChannels).length > 0) {
+			// Show only user's saved channels
+			channelFilter = get(userChannels)
+				.map((ch) => ch.id)
+				.join(',');
+		} else if (channelFilter === '') {
+			// Default: show all DB channels
+			channelFilter = '';
 		}
 
 		const query = new URLSearchParams({
@@ -90,7 +102,7 @@
 			levels: Array.from(get(selectedLevels)).join(','),
 			tags: Array.from(get(selectedTags)).join(','),
 			country: get(selectedCountry),
-			channel: channelFilter, // <-- PATCHED
+			channel: channelFilter,
 			playlist: get(selectedPlaylist),
 			sort: get(sortBy),
 			search: get(searchTerm)
@@ -148,22 +160,58 @@
 	}
 	function filterByChannel(channelId) {
 		selectedChannel.set(channelId);
-		updateUrlFromFilters({ selectedLevels, selectedTags, selectedCountry, selectedChannel, selectedPlaylist, sortBy, searchTerm, get });
+		updateUrlFromFilters({
+			selectedLevels,
+			selectedTags,
+			selectedCountry,
+			selectedChannel,
+			selectedPlaylist,
+			sortBy,
+			searchTerm,
+			get
+		});
 		resetAndFetch();
 	}
 	function clearChannelFilter() {
 		selectedChannel.set('');
-		updateUrlFromFilters({ selectedLevels, selectedTags, selectedCountry, selectedChannel, selectedPlaylist, sortBy, searchTerm, get });
+		updateUrlFromFilters({
+			selectedLevels,
+			selectedTags,
+			selectedCountry,
+			selectedChannel,
+			selectedPlaylist,
+			sortBy,
+			searchTerm,
+			get
+		});
 		resetAndFetch();
 	}
 	function filterByPlaylist(playlistTitle) {
 		selectedPlaylist.set(playlistTitle);
-		updateUrlFromFilters({ selectedLevels, selectedTags, selectedCountry, selectedChannel, selectedPlaylist, sortBy, searchTerm, get });
+		updateUrlFromFilters({
+			selectedLevels,
+			selectedTags,
+			selectedCountry,
+			selectedChannel,
+			selectedPlaylist,
+			sortBy,
+			searchTerm,
+			get
+		});
 		resetAndFetch();
 	}
 	function clearPlaylistFilter() {
 		selectedPlaylist.set('');
-		updateUrlFromFilters({ selectedLevels, selectedTags, selectedCountry, selectedChannel, selectedPlaylist, sortBy, searchTerm, get });
+		updateUrlFromFilters({
+			selectedLevels,
+			selectedTags,
+			selectedCountry,
+			selectedChannel,
+			selectedPlaylist,
+			sortBy,
+			searchTerm,
+			get
+		});
 		resetAndFetch();
 	}
 
@@ -216,80 +264,80 @@
 </script>
 
 <div class="page-container">
-  <div class="sortbar-container">
-    <SortBar
-      {levels}
-      {sortChoices}
-      {countryOptions}
-      {tagOptions}
-      selectedLevels={Array.from($selectedLevels)}
-      sortBy={$sortBy}
-      selectedCountry={$selectedCountry}
-      selectedTags={Array.from($selectedTags)}
-      hideWatched={$hideWatched}
-      searchTerm={$searchTerm}
-      {searchOpen}
-      myChannels={$userChannels}
-      selectedChannel={$selectedChannel}
-      on:change={handleSortBarChange}
-    />
-  </div>
+	<div class="sortbar-container">
+		<SortBar
+			{levels}
+			{sortChoices}
+			{countryOptions}
+			{tagOptions}
+			selectedLevels={Array.from($selectedLevels)}
+			sortBy={$sortBy}
+			selectedCountry={$selectedCountry}
+			selectedTags={Array.from($selectedTags)}
+			hideWatched={$hideWatched}
+			searchTerm={$searchTerm}
+			{searchOpen}
+			myChannels={$userChannels}
+			selectedChannel={$selectedChannel}
+			on:change={handleSortBarChange}
+		/>
+	</div>
 
-  {#if $selectedChannel}
-    <FilterChip
-      type="info"
-      label="Filtered by channel"
-      value={$videos.length > 0
-        ? $videos[0].channel?.name ?? $videos[0].channel_name ?? $selectedChannel
-        : $selectedChannel}
-      onClear={clearChannelFilter}
-      clearClass="clear-btn--blue"
-    />
-  {/if}
+	{#if $selectedChannel && $selectedChannel !== '__ALL__'}
+		<FilterChip
+			type="info"
+			label="Filtered by channel"
+			value={$videos.length > 0
+				? ($videos[0].channel?.name ?? $videos[0].channel_name ?? $selectedChannel)
+				: $selectedChannel}
+			onClear={clearChannelFilter}
+			clearClass="clear-btn--blue"
+		/>
+	{/if}
 
-  {#if $selectedPlaylist}
-    <FilterChip
-      type="warning"
-      label="Filtered by playlist"
-      value={$videos.length > 0
-        ? $videos[0].playlist?.title ?? $selectedPlaylist
-        : $selectedPlaylist}
-      onClear={clearPlaylistFilter}
-      clearClass="clear-btn--purple"
-    />
-  {/if}
+	{#if $selectedPlaylist}
+		<FilterChip
+			type="warning"
+			label="Filtered by playlist"
+			value={$videos.length > 0
+				? ($videos[0].playlist?.title ?? $selectedPlaylist)
+				: $selectedPlaylist}
+			onClear={clearPlaylistFilter}
+			clearClass="clear-btn--purple"
+		/>
+	{/if}
 
-  {#if $loading && $videos.length === 0}
-    <LoadingSpinner />
-  {:else if $errorMsg}
-    <ErrorMessage message={$errorMsg} />
-  {:else if !$loading && $videos.length === 0}
-    <div class="loading-more text-muted">No videos match your filters.</div>
-  {:else}
-    <VideoGrid
-      videos={filteredVideos}
-      getBestThumbnail={utils.getBestThumbnail}
-      difficultyColor={utils.difficultyColor}
-      difficultyLabel={utils.difficultyLabel}
-      formatLength={utils.formatLength}
-      {filterByChannel}
-      {filterByPlaylist}
-    />
-    {#if $hasMore && $sortBy !== 'random'}
-      <div bind:this={sentinel} style="height: 2em;"></div>
-    {/if}
-    {#if $hasMore && $sortBy === 'random'}
-      <button
-        class="load-more-btn"
-        on:click={loadMore}
-        disabled={$loading}
-        style="margin: 2em auto; display: block;"
-      >
-        {#if $loading}Loading...{/if}
-        {#if !$loading}Load More{/if}
-      </button>
-    {/if}
-  {/if}
+	{#if $loading && $videos.length === 0}
+		<LoadingSpinner />
+	{:else if $errorMsg}
+		<ErrorMessage message={$errorMsg} />
+	{:else if !$loading && $videos.length === 0}
+		<div class="loading-more text-muted">No videos match your filters.</div>
+	{:else}
+		<VideoGrid
+			videos={filteredVideos}
+			getBestThumbnail={utils.getBestThumbnail}
+			difficultyColor={utils.difficultyColor}
+			difficultyLabel={utils.difficultyLabel}
+			formatLength={utils.formatLength}
+			{filterByChannel}
+			{filterByPlaylist}
+		/>
+		{#if $hasMore && $sortBy !== 'random'}
+			<div bind:this={sentinel} style="height: 2em;"></div>
+		{/if}
+		{#if $hasMore && $sortBy === 'random'}
+			<button
+				class="load-more-btn"
+				on:click={loadMore}
+				disabled={$loading}
+				style="margin: 2em auto; display: block;"
+			>
+				{#if $loading}Loading...{/if}
+				{#if !$loading}Load More{/if}
+			</button>
+		{/if}
+	{/if}
 </div>
 
 <style>

@@ -437,27 +437,28 @@
 				</button>
 				{#if showMyChannelsDropdown}
 					<div class="dropdown-content">
+						<!-- All My Channels option -->
 						<label class="level-checkbox">
 							<input
 								type="checkbox"
-								checked={selectedChannel === ''}
-								on:change={() => handleSetChannel('')}
+								checked={selectedChannel === '__ALL__'}
+								on:change={() => emitChange({ selectedChannel: '__ALL__' })}
 							/>
-							<span>All Channels</span>
+							<span>All My Channels</span>
 						</label>
 						{#each myChannels as ch}
 							<label class="level-checkbox">
 								<input
 									type="checkbox"
 									checked={selectedChannel === ch.id}
-									on:change={() => handleSetChannel(ch.id)}
+									on:change={() => emitChange({ selectedChannel: ch.id })}
 								/>
 								<span>{ch.name}</span>
 							</label>
 						{/each}
 						<hr style="margin: 0.7em 0;" />
 						<a
-							href="/mychannels"
+							href="/my-channels"
 							class="edit-my-channels-link"
 							style="display: flex; align-items: center; color: #7950f2; font-weight: 700; text-decoration: none; font-size: 1em; gap: 0.6em; padding: 0.2em 0.1em;"
 						>
