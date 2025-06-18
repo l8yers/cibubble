@@ -19,68 +19,28 @@ export async function GET({ url }) {
 
   // --- RANDOM LOGIC ---
   if (sort === 'random') {
-    let idQuery = supabase.from('videos').select('id', { count: 'exact' });
-    if (levels && levels.length) idQuery = idQuery.in('level', levels);
-    if (tags && tags.length) idQuery = idQuery.overlaps('tags', tags);
-    if (country) idQuery = idQuery.eq('country', country);
+    const params = {
+      p_levels: levels?.length ? levels : null,
+      p_tags: tags?.length ? tags : null,
+      p_country: country || null,
+      p_channel_ids: channel ? channel.split(',').filter(Boolean) : null,
+      p_playlist: playlist || null,
+      p_search: search || null,
+      p_limit: pageSize
+    };
 
-    // PATCH: channel as list or eq
-    if (channel) {
-      const channelList = channel.split(',').filter(Boolean);
-      if (channelList.length > 1) {
-        idQuery = idQuery.in('channel_id', channelList);
-      } else {
-        idQuery = idQuery.eq('channel_id', channelList[0]);
-      }
-    }
+    const { data, error } = await supabase.rpc('random_one_per_channel', params);
 
-    if (playlist) idQuery = idQuery.eq('playlist_id', playlist);
-    if (search) idQuery = idQuery.ilike('title', `%${search}%`);
-
-    const { data: idsData, count, error: idError } = await idQuery;
-
-    if (idError) return json({ error: idError.message }, { status: 500 });
-    if (!idsData || idsData.length === 0) return json({ videos: [], total: 0, hasMore: true });
-
-    const shuffled = idsData.sort(() => 0.5 - Math.random());
-    const chosenIds = shuffled.slice(0, pageSize).map(obj => obj.id);
-
-    let dataQuery = supabase
-      .from('videos')
-      .select('*, playlist:playlist_id(title), channel:channel_id(name,country,tags)')
-      .in('id', chosenIds);
-
-    if (levels && levels.length) dataQuery = dataQuery.in('level', levels);
-    if (tags && tags.length) dataQuery = dataQuery.overlaps('tags', tags);
-    if (country) dataQuery = dataQuery.eq('country', country);
-
-    // PATCH: channel as list or eq
-    if (channel) {
-      const channelList = channel.split(',').filter(Boolean);
-      if (channelList.length > 1) {
-        dataQuery = dataQuery.in('channel_id', channelList);
-      } else {
-        dataQuery = dataQuery.eq('channel_id', channelList[0]);
-      }
-    }
-
-    if (playlist) dataQuery = dataQuery.eq('playlist_id', playlist);
-    if (search) dataQuery = dataQuery.ilike('title', `%${search}%`);
-
-    const { data, error } = await dataQuery;
     if (error) return json({ error: error.message }, { status: 500 });
 
-    const idToVideo = Object.fromEntries(data.map(v => [v.id, v]));
-    const sortedVideos = chosenIds.map(id => idToVideo[id]).filter(Boolean);
-
     return json({
-      videos: sortedVideos,
-      total: count ?? 0,
-      hasMore: true
+      videos: data ?? [],
+      total: data?.length ?? 0,
+      hasMore: false // or data.length === pageSize if you want to allow more paging
     });
   }
 
-  // --- NON-RANDOM LOGIC ---
+  // --- NON-RANDOM LOGIC --- (unchanged)
   const page = Number(url.searchParams.get('page') ?? 1);
   let query = supabase
     .from('videos')
@@ -90,7 +50,6 @@ export async function GET({ url }) {
   if (tags && tags.length) query = query.overlaps('tags', tags);
   if (country) query = query.eq('country', country);
 
-  // PATCH: channel as list or eq
   if (channel) {
     const channelList = channel.split(',').filter(Boolean);
     if (channelList.length > 1) {
@@ -122,9 +81,9 @@ export async function GET({ url }) {
   const { data, count, error } = await query;
   if (error) return json({ error: error.message }, { status: 500 });
 
-  return json({
-    videos: data ?? [],
-    total: count ?? 0,
-    hasMore: to + 1 < (count ?? 0)
-  });
+return json({
+  videos: data ?? [],
+  total: data?.length ?? 0,
+  hasMore: true  // <-- always true for random, so button stays
+});
 }

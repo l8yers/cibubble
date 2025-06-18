@@ -223,33 +223,6 @@
 			{/if}
 		</div>
 
-		<!-- MY VIDEOS SECTION -->
-		<div class="my-videos-section">
-			<div class="my-videos-header">
-				<span class="section-title" style="margin:0;">My Videos</span>
-				<a href="/my-videos" class="view-all-link">View all</a>
-			</div>
-			{#if myVideos.length === 0}
-				<div>You haven’t added any videos yet.</div>
-			{:else}
-				<div class="history-row">
-					{#each myVideos.slice(0, 15) as v}
-						<div class="history-card">
-							<VideoCard
-								video={v}
-								getBestThumbnail={utils.getBestThumbnail}
-								difficultyColor={utils.difficultyColor}
-								difficultyLabel={utils.difficultyLabel}
-								formatLength={utils.formatLength}
-								filterByChannel={null}
-								filterByPlaylist={null}
-							/>
-						</div>
-					{/each}
-				</div>
-			{/if}
-		</div>
-
 		<div class="section-title">Account</div>
 		<div class="profile-row"><b>Email:</b> {email}</div>
 		<div>
@@ -324,43 +297,6 @@
 		align-items: center;
 		gap: 0.3em;
 	}
-	.calendar-box {
-		min-width: 270px;
-		padding: 1.5em 1.6em 1.2em 1.6em;
-		justify-content: start;
-		align-items: stretch;
-	}
-	.mini-calendar {
-		display: flex;
-		gap: 5px;
-		margin-bottom: 0.32em;
-		margin-top: 0.5em;
-		min-height: 19px;
-		justify-content: center;
-	}
-	.calendar-day {
-		width: 18px;
-		height: 28px;
-		border-radius: 7px;
-		background: #ececec;
-		outline: none;
-		box-shadow: 0 0 0 1px #e6e6e6;
-		transition: background 0.16s;
-	}
-	.calendar-today {
-		outline: 2.5px solid #2562e9;
-	}
-	.calendar-labels {
-		display: flex;
-		gap: 5px;
-		font-size: 0.97em;
-		color: #bbb;
-		justify-content: center;
-	}
-	.calendar-labels > div {
-		width: 18px;
-		text-align: center;
-	}
 	@media (max-width: 960px) {
 		.stats-boxes-row {
 			flex-direction: column;
@@ -369,9 +305,6 @@
 		.stat-box {
 			min-width: unset;
 			width: 100%;
-		}
-		.calendar-box {
-			min-width: unset;
 		}
 	}
 	/* History/my videos grid: match front page grid */
@@ -411,15 +344,6 @@
 		scroll-snap-align: start;
 		min-width: 265px;
 		max-width: 320px;
-	}
-	.my-videos-section {
-		margin-top: 2.6em;
-	}
-	.my-videos-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 1.2em;
 	}
 	@media (max-width: 600px) {
 		.history-card {
