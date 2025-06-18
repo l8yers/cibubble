@@ -458,7 +458,7 @@
 						{/each}
 						<hr style="margin: 0.7em 0;" />
 						<a
-							href="/my-channels"
+							href="/mychannels"
 							class="edit-my-channels-link"
 							style="display: flex; align-items: center; color: #7950f2; font-weight: 700; text-decoration: none; font-size: 1em; gap: 0.6em; padding: 0.2em 0.1em;"
 						>
