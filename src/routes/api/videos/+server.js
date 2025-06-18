@@ -13,11 +13,37 @@ export async function GET({ url }) {
   const sort = url.searchParams.get('sort') ?? 'new';
   const search = url.searchParams.get('search') ?? '';
 
+  // If levels is empty, bail
   if (Array.isArray(levels) && levels.length === 0) {
     return json({ videos: [], total: 0, hasMore: false });
   }
 
-  // --- RANDOM LOGIC ---
+  // --- EASY + RANDOM: Use special function for just "easy" level ---
+  if (
+    sort === 'random' &&
+    levels?.length === 1 &&
+    levels[0] === 'easy'
+  ) {
+    const params = {
+      p_tags: tags?.length ? tags : null,
+      p_country: country || null,
+      p_channel_ids: channel ? channel.split(',').filter(Boolean) : null,
+      p_playlist: playlist || null,
+      p_search: search || null,
+      p_limit: pageSize
+    };
+    const { data, error } = await supabase.rpc('random_easy_videos', params);
+
+    if (error) return json({ error: error.message }, { status: 500 });
+
+    return json({
+      videos: data ?? [],
+      total: data?.length ?? 0,
+      hasMore: true // For "random", always allow Load More
+    });
+  }
+
+  // --- OTHER RANDOM: Use one-random-per-channel function for other levels ---
   if (sort === 'random') {
     const params = {
       p_levels: levels?.length ? levels : null,
@@ -36,11 +62,11 @@ export async function GET({ url }) {
     return json({
       videos: data ?? [],
       total: data?.length ?? 0,
-      hasMore: false // or data.length === pageSize if you want to allow more paging
+      hasMore: true // For "random", always allow Load More
     });
   }
 
-  // --- NON-RANDOM LOGIC --- (unchanged)
+  // --- NON-RANDOM: Standard paginated query ---
   const page = Number(url.searchParams.get('page') ?? 1);
   let query = supabase
     .from('videos')
@@ -81,9 +107,9 @@ export async function GET({ url }) {
   const { data, count, error } = await query;
   if (error) return json({ error: error.message }, { status: 500 });
 
-return json({
-  videos: data ?? [],
-  total: data?.length ?? 0,
-  hasMore: true  // <-- always true for random, so button stays
-});
+  return json({
+    videos: data ?? [],
+    total: count ?? 0,
+    hasMore: to + 1 < (count ?? 0)
+  });
 }
