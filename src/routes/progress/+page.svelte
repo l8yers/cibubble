@@ -133,7 +133,6 @@
 			dailyTotals = Object.entries(totalsMap)
 				.map(([date, totalSeconds]) => ({ date, totalSeconds }))
 				.sort((a, b) => b.date.localeCompare(a.date))
-				.reverse(); // Most recent first
 		}
 	}
 
