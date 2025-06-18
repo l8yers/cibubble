@@ -134,13 +134,14 @@
 .card-title {
   font-size: 1.08rem;
   font-weight: 600;
-  min-height: 2.2em;
-  max-height: 2.3em;
+  min-height: 2.7em;
+  max-height: 2.8em;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   flex: 1;
+  line-height: 1.32;
 }
 .card-meta {
   display: flex;
