@@ -7,6 +7,7 @@
 	import ProgressHistory from '$lib/components/progress/ProgressHistory.svelte';
 	import ProgressSettings from '$lib/components/progress/ProgressSettings.svelte';
 	import ProgressDailyTotals from '$lib/components/progress/ProgressDailyTotals.svelte';
+	import ProgressManualEntry from '$lib/components/progress/ProgressManualEntry.svelte';
 
 	let myVideos = [];
 	let watchedVideos = [];
@@ -22,6 +23,16 @@
 	let showSettings = false;
 	let dailyTotals = [];
 	let dailyOpen = false;
+	let manualOpen = false;
+
+	function openDailyOnly() {
+		dailyOpen = !dailyOpen;
+		if (dailyOpen) manualOpen = false;
+	}
+	function openManualOnly() {
+		manualOpen = !manualOpen;
+		if (manualOpen) dailyOpen = false;
+	}
 
 	// --- Format functions ---
 	function formatWatchTime(seconds) {
@@ -132,7 +143,7 @@
 			});
 			dailyTotals = Object.entries(totalsMap)
 				.map(([date, totalSeconds]) => ({ date, totalSeconds }))
-				.sort((a, b) => b.date.localeCompare(a.date))
+				.sort((a, b) => b.date.localeCompare(a.date));
 		}
 	}
 
@@ -232,12 +243,26 @@
 				{formatMinutesOnly}
 			/>
 
-			<ProgressDailyTotals
-				{dailyTotals}
-				{formatMinutesOnly}
-				open={dailyOpen}
-				onToggle={() => (dailyOpen = !dailyOpen)}
-			/>
+			<div class="progress-controls-row">
+				<button class="toggle-btn subtle" aria-expanded={dailyOpen} on:click={openDailyOnly}>
+					<span class="toggle-icon">{dailyOpen ? '➖' : '➕'}</span>
+					<span class="toggle-label">Show Daily Breakdown</span>
+				</button>
+				<button class="toggle-btn subtle" aria-expanded={manualOpen} on:click={openManualOnly}>
+					<span class="toggle-icon">{manualOpen ? '➖' : '➕'}</span>
+					<span class="toggle-label">Add Time From Outside the Platform</span>
+				</button>
+			</div>
+
+			{#if dailyOpen}
+				<ProgressDailyTotals
+					{dailyTotals}
+					{formatMinutesOnly}
+				/>
+			{/if}
+			{#if manualOpen}
+				<ProgressManualEntry onAdded={fetchAllUserData} />
+			{/if}
 
 			<ProgressHistory {watchedVideos} {utils} />
 		{:else}
@@ -295,5 +320,50 @@
 		color: #2562e9;
 		text-decoration: underline;
 		font-weight: 500;
+	}
+	.progress-controls-row {
+		display: flex;
+		justify-content: flex-start;
+		gap: 1.4em;
+		margin-bottom: 1.5em;
+	}
+	.toggle-btn.subtle {
+		display: flex;
+		align-items: center;
+		gap: 0.5em;
+		background: none;
+		border: none;
+		font-size: 1.08em;
+		font-weight: 600;
+		color: #4b5771;
+		padding: 0.3em 0.4em 0.3em 0.4em;
+		cursor: pointer;
+		border-radius: 8px;
+		transition: background 0.13s, color 0.13s;
+		outline: none;
+	}
+	.toggle-btn.subtle:focus,
+	.toggle-btn.subtle:hover {
+		background: #f5f5f8;
+		color: #e93c2f;
+	}
+	.toggle-icon {
+		font-size: 1.24em;
+		color: #a3a3b2;
+		transition: color 0.14s;
+	}
+	.toggle-btn.subtle:hover .toggle-icon {
+		color: #e93c2f;
+	}
+	.toggle-label {
+		font-weight: 500;
+		font-size: 1em;
+		letter-spacing: 0.01em;
+	}
+	@media (max-width: 600px) {
+		.progress-controls-row {
+			flex-direction: column;
+			gap: 1em;
+		}
 	}
 </style>
