@@ -45,15 +45,6 @@
     return mins > 0 ? `${mins} min` : `${seconds} sec`;
   }
 
-  function barColor(mins) {
-    if (mins >= 120) return '#e93c2f';
-    if (mins >= 60) return '#44c366';
-    if (mins >= 30) return '#f9c846';
-    if (mins >= 10) return '#f7ed85';
-    if (mins > 0) return '#b7f6ed';
-    return '#ececec';
-  }
-
   $: if ($user) {
     fetchAllUserData($user.id);
   }
@@ -206,7 +197,7 @@
     {#if !showSettings}
       <!-- MAIN PROGRESS CONTENT -->
       <div class="stats-boxes-row">
-        <div class="stat-box">
+        <div class="stat-box stat-time">
           <div class="stat-label">Total Watch Time</div>
           <div class="stat-value">
             <span
@@ -224,13 +215,13 @@
             </span>
           </div>
         </div>
-        <div class="stat-box">
+        <div class="stat-box stat-today">
           <div class="stat-label">Today's Watch Time</div>
           <div class="stat-value">
             {formatMinutesOnly(todayWatchTime)}
           </div>
         </div>
-        <div class="stat-box">
+        <div class="stat-box stat-streak">
           <div class="stat-label">Streak</div>
           <div class="stat-value">
             <span style="font-size:2em;">🔥</span>
@@ -299,7 +290,6 @@
   background: #fff;
   border-radius: 14px;
   border: 1px solid #ececec;
-  box-shadow: 0 2px 12px #ececec;
 }
 .profile-header-row, .settings-header-row {
   display: flex;
@@ -329,44 +319,70 @@
 .settings-panel {
   margin-top: 2.2em;
 }
+
+/* --- Stats boxes with colored backgrounds, no shadows --- */
 .stats-boxes-row {
   display: flex;
-  gap: 2.6em;
-  margin: 2.4em 0 2.5em 0;
-  flex-wrap: wrap;
+  gap: 2.1em;
+  margin: 2.7em 0 2.7em 0;
+  flex-wrap: nowrap;
   align-items: stretch;
+  justify-content: center;
 }
 .stat-box {
-  background: #fafafa;
   border-radius: 18px;
-  box-shadow: 0 2px 18px #ececec;
-  padding: 2em 3em 2em 3em;
-  min-width: 200px;
-  min-height: 108px;
-  flex: 1 1 210px;
+  padding: 2.1em 2.6em 1.9em 2.6em;
+  min-width: 220px;
+  min-height: 110px;
+  flex: 0 0 250px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin-bottom: 0.8em;
+  margin-bottom: 0;
+  border: none;
+  position: relative;
+  background: #f5f5f8;
+  /* Default fallback, will be overwritten by accent class */
 }
+
+/* Accent color backgrounds */
+.stat-time {
+  background: linear-gradient(120deg, #ffeaea 70%, #fff6f0 100%);
+}
+.stat-today {
+  background: linear-gradient(120deg, #eaffe9 70%, #f5fff5 100%);
+}
+.stat-streak {
+  background: linear-gradient(120deg, #fff6e4 70%, #fef9f1 100%);
+}
+
 .stat-label {
-  color: #aaa;
-  font-size: 1.19em;
-  font-weight: 600;
-  letter-spacing: 0.07em;
-  margin-bottom: 0.6em;
+  font-size: 1.11em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  margin-bottom: 0.8em;
+  user-select: none;
+  color: #7c7ca4;
 }
+.stat-time .stat-label { color: #e93c2f; }
+.stat-today .stat-label { color: #31b361; }
+.stat-streak .stat-label { color: #f4a000; }
+
 .stat-value {
-  font-size: 2.2em;
-  color: #222;
-  font-weight: 800;
-  letter-spacing: 0.02em;
+  font-size: 2.3em;
+  color: #181d27;
+  font-weight: 900;
+  letter-spacing: 0.01em;
   display: flex;
   align-items: center;
-  gap: 0.3em;
-  position: relative;
+  gap: 0.18em;
+  line-height: 1.15;
+  user-select: text;
 }
+
+/* Tooltip bubble styles unchanged */
 .tooltip-parent {
   position: relative;
   cursor: pointer;
@@ -387,15 +403,11 @@
   font-weight: 500;
   padding: 0.58em 1.2em;
   border-radius: 12px;
-  box-shadow: 0 4px 18px #2227;
   white-space: nowrap;
   z-index: 10;
   pointer-events: none;
   opacity: 1;
   animation: fadeIn 0.17s;
-}
-.tooltip-parent:active .custom-tooltip {
-  display: none;
 }
 @media (max-width: 600px) {
   .custom-tooltip {
@@ -407,6 +419,7 @@
   from { opacity: 0; transform: translateX(-50%) translateY(8px);}
   to   { opacity: 1; transform: translateX(-50%) translateY(0);}
 }
+
 .history-section {
   margin-top: 2.4em;
 }
@@ -444,7 +457,26 @@
   max-width: 400px;
   scroll-snap-align: start;
 }
-@media (max-width: 600px) {
+@media (max-width: 900px) {
+  .stats-boxes-row {
+    flex-wrap: wrap;
+    gap: 1.2em;
+  }
+  .stat-box {
+    min-width: 180px;
+    flex: 1 1 210px;
+    padding: 1.4em 1.1em 1.2em 1.1em;
+  }
+}
+@media (max-width: 650px) {
+  .stats-boxes-row {
+    flex-direction: column;
+    gap: 1em;
+  }
+  .stat-box {
+    width: 100%;
+    min-width: unset;
+  }
   .history-card {
     flex-basis: 92vw;
     min-width: 92vw;
