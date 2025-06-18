@@ -16,10 +16,34 @@
   let activityDays = [];
   let streak = 0;
 
-  function formatMinutes(seconds) {
+  // Tooltip state for Total Watch Time
+  let showTotalTooltip = false;
+
+  // Format functions as before
+  function formatWatchTime(seconds) {
     if (!seconds) return '0 min';
-    const m = Math.round(seconds / 60);
-    return m > 0 ? `${m} min` : `${seconds} sec`;
+    const mins = Math.round(seconds / 60);
+    if (mins >= 60) {
+      const hours = Math.floor(seconds / 3600);
+      return `${hours} hr${hours !== 1 ? 's' : ''}`;
+    }
+    return mins > 0 ? `${mins} min` : `${seconds} sec`;
+  }
+  function formatFullTime(seconds) {
+    if (!seconds) return '0 seconds';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    let result = [];
+    if (h) result.push(`${h} hr${h !== 1 ? 's' : ''}`);
+    if (m) result.push(`${m} min${m !== 1 ? 's' : ''}`);
+    if (s || result.length === 0) result.push(`${s} sec${s !== 1 ? 's' : ''}`);
+    return result.join(' ');
+  }
+  function formatMinutesOnly(seconds) {
+    if (!seconds) return '0 min';
+    const mins = Math.round(seconds / 60);
+    return mins > 0 ? `${mins} min` : `${seconds} sec`;
   }
 
   function barColor(mins) {
@@ -31,7 +55,6 @@
     return '#ececec';
   }
 
-  // Fetch all user-dependent data when $user changes
   $: if ($user) {
     fetchAllUserData($user.id);
   }
@@ -67,18 +90,19 @@
     // --- Recent activity and streak ---
     await fetchRecentActivity(userId);
 
-    // --- Watched videos (recent, ordered) ---
+    // --- Watched videos (recent, ordered by inserted_at) ---
+    // Get ALL watch_sessions for this user, with inserted_at
     let { data: watchedSessions } = await supabase
       .from('watch_sessions')
-      .select('video_id, date')
+      .select('video_id, date, inserted_at')
       .eq('user_id', userId);
 
+    // For each video, store the most recent inserted_at
     const videoMap = {};
     for (const ws of watchedSessions ?? []) {
-      if (ws.video_id && ws.date) {
-        if (!videoMap[ws.video_id] || ws.date > videoMap[ws.video_id]) {
-          videoMap[ws.video_id] = ws.date;
-        }
+      // Use latest inserted_at for each video
+      if (!videoMap[ws.video_id] || ws.inserted_at > videoMap[ws.video_id].inserted_at) {
+        videoMap[ws.video_id] = { date: ws.date, inserted_at: ws.inserted_at };
       }
     }
     const videoIds = Object.keys(videoMap);
@@ -88,15 +112,16 @@
       watchedVideos = (vids || [])
         .map((v) => ({
           ...v,
-          lastWatched: videoMap[v.id]
+          lastWatched: videoMap[v.id]?.inserted_at,
+          lastWatchedDate: videoMap[v.id]?.date
         }))
-        .sort((a, b) => (b.lastWatched || '').localeCompare(a.lastWatched || ''));
+        .filter((v) => v.lastWatched)
+        .sort((a, b) => b.lastWatched.localeCompare(a.lastWatched));
     } else {
       watchedVideos = [];
     }
   }
 
-  // Activity/streak calendar
   async function fetchRecentActivity(userId) {
     const today = new Date();
     const dates = [];
@@ -161,233 +186,281 @@
     }
   }
 
-  // Make sure we call loadUser() once on mount for SSR hydration (it’s idempotent)
   onMount(() => {
     loadUser();
   });
 </script>
 
 {#if !$user}
-	<div class="profile-main" style="text-align:center;">
-		<div style="margin:2em 0;">
-			Not logged in.<br /><a href="/login" class="video-link">Login here</a>
-		</div>
-	</div>
+  <div class="profile-main" style="text-align:center;">
+    <div style="margin:2em 0;">
+      Not logged in.<br /><a href="/login" class="video-link">Login here</a>
+    </div>
+  </div>
 {:else}
-	<div class="profile-main">
-		<div class="section-title">Progress</div>
+  <div class="profile-main">
+    <div class="section-title">Progress</div>
 
-		<!-- STATS BOXES -->
-		<div class="stats-boxes-row">
-			<div class="stat-box">
-				<div class="stat-label">Total Watch Time</div>
-				<div class="stat-value">{formatMinutes(watchTime)}</div>
-			</div>
-			<div class="stat-box">
-				<div class="stat-label">Today's Watch Time</div>
-				<div class="stat-value">{formatMinutes(todayWatchTime)}</div>
-			</div>
-			<div class="stat-box">
-				<div class="stat-label">Streak</div>
-				<div class="stat-value">
-					<span style="font-size:2em;">🔥</span>
-					{streak} day{streak === 1 ? '' : 's'}
-				</div>
-			</div>
-		</div>
+    <!-- STATS BOXES -->
+    <div class="stats-boxes-row">
+      <div class="stat-box">
+        <div class="stat-label">Total Watch Time</div>
+        <div class="stat-value">
+          <span
+            class="tooltip-parent"
+            on:mouseenter={() => (showTotalTooltip = true)}
+            on:mouseleave={() => (showTotalTooltip = false)}
+            tabindex="0"
+            on:focus={() => (showTotalTooltip = true)}
+            on:blur={() => (showTotalTooltip = false)}
+          >
+            {formatWatchTime(watchTime)}
+            {#if showTotalTooltip}
+              <span class="custom-tooltip">{formatFullTime(watchTime)}</span>
+            {/if}
+          </span>
+        </div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Today's Watch Time</div>
+        <div class="stat-value">
+          {formatMinutesOnly(todayWatchTime)}
+        </div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Streak</div>
+        <div class="stat-value">
+          <span style="font-size:2em;">🔥</span>
+          {streak} day{streak === 1 ? '' : 's'}
+        </div>
+      </div>
+    </div>
 
-		<!-- HISTORY SECTION -->
-		<div class="history-section">
-			<div class="history-header">
-				<span class="section-title" style="margin:0;">History</span>
-				<a href="/history" class="view-all-link">View all</a>
-			</div>
-			{#if watchedVideos.length === 0}
-				<div>No videos watched yet.</div>
-			{:else}
-				<div class="history-row">
-					{#each watchedVideos.slice(0, 15) as v}
-						<div class="history-card">
-							<VideoCard
-								video={v}
-								getBestThumbnail={utils.getBestThumbnail}
-								difficultyColor={utils.difficultyColor}
-								difficultyLabel={utils.difficultyLabel}
-								formatLength={utils.formatLength}
-								filterByChannel={null}
-								filterByPlaylist={null}
-							/>
-						</div>
-					{/each}
-				</div>
-			{/if}
-		</div>
+    <!-- HISTORY SECTION -->
+    <div class="history-section">
+      <div class="history-header">
+        <span class="section-title" style="margin:0;">History</span>
+        <a href="/history" class="view-all-link">View all</a>
+      </div>
+      {#if watchedVideos.length === 0}
+        <div>No videos watched yet.</div>
+      {:else}
+        <div class="history-row">
+          {#each watchedVideos.slice(0, 15) as v}
+            <div class="history-card">
+              <VideoCard
+                video={v}
+                getBestThumbnail={utils.getBestThumbnail}
+                difficultyColor={utils.difficultyColor}
+                difficultyLabel={utils.difficultyLabel}
+                formatLength={utils.formatLength}
+                filterByChannel={null}
+                filterByPlaylist={null}
+              />
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </div>
 
-		<div class="section-title">Account</div>
-		<div class="profile-row"><b>Email:</b> {email}</div>
-		<div>
-			<input type="email" bind:value={newEmail} placeholder="New email" autocomplete="email" />
-			<button on:click={updateEmail}>Change Email</button>
-		</div>
-		<div>
-			<input
-				type="password"
-				bind:value={newPassword}
-				placeholder="New password"
-				autocomplete="new-password"
-			/>
-			<button on:click={updatePassword}>Change Password</button>
-		</div>
-		<div class="message">{message}</div>
-	</div>
+    <div class="section-title">Account</div>
+    <div class="profile-row"><b>Email:</b> {email}</div>
+    <div>
+      <input type="email" bind:value={newEmail} placeholder="New email" autocomplete="email" />
+      <button on:click={updateEmail}>Change Email</button>
+    </div>
+    <div>
+      <input
+        type="password"
+        bind:value={newPassword}
+        placeholder="New password"
+        autocomplete="new-password"
+      />
+      <button on:click={updatePassword}>Change Password</button>
+    </div>
+    <div class="message">{message}</div>
+  </div>
 {/if}
 
 <style>
-	.profile-main {
-		max-width: 1200px;
-		margin: 2.2rem auto 0 auto;
-		padding: 2rem 3vw 2.3rem 3vw;
-		background: #fff;
-		border-radius: 14px;
-		border: 1px solid #ececec;
-		box-shadow: 0 2px 12px #ececec;
-	}
-	.section-title {
-		color: #181818;
-		font-size: 1.25rem;
-		font-weight: bold;
-		margin: 1.7em 0 1em 0;
-		letter-spacing: 0.3px;
-	}
-	/* Chunkier stats boxes */
-	.stats-boxes-row {
-		display: flex;
-		gap: 2.6em;
-		margin: 2.4em 0 2.5em 0;
-		flex-wrap: wrap;
-		align-items: stretch;
-	}
-	.stat-box {
-		background: #fafafa;
-		border-radius: 18px;
-		box-shadow: 0 2px 18px #ececec;
-		padding: 2em 3em 2em 3em;
-		min-width: 200px;
-		min-height: 108px;
-		flex: 1 1 210px;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		margin-bottom: 0.8em;
-	}
-	.stat-label {
-		color: #aaa;
-		font-size: 1.19em;
-		font-weight: 600;
-		letter-spacing: 0.07em;
-		margin-bottom: 0.6em;
-	}
-	.stat-value {
-		font-size: 2.2em;
-		color: #222;
-		font-weight: 800;
-		letter-spacing: 0.02em;
-		display: flex;
-		align-items: center;
-		gap: 0.3em;
-	}
-	@media (max-width: 960px) {
-		.stats-boxes-row {
-			flex-direction: column;
-			gap: 1.8em;
-		}
-		.stat-box {
-			min-width: unset;
-			width: 100%;
-		}
-	}
-	/* History/my videos grid: match front page grid */
-	.history-section {
-		margin-top: 2.4em;
-	}
-	.history-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 1.2em;
-	}
-	.view-all-link {
-		font-size: 1em;
-		color: #2562e9;
-		text-decoration: none;
-		font-weight: 500;
-	}
-	.history-row {
-		display: flex;
-		gap: 1.5em;
-		overflow-x: auto;
-		padding-bottom: 0.7em;
-		scroll-snap-type: x mandatory;
-		-webkit-overflow-scrolling: touch;
-	}
-	.history-row::-webkit-scrollbar {
-		height: 9px;
-		background: #f6f6f6;
-	}
-	.history-row::-webkit-scrollbar-thumb {
-		background: #e5e5e5;
-		border-radius: 6px;
-	}
-	.history-card {
-		flex: 0 0 265px; /* Adjust width for card size */
-		scroll-snap-align: start;
-		min-width: 265px;
-		max-width: 320px;
-	}
-	@media (max-width: 600px) {
-		.history-card {
-			flex-basis: 82vw;
-			min-width: 82vw;
-			max-width: 90vw;
-		}
-		.history-row {
-			gap: 1em;
-		}
-	}
-	.profile-row {
-		margin-bottom: 1.3em;
-	}
-	input[type='email'],
-	input[type='password'] {
-		width: 100%;
-		padding: 0.7em 1em;
-		font-size: 1.07rem;
-		border: 1px solid #ececec;
-		border-radius: 8px;
-		background: #fafafa;
-		margin-bottom: 0.9em;
-		color: #181818;
-	}
-	button {
-		padding: 0.6em 1.7em;
-		font-size: 1.04rem;
-		background: #e93c2f;
-		color: #fff;
-		border: none;
-		border-radius: 8px;
-		cursor: pointer;
-		font-weight: 600;
-		margin-right: 1em;
-		margin-bottom: 0.5em;
-		transition: background 0.18s;
-	}
-	button:hover {
-		background: #b8271b;
-	}
-	.message {
-		color: #26890d;
-		margin-bottom: 1em;
-		min-height: 1.5em;
-	}
+  .profile-main {
+    max-width: 1200px;
+    margin: 2.2rem auto 0 auto;
+    padding: 2rem 3vw 2.3rem 3vw;
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid #ececec;
+    box-shadow: 0 2px 12px #ececec;
+  }
+  .section-title {
+    color: #181818;
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin: 1.7em 0 1em 0;
+    letter-spacing: 0.3px;
+  }
+  /* Chunkier stats boxes */
+  .stats-boxes-row {
+    display: flex;
+    gap: 2.6em;
+    margin: 2.4em 0 2.5em 0;
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+  .stat-box {
+    background: #fafafa;
+    border-radius: 18px;
+    box-shadow: 0 2px 18px #ececec;
+    padding: 2em 3em 2em 3em;
+    min-width: 200px;
+    min-height: 108px;
+    flex: 1 1 210px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.8em;
+  }
+  .stat-label {
+    color: #aaa;
+    font-size: 1.19em;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    margin-bottom: 0.6em;
+  }
+  .stat-value {
+    font-size: 2.2em;
+    color: #222;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    gap: 0.3em;
+    position: relative;
+  }
+
+  /* --- Custom Tooltip Bubble --- */
+  .tooltip-parent {
+    position: relative;
+    cursor: pointer;
+    outline: none;
+    transition: box-shadow 0.1s;
+  }
+  .tooltip-parent:focus {
+    box-shadow: 0 0 0 2px #e93c2f55;
+  }
+  .custom-tooltip {
+    position: absolute;
+    left: 50%;
+    bottom: 120%;
+    transform: translateX(-50%);
+    background: #232323;
+    color: #fff;
+    font-size: 1.03rem;
+    font-weight: 500;
+    padding: 0.58em 1.2em;
+    border-radius: 12px;
+    box-shadow: 0 4px 18px #2227;
+    white-space: nowrap;
+    z-index: 10;
+    pointer-events: none;
+    opacity: 1;
+    animation: fadeIn 0.17s;
+  }
+  .tooltip-parent:active .custom-tooltip {
+    display: none;
+  }
+  @media (max-width: 600px) {
+    .custom-tooltip {
+      font-size: 0.97rem;
+      padding: 0.46em 1em;
+    }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(8px);}
+    to   { opacity: 1; transform: translateX(-50%) translateY(0);}
+  }
+  /* History/my videos grid: match front page grid */
+  .history-section {
+    margin-top: 2.4em;
+  }
+  .history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.2em;
+  }
+  .view-all-link {
+    font-size: 1em;
+    color: #2562e9;
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .history-row {
+    display: flex;
+    gap: 1.5em;
+    overflow-x: auto;
+    padding-bottom: 0.7em;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .history-row::-webkit-scrollbar {
+    height: 9px;
+    background: #f6f6f6;
+  }
+  .history-row::-webkit-scrollbar-thumb {
+    background: #e5e5e5;
+    border-radius: 6px;
+  }
+  .history-card {
+    flex: 0 0 320px;   /* wider card */
+    min-width: 320px;
+    max-width: 400px;
+    scroll-snap-align: start;
+  }
+  @media (max-width: 600px) {
+    .history-card {
+      flex-basis: 92vw;
+      min-width: 92vw;
+      max-width: 98vw;
+    }
+    .history-row {
+      gap: 1em;
+    }
+  }
+  .profile-row {
+    margin-bottom: 1.3em;
+  }
+  input[type='email'],
+  input[type='password'] {
+    width: 100%;
+    padding: 0.7em 1em;
+    font-size: 1.07rem;
+    border: 1px solid #ececec;
+    border-radius: 8px;
+    background: #fafafa;
+    margin-bottom: 0.9em;
+    color: #181818;
+  }
+  button {
+    padding: 0.6em 1.7em;
+    font-size: 1.04rem;
+    background: #e93c2f;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    margin-right: 1em;
+    margin-bottom: 0.5em;
+    transition: background 0.18s;
+  }
+  button:hover {
+    background: #b8271b;
+  }
+  .message {
+    color: #26890d;
+    margin-bottom: 1em;
+    min-height: 1.5em;
+  }
 </style>
