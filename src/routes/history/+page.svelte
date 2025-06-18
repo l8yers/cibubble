@@ -7,7 +7,6 @@
   let watchedVideos = [];
   let loading = true;
 
-  // For nice formatting
   function formatDateTime(iso) {
     if (!iso) return '';
     const d = new Date(iso);
@@ -18,13 +17,11 @@
 
   async function fetchWatched() {
     loading = true;
-    // 1. Get all sessions for this user
     let { data: sessions } = await supabase
       .from('watch_sessions')
       .select('video_id, inserted_at')
       .eq('user_id', $user.id);
 
-    // 2. Keep only the most recent session per video
     const videoMap = {};
     for (const ws of sessions ?? []) {
       if (!videoMap[ws.video_id] || ws.inserted_at > videoMap[ws.video_id]) {
@@ -39,10 +36,8 @@
       return;
     }
 
-    // 3. Fetch video info for all watched videos
     let { data: vids } = await supabase.from('videos').select('*').in('id', videoIds);
 
-    // 4. Map and sort
     watchedVideos = (vids || [])
       .map(v => ({
         ...v,
@@ -64,8 +59,8 @@
 {:else}
   <div class="history-main">
     <div class="history-header-row">
-      <a href="/progress" class="back-link">← Back to Progress</a>
       <div class="history-title">All Watched Videos</div>
+      <a href="/progress" class="back-link">← Back to Progress</a>
     </div>
     {#if loading}
       <div>Loading...</div>
@@ -111,6 +106,7 @@
 .history-header-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 2em;
   margin-bottom: 2.2em;
 }
@@ -125,6 +121,13 @@
   font-size: 1.04em;
   text-decoration: none;
   font-weight: 500;
+  cursor: pointer;
+  transition: color 0.16s;
+}
+.back-link:hover,
+.back-link:focus {
+  color: #e93c2f;
+  text-decoration: underline;
 }
 .watched-list {
   list-style: none;
@@ -191,6 +194,10 @@
   .history-main {
     padding: 0.9rem 2vw 1.2rem 2vw;
     border-radius: 8px;
+  }
+  .history-header-row {
+    gap: 0.8em;
+    margin-bottom: 1.2em;
   }
   .watched-row {
     gap: 0.6em;

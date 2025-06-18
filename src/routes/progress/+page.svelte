@@ -15,11 +15,10 @@
   let todayWatchTime = 0;
   let activityDays = [];
   let streak = 0;
-
-  // Tooltip state for Total Watch Time
   let showTotalTooltip = false;
+  let showSettings = false;
 
-  // Format functions as before
+  // Format functions
   function formatWatchTime(seconds) {
     if (!seconds) return '0 min';
     const mins = Math.round(seconds / 60);
@@ -91,7 +90,6 @@
     await fetchRecentActivity(userId);
 
     // --- Watched videos (recent, ordered by inserted_at) ---
-    // Get ALL watch_sessions for this user, with inserted_at
     let { data: watchedSessions } = await supabase
       .from('watch_sessions')
       .select('video_id, date, inserted_at')
@@ -100,7 +98,6 @@
     // For each video, store the most recent inserted_at
     const videoMap = {};
     for (const ws of watchedSessions ?? []) {
-      // Use latest inserted_at for each video
       if (!videoMap[ws.video_id] || ws.inserted_at > videoMap[ws.video_id].inserted_at) {
         videoMap[ws.video_id] = { date: ws.date, inserted_at: ws.inserted_at };
       }
@@ -199,268 +196,297 @@
   </div>
 {:else}
   <div class="profile-main">
-    <div class="section-title">Progress</div>
-
-    <!-- STATS BOXES -->
-    <div class="stats-boxes-row">
-      <div class="stat-box">
-        <div class="stat-label">Total Watch Time</div>
-        <div class="stat-value">
-          <span
-            class="tooltip-parent"
-            on:mouseenter={() => (showTotalTooltip = true)}
-            on:mouseleave={() => (showTotalTooltip = false)}
-            tabindex="0"
-            on:focus={() => (showTotalTooltip = true)}
-            on:blur={() => (showTotalTooltip = false)}
-          >
-            {formatWatchTime(watchTime)}
-            {#if showTotalTooltip}
-              <span class="custom-tooltip">{formatFullTime(watchTime)}</span>
-            {/if}
-          </span>
-        </div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-label">Today's Watch Time</div>
-        <div class="stat-value">
-          {formatMinutesOnly(todayWatchTime)}
-        </div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-label">Streak</div>
-        <div class="stat-value">
-          <span style="font-size:2em;">🔥</span>
-          {streak} day{streak === 1 ? '' : 's'}
-        </div>
-      </div>
-    </div>
-
-    <!-- HISTORY SECTION -->
-    <div class="history-section">
-      <div class="history-header">
-        <span class="section-title" style="margin:0;">History</span>
-        <a href="/history" class="view-all-link">View all</a>
-      </div>
-      {#if watchedVideos.length === 0}
-        <div>No videos watched yet.</div>
-      {:else}
-        <div class="history-row">
-          {#each watchedVideos.slice(0, 15) as v}
-            <div class="history-card">
-              <VideoCard
-                video={v}
-                getBestThumbnail={utils.getBestThumbnail}
-                difficultyColor={utils.difficultyColor}
-                difficultyLabel={utils.difficultyLabel}
-                formatLength={utils.formatLength}
-                filterByChannel={null}
-                filterByPlaylist={null}
-              />
-            </div>
-          {/each}
-        </div>
+    <div class="profile-header-row">
+      <div class="section-title">Progress</div>
+      {#if !showSettings}
+        <a class="settings-link" on:click={() => showSettings = true} tabindex="0">Settings</a>
       {/if}
     </div>
 
-    <div class="section-title">Account</div>
-    <div class="profile-row"><b>Email:</b> {email}</div>
-    <div>
-      <input type="email" bind:value={newEmail} placeholder="New email" autocomplete="email" />
-      <button on:click={updateEmail}>Change Email</button>
-    </div>
-    <div>
-      <input
-        type="password"
-        bind:value={newPassword}
-        placeholder="New password"
-        autocomplete="new-password"
-      />
-      <button on:click={updatePassword}>Change Password</button>
-    </div>
-    <div class="message">{message}</div>
+    {#if !showSettings}
+      <!-- MAIN PROGRESS CONTENT -->
+      <div class="stats-boxes-row">
+        <div class="stat-box">
+          <div class="stat-label">Total Watch Time</div>
+          <div class="stat-value">
+            <span
+              class="tooltip-parent"
+              on:mouseenter={() => (showTotalTooltip = true)}
+              on:mouseleave={() => (showTotalTooltip = false)}
+              tabindex="0"
+              on:focus={() => (showTotalTooltip = true)}
+              on:blur={() => (showTotalTooltip = false)}
+            >
+              {formatWatchTime(watchTime)}
+              {#if showTotalTooltip}
+                <span class="custom-tooltip">{formatFullTime(watchTime)}</span>
+              {/if}
+            </span>
+          </div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Today's Watch Time</div>
+          <div class="stat-value">
+            {formatMinutesOnly(todayWatchTime)}
+          </div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Streak</div>
+          <div class="stat-value">
+            <span style="font-size:2em;">🔥</span>
+            {streak} day{streak === 1 ? '' : 's'}
+          </div>
+        </div>
+      </div>
+
+      <div class="history-section">
+        <div class="history-header">
+          <span class="section-title" style="margin:0;">History</span>
+          <a href="/history" class="view-all-link">View all</a>
+        </div>
+        {#if watchedVideos.length === 0}
+          <div>No videos watched yet.</div>
+        {:else}
+          <div class="history-row">
+            {#each watchedVideos.slice(0, 15) as v}
+              <div class="history-card">
+                <VideoCard
+                  video={v}
+                  getBestThumbnail={utils.getBestThumbnail}
+                  difficultyColor={utils.difficultyColor}
+                  difficultyLabel={utils.difficultyLabel}
+                  formatLength={utils.formatLength}
+                  filterByChannel={null}
+                  filterByPlaylist={null}
+                />
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {:else}
+      <!-- SETTINGS PANEL -->
+      <div class="settings-panel">
+        <div class="settings-header-row">
+          <div class="section-title">Account Settings</div>
+          <a class="settings-link" on:click={() => showSettings = false} tabindex="0">← Back</a>
+        </div>
+        <div class="profile-row"><b>Email:</b> {email}</div>
+        <div>
+          <input type="email" bind:value={newEmail} placeholder="New email" autocomplete="email" />
+          <button on:click={updateEmail}>Change Email</button>
+        </div>
+        <div>
+          <input
+            type="password"
+            bind:value={newPassword}
+            placeholder="New password"
+            autocomplete="new-password"
+          />
+          <button on:click={updatePassword}>Change Password</button>
+        </div>
+        <div class="message">{message}</div>
+      </div>
+    {/if}
   </div>
 {/if}
 
 <style>
-  .profile-main {
-    max-width: 1200px;
-    margin: 2.2rem auto 0 auto;
-    padding: 2rem 3vw 2.3rem 3vw;
-    background: #fff;
-    border-radius: 14px;
-    border: 1px solid #ececec;
-    box-shadow: 0 2px 12px #ececec;
-  }
-  .section-title {
-    color: #181818;
-    font-size: 1.25rem;
-    font-weight: bold;
-    margin: 1.7em 0 1em 0;
-    letter-spacing: 0.3px;
-  }
-  /* Chunkier stats boxes */
-  .stats-boxes-row {
-    display: flex;
-    gap: 2.6em;
-    margin: 2.4em 0 2.5em 0;
-    flex-wrap: wrap;
-    align-items: stretch;
-  }
-  .stat-box {
-    background: #fafafa;
-    border-radius: 18px;
-    box-shadow: 0 2px 18px #ececec;
-    padding: 2em 3em 2em 3em;
-    min-width: 200px;
-    min-height: 108px;
-    flex: 1 1 210px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 0.8em;
-  }
-  .stat-label {
-    color: #aaa;
-    font-size: 1.19em;
-    font-weight: 600;
-    letter-spacing: 0.07em;
-    margin-bottom: 0.6em;
-  }
-  .stat-value {
-    font-size: 2.2em;
-    color: #222;
-    font-weight: 800;
-    letter-spacing: 0.02em;
-    display: flex;
-    align-items: center;
-    gap: 0.3em;
-    position: relative;
-  }
-
-  /* --- Custom Tooltip Bubble --- */
-  .tooltip-parent {
-    position: relative;
-    cursor: pointer;
-    outline: none;
-    transition: box-shadow 0.1s;
-  }
-  .tooltip-parent:focus {
-    box-shadow: 0 0 0 2px #e93c2f55;
-  }
+.profile-main {
+  max-width: 1200px;
+  margin: 2.2rem auto 0 auto;
+  padding: 2rem 3vw 2.3rem 3vw;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #ececec;
+  box-shadow: 0 2px 12px #ececec;
+}
+.profile-header-row, .settings-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.6em;
+  gap: 2em;
+}
+.section-title {
+  color: #181818;
+  font-size: 1.25rem;
+  font-weight: bold;
+  letter-spacing: 0.3px;
+}
+.settings-link {
+  color: #2562e9;
+  font-size: 1.06em;
+  text-decoration: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.16s;
+}
+.settings-link:hover, .settings-link:focus {
+  color: #e93c2f;
+  text-decoration: underline;
+}
+.settings-panel {
+  margin-top: 2.2em;
+}
+.stats-boxes-row {
+  display: flex;
+  gap: 2.6em;
+  margin: 2.4em 0 2.5em 0;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+.stat-box {
+  background: #fafafa;
+  border-radius: 18px;
+  box-shadow: 0 2px 18px #ececec;
+  padding: 2em 3em 2em 3em;
+  min-width: 200px;
+  min-height: 108px;
+  flex: 1 1 210px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.8em;
+}
+.stat-label {
+  color: #aaa;
+  font-size: 1.19em;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  margin-bottom: 0.6em;
+}
+.stat-value {
+  font-size: 2.2em;
+  color: #222;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  position: relative;
+}
+.tooltip-parent {
+  position: relative;
+  cursor: pointer;
+  outline: none;
+  transition: box-shadow 0.1s;
+}
+.tooltip-parent:focus {
+  box-shadow: 0 0 0 2px #e93c2f55;
+}
+.custom-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: 120%;
+  transform: translateX(-50%);
+  background: #232323;
+  color: #fff;
+  font-size: 1.03rem;
+  font-weight: 500;
+  padding: 0.58em 1.2em;
+  border-radius: 12px;
+  box-shadow: 0 4px 18px #2227;
+  white-space: nowrap;
+  z-index: 10;
+  pointer-events: none;
+  opacity: 1;
+  animation: fadeIn 0.17s;
+}
+.tooltip-parent:active .custom-tooltip {
+  display: none;
+}
+@media (max-width: 600px) {
   .custom-tooltip {
-    position: absolute;
-    left: 50%;
-    bottom: 120%;
-    transform: translateX(-50%);
-    background: #232323;
-    color: #fff;
-    font-size: 1.03rem;
-    font-weight: 500;
-    padding: 0.58em 1.2em;
-    border-radius: 12px;
-    box-shadow: 0 4px 18px #2227;
-    white-space: nowrap;
-    z-index: 10;
-    pointer-events: none;
-    opacity: 1;
-    animation: fadeIn 0.17s;
+    font-size: 0.97rem;
+    padding: 0.46em 1em;
   }
-  .tooltip-parent:active .custom-tooltip {
-    display: none;
-  }
-  @media (max-width: 600px) {
-    .custom-tooltip {
-      font-size: 0.97rem;
-      padding: 0.46em 1em;
-    }
-  }
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateX(-50%) translateY(8px);}
-    to   { opacity: 1; transform: translateX(-50%) translateY(0);}
-  }
-  /* History/my videos grid: match front page grid */
-  .history-section {
-    margin-top: 2.4em;
-  }
-  .history-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.2em;
-  }
-  .view-all-link {
-    font-size: 1em;
-    color: #2562e9;
-    text-decoration: none;
-    font-weight: 500;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px);}
+  to   { opacity: 1; transform: translateX(-50%) translateY(0);}
+}
+.history-section {
+  margin-top: 2.4em;
+}
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.2em;
+}
+.view-all-link {
+  font-size: 1em;
+  color: #2562e9;
+  text-decoration: none;
+  font-weight: 500;
+}
+.history-row {
+  display: flex;
+  gap: 1.5em;
+  overflow-x: auto;
+  padding-bottom: 0.7em;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.history-row::-webkit-scrollbar {
+  height: 9px;
+  background: #f6f6f6;
+}
+.history-row::-webkit-scrollbar-thumb {
+  background: #e5e5e5;
+  border-radius: 6px;
+}
+.history-card {
+  flex: 0 0 340px;   /* wider card */
+  min-width: 340px;
+  max-width: 400px;
+  scroll-snap-align: start;
+}
+@media (max-width: 600px) {
+  .history-card {
+    flex-basis: 92vw;
+    min-width: 92vw;
+    max-width: 98vw;
   }
   .history-row {
-    display: flex;
-    gap: 1.5em;
-    overflow-x: auto;
-    padding-bottom: 0.7em;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
+    gap: 1em;
   }
-  .history-row::-webkit-scrollbar {
-    height: 9px;
-    background: #f6f6f6;
-  }
-  .history-row::-webkit-scrollbar-thumb {
-    background: #e5e5e5;
-    border-radius: 6px;
-  }
-  .history-card {
-    flex: 0 0 320px;   /* wider card */
-    min-width: 320px;
-    max-width: 400px;
-    scroll-snap-align: start;
-  }
-  @media (max-width: 600px) {
-    .history-card {
-      flex-basis: 92vw;
-      min-width: 92vw;
-      max-width: 98vw;
-    }
-    .history-row {
-      gap: 1em;
-    }
-  }
-  .profile-row {
-    margin-bottom: 1.3em;
-  }
-  input[type='email'],
-  input[type='password'] {
-    width: 100%;
-    padding: 0.7em 1em;
-    font-size: 1.07rem;
-    border: 1px solid #ececec;
-    border-radius: 8px;
-    background: #fafafa;
-    margin-bottom: 0.9em;
-    color: #181818;
-  }
-  button {
-    padding: 0.6em 1.7em;
-    font-size: 1.04rem;
-    background: #e93c2f;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 600;
-    margin-right: 1em;
-    margin-bottom: 0.5em;
-    transition: background 0.18s;
-  }
-  button:hover {
-    background: #b8271b;
-  }
-  .message {
-    color: #26890d;
-    margin-bottom: 1em;
-    min-height: 1.5em;
-  }
+}
+.profile-row {
+  margin-bottom: 1.3em;
+}
+input[type='email'],
+input[type='password'] {
+  width: 100%;
+  padding: 0.7em 1em;
+  font-size: 1.07rem;
+  border: 1px solid #ececec;
+  border-radius: 8px;
+  background: #fafafa;
+  margin-bottom: 0.9em;
+  color: #181818;
+}
+button {
+  padding: 0.6em 1.7em;
+  font-size: 1.04rem;
+  background: #e93c2f;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  margin-right: 1em;
+  margin-bottom: 0.5em;
+  transition: background 0.18s;
+}
+button:hover {
+  background: #b8271b;
+}
+.message {
+  color: #26890d;
+  margin-bottom: 1em;
+  min-height: 1.5em;
+}
 </style>
