@@ -9,14 +9,12 @@
 
   import { ListMusic } from 'lucide-svelte';
 
-  // Generate a link preserving all existing filters but updating channel
   function makeChannelUrl(channelId) {
     const params = new URLSearchParams(window.location.search);
     params.set('channel', channelId);
     return `/?${params.toString()}`;
   }
 
-  // Generate a link preserving all existing filters but updating playlist
   function makePlaylistUrl(playlistId) {
     const params = new URLSearchParams(window.location.search);
     params.set('playlist', playlistId);
@@ -50,9 +48,9 @@
 
       {#if video.channel_id && (video.channel?.name || video.channel_name)}
         <a
-          class="meta-link"
+          class="meta-link channel-name"
           style="color:#2e9be6;cursor:pointer;"
-          title="Show all videos from this channel"
+          title={video.channel?.name ?? video.channel_name}
           href={makeChannelUrl(video.channel_id)}
         >
           {video.channel?.name ?? video.channel_name}
@@ -178,10 +176,24 @@
   transition: background 0.13s, color 0.13s;
   display: flex;
   align-items: center;
+  /* Remove line wrapping for all meta links by default */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;  /* Or adjust to fit your card */
 }
 .meta-link:hover {
   background: #e4e4e4;
   color: #e93c2f;
+}
+.channel-name {
+  /* Limit channel name links to one line */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px; /* Adjust as needed for your card width */
+  display: inline-block;
+  vertical-align: bottom;
 }
 .playlist-icon :global(svg) {
   vertical-align: middle;
