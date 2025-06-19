@@ -8,7 +8,6 @@ const YOUTUBE_API_KEY = process.env.VITE_YOUTUBE_API_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // --- TAG NORMALIZER ---
 function normalizeTags(raw) {
