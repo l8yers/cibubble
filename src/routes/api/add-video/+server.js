@@ -28,12 +28,21 @@ function normalizeTags(raw) {
   return [...new Set(arr)];
 }
 
+// --- DEFENSIVE parseDuration ---
 function parseDuration(iso) {
+  if (!iso || typeof iso !== 'string') {
+    console.error("parseDuration got invalid input:", iso);
+    return 0;
+  }
   const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!m) {
+    console.error("parseDuration: string did not match ISO 8601:", iso);
+    return 0;
+  }
   return (
-    (parseInt(m?.[1] || 0) * 3600) +
-    (parseInt(m?.[2] || 0) * 60) +
-    (parseInt(m?.[3] || 0))
+    (parseInt(m[1] || 0) * 3600) +
+    (parseInt(m[2] || 0) * 60) +
+    (parseInt(m[3] || 0))
   );
 }
 
@@ -47,16 +56,24 @@ async function fetchVideoDurations(videoIds) {
       const data = await res.json();
       if (data.items) {
         results.push(
-          ...data.items.map((v) => ({
-            id: v.id,
-            length: parseDuration(v.contentDetails.duration),
-          }))
+          ...data.items.map((v) => {
+            const dur = v.contentDetails?.duration;
+            if (!dur || typeof dur !== "string") {
+              console.warn("fetchVideoDurations: Missing or bad duration for video", v.id, v);
+              return { id: v.id, length: 0 };
+            }
+            return {
+              id: v.id,
+              length: parseDuration(dur),
+            };
+          })
         );
       }
     } catch (err) {
       console.error('YouTube API fetchVideoDurations error:', err, err.stack);
     }
   }
+  // Build object { videoId: duration }
   return results.reduce((acc, v) => ({ ...acc, [v.id]: v.length }), {});
 }
 
