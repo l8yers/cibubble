@@ -69,8 +69,8 @@
   border-radius: 6px;
 }
 .history-card {
-  flex: 0 0 340px;
-  min-width: 340px;
+  flex: 0 0 300x;
+  min-width: 300px;
   max-width: 400px;
   scroll-snap-align: start;
 }
