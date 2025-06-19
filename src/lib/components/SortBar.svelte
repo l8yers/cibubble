@@ -541,7 +541,7 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 1.2em;
-		max-width: 1700px;
+		max-width: 1600px;
 		margin: 2em auto 2em auto;
 		background: #f7f7fb;
 		padding: 0.7em 1.2em 0.7em 1.2em;
