@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { user, loadUser } from '$lib/stores/user.js';
 	import { supabase } from '$lib/supabaseClient.js';
-	import * as utils from '$lib/utils.js';
+	import * as utils from '$lib/utils/utils.js';
 	import ProgressStats from '$lib/components/progress/ProgressStats.svelte';
 	import ProgressHistory from '$lib/components/progress/ProgressHistory.svelte';
 	import ProgressSettings from '$lib/components/progress/ProgressSettings.svelte';

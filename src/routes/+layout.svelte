@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { loadUser, user } from '$lib/stores/user.js';
 	import { loadWatchedVideos } from '$lib/stores/videos.js';
-	import NavBar from '$lib/components/NavBar.svelte';
+	import NavBar from '$lib/components/ui/NavBar.svelte';
 
 
 	onMount(() => {

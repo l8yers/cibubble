@@ -32,6 +32,7 @@ export async function GET({ url }) {
       p_search: search || null,
       p_limit: pageSize
     };
+    // NOTE: This calls a Supabase Postgres function! See comments below.
     const { data, error } = await supabase.rpc('random_easy_videos', params);
 
     if (error) return json({ error: error.message }, { status: 500 });
@@ -55,6 +56,7 @@ export async function GET({ url }) {
       p_limit: pageSize
     };
 
+    // NOTE: This calls a Supabase Postgres function! See comments below.
     const { data, error } = await supabase.rpc('random_one_per_channel', params);
 
     if (error) return json({ error: error.message }, { status: 500 });
@@ -73,10 +75,38 @@ export async function GET({ url }) {
     .select('*, playlist:playlist_id(title), channel:channel_id(name,country,tags)', { count: 'exact' });
 
   if (levels && levels.length) query = query.in('level', levels);
-  if (tags && tags.length) query = query.overlaps('tags', tags);
-  if (country) query = query.eq('country', country);
 
-  if (channel) {
+  // --- PATCH: Channel tags filter ---
+  let channelIdsByTag = null;
+  if (tags && tags.length) {
+    // Find all channels with ANY of the requested tags
+    const { data: tagChannels, error: tagChErr } = await supabase
+      .from('channels')
+      .select('id,tags');
+
+    if (tagChErr) return json({ error: tagChErr.message }, { status: 500 });
+
+    // Filter channels whose tags array (or comma string) matches ANY requested tag
+    const normalizedTags = tags.map(t => t.toLowerCase().trim());
+    channelIdsByTag = (tagChannels || [])
+      .filter(ch => {
+        if (!ch.tags) return false;
+        const chTags = Array.isArray(ch.tags)
+          ? ch.tags.map(t => t.toLowerCase().trim())
+          : String(ch.tags).split(',').map(t => t.toLowerCase().trim()).filter(Boolean);
+        return normalizedTags.some(tag => chTags.includes(tag));
+      })
+      .map(ch => ch.id);
+
+    // If no channels matched, return empty early
+    if (!channelIdsByTag.length) {
+      return json({ videos: [], total: 0, hasMore: false });
+    }
+  }
+
+  if (channelIdsByTag && channelIdsByTag.length) {
+    query = query.in('channel_id', channelIdsByTag);
+  } else if (channel) {
     const channelList = channel.split(',').filter(Boolean);
     if (channelList.length > 1) {
       query = query.in('channel_id', channelList);
@@ -85,6 +115,7 @@ export async function GET({ url }) {
     }
   }
 
+  if (country) query = query.eq('country', country);
   if (playlist) query = query.eq('playlist_id', playlist);
   if (search) query = query.ilike('title', `%${search}%`);
 

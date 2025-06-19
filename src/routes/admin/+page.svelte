@@ -11,7 +11,7 @@
 	import AdminChannelTable from '$lib/components/admin/AdminChannelTable.svelte';
 
 	// UTILS
-	import { stripAccent, normalizeTags, parseCsv } from '$lib/adminutils.js';
+	import { stripAccent, normalizeTags, parseCsv } from '$lib/utils/adminutils.js';
 
 	// ----- CONSTANTS (local, not imported) -----
 	const countryOptions = [

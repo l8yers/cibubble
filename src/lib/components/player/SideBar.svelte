@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
-  import * as utils from '$lib/utils.js';
+  import * as utils from '$lib/utils/utils.js';
   import { ChartNoAxesColumnIncreasing } from 'lucide-svelte';
   import { autoplay } from '$lib/stores/autoplay.js';
 

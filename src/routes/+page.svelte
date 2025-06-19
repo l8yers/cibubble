@@ -4,14 +4,14 @@
   import { writable, get } from 'svelte/store';
 
   // --- App UI Components ---
-  import VideoGrid from '$lib/components/VideoGrid.svelte';
-  import SortBar from '$lib/components/SortBar.svelte';
-  import FilterChip from '$lib/components/FilterChip.svelte';
-  import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
-  import ErrorMessage from '$lib/components/ErrorMessage.svelte';
+  import VideoGrid from '$lib/components/home/VideoGrid.svelte';
+  import SortBar from '$lib/components/home/SortBar.svelte';
+  import FilterChip from '$lib/components/home/FilterChip.svelte';
+  import LoadingSpinner from '$lib/components/home/LoadingSpinner.svelte';
+  import ErrorMessage from '$lib/components/home/ErrorMessage.svelte';
 
   // --- Utility functions (formatting, filter/query helpers) ---
-  import * as utils from '$lib/utils.js';
+  import * as utils from '$lib/utils/utils.js';
   import { filtersToQuery, queryToFilters } from '$lib/utils/filters.js';
   import { updateUrlFromFilters } from '$lib/utils/url.js';
 

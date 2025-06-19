@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { user, loadUser } from '$lib/stores/user.js';
   import { supabase } from '$lib/supabaseClient.js';
-  import * as utils from '$lib/utils.js';
+  import * as utils from '$lib/utils/utils.js';
 
   let watchedVideos = [];
   let loading = true;
