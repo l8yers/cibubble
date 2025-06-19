@@ -21,3 +21,7 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Local-only admin panel code (never push to repo)
+src/routes/admin/
+src/lib/components/admin/
