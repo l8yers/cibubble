@@ -1,0 +1,210 @@
+/* === CIBUBBLE Dreaming Spanish Style DARK MODE === */
+
+/* --- BASE BACKGROUND --- */
+body.dark-mode {
+  background: #141417 !important;
+  color: #efefef !important;
+}
+
+/* --- HEADER / NAVBAR --- */
+body.dark-mode .header {
+  background: #1a1a1f;
+  border-bottom: none;
+  box-shadow: 0 3px 16px #000c;
+}
+body.dark-mode .logo-title {
+  color: #fff;
+}
+body.dark-mode .nav-link,
+body.dark-mode .logout-btn {
+  color: #fafafa;
+  background: transparent;
+}
+body.dark-mode .nav-link:hover,
+body.dark-mode .logout-btn:hover {
+  background: #22222a;
+  color: #fd4949;
+}
+body.dark-mode .menu-icon {
+  stroke: #fafafa;
+}
+body.dark-mode .theme-toggle {
+  background: none;
+  color: #fd4949;
+}
+
+/* --- CARD/PANEL BASE --- */
+body.dark-mode .card,
+body.dark-mode .table-card,
+body.dark-mode .profile-main,
+body.dark-mode .progress-card,
+body.dark-mode .stats-summary,
+body.dark-mode .progress-summary,
+body.dark-mode .sidebar-card.horizontal-card,
+body.dark-mode .modal-content,
+body.dark-mode .player-video-box {
+  background: #1e1e23 !important;
+  color: #fafafa !important;
+  border: none !important;
+  box-shadow: 0 8px 32px #000a, 0 1.5px 8px #0004;
+}
+
+/* --- HIGHLIGHTED/SECONDARY PANELS (like "streak" etc) --- */
+body.dark-mode .streak-block,
+body.dark-mode .summary-highlight,
+body.dark-mode .calendar-cell.active,
+body.dark-mode .calendar-heatmap-cell.active {
+  background: #23232b !important;
+  color: #ffe289;
+}
+
+/* --- TEXT --- */
+body.dark-mode,
+body.dark-mode .section-title,
+body.dark-mode .card-title,
+body.dark-mode .sidebar-title,
+body.dark-mode .sidebar-header {
+  color: #fafafa !important;
+}
+body.dark-mode .card-meta,
+body.dark-mode .sidebar-card-meta,
+body.dark-mode .empty-row,
+body.dark-mode .no-tags {
+  color: #b6b8c0 !important;
+}
+
+/* --- BUTTONS --- */
+body.dark-mode button,
+body.dark-mode .logout-btn,
+body.dark-mode .fav-row-btn,
+body.dark-mode .add-tag-btn,
+body.dark-mode .save-btn,
+body.dark-mode .cancel-btn,
+body.dark-mode .settings-edit-btn,
+body.dark-mode .settings-save-btn,
+body.dark-mode .settings-cancel-btn {
+  background: #24242c !important;
+  color: #fafafa !important;
+  border: none !important;
+  box-shadow: 0 1.5px 4px #0003;
+  transition: background 0.13s, color 0.13s;
+}
+body.dark-mode button:hover,
+body.dark-mode .fav-row-btn:hover,
+body.dark-mode .add-tag-btn:hover,
+body.dark-mode .settings-edit-btn:hover,
+body.dark-mode .settings-save-btn:hover,
+body.dark-mode .settings-cancel-btn:hover {
+  background: #fd4949 !important;
+  color: #fff !important;
+}
+
+/* --- FORMS/INPUTS --- */
+body.dark-mode input,
+body.dark-mode textarea,
+body.dark-mode select,
+body.dark-mode .manual-time-form input,
+body.dark-mode .manual-time-form textarea,
+body.dark-mode .tag-input,
+body.dark-mode .settings-input {
+  background: #222228 !important;
+  color: #fafafa !important;
+  border: 1.3px solid #2c2c36 !important;
+}
+body.dark-mode input:focus,
+body.dark-mode textarea:focus,
+body.dark-mode .tag-input:focus,
+body.dark-mode .settings-input:focus {
+  border: 1.3px solid #fd4949 !important;
+  outline: none;
+}
+
+/* --- DROPDOWNS, FILTERS, SEARCH --- */
+body.dark-mode .controls-bar,
+body.dark-mode .dropdown-btn,
+body.dark-mode .search-input,
+body.dark-mode .dropdown-content {
+  background: #18181c !important;
+  color: #e3e3e3 !important;
+  border: none !important;
+  box-shadow: 0 1px 8px #0003;
+}
+
+/* --- CHIP, BADGES, TAGS --- */
+body.dark-mode .chip,
+body.dark-mode .tag-chip,
+body.dark-mode .cloud-chip,
+body.dark-mode .ds-difficulty-badge,
+body.dark-mode .player-diff-badge {
+  background: #24242c !important;
+  color: #fd4949 !important;
+  border: none !important;
+}
+body.dark-mode .chip.info    { background: #2b3052 !important; color: #6bc6fd !important; }
+body.dark-mode .chip.warning { background: #534429 !important; color: #ffbb54 !important; }
+body.dark-mode .chip.success { background: #24352a !important; color: #8ff79e !important; }
+body.dark-mode .chip.error   { background: #442729 !important; color: #ff8e81 !important; }
+
+body.dark-mode .badge {
+  background: #fd4949 !important;
+  color: #fff !important;
+}
+
+/* --- SIDEBAR --- */
+body.dark-mode .sidebar-root {
+  background: #17171a !important;
+  color: #fafafa !important;
+}
+
+/* --- SPINNER --- */
+body.dark-mode .spinner {
+  border: 3.5px solid #2c2c2c;
+  border-top: 3.5px solid #fd4949;
+}
+
+/* --- MODALS --- */
+body.dark-mode .modal-bg {
+  background: #101015bb !important;
+}
+body.dark-mode .modal-content {
+  background: #1e1e23 !important;
+  color: #fafafa !important;
+}
+
+/* --- TABLES --- */
+body.dark-mode .daily-totals-table th,
+body.dark-mode .daily-totals-table td {
+  background: #1e1e23 !important;
+  color: #fafafa !important;
+}
+body.dark-mode .daily-totals-table tr:nth-child(even) td {
+  background: #19191d !important;
+}
+
+/* --- CALENDAR/CHART/PROGRESS PANELS --- */
+body.dark-mode .calendar-heatmap-cell,
+body.dark-mode .calendar-cell,
+body.dark-mode .progress-chart,
+body.dark-mode .activity-chart,
+body.dark-mode .chart-panel {
+  background: #18181c !important;
+  color: #d0d5e9 !important;
+  border: none !important;
+}
+
+/* --- MISC --- */
+body.dark-mode .form-error,
+body.dark-mode .tag-error {
+  color: #fd4949 !important;
+}
+body.dark-mode .form-success {
+  color: #59e893 !important;
+}
+
+body.dark-mode .empty-row,
+body.dark-mode .no-progress,
+body.dark-mode .no-activity {
+  color: #9ca0ac !important;
+}
+
+/* === END: Dreaming Spanish Style Dark Mode for CIBUBBLE === */
