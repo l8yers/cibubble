@@ -11,6 +11,8 @@
   import LoadingSpinner from '$lib/components/home/LoadingSpinner.svelte';
   import ErrorMessage from '$lib/components/home/ErrorMessage.svelte';
   import MobileMenuBar from '$lib/components/MobileMenuBar.svelte';
+  import SortDropdown from '$lib/components/mobile/SortDropdown.svelte';
+import FullPageFilter from '$lib/components/mobile/FullPageFilter.svelte';
 
   // --- Utility functions ---
   import * as utils from '$lib/utils/utils.js';
@@ -39,6 +41,9 @@
   import { getUserSavedChannels } from '$lib/api/userChannels.js';
     const isMobile = writable(false);
   let mounted = false;
+  let showSortDropdown = false;
+let showFullPageFilter = false;
+
 
   onMount(() => {
     mounted = true; // now we know we're client-side
@@ -370,8 +375,25 @@
     {/if}
   </div>
 {#if mounted && $isMobile}
-  <MobileMenuBar onSort={() => {}} onFilter={() => {}} onSearch={() => {}} />
-{/if}
+{#if mounted && $isMobile}
+  <MobileMenuBar
+    onSort={() => showSortDropdown = true}
+    onFilter={() => showFullPageFilter = true}
+    onSearch={() => {}}
+  />
+  <SortDropdown
+    open={showSortDropdown}
+    sortChoices={sortChoices}
+    selectedSort={$sortBy}
+    onSelect={() => showSortDropdown = false}
+    onClose={() => showSortDropdown = false}
+  />
+  <FullPageFilter
+    open={showFullPageFilter}
+    onApply={() => showFullPageFilter = false}
+    onClose={() => showFullPageFilter = false}
+  />
+{/if}{/if}
 
 </div>
 
