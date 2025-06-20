@@ -237,6 +237,12 @@ let showFullPageFilter = false;
     resetAndFetch();
   }
 
+  function handleMobileSortSelect(sortValue) {
+  sortBy.set(sortValue);
+  showSortDropdown = false;
+  resetAndFetch();
+}
+
   // --- On mount: parse filters from URL and load initial videos ---
   let firstLoad = true;
   let lastQuery = '';
@@ -381,13 +387,14 @@ let showFullPageFilter = false;
     onFilter={() => showFullPageFilter = true}
     onSearch={() => {}}
   />
-  <SortDropdown
-    open={showSortDropdown}
-    sortChoices={sortChoices}
-    selectedSort={$sortBy}
-    onSelect={() => showSortDropdown = false}
-    onClose={() => showSortDropdown = false}
-  />
+<SortDropdown
+  open={showSortDropdown}
+  sortChoices={sortChoices}
+  selectedSort={$sortBy}
+  onSelect={handleMobileSortSelect}
+  onClose={() => showSortDropdown = false}
+/>
+
   <FullPageFilter
     open={showFullPageFilter}
     onApply={() => showFullPageFilter = false}
