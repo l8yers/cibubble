@@ -1,29 +1,38 @@
 <script>
+  import { createEventDispatcher } from 'svelte';
   export let open = false;
-  export let onApply = () => {};
-  export let onClose = () => {};
-  
-  function applyFilters() {
-  dispatch('apply', {
-    selectedLevels,
-    selectedTags,
-    selectedCountry,
-    selectedChannel
-    // add others as needed!
-  });
-}
+  export let selectedLevels = [];
+  export let selectedTags = [];
+  export let selectedCountry = '';
+  export let selectedChannel = '';
+  // Add other filter props as needed!
 
+  const dispatch = createEventDispatcher();
+
+  function handleApply() {
+    dispatch('apply', {
+      selectedLevels,
+      selectedTags,
+      selectedCountry,
+      selectedChannel
+      // add others as needed!
+    });
+  }
+
+  function handleClose() {
+    dispatch('close');
+  }
 </script>
 
 {#if open}
-  <div class="modal-bg" on:click={onClose}>
+  <div class="modal-bg" on:click={handleClose}>
     <div class="filter-modal" on:click|stopPropagation>
       <div class="modal-header">
         <span>Filters</span>
-        <button class="close-btn" on:click={onClose}>×</button>
+        <button class="close-btn" on:click={handleClose} aria-label="Close">×</button>
       </div>
       <div style="padding:1em 0; color:#888;">[Filters UI placeholder]</div>
-      <button class="apply-btn" on:click={onApply}>Apply Filters</button>
+      <button class="apply-btn" on:click={handleApply}>Apply Filters</button>
     </div>
   </div>
 {/if}
