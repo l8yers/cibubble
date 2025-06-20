@@ -1,4 +1,7 @@
 <script>
+  import { goto } from '$app/navigation';
+  import { ListMusic } from 'lucide-svelte';
+
   export let video;
   export let getBestThumbnail;
   export let difficultyColor;
@@ -6,17 +9,16 @@
   export let formatLength;
   export let filterByChannel;
   export let filterByPlaylist;
-
-  import { ListMusic } from 'lucide-svelte';
+  export let query = ""; // 👈 New!
 
   function makeChannelUrl(channelId) {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(query);
     params.set('channel', channelId);
     return `/?${params.toString()}`;
   }
 
   function makePlaylistUrl(playlistId) {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(query);
     params.set('playlist', playlistId);
     return `/?${params.toString()}`;
   }
@@ -52,6 +54,7 @@
           style="color:#2e9be6;cursor:pointer;"
           title={video.channel?.name ?? video.channel_name}
           href={makeChannelUrl(video.channel_id)}
+          on:click|preventDefault={() => goto(makeChannelUrl(video.channel_id))}
         >
           {video.channel?.name ?? video.channel_name}
         </a>
@@ -62,6 +65,7 @@
           class="meta-link playlist-icon"
           title="Show all videos in this playlist"
           href={makePlaylistUrl(video.playlist_id)}
+          on:click|preventDefault={() => goto(makePlaylistUrl(video.playlist_id))}
         >
           <ListMusic size={18} />
           <span class="sr-only">{video.playlist.title}</span>

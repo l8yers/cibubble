@@ -2,6 +2,7 @@
   // --- Svelte & store core ---
   import { onMount, onDestroy } from 'svelte';
   import { writable, get } from 'svelte/store';
+  import { page } from '$app/stores'; // 👈 New!
 
   // --- App UI Components ---
   import VideoGrid from '$lib/components/home/VideoGrid.svelte';
@@ -10,12 +11,12 @@
   import LoadingSpinner from '$lib/components/home/LoadingSpinner.svelte';
   import ErrorMessage from '$lib/components/home/ErrorMessage.svelte';
 
-  // --- Utility functions (formatting, filter/query helpers) ---
+  // --- Utility functions ---
   import * as utils from '$lib/utils/utils.js';
   import { filtersToQuery, queryToFilters } from '$lib/utils/filters.js';
   import { updateUrlFromFilters } from '$lib/utils/url.js';
 
-  // --- App-wide filter state (from Svelte stores) ---
+  // --- App-wide filter state ---
   import {
     selectedChannel,
     selectedPlaylist,
@@ -28,7 +29,7 @@
     searchTerm
   } from '$lib/stores/videos.js';
 
-  // --- App-wide constants (keep all options/choices here) ---
+  // --- App-wide constants ---
   import { LEVELS, VALID_LEVELS, SORT_CHOICES, COUNTRY_OPTIONS, TAG_OPTIONS } from '$lib/constants.js';
 
   // --- User/account data ---
@@ -36,27 +37,24 @@
   import { userChannels } from '$lib/stores/userChannels.js';
   import { getUserSavedChannels } from '$lib/api/userChannels.js';
 
-  // --- Local state: videos, loading, errors, pagination ---
-  const PAGE_SIZE = 50; // Number of videos to load per batch
-  const videos = writable([]);         // List of currently loaded videos
-  const loading = writable(false);     // Is a fetch in progress?
-  const errorMsg = writable('');       // Any error message to show
-  const hasMore = writable(true);      // For infinite scroll or Load More
-  const pageNum = writable(1);         // Pagination for non-random sorts
+  // --- Local state ---
+  const PAGE_SIZE = 50;
+  const videos = writable([]);
+  const loading = writable(false);
+  const errorMsg = writable('');
+  const hasMore = writable(true);
+  const pageNum = writable(1);
 
-  // --- Local UI state ---
-  let searchOpen = false;              // Controls the search bar visibility
-  let sentinel;                        // For intersection observer (infinite scroll)
-  let observerInstance;                // Reference to the observer
+  let searchOpen = false;
+  let sentinel;
+  let observerInstance;
 
-  // --- Options for filter UI ---
   const levels = LEVELS;
   const validLevels = VALID_LEVELS;
   const sortChoices = SORT_CHOICES;
   let countryOptions = COUNTRY_OPTIONS;
   let tagOptions = TAG_OPTIONS;
 
-  // --- Set up (and tear down) infinite scroll observer for non-random sorts ---
   function setupObserver() {
     if (observerInstance) {
       observerInstance.disconnect();
@@ -81,12 +79,10 @@
     if (observerInstance) observerInstance.disconnect();
   });
 
-  // --- Fetch videos from the server, based on current filters/state ---
   async function fetchVideos({ append = false } = {}) {
     loading.set(true);
     errorMsg.set('');
 
-    // Compose channel filter: handle "all my channels" (special case)
     let channelFilter = get(selectedChannel);
     if (channelFilter === '__ALL__' && get(userChannels).length > 0) {
       channelFilter = get(userChannels).map((ch) => ch.id).join(',');
@@ -94,7 +90,6 @@
       channelFilter = '';
     }
 
-    // Build URL for the fetch call based on all current filters
     const query = new URLSearchParams({
       page: get(sortBy) === 'random' ? 1 : get(pageNum),
       pageSize: PAGE_SIZE,
@@ -107,7 +102,6 @@
       search: get(searchTerm)
     });
 
-    // Fetch videos from backend API
     const res = await fetch(`/api/videos?${query}`);
     if (!res.ok) {
       const errText = await res.text();
@@ -117,14 +111,12 @@
     }
     const { videos: fetched, hasMore: more } = await res.json();
 
-    // If appending (infinite scroll/Load More), add to end; otherwise, replace
     if (append) {
       videos.update((vs) => [...vs, ...fetched]);
     } else {
       videos.set(fetched);
     }
 
-    // For random sorts, always allow Load More button to show (hasMore true)
     if (get(sortBy) === 'random') {
       hasMore.set(true);
     } else {
@@ -133,23 +125,19 @@
     loading.set(false);
   }
 
-  // --- Loads more videos (for infinite scroll or Load More button) ---
   async function loadMore() {
     if (get(loading)) return;
-    // For random sorts, pageNum is ignored (always new batch)
     if (get(sortBy) !== 'random') {
       pageNum.update((p) => p + 1);
     }
     await fetchVideos({ append: true });
   }
 
-  // --- Resets to page 1 and fetches videos (after changing filters) ---
   function resetAndFetch() {
     pageNum.set(1);
     fetchVideos({ append: false });
   }
 
-  // --- Handler for all filter/sort/search changes from SortBar ---
   function handleSortBarChange(e) {
     const rawLevels = e.detail.selectedLevels;
     const safeLevels = new Set(Array.from(rawLevels).filter((lvl) => validLevels.has(lvl)));
@@ -161,7 +149,6 @@
     searchTerm.set(e.detail.searchTerm);
     searchOpen = e.detail.searchOpen;
     selectedChannel.set(e.detail.selectedChannel ?? '');
-    // Push updated filters to URL, then fetch
     updateUrlFromFilters({
       selectedLevels,
       selectedTags,
@@ -175,7 +162,6 @@
     resetAndFetch();
   }
 
-  // --- Helper functions for clicking channel/playlist chips ---
   function filterByChannel(channelId) {
     selectedChannel.set(channelId);
     updateUrlFromFilters({
@@ -204,8 +190,8 @@
     });
     resetAndFetch();
   }
-  function filterByPlaylist(playlistTitle) {
-    selectedPlaylist.set(playlistTitle);
+  function filterByPlaylist(playlistId) {
+    selectedPlaylist.set(playlistId);
     updateUrlFromFilters({
       selectedLevels,
       selectedTags,
@@ -237,8 +223,9 @@
   let firstLoad = true;
   let lastQuery = '';
 
+  // This block runs on mount (for first page load)
   onMount(() => {
-    const filters = queryToFilters(window.location.search);
+    const filters = queryToFilters($page.url.search);
     const safeLevels = new Set(Array.from(filters.levels).filter((lvl) => validLevels.has(lvl)));
     selectedLevels.set(
       safeLevels.size ? safeLevels : new Set(['easy', 'intermediate', 'advanced'])
@@ -254,10 +241,11 @@
     firstLoad = false;
   });
 
-  // --- Reactively reload videos if URL query changes (manual back/forward, etc) ---
-  $: if (!firstLoad && window.location.search !== lastQuery) {
-    lastQuery = window.location.search;
-    const filters = queryToFilters(window.location.search);
+  // --- Reactively reload videos if URL query changes (via SvelteKit SPA navigation) ---
+  $: currentQuery = $page.url.search;
+  $: if (!firstLoad && currentQuery !== lastQuery) {
+    lastQuery = currentQuery;
+    const filters = queryToFilters(currentQuery);
     const safeLevels = new Set(Array.from(filters.levels).filter((lvl) => validLevels.has(lvl)));
     selectedLevels.set(
       safeLevels.size ? safeLevels : new Set(['easy', 'intermediate', 'advanced'])
@@ -285,7 +273,6 @@
   }
 </script>
 
-<!-- --- Main page layout --- -->
 <div class="page-container">
   <div class="sortbar-container">
     <SortBar
@@ -345,9 +332,9 @@
       formatLength={utils.formatLength}
       {filterByChannel}
       {filterByPlaylist}
+      query={$page.url.search} 
     />
     {#if $sortBy === 'random'}
-      <!-- For random, always show Load More button -->
       <button
         class="load-more-btn"
         on:click={loadMore}
@@ -358,7 +345,6 @@
         {#if !$loading}Load More{/if}
       </button>
     {:else if $hasMore}
-      <!-- For paged results, sentinel for infinite scroll -->
       <div bind:this={sentinel} style="height: 2em;"></div>
     {/if}
   {/if}

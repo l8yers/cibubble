@@ -7,6 +7,7 @@
   export let formatLength;
   export let filterByChannel;
   export let filterByPlaylist;
+  export let query = ""; // 👈 New!
 </script>
 
 <div class="video-grid">
@@ -19,6 +20,7 @@
       {formatLength}
       {filterByChannel}
       {filterByPlaylist}
+      {query} 
     />
   {/each}
 </div>
@@ -27,10 +29,10 @@
 .video-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1.5rem; /* slightly bigger gap for bigger cards */
+  gap: 1.5rem;
   margin: 2.5rem auto 2.5rem auto;
-  max-width: 1700px;   /* Wider max-width */
-  padding: 0 2rem;     /* Consistent side padding */
+  max-width: 1700px;
+  padding: 0 2rem;
   box-sizing: border-box;
 }
 @media (max-width: 1200px) {
@@ -52,5 +54,4 @@
     padding: 0 1rem;
   }
 }
-
 </style>
