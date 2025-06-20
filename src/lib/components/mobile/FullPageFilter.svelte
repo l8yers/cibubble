@@ -2,6 +2,17 @@
   export let open = false;
   export let onApply = () => {};
   export let onClose = () => {};
+  
+  function applyFilters() {
+  dispatch('apply', {
+    selectedLevels,
+    selectedTags,
+    selectedCountry,
+    selectedChannel
+    // add others as needed!
+  });
+}
+
 </script>
 
 {#if open}
