@@ -2,10 +2,42 @@
   import { user, logout } from '$lib/stores/user.js';
   import { onMount } from 'svelte';
 
+  let dark = false;
   let menuOpen = false;
 
-  // Optional: Close menu when window is resized above mobile breakpoint
+  function setDarkMode(enabled) {
+    if (enabled) {
+      document.body.classList.add('dark-mode');
+      localStorage.setItem('theme', 'dark');
+      // Add dark.css dynamically if not present
+      if (!document.getElementById('dark-css')) {
+        const link = document.createElement('link');
+        link.id = 'dark-css';
+        link.rel = 'stylesheet';
+        link.href = '/dark.css';
+        document.head.appendChild(link);
+      }
+    } else {
+      document.body.classList.remove('dark-mode');
+      localStorage.setItem('theme', 'light');
+      // Remove dark.css if present
+      const link = document.getElementById('dark-css');
+      if (link) link.remove();
+    }
+  }
+
+  function toggleDark() {
+    dark = !dark;
+    setDarkMode(dark);
+  }
+
+  // On mount, set initial dark state and menu resize handler
   onMount(() => {
+    // This prevents flicker and handles reloads
+    dark = document.body.classList.contains('dark-mode');
+    setDarkMode(dark);
+
+    // Handle menu closing on resize
     const handler = () => {
       if (window.innerWidth > 720) menuOpen = false;
     };
@@ -136,5 +168,18 @@
       <a class="nav-link" href="/signup">Sign Up</a>
       <a class="nav-link" href="/login">Login</a>
     {/if}
+    <button class="theme-toggle" aria-label="Toggle dark mode" on:click={toggleDark}>
+      {#if dark}
+        <svg width="23" height="23" viewBox="0 0 23 23" fill="none">
+          <circle cx="12" cy="12" r="7" fill="#FFD600"/>
+          <path d="M18 13c-3.31 0-6-2.69-6-6V5c0-2.21 1.79-4 4-4h1c4.97 0 9 4.03 9 9v1c0 2.21-1.79 4-4 4h-1z" fill="#FFC107"/>
+        </svg>
+      {:else}
+        <svg width="23" height="23" viewBox="0 0 23 23" fill="none">
+          <circle cx="12" cy="12" r="7" stroke="#FFD600" stroke-width="2"/>
+          <path d="M12 2v2M12 18v2M4.22 4.22l1.42 1.42M16.36 16.36l1.42 1.42M2 12h2M18 12h2M4.22 19.78l1.42-1.42M16.36 7.64l1.42-1.42" stroke="#FFD600" stroke-width="2"/>
+        </svg>
+      {/if}
+    </button>
   </div>
 </nav>
