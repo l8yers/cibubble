@@ -1,0 +1,40 @@
+:root {
+  --accent: #0077ff;
+  --accent-hover: #005dc1;
+  --easy: #16a34a;
+  --intermediate: #f59e0b;
+  --advanced: #dc2626;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  color: #181818;
+  font-family: system-ui, sans-serif;
+}
+
+body { background: none; }
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--accent-hover);
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.text-center { text-align: center; }
+.mt-1 { margin-top: 1rem; }
+.mb-1 { margin-bottom: 1rem; }
+
+/* a comment  */
