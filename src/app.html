@@ -8,7 +8,7 @@
       var link = document.createElement('link');
       link.id = 'dark-css';
       link.rel = 'stylesheet';
-      link.href = '/dark.css';
+      link.href = '/assets/dark.css';
       document.head.appendChild(link);
     }
   } catch(e){}
@@ -17,7 +17,7 @@
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%sveltekit.assets%/favicon.png" />
-    <link rel="stylesheet" href="/app.css" />
+    <link rel="stylesheet" href="/assets/app.css" />
     <!-- DO NOT link dark.css here -->
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     %sveltekit.head%
