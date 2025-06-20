@@ -198,13 +198,13 @@ body.dark-mode .tag-error {
   color: #fd4949 !important;
 }
 body.dark-mode .form-success {
-  color: #59e893 !important;
+  color: #59e893   !important;
 }
 
 body.dark-mode .empty-row,
 body.dark-mode .no-progress,
 body.dark-mode .no-activity {
-  color: #9ca0ac !important;
+  color: #9ca0ac  !important;
 }
 
 /* === END: Dreaming Spanish Style Dark Mode for CIBUBBLE === */
