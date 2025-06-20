@@ -2,6 +2,7 @@
   import { user, logout } from '$lib/stores/user.js';
   import { onMount } from 'svelte';
   import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte';
+  
 
   let dark = false;
   let menuOpen = false;
@@ -151,7 +152,8 @@
 </style>
 
 <nav class="header">
-  <a href="/?=new" class="logo-row">
+<a href="/" on:click={e => { e.preventDefault(); window.location.href = '/'; }}>
+
     <img src="/logo.png" alt="CIBUBBLE logo" class="logo-img" />
   </a>
   <button class="menu-toggle" aria-label="Open menu" on:click={() => menuOpen = !menuOpen}>
