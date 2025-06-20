@@ -450,10 +450,6 @@
     padding-left: 2rem;
     padding-right: 2rem;
   }
-  .video-grid {
-    max-width: 1700px;
-    padding: 0 2rem;
-  }
   @media (max-width: 1200px) {
     .content-container { max-width: 1100px; }
     .chips-row { padding-left: 2rem; padding-right: 2rem; }
