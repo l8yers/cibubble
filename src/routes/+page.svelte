@@ -2,7 +2,7 @@
   // --- Svelte & store core ---
   import { onMount, onDestroy } from 'svelte';
   import { writable, get } from 'svelte/store';
-  import { page } from '$app/stores'; // 👈 New!
+  import { page } from '$app/stores';
 
   // --- App UI Components ---
   import VideoGrid from '$lib/components/home/VideoGrid.svelte';
@@ -223,7 +223,6 @@
   let firstLoad = true;
   let lastQuery = '';
 
-  // This block runs on mount (for first page load)
   onMount(() => {
     const filters = queryToFilters($page.url.search);
     const safeLevels = new Set(Array.from(filters.levels).filter((lvl) => validLevels.has(lvl)));
@@ -260,10 +259,8 @@
     resetAndFetch();
   }
 
-  // --- Hide watched videos if toggle is on ---
   $: filteredVideos = $hideWatched ? $videos.filter((v) => !$watchedIds.has(v.id)) : $videos;
 
-  // --- Get user's saved channels if logged in (for "My Channels" filter) ---
   $: if ($user) {
     getUserSavedChannels($user.id)
       .then((chs) => userChannels.set(chs))
@@ -293,79 +290,160 @@
     />
   </div>
 
-  {#if $selectedChannel && $selectedChannel !== '__ALL__'}
-    <FilterChip
-      type="info"
-      label="Filtered by channel"
-      value={$videos.length > 0
-        ? ($videos[0].channel?.name ?? $videos[0].channel_name ?? $selectedChannel)
-        : $selectedChannel}
-      onClear={clearChannelFilter}
-      clearClass="clear-btn--blue"
-    />
-  {/if}
-
-  {#if $selectedPlaylist}
-    <FilterChip
-      type="warning"
-      label="Filtered by playlist"
-      value={$videos.length > 0
-        ? ($videos[0].playlist?.title ?? $selectedPlaylist)
-        : $selectedPlaylist}
-      onClear={clearPlaylistFilter}
-      clearClass="clear-btn--purple"
-    />
-  {/if}
-
-  {#if $loading && $videos.length === 0}
-    <LoadingSpinner />
-  {:else if $errorMsg}
-    <ErrorMessage message={$errorMsg} />
-  {:else if !$loading && $videos.length === 0}
-    <div class="loading-more text-muted">No videos match your filters.</div>
-  {:else}
-    <VideoGrid
-      videos={filteredVideos}
-      getBestThumbnail={utils.getBestThumbnail}
-      difficultyColor={utils.difficultyColor}
-      difficultyLabel={utils.difficultyLabel}
-      formatLength={utils.formatLength}
-      {filterByChannel}
-      {filterByPlaylist}
-      query={$page.url.search} 
-    />
-    {#if $sortBy === 'random'}
-      <button
-        class="load-more-btn"
-        on:click={loadMore}
-        disabled={$loading}
-        style="margin: 2em auto; display: block;"
-      >
-        {#if $loading}Loading...{/if}
-        {#if !$loading}Load More{/if}
-      </button>
-    {:else if $hasMore}
-      <div bind:this={sentinel} style="height: 2em;"></div>
+  <!-- Shared grid container for chips & grid -->
+  <div class="content-container">
+    {#if $selectedChannel && $selectedChannel !== '__ALL__' || $selectedPlaylist}
+      <div class="chips-row">
+        {#if $selectedChannel && $selectedChannel !== '__ALL__'}
+          <FilterChip
+            type="info"
+            label="Filtered by channel"
+            value={$videos.length > 0
+              ? ($videos[0].channel?.name ?? $videos[0].channel_name ?? $selectedChannel)
+              : $selectedChannel}
+            onClear={clearChannelFilter}
+            clearClass="clear-btn--blue"
+          />
+        {/if}
+        {#if $selectedPlaylist}
+          <FilterChip
+            type="warning"
+            label="Filtered by playlist"
+            value={$videos.length > 0
+              ? ($videos[0].playlist?.title ?? $selectedPlaylist)
+              : $selectedPlaylist}
+            onClear={clearPlaylistFilter}
+            clearClass="clear-btn--purple"
+          />
+        {/if}
+      </div>
     {/if}
-  {/if}
+
+    {#if $videos.length > 0}
+      <VideoGrid
+        videos={filteredVideos}
+        getBestThumbnail={utils.getBestThumbnail}
+        difficultyColor={utils.difficultyColor}
+        difficultyLabel={utils.difficultyLabel}
+        formatLength={utils.formatLength}
+        {filterByChannel}
+        {filterByPlaylist}
+        query={$page.url.search}
+      />
+      {#if $sortBy === 'random'}
+        <button
+          class="load-more-btn"
+          on:click={loadMore}
+          disabled={$loading}
+          style="margin: 2em auto; display: block;"
+        >
+          {#if $loading}Loading...{/if}
+          {#if !$loading}Load More{/if}
+        </button>
+      {:else if $hasMore}
+        <div bind:this={sentinel} style="height: 2em;"></div>
+      {/if}
+    {/if}
+  </div>
+
+  <!-- Centered loading/error/no-results messages -->
+  <div class="center-content">
+    {#if $loading && $videos.length === 0}
+      <LoadingSpinner />
+    {:else if $errorMsg}
+      <ErrorMessage message={$errorMsg} />
+    {:else if !$loading && $videos.length === 0}
+      <div class="loading-more text-muted">No videos match your filters.</div>
+    {/if}
+  </div>
 </div>
 
 <style>
-  .load-more-btn {
-    padding: 0.9em 2.4em;
-    font-size: 1.17em;
-    background: #fafbff;
-    border: 1.6px solid #d6d6ee;
-    border-radius: 13px;
-    box-shadow: 0 2px 12px #ececec80;
-    font-weight: 700;
-    cursor: pointer;
-    margin: 2em auto 0 auto;
-    transition: background 0.15s;
-    display: block;
-  }
-  .load-more-btn:disabled {
-    opacity: 0.66;
-    cursor: not-allowed;
-  }
+.page-container {
+  width: 100%;
+}
+.sortbar-container {
+  margin-bottom: 0.5em;
+}
+
+/* Shared container sets max-width but NO padding */
+.content-container {
+  max-width: 1700px;
+  margin: 0 auto;
+}
+
+/* The chips row gets exactly the same padding as .video-grid */
+.chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.7em;
+  margin: 0 0 1em 0;
+  justify-content: flex-start;
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
+/* VideoGrid also matches this padding (in VideoGrid.svelte) */
+.video-grid {
+  max-width: 1700px;
+  padding: 0 2rem;
+  /* ... other grid styles ... */
+}
+
+/* Responsive breakpoints for both chips and grid */
+@media (max-width: 1200px) {
+  .content-container { max-width: 1100px; }
+  .chips-row { padding-left: 2rem; padding-right: 2rem; }
+}
+@media (max-width: 900px) {
+  .content-container { max-width: 700px; }
+  .chips-row { padding-left: 2rem; padding-right: 2rem; }
+}
+@media (max-width: 600px) {
+  .content-container { max-width: 420px; }
+  .chips-row { padding-left: 1rem; padding-right: 1rem; }
+}
+
+/* Centered content for messages */
+.center-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 1em 0 2em 0;
+  width: 100%;
+  text-align: center;
+  min-height: 48px;
+}
+.center-content > * {
+  margin-bottom: 0.75em;
+}
+.loading-more {
+  font-size: 1.15em;
+  color: #555;
+  margin: 2em 0 0 0;
+  text-align: center;
+}
+.text-muted {
+  color: #888;
+}
+.load-more-btn {
+  padding: 0.9em 2.4em;
+  font-size: 1.17em;
+  background: #fafbff;
+  border: 1.6px solid #d6d6ee;
+  border-radius: 13px;
+  box-shadow: 0 2px 12px #ececec80;
+  font-weight: 700;
+  cursor: pointer;
+  margin: 2em auto 0 auto;
+  transition: background 0.15s;
+  display: block;
+}
+.load-more-btn:disabled {
+  opacity: 0.66;
+  cursor: not-allowed;
+}
+
 </style>
