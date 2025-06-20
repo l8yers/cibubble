@@ -250,17 +250,18 @@
 		resetAndFetch();
 	}
 
-	function handleMobileFilterApply(e) {
-		// e.detail will have the chosen filters
-		const detail = e.detail;
-		selectedLevels.set(new Set(detail.selectedLevels));
-		selectedTags.set(new Set(detail.selectedTags));
-		selectedCountry.set(detail.selectedCountry);
-		selectedChannel.set(detail.selectedChannel);
-		// add others as needed (playlist, etc)
-		showFullPageFilter = false;
-		resetAndFetch();
-	}
+
+  function handleMobileFilterApply(e) {
+  const detail = e.detail || {};
+  selectedLevels.set(new Set(detail.selectedLevels));
+  selectedTags.set(new Set(detail.selectedTags));
+  selectedCountry.set(detail.selectedCountry || '');
+  selectedChannel.set(detail.selectedChannel || '');
+  // Add any other filter state here
+
+  showFullPageFilter = false;
+  resetAndFetch();
+}
 
 	// --- On mount: parse filters from URL and load initial videos ---
 	let firstLoad = true;
