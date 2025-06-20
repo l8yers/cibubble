@@ -10,6 +10,7 @@
   import FilterChip from '$lib/components/home/FilterChip.svelte';
   import LoadingSpinner from '$lib/components/home/LoadingSpinner.svelte';
   import ErrorMessage from '$lib/components/home/ErrorMessage.svelte';
+  import MobileMenuBar from '$lib/components/MobileMenuBar.svelte';
 
   // --- Utility functions ---
   import * as utils from '$lib/utils/utils.js';
@@ -36,6 +37,18 @@
   import { user } from '$lib/stores/user.js';
   import { userChannels } from '$lib/stores/userChannels.js';
   import { getUserSavedChannels } from '$lib/api/userChannels.js';
+    const isMobile = writable(false);
+  let mounted = false;
+
+  onMount(() => {
+    mounted = true; // now we know we're client-side
+    function check() {
+      isMobile.set(window.innerWidth <= 700);
+    }
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  });
 
   // --- Local state ---
   const PAGE_SIZE = 50;
@@ -356,6 +369,10 @@
       <div class="loading-more text-muted">No videos match your filters.</div>
     {/if}
   </div>
+{#if mounted && $isMobile}
+  <MobileMenuBar onSort={() => {}} onFilter={() => {}} onSearch={() => {}} />
+{/if}
+
 </div>
 
 <style>
