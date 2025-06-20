@@ -250,18 +250,22 @@
 		resetAndFetch();
 	}
 
+	function handleMobileFilterApply(e) {
+		const detail = e.detail || {};
+		selectedLevels.set(new Set(detail.selectedLevels));
+		selectedTags.set(new Set(detail.selectedTags));
+		selectedCountry.set(detail.selectedCountry || '');
+		selectedChannel.set(detail.selectedChannel || '');
+		// Add any other filter state here
 
-  function handleMobileFilterApply(e) {
-  const detail = e.detail || {};
-  selectedLevels.set(new Set(detail.selectedLevels));
-  selectedTags.set(new Set(detail.selectedTags));
-  selectedCountry.set(detail.selectedCountry || '');
-  selectedChannel.set(detail.selectedChannel || '');
-  // Add any other filter state here
+		showFullPageFilter = false;
+		resetAndFetch();
+	}
 
-  showFullPageFilter = false;
-  resetAndFetch();
-}
+	function handleMobileSearch(e) {
+		searchTerm.set(e.target.value);
+		resetAndFetch();
+	}
 
 	// --- On mount: parse filters from URL and load initial videos ---
 	let firstLoad = true;
@@ -405,7 +409,7 @@
 			<MobileMenuBar
 				onSort={() => (showSortDropdown = true)}
 				onFilter={() => (showFullPageFilter = true)}
-				onSearch={() => {}}
+				onSearch={handleMobileSearch}
 			/>
 			<SortDropdown
 				open={showSortDropdown}
