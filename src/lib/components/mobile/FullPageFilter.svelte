@@ -9,7 +9,7 @@
   export let selectedCountry = '';
   export let myChannels = [];
   export let selectedChannel = '';
-  // More filters soon...
+  export let hideWatched = false;
 
   const dispatch = createEventDispatcher();
 
@@ -17,12 +17,14 @@
   let localTags = [];
   let localCountry = '';
   let localChannel = '';
+  let localHideWatched = false;
 
   $: if (open) {
     localLevels = [...selectedLevels];
     localTags = [...selectedTags];
     localCountry = selectedCountry;
     localChannel = selectedChannel;
+    localHideWatched = hideWatched;
   }
 
   function toggleLevel(level) {
@@ -46,6 +48,7 @@
       selectedTags: localTags,
       selectedCountry: localCountry,
       selectedChannel: localChannel,
+      hideWatched: localHideWatched
     });
   }
 
@@ -115,6 +118,16 @@
         </select>
       </div>
       {/if}
+      <!-- HIDE WATCHED TOGGLE -->
+      <div class="filter-group">
+        <label>
+          <input
+            type="checkbox"
+            bind:checked={localHideWatched}
+          />
+          Hide watched videos
+        </label>
+      </div>
       <button class="apply-btn" on:click={handleApply}>Apply Filters</button>
     </div>
   </div>

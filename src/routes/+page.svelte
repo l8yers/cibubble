@@ -180,15 +180,16 @@
     showSortDropdown = false;
     resetAndFetch();
   }
-  function handleMobileFilterApply(e) {
-    const detail = e.detail || {};
-    selectedLevels.set(new Set(detail.selectedLevels));
-    selectedTags.set(new Set(detail.selectedTags));
-    selectedCountry.set(detail.selectedCountry || '');
-    selectedChannel.set(detail.selectedChannel || '');
-    showFullPageFilter = false;
-    resetAndFetch();
-  }
+function handleMobileFilterApply(e) {
+  const detail = e.detail || {};
+  selectedLevels.set(new Set(detail.selectedLevels));
+  selectedTags.set(new Set(detail.selectedTags));
+  selectedCountry.set(detail.selectedCountry || '');
+  selectedChannel.set(detail.selectedChannel || '');
+  hideWatched.set(detail.hideWatched || false); // Add this line!
+  showFullPageFilter = false;
+  resetAndFetch();
+}
   function handleMobileSearch(e) {
     searchTerm.set(e.target.value);
     resetAndFetch();
