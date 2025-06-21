@@ -437,13 +437,13 @@
     on:sort={() => (showSortDropdown = true)}
     on:filter={() => (showFullPageFilter = true)}
   />
-		<SortDropdown
-			open={showSortDropdown}
-			{sortChoices}
-			selectedSort={$sortBy}
-			onSelect={handleMobileSortSelect}
-			onClose={() => (showSortDropdown = false)}
-		/>
+<SortDropdown
+  open={showSortDropdown}
+  {sortChoices}
+  selectedSort={$sortBy}
+  onSelect={handleMobileSortSelect}
+  onClose={() => (showSortDropdown = false)}
+/>
 		<FullPageFilter
 			open={showFullPageFilter}
 			{levels}

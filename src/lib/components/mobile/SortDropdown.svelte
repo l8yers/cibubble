@@ -4,27 +4,30 @@
   export let selectedSort = '';
   export let onSelect = () => {};
   export let onClose = () => {};
+
+  function handleSort(val) {
+    onSelect(val);
+    onClose();
+  }
 </script>
 
 {#if open}
   <div class="modal-bg" on:click={onClose}>
     <div class="sort-modal" on:click|stopPropagation>
       <div class="modal-header">
-        <span>Sort Videos</span>
-        <button class="close-btn" on:click={onClose}>×</button>
+        <span>SORT BY</span>
+        <button class="close-btn" on:click={onClose} aria-label="Close">×</button>
       </div>
-      <ul>
+      <div class="sort-list">
         {#each sortChoices as opt}
-          <li>
-            <button
-              class:selected={opt.value === selectedSort}
-              on:click={() => onSelect(opt.value)}
-            >
-              {opt.label}
-            </button>
-          </li>
+          <button
+            class="sort-option {opt.value === selectedSort ? 'selected' : ''}"
+            on:click={() => handleSort(opt.value)}
+          >
+            {opt.label}
+          </button>
         {/each}
-      </ul>
+      </div>
     </div>
   </div>
 {/if}
@@ -39,15 +42,16 @@
   .sort-modal {
     background: #fff;
     border-radius: 18px;
-    padding: 1.4em 1.3em;
-    max-width: 95vw;
-    min-width: 280px;
+    padding: 1.5em 1.3em 1.3em 1.3em;
+    max-width: 98vw;
+    min-width: 290px;
     box-shadow: 0 2px 20px #aaa5;
   }
   .modal-header {
     display: flex; justify-content: space-between; align-items: center;
-    font-size: 1.1em; font-weight: 700;
+    font-size: 1.1em; font-weight: 700; letter-spacing: 0.01em;
     margin-bottom: 1em;
+    text-transform: uppercase;
   }
   .close-btn {
     background: none; border: none; font-size: 1.7em; color: #888;
@@ -55,15 +59,29 @@
     transition: background 0.13s;
   }
   .close-btn:hover { background: #eee; }
-  ul { padding: 0; margin: 0; list-style: none; }
-  li { margin-bottom: 0.5em; }
-  button.selected, button.selected:focus {
-    background: #e5f2fd; color: #2e9be6; font-weight: 700;
+  .sort-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1em;
   }
-  button {
-    width: 100%; border: none; border-radius: 8px; padding: 0.55em 0.6em;
-    background: #f9f9f9; font-size: 1.04em; cursor: pointer;
-    transition: background 0.13s;
+  .sort-option {
+    width: 100%;
+    padding: 0.8em 0.6em;
+    border: none;
+    border-radius: 10px;
+    background: #f8faff;
+    color: #23396a;
+    font-size: 1.12em;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.13s, color 0.13s;
+    outline: none;
   }
-  button:hover { background: #f1f5fb; }
+  .sort-option.selected,
+  .sort-option:focus,
+  .sort-option:hover {
+    background: #e5f2fd;
+    color: #0077ff;
+  }
 </style>
