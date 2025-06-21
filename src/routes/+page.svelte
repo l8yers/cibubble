@@ -420,11 +420,6 @@
 			<div class="loading-more text-muted">No videos match your filters.</div>
 		{/if}
 	</div>
-	{#if mounted && $isMobile}
-		<div style="background:yellow;padding:1em;">MOBILE MENU BAR TEST (Live)</div>
-		<MobileMenuBar ... />
-	{/if}
-
 	<!-- Mobile menu and modals -->
 	{#if mounted && $isMobile}
   <MobileMenuBar
