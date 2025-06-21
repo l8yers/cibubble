@@ -325,6 +325,8 @@
   overflow-wrap: anywhere;
   flex: 1 1 auto;
   min-width: 0;
+  margin-bottom: 0.7em;
+  margin-top: 0.5em;
 }
 .player-loading {
   text-align: center;
@@ -342,4 +344,96 @@
   font-size: 1.03em;
   letter-spacing: 0.02em;
 }
+
+/* ---- MOBILE STYLE ---- */
+@media (max-width: 800px) {
+  .player-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    max-width: 100vw;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+  }
+  .player-main-col {
+    padding: 0.5rem 0.5rem 0 0.5rem;
+    flex-direction: column;
+    width: 100vw;
+    max-width: 100vw;
+  }
+  .player-sidebar {
+    display: none;
+  }
+  .player-title-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2em;
+    margin-bottom: 0.5em;
+    width: 100%;
+  }
+  .player-title {
+    font-size: 1.25rem;
+    text-align: left;
+    font-weight: 800;
+    color: #181820;
+    margin-bottom: 0.4em;
+    margin-top: 0.4em;
+    width: 100%;
+  }
+  /* Video box should be full width */
+  .player-main-col > :first-child,
+  .player-main-col video,
+  .player-main-col iframe,
+  .PlayerVideoBox {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    margin-left: -0.5rem;
+    margin-right: -0.5rem;
+    border-radius: 0;
+    background: #000;
+    box-shadow: none;
+    min-height: 205px;
+    aspect-ratio: 16/9;
+  }
+  /* Make action buttons and meta rows touch-friendly */
+  .player-title-row button,
+  .player-main-col .AddToMyChannelsButton,
+  .player-main-col .PlayerMetaRow,
+  .player-main-col .ChannelTagsBlock {
+    width: 100%;
+    min-height: 46px;
+    font-size: 1.03rem;
+    margin-bottom: 0.1rem;
+    margin-top: 0;
+  }
+  .player-main-col .ChannelTagsBlock {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    margin-bottom: 0.5rem;
+    gap: 0.35rem;
+  }
+  /* Description block */
+  .player-main-col .player-desc {
+    font-size: 1.03rem;
+    color: #23233b;
+    padding: 0.6em 0 0.9em 0;
+    margin: 0 0 0.7em 0;
+    line-height: 1.5;
+    text-align: left;
+    background: none;
+    border: none;
+  }
+  /* Comments, next video, etc */
+  .player-main-col .view-comments,
+  .player-main-col .suggested-videos-block {
+    width: 100vw;
+    margin-left: -0.5rem;
+    margin-right: -0.5rem;
+    border-radius: 0;
+    font-size: 1.09rem;
+  }
+}
+
 </style>
