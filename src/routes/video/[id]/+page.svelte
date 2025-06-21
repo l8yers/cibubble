@@ -318,16 +318,16 @@
 				<div class="tag-success">Tag added!</div>
 			{/if}
 
-			{#if isMobile}
-				<button class="show-suggestions-btn" on:click={() => (showSuggestionsPanel = true)}>
-					More videos like this
-				</button>
-				<MobileSuggestionsPanel
-					open={showSuggestionsPanel}
-					{video}
-					onClose={() => (showSuggestionsPanel = false)}
-				/>
-			{/if}
+{#if isMobile}
+  <button class="show-suggestions-btn" on:click={() => (showSuggestionsPanel = true)}>
+    More videos like this
+  </button>
+  <MobileSuggestionsPanel
+    open={showSuggestionsPanel}
+    {video}
+    onClose={() => (showSuggestionsPanel = false)}
+  />
+{/if}
 		</div>
 		<aside class="player-sidebar" style:display={isMobile ? 'none' : undefined}>
 			<SideBar {video} />
@@ -492,4 +492,32 @@
 			z-index: 1001;
 		}
 	}
+  @media (max-width: 800px) {
+  .show-suggestions-btn {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 56px;
+    background: #fff;
+    border: none;
+    font-size: 1.1em;
+    font-weight: 700;
+    color: #232349;
+    box-shadow: 0 -2px 16px #0002;
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-top: 1px solid #e5e5ef;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: background 0.13s;
+  }
+  .show-suggestions-btn:active {
+    background: #f7f8fa;
+  }
+}
+
+
 </style>

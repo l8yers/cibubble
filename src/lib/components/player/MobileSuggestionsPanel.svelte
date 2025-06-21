@@ -1,5 +1,4 @@
 <script>
-  import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import * as utils from '$lib/utils/utils.js';
   import { ChartNoAxesColumnIncreasing } from 'lucide-svelte';
@@ -27,7 +26,6 @@
     return `/?${params.toString()}`;
   }
 
-  // Refetch when video changes
   $: if (video) fetchSuggestions();
 
   async function fetchSuggestions() {
@@ -89,11 +87,11 @@
 {#if open}
   <div class="mobile-suggestions-overlay" on:click={onClose}>
     <div class="mobile-suggestions-panel" on:click|stopPropagation>
-      <div class="panel-header">
+      <div class="panel-header sticky-header">
         <span>
           {video.playlist_id
             ? (playlistTitle ? `Playlist: ${playlistTitle}` : "Playlist")
-            : "Suggested Videos"}
+            : "More videos like this"}
         </span>
         <button class="close-btn" on:click={onClose} aria-label="Close suggestions">✕</button>
       </div>
@@ -102,7 +100,7 @@
       {:else if suggestions.length === 0}
         <div class="sidebar-loading">No suggestions found.</div>
       {:else}
-        <div class="suggestions-list">
+        <div class="suggestions-list scroll-list">
           {#each suggestions as v, i (v.id)}
             <a class="suggestion-link" href={`/video/${v.id}`} title={v.title}>
               <div class="suggestion-card horizontal-card">
@@ -160,40 +158,53 @@
 
 <style>
 @media (max-width: 800px) {
+  html, body {
+    height: 100%;
+    overflow: hidden;
+  }
   .mobile-suggestions-overlay {
     position: fixed;
     inset: 0;
-    background: #13131bbd;
+    background: transparent;
     z-index: 3000;
     display: flex;
     justify-content: flex-end;
     align-items: flex-end;
+    height: 100vh;
+    width: 100vw;
+    pointer-events: all;
   }
   .mobile-suggestions-panel {
     background: #fff;
     width: 100vw;
-    max-height: 88vh;
+    height: calc(100vh - 70vw); /* 56vw is height of 16:9 video. Adjust if your player is different! */
     border-top-left-radius: 18px;
     border-top-right-radius: 18px;
-    padding: 1.2em 0.8em 0.8em 0.8em;
     box-shadow: 0 -6px 22px #0005;
-    overflow-y: auto;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
     animation: slideUp 0.24s cubic-bezier(.33,.85,.49,1.14);
+    max-height: unset;
   }
   @keyframes slideUp {
-    from { transform: translateY(90vh);}
+    from { transform: translateY(100%);}
     to   { transform: translateY(0);}
   }
-  .panel-header {
+  .panel-header.sticky-header {
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 2;
+    padding: 1.2em 0.8em 0.6em 0.8em;
+    font-size: 1.13em;
+    font-weight: 700;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 1.13em;
-    font-weight: 700;
-    margin-bottom: 0.9em;
-    padding: 0 0.2em;
+    border-bottom: 1px solid #ececec;
   }
-  .panel-header .close-btn {
+  .close-btn {
     background: none;
     border: none;
     font-size: 1.5em;
@@ -201,12 +212,16 @@
     cursor: pointer;
     margin-left: 1em;
     line-height: 1;
+    padding: 0 0.1em;
   }
-  .suggestions-list {
+  .suggestions-list.scroll-list {
+    overflow-y: auto;
+    flex: 1 1 0;
+    padding: 0.6em 0.7em 1.1em 0.7em;
     display: flex;
     flex-direction: column;
     gap: 0.95em;
-    padding-bottom: 1em;
+    min-height: 0;
   }
   .suggestion-link {
     text-decoration: none;
@@ -223,22 +238,26 @@
     flex-direction: row;
     align-items: center;
     background: #fff;
-    border-radius: 6px;
-    box-shadow: 0 2px 12px #e8e8e8;
+    border-radius: 7px;
+    box-shadow: 0 2px 10px #f2f2f2;
     border: 1px solid #ededed;
     min-height: 84px;
     padding: 0 0.7em 0 0.12em;
     gap: 1.05em;
-    transition: none;
     outline: none;
+  }
+  .suggestion-card.horizontal-card:hover,
+  .suggestion-card.horizontal-card:focus {
+    background: #f7f8fa;
+    box-shadow: 0 3px 16px #0001;
   }
   .sidebar-thumb-wrapper {
     position: relative;
-    width: 35vw;
-    min-width: 50px;
-    max-width: 100px;
+    width: 34vw;
+    min-width: 56px;
+    max-width: 102px;
     aspect-ratio: 16/9;
-    border-radius: 6px;
+    border-radius: 7px;
     overflow: hidden;
     background: #ededed;
     box-shadow: 0 1px 8px #0001;
@@ -252,7 +271,7 @@
     height: auto;
     aspect-ratio: 16/9;
     object-fit: cover;
-    border-radius: 6px;
+    border-radius: 7px;
     display: block;
     background: #ededed;
     min-height: 54px;
@@ -263,9 +282,9 @@
     bottom: 0.47em;
     color: #fff;
     background: #222c;
-    font-size: 0.92em;
+    font-size: 0.93em;
     padding: 0.13em 0.58em;
-    border-radius: 6px;
+    border-radius: 7px;
     font-weight: 500;
     opacity: 0.96;
     box-shadow: 0 1px 4px #0002;
@@ -286,11 +305,11 @@
   .sidebar-title-row {
     display: flex;
     align-items: center;
-    gap: 0.4em;
+    gap: 0.36em;
     margin-bottom: 0.09em;
   }
   .sidebar-card-title {
-    font-size: 0.93em;
+    font-size: 1em;
     font-weight: 600;
     max-height: 2.2em;
     overflow: hidden;
