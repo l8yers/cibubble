@@ -7,6 +7,8 @@
   export let selectedTags = [];
   export let countryOptions = [];
   export let selectedCountry = '';
+  export let myChannels = [];
+  export let selectedChannel = '';
   // More filters soon...
 
   const dispatch = createEventDispatcher();
@@ -14,11 +16,13 @@
   let localLevels = [];
   let localTags = [];
   let localCountry = '';
+  let localChannel = '';
 
   $: if (open) {
     localLevels = [...selectedLevels];
     localTags = [...selectedTags];
     localCountry = selectedCountry;
+    localChannel = selectedChannel;
   }
 
   function toggleLevel(level) {
@@ -41,6 +45,7 @@
       selectedLevels: localLevels,
       selectedTags: localTags,
       selectedCountry: localCountry,
+      selectedChannel: localChannel,
     });
   }
 
@@ -98,6 +103,18 @@
           {/each}
         </select>
       </div>
+      <!-- MY CHANNELS FILTER -->
+      {#if myChannels && myChannels.length}
+      <div class="filter-group">
+        <strong>My Channels:</strong>
+        <select bind:value={localChannel}>
+          <option value="">All</option>
+          {#each myChannels as ch}
+            <option value={ch.id}>{ch.name}</option>
+          {/each}
+        </select>
+      </div>
+      {/if}
       <button class="apply-btn" on:click={handleApply}>Apply Filters</button>
     </div>
   </div>
