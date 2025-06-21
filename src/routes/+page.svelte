@@ -210,6 +210,17 @@
 		searchTerm.set(e.target.value);
 		resetAndFetch();
 	}
+    function handleMobileSearchInput(val) {
+    searchTerm.set(val);
+    // Optionally, auto-fetch on every input, or debounce for prod
+    resetAndFetch();
+  }
+  function handleMobileSearchSubmit(val) {
+    searchTerm.set(val);
+    resetAndFetch();
+    // Optionally, close search on submit (not strictly required)
+    // showMobileSearch = false;
+  }
 
 	// --- Filter Chips ---
 	function filterByChannel(channelId) {
@@ -418,8 +429,11 @@
 	{#if mounted && $isMobile}
   <MobileMenuBar
     openSearch={showMobileSearch}
+    searchValue={$searchTerm}
     on:showSearch={() => showMobileSearch = true}
     on:closeSearch={() => showMobileSearch = false}
+    on:searchInput={e => handleMobileSearchInput(e.detail)}
+    on:submitSearch={e => handleMobileSearchSubmit(e.detail)}
     on:sort={() => (showSortDropdown = true)}
     on:filter={() => (showFullPageFilter = true)}
   />

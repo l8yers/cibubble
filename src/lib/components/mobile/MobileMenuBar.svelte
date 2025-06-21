@@ -1,9 +1,25 @@
 <script>
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   export let openSearch = false;
-
+  export let searchValue = '';
   const dispatch = createEventDispatcher();
-  let searchValue = '';
+  let localValue = searchValue;
+
+  // Keep localValue in sync if parent changes searchValue while box is open
+  $: if (openSearch && localValue !== searchValue) {
+    localValue = searchValue;
+  }
+
+  function handleInput(e) {
+    localValue = e.target.value;
+    dispatch('searchInput', localValue);
+  }
+
+  function handleKeydown(e) {
+    if (e.key === 'Enter') {
+      dispatch('submitSearch', localValue);
+    }
+  }
 
   function handleSearchClick() {
     dispatch('showSearch');
@@ -23,7 +39,9 @@
       <input
         type="text"
         placeholder="Search videos..."
-        bind:value={searchValue}
+        bind:value={localValue}
+        on:input={handleInput}
+        on:keydown={handleKeydown}
         autocomplete="off"
         autocorrect="off"
         spellcheck="false"
