@@ -1,5 +1,5 @@
 <script>
-  import { onDestroy } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import { page } from '$app/stores';
   import { user } from '$lib/stores/user.js';
@@ -9,6 +9,7 @@
   import PlayerMetaRow from '$lib/components/player/PlayerMetaRow.svelte';
   import ChannelTagsBlock from '$lib/components/player/ChannelTagsBlock.svelte';
   import TagModal from '$lib/components/player/TagModal.svelte';
+  import MobileSuggestionsPanel from '$lib/components/player/MobileSuggestionsPanel.svelte';
   import * as utils from '$lib/utils/utils.js';
   import { goto } from '$app/navigation';
   import { autoplay } from '$lib/stores/autoplay.js';
@@ -18,6 +19,9 @@
   let suggestions = [];
   let playlistTitle = '';
   let autoplayValue = true;
+  let showSuggestionsPanel = false;
+  let isMobile = false;
+
   const unsubscribe = autoplay.subscribe((val) => (autoplayValue = val));
   let savingChannel = false;
   let isChannelSaved = false;
@@ -35,6 +39,13 @@
 
   $: id = $page.params.id;
   $: if (id) initializePlayer();
+
+  onMount(() => {
+    const check = () => isMobile = window.innerWidth <= 800;
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  });
 
   onDestroy(() => {
     if (unsubscribe) unsubscribe();
@@ -287,8 +298,19 @@
       {#if tagSuccess}
         <div class="tag-success">Tag added!</div>
       {/if}
+
+      {#if isMobile}
+        <button class="show-suggestions-btn" on:click={() => showSuggestionsPanel = true}>
+          More videos like this
+        </button>
+        <MobileSuggestionsPanel
+          open={showSuggestionsPanel}
+          {suggestions}
+          onClose={() => showSuggestionsPanel = false}
+        />
+      {/if}
     </div>
-    <aside class="player-sidebar">
+    <aside class="player-sidebar" style:display={isMobile ? 'none' : undefined}>
       <SideBar {video} />
     </aside>
   </div>
@@ -434,6 +456,21 @@
     border-radius: 0;
     font-size: 1.09rem;
   }
+  /* Suggestions button for mobile */
+  .show-suggestions-btn {
+    width: 100%;
+    padding: 1.1em 0;
+    background: #fff;
+    border: none;
+    border-top: 1px solid #e5e5e9;
+    font-size: 1.11em;
+    font-weight: 700;
+    color: #1a1a2f;
+    box-shadow: 0 0.5px 7px #0002;
+    cursor: pointer;
+    position: sticky;
+    bottom: 0;
+    z-index: 1001;
+  }
 }
-
 </style>
