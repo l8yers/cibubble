@@ -1,21 +1,41 @@
 <script>
   import { createEventDispatcher } from 'svelte';
   export let open = false;
+  export let levels = [];
   export let selectedLevels = [];
+  export let tagOptions = [];
   export let selectedTags = [];
-  export let selectedCountry = '';
-  export let selectedChannel = '';
-  // Add other filter props as needed!
+  // Next: country/channels...
 
   const dispatch = createEventDispatcher();
 
+  let localLevels = [];
+  let localTags = [];
+
+  $: if (open) {
+    localLevels = [...selectedLevels];
+    localTags = [...selectedTags];
+  }
+
+  function toggleLevel(level) {
+    if (localLevels.includes(level)) {
+      localLevels = localLevels.filter(l => l !== level);
+    } else {
+      localLevels = [...localLevels, level];
+    }
+  }
+  function toggleTag(tag) {
+    if (localTags.includes(tag)) {
+      localTags = localTags.filter(t => t !== tag);
+    } else {
+      localTags = [...localTags, tag];
+    }
+  }
+
   function handleApply() {
     dispatch('apply', {
-      selectedLevels,
-      selectedTags,
-      selectedCountry,
-      selectedChannel
-      // add others as needed!
+      selectedLevels: localLevels,
+      selectedTags: localTags,
     });
   }
 
@@ -31,7 +51,38 @@
         <span>Filters</span>
         <button class="close-btn" on:click={handleClose} aria-label="Close">×</button>
       </div>
-      <div style="padding:1em 0; color:#888;">[Filters UI placeholder]</div>
+      <!-- LEVELS FILTER -->
+      <div class="filter-group">
+        <strong>Levels:</strong>
+        <div class="checkbox-list">
+          {#each levels as lvl}
+            <label>
+              <input
+                type="checkbox"
+                checked={localLevels.includes(lvl.value)}
+                on:change={() => toggleLevel(lvl.value)}
+              />
+              {lvl.label}
+            </label>
+          {/each}
+        </div>
+      </div>
+      <!-- TAGS FILTER -->
+      <div class="filter-group">
+        <strong>Tags:</strong>
+        <div class="checkbox-list" style="max-height:140px;overflow:auto;">
+          {#each tagOptions as tag}
+            <label>
+              <input
+                type="checkbox"
+                checked={localTags.includes(tag)}
+                on:change={() => toggleTag(tag)}
+              />
+              {tag}
+            </label>
+          {/each}
+        </div>
+      </div>
       <button class="apply-btn" on:click={handleApply}>Apply Filters</button>
     </div>
   </div>
@@ -71,4 +122,13 @@
     transition: background 0.11s;
   }
   .apply-btn:hover { background: #005dc1; }
+  .filter-group {
+    margin-bottom: 1.1em;
+  }
+  .checkbox-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7em 1.2em;
+    margin-top: 0.3em;
+  }
 </style>
