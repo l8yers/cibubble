@@ -4,6 +4,7 @@
 body.dark-mode {
   background: #141417 !important;
   color: #efefef !important;
+  transition: background 0.18s, color 0.18s;
 }
 
 /* --- HEADER / NAVBAR --- */
@@ -26,14 +27,16 @@ body.dark-mode .logout-btn:hover {
   color: #fd4949;
 }
 body.dark-mode .menu-icon {
-  stroke: #fafafa;
+  stroke: #fafafa !important;
 }
+
+/* --- THEME TOGGLE --- */
 body.dark-mode .theme-toggle {
   background: none;
   color: #fd4949;
 }
 
-/* --- CARD/PANEL BASE --- */
+/* --- CARDS & PANELS --- */
 body.dark-mode .card,
 body.dark-mode .table-card,
 body.dark-mode .profile-main,
@@ -49,7 +52,7 @@ body.dark-mode .player-video-box {
   box-shadow: 0 8px 32px #000a, 0 1.5px 8px #0004;
 }
 
-/* --- HIGHLIGHTED/SECONDARY PANELS (like "streak" etc) --- */
+/* --- HIGHLIGHTED/SECONDARY PANELS --- */
 body.dark-mode .streak-block,
 body.dark-mode .summary-highlight,
 body.dark-mode .calendar-cell.active,
@@ -82,7 +85,7 @@ body.dark-mode .save-btn,
 body.dark-mode .cancel-btn,
 body.dark-mode .settings-edit-btn,
 body.dark-mode .settings-save-btn,
-body.dark-mode .settings-cancel-btn {
+body-dark-mode .settings-cancel-btn {
   background: #24242c !important;
   color: #fafafa !important;
   border: none !important;
@@ -93,8 +96,8 @@ body.dark-mode button:hover,
 body.dark-mode .fav-row-btn:hover,
 body.dark-mode .add-tag-btn:hover,
 body.dark-mode .settings-edit-btn:hover,
-body.dark-mode .settings-save-btn:hover,
-body.dark-mode .settings-cancel-btn:hover {
+body-dark-mode .settings-save-btn:hover,
+body-dark-mode .settings-cancel-btn:hover {
   background: #fd4949 !important;
   color: #fff !important;
 }
@@ -104,17 +107,17 @@ body.dark-mode input,
 body.dark-mode textarea,
 body.dark-mode select,
 body.dark-mode .manual-time-form input,
-body.dark-mode .manual-time-form textarea,
-body.dark-mode .tag-input,
-body.dark-mode .settings-input {
+body-dark-mode .manual-time-form textarea,
+body-dark-mode .tag-input,
+body-dark-mode .settings-input {
   background: #222228 !important;
   color: #fafafa !important;
   border: 1.3px solid #2c2c36 !important;
 }
 body.dark-mode input:focus,
 body.dark-mode textarea:focus,
-body.dark-mode .tag-input:focus,
-body.dark-mode .settings-input:focus {
+body-dark-mode .tag-input:focus,
+body-dark-mode .settings-input:focus {
   border: 1.3px solid #fd4949 !important;
   outline: none;
 }
@@ -122,8 +125,8 @@ body.dark-mode .settings-input:focus {
 /* --- DROPDOWNS, FILTERS, SEARCH --- */
 body.dark-mode .controls-bar,
 body.dark-mode .dropdown-btn,
-body.dark-mode .search-input,
-body.dark-mode .dropdown-content {
+body-dark-mode .search-input,
+body-dark-mode .dropdown-content {
   background: #18181c !important;
   color: #e3e3e3 !important;
   border: none !important;
@@ -132,79 +135,172 @@ body.dark-mode .dropdown-content {
 
 /* --- CHIP, BADGES, TAGS --- */
 body.dark-mode .chip,
-body.dark-mode .tag-chip,
-body.dark-mode .cloud-chip,
-body.dark-mode .ds-difficulty-badge,
-body.dark-mode .player-diff-badge {
+body-dark-mode .tag-chip,
+body-dark-mode .cloud-chip,
+body-dark-mode .ds-difficulty-badge,
+body-dark-mode .player-diff-badge {
   background: #24242c !important;
   color: #fd4949 !important;
   border: none !important;
 }
 body.dark-mode .chip.info    { background: #2b3052 !important; color: #6bc6fd !important; }
-body.dark-mode .chip.warning { background: #534429 !important; color: #ffbb54 !important; }
-body.dark-mode .chip.success { background: #24352a !important; color: #8ff79e !important; }
-body.dark-mode .chip.error   { background: #442729 !important; color: #ff8e81 !important; }
+body-dark-mode .chip.warning { background: #534429 !important; color: #ffbb54 !important; }
+body-dark-mode .chip.success { background: #24352a !important; color: #8ff79e !important; }
+body-dark-mode .chip.error   { background: #442729 !important; color: #ff8e81 !important; }
 
-body.dark-mode .badge {
+body-dark-mode .badge {
   background: #fd4949 !important;
   color: #fff !important;
 }
 
 /* --- SIDEBAR --- */
-body.dark-mode .sidebar-root {
+body-dark-mode .sidebar-root {
   background: #17171a !important;
   color: #fafafa !important;
 }
 
 /* --- SPINNER --- */
-body.dark-mode .spinner {
+body-dark-mode .spinner {
   border: 3.5px solid #2c2c2c;
   border-top: 3.5px solid #fd4949;
 }
 
 /* --- MODALS --- */
-body.dark-mode .modal-bg {
+body-dark-mode .modal-bg {
   background: #101015bb !important;
 }
-body.dark-mode .modal-content {
+body-dark-mode .modal-content {
   background: #1e1e23 !important;
   color: #fafafa !important;
 }
 
 /* --- TABLES --- */
-body.dark-mode .daily-totals-table th,
-body.dark-mode .daily-totals-table td {
+body-dark-mode .daily-totals-table th,
+body-dark-mode .daily-totals-table td {
   background: #1e1e23 !important;
   color: #fafafa !important;
 }
-body.dark-mode .daily-totals-table tr:nth-child(even) td {
+body-dark-mode .daily-totals-table tr:nth-child(even) td {
   background: #19191d !important;
 }
 
 /* --- CALENDAR/CHART/PROGRESS PANELS --- */
-body.dark-mode .calendar-heatmap-cell,
-body.dark-mode .calendar-cell,
-body.dark-mode .progress-chart,
-body.dark-mode .activity-chart,
-body.dark-mode .chart-panel {
+body-dark-mode .calendar-heatmap-cell,
+body-dark-mode .calendar-cell,
+body-dark-mode .progress-chart,
+body-dark-mode .activity-chart,
+body-dark-mode .chart-panel {
   background: #18181c !important;
   color: #d0d5e9 !important;
   border: none !important;
 }
 
 /* --- MISC --- */
-body.dark-mode .form-error,
-body.dark-mode .tag-error {
+body-dark-mode .form-error,
+body-dark-mode .tag-error {
   color: #fd4949 !important;
 }
-body.dark-mode .form-success {
+body-dark-mode .form-success {
   color: #59e893   !important;
 }
-
-body.dark-mode .empty-row,
-body.dark-mode .no-progress,
-body.dark-mode .no-activity {
+body-dark-mode .empty-row,
+body-dark-mode .no-progress,
+body-dark-mode .no-activity {
   color: #9ca0ac  !important;
 }
 
-/* === END: Dreaming Spanish Style Dark Mode for CIBUBBLE === */
+/* --- MOBILE MENU BAR AND DROPDOWN --- */
+body-dark-mode .mobile-menu-bar {
+  background: #181c23 !important;
+  border-top: 1.5px solid #232832 !important;
+  box-shadow: 0 -2px 16px #000a !important;
+}
+body-dark-mode .mobile-menu-bar button,
+body-dark-mode .mobile-menu-bar .close-btn {
+  color: #99c1ff !important;
+  background: none !important;
+}
+body-dark-mode .mobile-menu-bar button:active,
+body-dark-mode .mobile-menu-bar button:focus {
+  background: #232b38 !important;
+}
+
+/* --- MOBILE SEARCH BAR --- */
+body-dark-mode .search-bar input[type="text"] {
+  background: #232832 !important;
+  color: #eaf1ff !important;
+  border: 1px solid #3d4250 !important;
+}
+body-dark-mode .search-bar input[type="text"]::placeholder {
+  color: #8892af !important;
+}
+
+/* --- MODAL OVERLAYS (filters, sort, etc) --- */
+body-dark-mode .modal-bg {
+  background: #0a0c12cc !important;
+}
+body-dark-mode .filter-modal,
+body-dark-mode .sort-modal {
+  background: #232832 !important;
+  color: #eaf1ff !important;
+  box-shadow: 0 2px 20px #0007 !important;
+}
+body-dark-mode .close-btn,
+body-dark-mode .mobile-menu-close {
+  color: #b4c5dd !important;
+}
+body-dark-mode .close-btn:hover,
+body-dark-mode .mobile-menu-close:hover {
+  background: #232b38 !important;
+}
+
+/* --- FILTER CONTENT (checkboxes etc) --- */
+body-dark-mode .filter-group label,
+body-dark-mode .filter-group strong {
+  color: #eaf1ff !important;
+}
+body-dark-mode .filter-group select {
+  background: #1a1d23 !important;
+  color: #eaf1ff !important;
+  border: 1px solid #3d4250 !important;
+}
+
+/* --- SORT MODAL --- */
+body-dark-mode .sort-modal button {
+  background: #232832 !important;
+  color: #d1e6ff !important;
+}
+body-dark-mode .sort-modal button.selected,
+body-dark-mode .sort-modal button.selected:focus {
+  background: #274369 !important;
+  color: #68a4ff !important;
+}
+
+/* --- MOBILE DROPDOWN MENU --- */
+body-dark-mode .mobile-dropdown {
+  background: #181c23f7 !important;
+  color: #eaf1ff !important;
+}
+body-dark-mode .dropdown-inner {
+  /* inherits background from .mobile-dropdown */
+}
+body-dark-mode .mobile-menu-item {
+  background: none !important;
+  color: #eaf1ff !important;
+}
+body-dark-mode .mobile-menu-item:hover,
+body-dark-mode .mobile-menu-item:focus {
+  background: #232b38 !important;
+  color: #69a5ff !important;
+}
+body-dark-mode .mobile-theme-row {
+  border-top: 1.5px solid #2b3141 !important;
+}
+
+/* --- LOGO & ICONS --- */
+body-dark-mode .logo-img {
+  filter: brightness(0.92) contrast(1.12);
+}
+body-dark-mode .menu-icon {
+  stroke: #eaf1ff !important;
+}
