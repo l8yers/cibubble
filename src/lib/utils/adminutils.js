@@ -47,11 +47,3 @@ export function normalizeTags(raw) {
   return [...new Set(arr)];
 }
 
-
-export function normalizeTags(raw) {
-  let arr = [];
-  if (Array.isArray(raw)) arr = raw;
-  else if (typeof raw === 'string') arr = raw.split(',');
-  arr = arr.map(t => String(t || '').trim().toLowerCase()).filter(Boolean);
-  return [...new Set(arr)];
-}
