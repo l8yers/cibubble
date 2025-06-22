@@ -8,7 +8,6 @@ const YOUTUBE_API_KEY = process.env.VITE_YOUTUBE_API_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-
 // --- TAG NORMALIZER ---
 function normalizeTags(raw) {
   let arr = [];
@@ -18,6 +17,12 @@ function normalizeTags(raw) {
     .map((t) => String(t || '').trim().toLowerCase())
     .filter(Boolean);
   return [...new Set(arr)];
+}
+
+// --- COUNTRY NORMALIZER ---
+function normalizeCountry(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  return raw.trim().toLowerCase();
 }
 
 // --- DEFENSIVE parseDuration ---
@@ -50,7 +55,7 @@ async function fetchVideoDurations(videoIds) {
         results.push(
           ...data.items.map((v) => {
             const dur = v.contentDetails?.duration;
-            if (!dur || typeof dur !== "string") {
+             if (!dur || typeof dur !== "string") {
               console.warn("fetchVideoDurations: Missing or bad duration for video", v.id, v);
               return { id: v.id, length: 0 };
             }
@@ -206,6 +211,10 @@ export async function POST({ request }) {
 
     const { url, tags, level, added_by, country } = await request.json();
 
+    // Normalise tags and country HERE:
+    const tagArr = normalizeTags(tags);
+    const normCountry = normalizeCountry(country);
+
     const extracted = extractChannelIdOrHandle(url);
     if (!extracted) {
       console.error('Invalid YouTube channel link:', url);
@@ -236,17 +245,14 @@ export async function POST({ request }) {
       );
     }
 
-    // --- TAGS: Normalize once, use both ways ---
-    const tagArr = normalizeTags(tags);
-
-    // --- Upsert channel (with country!) ---
+    // --- Upsert channel (with normalised tags & country!) ---
     const channelObj = {
       id: channel.id,
       name: channel.name,
       thumbnail: channel.thumbnail || '',
       description: channel.description || '',
-      tags: tagArr.join(', '), // TEXT for channel
-      country: country || null,
+      tags: tagArr.join(','), // normalised tags, comma only, no space
+      country: normCountry || null,
     };
     console.log('Upserting channel:', channelObj);
 
@@ -307,7 +313,7 @@ export async function POST({ request }) {
         created: v.created || null,
         playlist_position: v.playlist_position || null,
         level: level || v.level || 'notyet',
-        country: country || null,
+        country: normCountry || null, // Normalised!
         tags: Array.isArray(tagArr) ? tagArr : [],
         added_by: added_by || null, // UUID
       }));
