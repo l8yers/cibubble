@@ -18,7 +18,7 @@
 
 	// --- Utility ---
 	import * as utils from '$lib/utils/utils.js';
-	import { filtersToQuery, queryToFilters } from '$lib/utils/filters.js';
+	import { filtersToQuery, applyFiltersFromQueryString } from '$lib/utils/filters.js';
 	import { updateUrlFromFilters } from '$lib/utils/url.js';
 
 	// --- State stores ---
@@ -107,7 +107,7 @@
 		if (observerInstance) observerInstance.disconnect();
 	});
 
-	// --- UPDATED: fetchVideos, loadMore, resetAndFetch ---
+	// --- fetchVideos, loadMore, resetAndFetch ---
 	async function fetchVideos({ append = false } = {}) {
 		loading.set(true);
 		errorMsg.set('');
@@ -195,17 +195,17 @@
 		searchTerm.set(e.target.value);
 		resetAndFetch();
 	}
-    function handleMobileSearchInput(val) {
-    searchTerm.set(val);
-    // Optionally, auto-fetch on every input, or debounce for prod
-    resetAndFetch();
-  }
-  function handleMobileSearchSubmit(val) {
-    searchTerm.set(val);
-    resetAndFetch();
-    // Optionally, close search on submit (not strictly required)
-    // showMobileSearch = false;
-  }
+	function handleMobileSearchInput(val) {
+		searchTerm.set(val);
+		// Optionally, auto-fetch on every input, or debounce for prod
+		resetAndFetch();
+	}
+	function handleMobileSearchSubmit(val) {
+		searchTerm.set(val);
+		resetAndFetch();
+		// Optionally, close search on submit (not strictly required)
+		// showMobileSearch = false;
+	}
 
 	// --- Filter Chips ---
 	function filterByChannel(channelId) {
@@ -265,23 +265,12 @@
 		resetAndFetch();
 	}
 
-	// --- On mount: parse filters from URL and load initial videos ---
+	// --- On mount: apply filters from URL and load initial videos ---
 	let firstLoad = true;
 	let lastQuery = '';
 
 	onMount(() => {
-		const filters = queryToFilters($page.url.search);
-		const safeLevels = new Set(Array.from(filters.levels).filter((lvl) => validLevels.has(lvl)));
-		selectedLevels.set(
-			safeLevels.size ? safeLevels : new Set(['easy', 'intermediate', 'advanced'])
-		);
-		selectedTags.set(filters.tags.size ? filters.tags : new Set());
-		selectedCountry.set(filters.country || '');
-		selectedChannel.set(filters.channel || '');
-		selectedPlaylist.set(filters.playlist || '');
-		sortBy.set(filters.sort || 'new');
-		searchTerm.set(filters.search || '');
-
+		applyFiltersFromQueryString($page.url.search);
 		resetAndFetch();
 		firstLoad = false;
 	});
@@ -290,18 +279,7 @@
 	$: currentQuery = $page.url.search;
 	$: if (!firstLoad && currentQuery !== lastQuery) {
 		lastQuery = currentQuery;
-		const filters = queryToFilters(currentQuery);
-		const safeLevels = new Set(Array.from(filters.levels).filter((lvl) => validLevels.has(lvl)));
-		selectedLevels.set(
-			safeLevels.size ? safeLevels : new Set(['easy', 'intermediate', 'advanced'])
-		);
-		selectedTags.set(filters.tags.size ? filters.tags : new Set());
-		selectedCountry.set(filters.country || '');
-		selectedChannel.set(filters.channel || '');
-		selectedPlaylist.set(filters.playlist || '');
-		sortBy.set(filters.sort || 'new');
-		searchTerm.set(filters.search || '');
-
+		applyFiltersFromQueryString(currentQuery);
 		resetAndFetch();
 	}
 
@@ -315,7 +293,6 @@
 		userChannels.set([]);
 	}
 </script>
-
 
 <div class="page-container">
 	<!-- Desktop bar -->
@@ -408,23 +385,23 @@
 	</div>
 	<!-- Mobile menu and modals -->
 	{#if mounted && $isMobile}
-  <MobileMenuBar
-    openSearch={showMobileSearch}
-    searchValue={$searchTerm}
-    on:showSearch={() => showMobileSearch = true}
-    on:closeSearch={() => showMobileSearch = false}
-    on:searchInput={e => handleMobileSearchInput(e.detail)}
-    on:submitSearch={e => handleMobileSearchSubmit(e.detail)}
-    on:sort={() => (showSortDropdown = true)}
-    on:filter={() => (showFullPageFilter = true)}
-  />
-<SortDropdown
-  open={showSortDropdown}
-  {sortChoices}
-  selectedSort={$sortBy}
-  onSelect={handleMobileSortSelect}
-  onClose={() => (showSortDropdown = false)}
-/>
+		<MobileMenuBar
+			openSearch={showMobileSearch}
+			searchValue={$searchTerm}
+			on:showSearch={() => (showMobileSearch = true)}
+			on:closeSearch={() => (showMobileSearch = false)}
+			on:searchInput={(e) => handleMobileSearchInput(e.detail)}
+			on:submitSearch={(e) => handleMobileSearchSubmit(e.detail)}
+			on:sort={() => (showSortDropdown = true)}
+			on:filter={() => (showFullPageFilter = true)}
+		/>
+		<SortDropdown
+			open={showSortDropdown}
+			{sortChoices}
+			selectedSort={$sortBy}
+			onSelect={handleMobileSortSelect}
+			onClose={() => (showSortDropdown = false)}
+		/>
 		<FullPageFilter
 			open={showFullPageFilter}
 			{levels}

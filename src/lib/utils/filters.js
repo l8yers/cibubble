@@ -1,10 +1,5 @@
-// src/lib/utils/filters.js
-
 // ---- Constants ----
-export const ALL_LEVELS = ['easy', 'intermediate', 'advanced']; // add more as needed
-
-// If you want "all tags" to work similarly, you could make an ALL_TAGS constant if your tags are static
-// But usually tags are dynamic, so we just use blank as "all tags".
+export const ALL_LEVELS = ['easy', 'intermediate', 'advanced'];
 
 // ---- Filter state -> query string ----
 export function filtersToQuery({
@@ -31,15 +26,12 @@ export function filtersToQuery({
     params.set('tags', Array.from(tags).join(','));
   }
 
-  // Country, channel, playlist: only set if not blank
   if (country) params.set('country', country);
   if (channel) params.set('channel', channel);
   if (playlist) params.set('playlist', playlist);
 
-  // Sort: only set if not default ('new')
   if (sort && sort !== 'new') params.set('sort', sort);
 
-  // Search: only set if not blank
   if (search) params.set('search', search);
 
   return params.toString();
@@ -49,19 +41,16 @@ export function filtersToQuery({
 export function queryToFilters(qs = '') {
   const params = new URLSearchParams(qs);
 
-  // Levels: if param is missing or empty, default to ALL_LEVELS (all selected)
   let levelParam = params.get('level');
   const levels = levelParam && levelParam.trim()
     ? new Set(levelParam.split(',').filter(Boolean))
     : new Set(ALL_LEVELS);
 
-  // Tags: empty set means "all"
   let tagParam = params.get('tags');
   const tags = tagParam && tagParam.trim()
     ? new Set(tagParam.split(',').filter(Boolean))
     : new Set();
 
-  // Everything else is just its value or default
   return {
     levels,
     tags,
@@ -82,7 +71,6 @@ export function isAllLevelsSelected(levels) {
   );
 }
 
-// ---- (Optional) Utility: are filters at default? ----
 export function isDefaultFilters(filters) {
   return (
     isAllLevelsSelected(filters.levels) &&
@@ -93,4 +81,31 @@ export function isDefaultFilters(filters) {
     (!filters.sort || filters.sort === 'new') &&
     !filters.search
   );
+}
+
+// ---- NEW: Apply all query filters to Svelte filter stores ----
+import {
+  selectedLevels,
+  selectedTags,
+  selectedCountry,
+  selectedChannel,
+  selectedPlaylist,
+  sortBy,
+  searchTerm
+} from '$lib/stores/videos.js';
+
+export function applyFiltersFromQueryString(qs) {
+  const filters = queryToFilters(qs);
+  const safeLevels = new Set(
+    Array.from(filters.levels).filter((lvl) => ALL_LEVELS.includes(lvl))
+  );
+  selectedLevels.set(
+    safeLevels.size ? safeLevels : new Set(ALL_LEVELS)
+  );
+  selectedTags.set(filters.tags.size ? filters.tags : new Set());
+  selectedCountry.set(filters.country || '');
+  selectedChannel.set(filters.channel || '');
+  selectedPlaylist.set(filters.playlist || '');
+  sortBy.set(filters.sort || 'new');
+  searchTerm.set(filters.search || '');
 }
