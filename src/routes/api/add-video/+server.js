@@ -8,39 +8,32 @@ const YOUTUBE_API_KEY = process.env.VITE_YOUTUBE_API_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// --- TAG NORMALIZER ---
+// --- Helpers ---
+
 function normalizeTags(raw) {
-  let arr = [];
-  if (Array.isArray(raw)) arr = raw;
-  else if (typeof raw === 'string') arr = raw.split(',');
-  arr = arr
-    .map((t) => String(t || '').trim().toLowerCase())
-    .filter(Boolean);
-  return [...new Set(arr)];
+  if (!raw) return [];
+  if (Array.isArray(raw)) {
+    return [...new Set(raw.map(t => String(t || '').trim().toLowerCase()).filter(Boolean))];
+  }
+  return [...new Set(String(raw)
+    .replace(/\//g, ',')
+    .split(',')
+    .map(t => t.trim().toLowerCase())
+    .filter(Boolean)
+  )];
 }
 
-// --- COUNTRY NORMALIZER ---
 function normalizeCountry(raw) {
-  if (!raw || typeof raw !== 'string') return '';
-  return raw.trim().toLowerCase();
+  if (!raw || typeof raw !== 'string') return null;
+  const val = raw.trim().toLowerCase();
+  return val === '' ? null : val;
 }
 
-// --- DEFENSIVE parseDuration ---
 function parseDuration(iso) {
-  if (!iso || typeof iso !== 'string') {
-    console.error("parseDuration got invalid input:", iso);
-    return 0;
-  }
+  if (!iso || typeof iso !== 'string') return 0;
   const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-  if (!m) {
-    console.error("parseDuration: string did not match ISO 8601:", iso);
-    return 0;
-  }
-  return (
-    (parseInt(m[1] || 0) * 3600) +
-    (parseInt(m[2] || 0) * 60) +
-    (parseInt(m[3] || 0))
-  );
+  if (!m) return 0;
+  return (parseInt(m[1] || 0) * 3600) + (parseInt(m[2] || 0) * 60) + (parseInt(m[3] || 0));
 }
 
 async function fetchVideoDurations(videoIds) {
@@ -55,8 +48,7 @@ async function fetchVideoDurations(videoIds) {
         results.push(
           ...data.items.map((v) => {
             const dur = v.contentDetails?.duration;
-             if (!dur || typeof dur !== "string") {
-              console.warn("fetchVideoDurations: Missing or bad duration for video", v.id, v);
+            if (!dur || typeof dur !== "string") {
               return { id: v.id, length: 0 };
             }
             return {
@@ -67,10 +59,9 @@ async function fetchVideoDurations(videoIds) {
         );
       }
     } catch (err) {
-      console.error('YouTube API fetchVideoDurations error:', err, err.stack);
+      // Just skip batch on error
     }
   }
-  // Build object { videoId: duration }
   return results.reduce((acc, v) => ({ ...acc, [v.id]: v.length }), {});
 }
 
@@ -103,7 +94,7 @@ async function getChannelIdFromHandle(handle) {
       return channelId;
     }
   } catch (err) {
-    console.error('YouTube API getChannelIdFromHandle error:', err, err.stack);
+    // Ignore errors
   }
   return null;
 }
@@ -123,7 +114,6 @@ async function getChannelInfo(channelId) {
       uploadsPlaylistId: c.contentDetails?.relatedPlaylists?.uploads,
     };
   } catch (err) {
-    console.error('YouTube API getChannelInfo error:', err, err.stack);
     return null;
   }
 }
@@ -140,7 +130,7 @@ async function getPlaylists(channelId) {
       nextPage = data.nextPageToken || '';
     } while (nextPage);
   } catch (err) {
-    console.error('YouTube API getPlaylists error:', err, err.stack);
+    // ignore
   }
   return playlists.map((pl) => ({
     id: pl.id,
@@ -172,9 +162,7 @@ async function getPlaylistVideos(playlistId) {
       if (data.items) videos.push(...data.items);
       nextPage = data.nextPageToken || '';
     } while (nextPage);
-  } catch (err) {
-    console.error('YouTube API getPlaylistVideos error:', err, err.stack);
-  }
+  } catch (err) {}
   const videoIds = videos.map((v) => v.contentDetails.videoId).filter(Boolean);
   let durations = {};
   if (videoIds.length) {
@@ -202,22 +190,20 @@ async function getAllUploads(uploadsPlaylistId) {
   return videos.map((v) => ({ ...v, playlist_id: null }));
 }
 
+// --- API Route ---
 export async function POST({ request }) {
   try {
     if (!YOUTUBE_API_KEY) {
-      console.error('Missing YouTube API key!', { SUPABASE_URL, SUPABASE_ANON_KEY, YOUTUBE_API_KEY });
       return json({ error: 'Missing YouTube API key' }, { status: 500 });
     }
 
     const { url, tags, level, added_by, country } = await request.json();
 
-    // Normalise tags and country HERE:
     const tagArr = normalizeTags(tags);
     const normCountry = normalizeCountry(country);
 
     const extracted = extractChannelIdOrHandle(url);
     if (!extracted) {
-      console.error('Invalid YouTube channel link:', url);
       return json({ error: 'Invalid YouTube channel link.' }, { status: 400 });
     }
 
@@ -225,40 +211,31 @@ export async function POST({ request }) {
     if (!channelId && extracted.handle) {
       channelId = await getChannelIdFromHandle(extracted.handle);
       if (!channelId) {
-        console.error('Channel not found (handle could not be resolved):', extracted.handle);
         return json({ error: 'Channel not found (handle could not be resolved).' }, { status: 404 });
       }
     }
 
     const channel = await getChannelInfo(channelId);
     if (!channel) {
-      console.error('Could not fetch channel info for channelId:', channelId);
       return json({ error: 'Could not fetch channel info.' }, { status: 404 });
     }
     if (!channel.name || !channel.name.trim()) {
-      console.error('Channel info missing name:', channel);
-      return json(
-        {
-          error: `Channel "${channelId}" is missing a name. This can happen if the YouTube API did not return info, the channel is deleted/private, or your API quota is exceeded.`,
-        },
-        { status: 400 }
-      );
+      return json({
+        error: `Channel "${channelId}" is missing a name. This can happen if the YouTube API did not return info, the channel is deleted/private, or your API quota is exceeded.`,
+      }, { status: 400 });
     }
 
-    // --- Upsert channel (with normalised tags & country!) ---
+    // --- Upsert channel (tags as comma string) ---
     const channelObj = {
       id: channel.id,
       name: channel.name,
       thumbnail: channel.thumbnail || '',
       description: channel.description || '',
-      tags: tagArr.join(','), // normalised tags, comma only, no space
-      country: normCountry || null,
+      tags: tagArr.join(','),  // for channels table as a text field
+      country: normCountry
     };
-    console.log('Upserting channel:', channelObj);
-
     const { error: channelError } = await supabase.from('channels').upsert([channelObj]);
     if (channelError) {
-      console.error('Supabase channel upsert error:', channelError, channelObj);
       return json({ error: 'Failed to upsert channel.' }, { status: 500 });
     }
 
@@ -267,7 +244,6 @@ export async function POST({ request }) {
     if (playlists.length > 0) {
       const { error: playlistError } = await supabase.from('playlists').upsert(playlists);
       if (playlistError) {
-        console.error('Supabase playlists upsert error:', playlistError, playlists);
         return json({ error: 'Failed to upsert playlists.' }, { status: 500 });
       }
     }
@@ -299,7 +275,7 @@ export async function POST({ request }) {
       }
     }
 
-    // PATCH: Use UUID for added_by
+    // Insert videos with tags as a JS array (for Supabase Postgres text[])
     if (allVideos.length > 0) {
       const videosToUpsert = allVideos.map((v) => ({
         id: v.id,
@@ -313,14 +289,13 @@ export async function POST({ request }) {
         created: v.created || null,
         playlist_position: v.playlist_position || null,
         level: level || v.level || 'notyet',
-        country: normCountry || null, // Normalised!
-        tags: Array.isArray(tagArr) ? tagArr : [],
-        added_by: added_by || null, // UUID
+        country: normCountry,
+        tags: tagArr, // ARRAY! for text[]
+        added_by: added_by || null
       }));
 
       const { error: videoError } = await supabase.from('videos').upsert(videosToUpsert);
       if (videoError) {
-        console.error('Supabase videos upsert error:', videoError, videosToUpsert);
         return json({ error: 'Failed to upsert videos: ' + videoError.message }, { status: 500 });
       }
     }
@@ -332,7 +307,6 @@ export async function POST({ request }) {
       videos_added: allVideos.length,
     });
   } catch (err) {
-    console.error('Caught server error:', err, err.stack);
     return json({ error: (err && err.message) || String(err) || 'Unknown error' }, { status: 500 });
   }
 }
