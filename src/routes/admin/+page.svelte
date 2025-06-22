@@ -1,50 +1,17 @@
 <script>
-  // --- ADMIN CLIENT GUARD ---
-  import { supabase } from '$lib/supabaseClient.js';
-  import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
   import { get } from 'svelte/store';
-  import { user } from '$lib/stores/user.js';
-  import { onDestroy } from 'svelte';
-  import { getTagsForChannel } from '$lib/api/tags.js';
+  import { user } from '$lib/stores/user.js'; // Not required, but used for added_by if you want
+  import { stripAccent, normalizeTags, parseCsv } from '$lib/utils/adminutils.js';
 
   import AdminImportBar from '$lib/components/admin/AdminImportBar.svelte';
   import AdminCsvUploadBar from '$lib/components/admin/AdminCsvUploadBar.svelte';
   import AdminSearchBar from '$lib/components/admin/AdminSearchBar.svelte';
   import AdminChannelTable from '$lib/components/admin/AdminChannelTable.svelte';
 
-  import { stripAccent, normalizeTags, parseCsv } from '$lib/utils/adminutils.js';
-
-  // ---- SIMPLE ADMIN GUARD ----
-  let loadingAdmin = true;
-  let notAllowed = false;
-
-  onMount(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      loadingAdmin = false;
-      notAllowed = true;
-      goto('/login');
-      return;
-    }
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', user.id)
-      .single();
-    loadingAdmin = false;
-    if (!profile?.is_admin) {
-      notAllowed = true;
-      goto('/');
-    }
-  });
-
-  // ----- ADMIN PANEL LOGIC BELOW (unchanged) -----
-
+  // --- Panel State ---
   const countryOptions = [
     'Argentina','Canary Islands','Chile','Colombia','Costa Rica','Cuba','Dominican Republic','Ecuador','El Salvador','Equatorial Guinea','France','Guatemala','Italy','Latin America','Mexico','Panama','Paraguay','Peru','Puerto Rico','Spain','United States','Uruguay','Venezuela'
   ];
-
   const levels = [
     { value: '', label: 'Set Level' },
     { value: 'easy', label: 'Easy' },
@@ -78,7 +45,7 @@
   let uploadFailures = [];
   let uploadSuccesses = [];
 
-  // FILTERED CHANNELS LOGIC
+  // FILTERED CHANNELS LOGIC (keep for channels tab, if you want)
   $: {
     let s = stripAccent(search.trim().toLowerCase());
     let filtered = !s
@@ -107,7 +74,6 @@
     csvFile = e.target.files[0];
   }
 
-  // NEW: Download upload failures as CSV
   function downloadFailuresCsv() {
     if (!uploadFailures.length) return;
     const rows = uploadFailures.map(f => ({
@@ -128,7 +94,7 @@
     URL.revokeObjectURL(url);
   }
 
-  // ROBUST CSV BULK UPLOAD LOGIC
+  // --- ROBUST CSV BULK UPLOAD LOGIC ---
   async function uploadCsv() {
     if (!csvFile) return;
     bulkUploading = true;
@@ -141,7 +107,7 @@
       const text = event.target.result;
       let csvRows = [];
       try {
-        csvRows = parseCsv(text); // throws if header or rows are wrong
+        csvRows = parseCsv(text);
       } catch (err) {
         message = `❌ CSV format error: ${err.message}`;
         bulkUploading = false;
@@ -164,7 +130,7 @@
               tags: row.tags,
               country: row.country,
               level: row.level,
-              added_by: u?.id || null
+              added_by: u?.id || null // or just null if not logged in!
             })
           });
           const json = await res.json();
@@ -181,117 +147,94 @@
 
       message = `✅ Uploaded ${added}/${csvRows.length} rows.`;
       if (uploadFailures.length) message += ` ❌ ${uploadFailures.length} failed (see details below)`;
-      await refresh();
       bulkUploading = false;
       csvFile = null;
       if (csvInput) csvInput.value = '';
     };
     reader.readAsText(csvFile);
   }
-
-  // --- REST OF YOUR ADMIN LOGIC BELOW (UNCHANGED) ---
-  // ... (existing functions for refresh, setChannelLevel, etc.)
-  // Keep all your channel logic, pagination, etc. here
-
-  // ... (leave unchanged) ...
 </script>
 
-{#if loadingAdmin}
-  <div style="margin: 4em auto; text-align: center;">Checking admin access…</div>
-{:else if notAllowed}
-  <div style="margin: 4em auto; text-align: center; color: #e93c2f;">
-    You are not authorized to view this page.
-  </div>
-{:else}
-  <div class="admin-main">
-    <div class="admin-panel">
-      <h2>Admin Tools</h2>
-
-      <div class="tabs">
-        <button
-          class:tab-active={currentTab === 'upload'}
-          on:click={() => currentTab = 'upload'}
-        >Upload Tools</button>
-        <button
-          class:tab-active={currentTab === 'channels'}
-          on:click={() => currentTab = 'channels'}
-        >Channel Tools</button>
-      </div>
-
-      {#if currentTab === 'upload'}
-        <div class="tab-panel">
-          <AdminImportBar
-            {url}
-            setUrl={v => url = v}
-            {importing}
-            {importChannel}
-            {refreshing}
-            {refresh}
-            {clearing}
-            {clearDatabase}
-            {csvInput}
-            {handleCsvFile}
-            {uploadCsv}
-            {csvFile}
-            {bulkUploading}
-          />
-          <AdminCsvUploadBar
-            {csvInput}
-            {handleCsvFile}
-            {uploadCsv}
-            {csvFile}
-            {bulkUploading}
-          />
-          {#if message}
-            <div class="admin-message">{message}</div>
-          {/if}
-          {#if uploadFailures.length}
-            <div class="admin-message error">
-              <b>Upload failures:</b>
-              <ul>
-                {#each uploadFailures as f}
-                  <li>
-                    Row {f.rownum}: {f.error} — {JSON.stringify(f.row)}
-                  </li>
-                {/each}
-              </ul>
-              <button class="main-btn small" on:click={downloadFailuresCsv}>Download Failures as CSV</button>
-            </div>
-          {/if}
-        </div>
-      {:else if currentTab === 'channels'}
-        <div class="tab-panel">
-          <AdminSearchBar
-            {search}
-            {onSearchInput}
-            {totalPages}
-            {currentPage}
-            {goToPage}
-          />
-          <AdminChannelTable
-            {filteredChannels}
-            countryOptions={countryOptions}
-            levels={levels}
-            {showPlaylistsFor}
-            {playlists}
-            {playlistsLoading}
-            {message}
-            {settingCountry}
-            {settingLevel}
-            {settingPlaylistLevel}
-            {deleting}
-            {setChannelCountry}
-            {setChannelLevel}
-            {togglePlaylistsFor}
-            {setPlaylistLevel}
-            {deleteChannel}
-            {refresh}
-          />
-        </div>
-      {/if}
+<!-- Just the upload tools, clean, with error reporting -->
+<div class="admin-main">
+  <div class="admin-panel">
+    <h2>Admin Tools (No Checks)</h2>
+    <div class="tabs">
+      <button class:tab-active={currentTab === 'upload'} on:click={() => currentTab = 'upload'}>Upload Tools</button>
+      <button class:tab-active={currentTab === 'channels'} on:click={() => currentTab = 'channels'}>Channel Tools</button>
     </div>
+    {#if currentTab === 'upload'}
+      <div class="tab-panel">
+        <AdminImportBar
+          {url}
+          setUrl={v => url = v}
+          {importing}
+          importChannel={() => {}}
+          {refreshing}
+          refresh={() => {}}
+          {clearing}
+          clearDatabase={() => {}}
+          {csvInput}
+          {handleCsvFile}
+          {uploadCsv}
+          {csvFile}
+          {bulkUploading}
+        />
+        <AdminCsvUploadBar
+          {csvInput}
+          {handleCsvFile}
+          {uploadCsv}
+          {csvFile}
+          {bulkUploading}
+        />
+        {#if message}
+          <div class="admin-message">{message}</div>
+        {/if}
+        {#if uploadFailures.length}
+          <div class="admin-message error">
+            <b>Upload failures:</b>
+            <ul>
+              {#each uploadFailures as f}
+                <li>Row {f.rownum}: {f.error} — {JSON.stringify(f.row)}</li>
+              {/each}
+            </ul>
+            <button class="main-btn small" on:click={downloadFailuresCsv}>Download Failures as CSV</button>
+          </div>
+        {/if}
+      </div>
+    {/if}
+    {#if currentTab === 'channels'}
+      <div class="tab-panel">
+        <AdminSearchBar
+          {search}
+          {onSearchInput}
+          {totalPages}
+          {currentPage}
+          {goToPage}
+        />
+        <AdminChannelTable
+          {filteredChannels}
+          countryOptions={countryOptions}
+          levels={levels}
+          {showPlaylistsFor}
+          {playlists}
+          {playlistsLoading}
+          {message}
+          {settingCountry}
+          {settingLevel}
+          {settingPlaylistLevel}
+          {deleting}
+          setChannelCountry={() => {}}
+          setChannelLevel={() => {}}
+          togglePlaylistsFor={() => {}}
+          setPlaylistLevel={() => {}}
+          deleteChannel={() => {}}
+          refresh={() => {}}
+        />
+      </div>
+    {/if}
   </div>
-{/if}
+</div>
 
 <style>
   .admin-main {
@@ -315,51 +258,6 @@
     flex-direction: column;
     align-items: center;
     min-width: 380px;
-  }
-
-  .admin-main {
-    min-height: 100vh;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    background: var(--bg, #f4f6fa);
-    padding: 3.5em 1.5em 2em 1.5em;
-    box-sizing: border-box;
-  }
-  .admin-panel {
-  background: var(--card, #fff);
-  border-radius: 18px;
-  box-shadow: 0 6px 30px 0 #0001, 0 1.5px 7px #e3e8ee35;
-  max-width: 1200px;   /* was 740px */
-  width: 100%;
-  margin: 0 auto;
-  padding: 2.2em 2.5em 2em 2.5em;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 380px;
-}
-
-.admin-section {
-  width: 100%;
-  overflow-x: auto;
-  margin-top: 0.8em;
-}
-
-.admin-table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  min-width: 1000px;
-}
-  .admin-panel h2 {
-    font-size: 2.2em;
-    margin-bottom: 1.1em;
-    text-align: center;
-    letter-spacing: 0.05em;
-    color: #244fa2;
-    font-weight: 900;
-    text-shadow: 0 1px 1.5px #0001;
   }
   .tabs {
     display: flex;
@@ -416,17 +314,5 @@
     background: #fff1f1;
     color: #e93c2f;
     border: 1px solid #e93c2f44;
-  }
-  @media (max-width: 900px) {
-    .admin-panel {
-      padding: 1.4em 0.4em 1.4em 0.4em;
-    }
-    .tabs {
-      font-size: 0.97em;
-      gap: 0.7em;
-    }
-    .tab-panel {
-      padding: 0.5em 0.1em 0.4em 0.1em;
-    }
   }
 </style>
