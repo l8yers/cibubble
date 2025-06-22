@@ -44,6 +44,9 @@
 	import { userChannels } from '$lib/stores/userChannels.js';
 	import { getUserSavedChannels } from '$lib/api/userChannels.js';
 
+	// --- Video API ---
+	import { fetchVideos as fetchVideosFromAPI } from '$lib/api/videos.js';
+
 	// --- Mobile switching ---
 	const isMobile = writable(false);
 	let mounted = false;
@@ -104,52 +107,34 @@
 		if (observerInstance) observerInstance.disconnect();
 	});
 
+	// --- UPDATED: fetchVideos, loadMore, resetAndFetch ---
 	async function fetchVideos({ append = false } = {}) {
 		loading.set(true);
 		errorMsg.set('');
 
-		let channelFilter = get(selectedChannel);
-		if (channelFilter === '__ALL__' && get(userChannels).length > 0) {
-			channelFilter = get(userChannels)
-				.map((ch) => ch.id)
-				.join(',');
-		} else if (channelFilter === '') {
-			channelFilter = '';
-		}
-
-		const query = new URLSearchParams({
-			page: get(sortBy) === 'random' ? 1 : get(pageNum),
-			pageSize: PAGE_SIZE,
-			levels: Array.from(get(selectedLevels)).join(','),
-			tags: Array.from(get(selectedTags)).join(','),
-			country: get(selectedCountry),
-			channel: channelFilter,
-			playlist: get(selectedPlaylist),
-			sort: get(sortBy),
-			search: get(searchTerm)
-		});
-
-		const res = await fetch(`/api/videos?${query}`);
-		if (!res.ok) {
-			const errText = await res.text();
-			errorMsg.set('Error loading videos: ' + errText);
+		try {
+			const { videos: fetched, hasMore: more } = await fetchVideosFromAPI({
+				page: get(pageNum),
+				pageSize: PAGE_SIZE,
+				levels: Array.from(get(selectedLevels)),
+				tags: Array.from(get(selectedTags)),
+				country: get(selectedCountry),
+				channel: get(selectedChannel),
+				playlist: get(selectedPlaylist),
+				sort: get(sortBy),
+				search: get(searchTerm)
+			});
+			if (append) {
+				videos.update((vs) => [...vs, ...fetched]);
+			} else {
+				videos.set(fetched);
+			}
+			hasMore.set(get(sortBy) === 'random' ? true : more);
+		} catch (err) {
+			errorMsg.set(err.message || 'Unknown error loading videos');
+		} finally {
 			loading.set(false);
-			return;
 		}
-		const { videos: fetched, hasMore: more } = await res.json();
-
-		if (append) {
-			videos.update((vs) => [...vs, ...fetched]);
-		} else {
-			videos.set(fetched);
-		}
-
-		if (get(sortBy) === 'random') {
-			hasMore.set(true);
-		} else {
-			hasMore.set(more);
-		}
-		loading.set(false);
 	}
 
 	async function loadMore() {
@@ -202,7 +187,7 @@
 		selectedTags.set(new Set(detail.selectedTags));
 		selectedCountry.set(detail.selectedCountry || '');
 		selectedChannel.set(detail.selectedChannel || '');
-		hideWatched.set(detail.hideWatched || false); // Add this line!
+		hideWatched.set(detail.hideWatched || false);
 		showFullPageFilter = false;
 		resetAndFetch();
 	}
@@ -330,6 +315,7 @@
 		userChannels.set([]);
 	}
 </script>
+
 
 <div class="page-container">
 	<!-- Desktop bar -->
