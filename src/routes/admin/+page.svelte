@@ -317,6 +317,28 @@
     min-width: 380px;
   }
 
+  .admin-main {
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    background: var(--bg, #f4f6fa);
+    padding: 3.5em 1.5em 2em 1.5em;
+    box-sizing: border-box;
+  }
+  .admin-panel {
+  background: var(--card, #fff);
+  border-radius: 18px;
+  box-shadow: 0 6px 30px 0 #0001, 0 1.5px 7px #e3e8ee35;
+  max-width: 1200px;   /* was 740px */
+  width: 100%;
+  margin: 0 auto;
+  padding: 2.2em 2.5em 2em 2.5em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 380px;
+}
 
 .admin-section {
   width: 100%;
