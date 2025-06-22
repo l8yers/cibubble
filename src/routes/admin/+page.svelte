@@ -1,20 +1,48 @@
 <script>
-  import { supabase } from '$lib/supabaseClient';
+  // --- ADMIN CLIENT GUARD ---
+  import { supabase } from '$lib/supabaseClient.js';
+  import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
+
+  // Import all your usual admin stuff:
   import { user } from '$lib/stores/user.js';
   import { get } from 'svelte/store';
-  import { onMount, onDestroy } from 'svelte';
+  import { onDestroy } from 'svelte';
   import { getTagsForChannel } from '$lib/api/tags.js';
 
-  // ADMIN COMPONENTS
   import AdminImportBar from '$lib/components/admin/AdminImportBar.svelte';
   import AdminCsvUploadBar from '$lib/components/admin/AdminCsvUploadBar.svelte';
   import AdminSearchBar from '$lib/components/admin/AdminSearchBar.svelte';
   import AdminChannelTable from '$lib/components/admin/AdminChannelTable.svelte';
 
-  // UTILS
   import { stripAccent, normalizeTags, parseCsv } from '$lib/utils/adminutils.js';
 
-  // ----- CONSTANTS -----
+  // ---- SIMPLE ADMIN GUARD ----
+  let loadingAdmin = true;
+  let notAllowed = false;
+
+  onMount(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      loadingAdmin = false;
+      notAllowed = true;
+      goto('/login');
+      return;
+    }
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', user.id)
+      .single();
+    loadingAdmin = false;
+    if (!profile?.is_admin) {
+      notAllowed = true;
+      goto('/');
+    }
+  });
+
+  // ----- ADMIN PANEL LOGIC BELOW (unchanged) -----
+
   const countryOptions = [
     'Argentina','Canary Islands','Chile','Colombia','Costa Rica','Cuba','Dominican Republic','Ecuador','El Salvador','Equatorial Guinea','France','Guatemala','Italy','Latin America','Mexico','Panama','Paraguay','Peru','Puerto Rico','Spain','United States','Uruguay','Venezuela'
   ];
@@ -27,10 +55,7 @@
     { value: 'notyet', label: 'Not Yet Rated' }
   ];
 
-  // ----- TABS -----
   let currentTab = "upload"; // or "channels"
-
-  // ----- STATE -----
   let url = '';
   let message = '';
   let importing = false;
@@ -44,21 +69,16 @@
   let settingCountry = {};
   let settingLevel = {};
   let settingPlaylistLevel = {};
-
-  // Pagination & search
   let search = '';
   let currentPage = 1;
   const channelsPerPage = 12;
   let totalPages = 1;
   let filteredChannels = [];
-
-  // CSV BULK UPLOAD STATE
   let csvInput;
   let csvFile = null;
   let bulkUploading = false;
   let uploadFailures = [];
 
-  // ----- REACTIVE FILTERING -----
   $: {
     let s = stripAccent(search.trim().toLowerCase());
     let filtered = !s
@@ -136,7 +156,6 @@
     reader.readAsText(csvFile);
   }
 
-  // ---- Only attach these listeners in browser! ----
   function handleBeforeUnload(event) {
     if (bulkUploading) {
       event.preventDefault();
@@ -303,91 +322,99 @@
   }
 </script>
 
-<div class="admin-main">
-  <div class="admin-panel">
-    <h2>Admin Tools</h2>
-
-    <div class="tabs">
-      <button
-        class:tab-active={currentTab === 'upload'}
-        on:click={() => currentTab = 'upload'}
-      >Upload Tools</button>
-      <button
-        class:tab-active={currentTab === 'channels'}
-        on:click={() => currentTab = 'channels'}
-      >Channel Tools</button>
-    </div>
-
-    {#if currentTab === 'upload'}
-      <div class="tab-panel">
-        <AdminImportBar
-          {url}
-          setUrl={v => url = v}
-          {importing}
-          {importChannel}
-          {refreshing}
-          {refresh}
-          {clearing}
-          {clearDatabase}
-          {csvInput}
-          {handleCsvFile}
-          {uploadCsv}
-          {csvFile}
-          {bulkUploading}
-        />
-        <AdminCsvUploadBar
-          {csvInput}
-          {handleCsvFile}
-          {uploadCsv}
-          {csvFile}
-          {bulkUploading}
-        />
-        {#if message}
-          <div class="admin-message">{message}</div>
-        {/if}
-        {#if uploadFailures.length}
-          <div class="admin-message error">
-            <b>Upload failures:</b>
-            <ul>
-              {#each uploadFailures as f}
-                <li>{f.error} — {JSON.stringify(f.row)}</li>
-              {/each}
-            </ul>
-          </div>
-        {/if}
-      </div>
-    {:else if currentTab === 'channels'}
-      <div class="tab-panel">
-        <AdminSearchBar
-          {search}
-          {onSearchInput}
-          {totalPages}
-          {currentPage}
-          {goToPage}
-        />
-        <AdminChannelTable
-          {filteredChannels}
-          countryOptions={countryOptions}
-          levels={levels}
-          {showPlaylistsFor}
-          {playlists}
-          {playlistsLoading}
-          {message}
-          {settingCountry}
-          {settingLevel}
-          {settingPlaylistLevel}
-          {deleting}
-          {setChannelCountry}
-          {setChannelLevel}
-          {togglePlaylistsFor}
-          {setPlaylistLevel}
-          {deleteChannel}
-          {refresh}
-        />
-      </div>
-    {/if}
+{#if loadingAdmin}
+  <div style="margin: 4em auto; text-align: center;">Checking admin access…</div>
+{:else if notAllowed}
+  <div style="margin: 4em auto; text-align: center; color: #e93c2f;">
+    You are not authorized to view this page.
   </div>
-</div>
+{:else}
+  <div class="admin-main">
+    <div class="admin-panel">
+      <h2>Admin Tools</h2>
+
+      <div class="tabs">
+        <button
+          class:tab-active={currentTab === 'upload'}
+          on:click={() => currentTab = 'upload'}
+        >Upload Tools</button>
+        <button
+          class:tab-active={currentTab === 'channels'}
+          on:click={() => currentTab = 'channels'}
+        >Channel Tools</button>
+      </div>
+
+      {#if currentTab === 'upload'}
+        <div class="tab-panel">
+          <AdminImportBar
+            {url}
+            setUrl={v => url = v}
+            {importing}
+            {importChannel}
+            {refreshing}
+            {refresh}
+            {clearing}
+            {clearDatabase}
+            {csvInput}
+            {handleCsvFile}
+            {uploadCsv}
+            {csvFile}
+            {bulkUploading}
+          />
+          <AdminCsvUploadBar
+            {csvInput}
+            {handleCsvFile}
+            {uploadCsv}
+            {csvFile}
+            {bulkUploading}
+          />
+          {#if message}
+            <div class="admin-message">{message}</div>
+          {/if}
+          {#if uploadFailures.length}
+            <div class="admin-message error">
+              <b>Upload failures:</b>
+              <ul>
+                {#each uploadFailures as f}
+                  <li>{f.error} — {JSON.stringify(f.row)}</li>
+                {/each}
+              </ul>
+            </div>
+          {/if}
+        </div>
+      {:else if currentTab === 'channels'}
+        <div class="tab-panel">
+          <AdminSearchBar
+            {search}
+            {onSearchInput}
+            {totalPages}
+            {currentPage}
+            {goToPage}
+          />
+          <AdminChannelTable
+            {filteredChannels}
+            countryOptions={countryOptions}
+            levels={levels}
+            {showPlaylistsFor}
+            {playlists}
+            {playlistsLoading}
+            {message}
+            {settingCountry}
+            {settingLevel}
+            {settingPlaylistLevel}
+            {deleting}
+            {setChannelCountry}
+            {setChannelLevel}
+            {togglePlaylistsFor}
+            {setPlaylistLevel}
+            {deleteChannel}
+            {refresh}
+          />
+        </div>
+      {/if}
+    </div>
+  </div>
+{/if}
 
 <style>
   .admin-main {
