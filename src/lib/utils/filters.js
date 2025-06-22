@@ -1,3 +1,5 @@
+// src/lib/utils/filters.js
+
 // ---- Constants ----
 export const ALL_LEVELS = ['easy', 'intermediate', 'advanced'];
 
@@ -21,7 +23,6 @@ export function filtersToQuery({
     params.set('level', Array.from(levels).join(','));
   }
 
-  // Only set 'tags' if not empty
   if (tags?.size) {
     params.set('tags', Array.from(tags).join(','));
   }
@@ -30,7 +31,8 @@ export function filtersToQuery({
   if (channel) params.set('channel', channel);
   if (playlist) params.set('playlist', playlist);
 
-  if (sort && sort !== 'new') params.set('sort', sort);
+  // **Always include sort param (including 'new')**
+  if (sort) params.set('sort', sort);
 
   if (search) params.set('search', search);
 

@@ -18,7 +18,7 @@
 
 	// --- Utility ---
 	import * as utils from '$lib/utils/utils.js';
-	import { filtersToQuery, applyFiltersFromQueryString } from '$lib/utils/filters.js';
+	import { filtersToQuery, queryToFilters } from '$lib/utils/filters.js';
 	import { updateUrlFromFilters } from '$lib/utils/url.js';
 
 	// --- State stores ---
@@ -43,9 +43,6 @@
 	import { user } from '$lib/stores/user.js';
 	import { userChannels } from '$lib/stores/userChannels.js';
 	import { getUserSavedChannels } from '$lib/api/userChannels.js';
-
-	// --- Video API ---
-	import { fetchVideos as fetchVideosFromAPI } from '$lib/api/videos.js';
 
 	// --- Mobile switching ---
 	const isMobile = writable(false);
@@ -107,34 +104,52 @@
 		if (observerInstance) observerInstance.disconnect();
 	});
 
-	// --- fetchVideos, loadMore, resetAndFetch ---
 	async function fetchVideos({ append = false } = {}) {
 		loading.set(true);
 		errorMsg.set('');
 
-		try {
-			const { videos: fetched, hasMore: more } = await fetchVideosFromAPI({
-				page: get(pageNum),
-				pageSize: PAGE_SIZE,
-				levels: Array.from(get(selectedLevels)),
-				tags: Array.from(get(selectedTags)),
-				country: get(selectedCountry),
-				channel: get(selectedChannel),
-				playlist: get(selectedPlaylist),
-				sort: get(sortBy),
-				search: get(searchTerm)
-			});
-			if (append) {
-				videos.update((vs) => [...vs, ...fetched]);
-			} else {
-				videos.set(fetched);
-			}
-			hasMore.set(get(sortBy) === 'random' ? true : more);
-		} catch (err) {
-			errorMsg.set(err.message || 'Unknown error loading videos');
-		} finally {
-			loading.set(false);
+		let channelFilter = get(selectedChannel);
+		if (channelFilter === '__ALL__' && get(userChannels).length > 0) {
+			channelFilter = get(userChannels)
+				.map((ch) => ch.id)
+				.join(',');
+		} else if (channelFilter === '') {
+			channelFilter = '';
 		}
+
+		const query = new URLSearchParams({
+			page: get(sortBy) === 'random' ? 1 : get(pageNum),
+			pageSize: PAGE_SIZE,
+			levels: Array.from(get(selectedLevels)).join(','),
+			tags: Array.from(get(selectedTags)).join(','),
+			country: get(selectedCountry),
+			channel: channelFilter,
+			playlist: get(selectedPlaylist),
+			sort: get(sortBy),
+			search: get(searchTerm)
+		});
+
+		const res = await fetch(`/api/videos?${query}`);
+		if (!res.ok) {
+			const errText = await res.text();
+			errorMsg.set('Error loading videos: ' + errText);
+			loading.set(false);
+			return;
+		}
+		const { videos: fetched, hasMore: more } = await res.json();
+
+		if (append) {
+			videos.update((vs) => [...vs, ...fetched]);
+		} else {
+			videos.set(fetched);
+		}
+
+		if (get(sortBy) === 'random') {
+			hasMore.set(true);
+		} else {
+			hasMore.set(more);
+		}
+		loading.set(false);
 	}
 
 	async function loadMore() {
@@ -187,7 +202,7 @@
 		selectedTags.set(new Set(detail.selectedTags));
 		selectedCountry.set(detail.selectedCountry || '');
 		selectedChannel.set(detail.selectedChannel || '');
-		hideWatched.set(detail.hideWatched || false);
+		hideWatched.set(detail.hideWatched || false); // Add this line!
 		showFullPageFilter = false;
 		resetAndFetch();
 	}
@@ -195,17 +210,17 @@
 		searchTerm.set(e.target.value);
 		resetAndFetch();
 	}
-	function handleMobileSearchInput(val) {
-		searchTerm.set(val);
-		// Optionally, auto-fetch on every input, or debounce for prod
-		resetAndFetch();
-	}
-	function handleMobileSearchSubmit(val) {
-		searchTerm.set(val);
-		resetAndFetch();
-		// Optionally, close search on submit (not strictly required)
-		// showMobileSearch = false;
-	}
+    function handleMobileSearchInput(val) {
+    searchTerm.set(val);
+    // Optionally, auto-fetch on every input, or debounce for prod
+    resetAndFetch();
+  }
+  function handleMobileSearchSubmit(val) {
+    searchTerm.set(val);
+    resetAndFetch();
+    // Optionally, close search on submit (not strictly required)
+    // showMobileSearch = false;
+  }
 
 	// --- Filter Chips ---
 	function filterByChannel(channelId) {
@@ -265,12 +280,23 @@
 		resetAndFetch();
 	}
 
-	// --- On mount: apply filters from URL and load initial videos ---
+	// --- On mount: parse filters from URL and load initial videos ---
 	let firstLoad = true;
 	let lastQuery = '';
 
 	onMount(() => {
-		applyFiltersFromQueryString($page.url.search);
+		const filters = queryToFilters($page.url.search);
+		const safeLevels = new Set(Array.from(filters.levels).filter((lvl) => validLevels.has(lvl)));
+		selectedLevels.set(
+			safeLevels.size ? safeLevels : new Set(['easy', 'intermediate', 'advanced'])
+		);
+		selectedTags.set(filters.tags.size ? filters.tags : new Set());
+		selectedCountry.set(filters.country || '');
+		selectedChannel.set(filters.channel || '');
+		selectedPlaylist.set(filters.playlist || '');
+		sortBy.set(filters.sort || 'new');
+		searchTerm.set(filters.search || '');
+
 		resetAndFetch();
 		firstLoad = false;
 	});
@@ -279,7 +305,18 @@
 	$: currentQuery = $page.url.search;
 	$: if (!firstLoad && currentQuery !== lastQuery) {
 		lastQuery = currentQuery;
-		applyFiltersFromQueryString(currentQuery);
+		const filters = queryToFilters(currentQuery);
+		const safeLevels = new Set(Array.from(filters.levels).filter((lvl) => validLevels.has(lvl)));
+		selectedLevels.set(
+			safeLevels.size ? safeLevels : new Set(['easy', 'intermediate', 'advanced'])
+		);
+		selectedTags.set(filters.tags.size ? filters.tags : new Set());
+		selectedCountry.set(filters.country || '');
+		selectedChannel.set(filters.channel || '');
+		selectedPlaylist.set(filters.playlist || '');
+		sortBy.set(filters.sort || 'new');
+		searchTerm.set(filters.search || '');
+
 		resetAndFetch();
 	}
 
@@ -383,18 +420,23 @@
 			<div class="loading-more text-muted">No videos match your filters.</div>
 		{/if}
 	</div>
+	{#if mounted && $isMobile}
+		<div style="background:yellow;padding:1em;">MOBILE MENU BAR TEST (Live)</div>
+		<MobileMenuBar ... />
+	{/if}
+
 	<!-- Mobile menu and modals -->
 	{#if mounted && $isMobile}
-		<MobileMenuBar
-			openSearch={showMobileSearch}
-			searchValue={$searchTerm}
-			on:showSearch={() => (showMobileSearch = true)}
-			on:closeSearch={() => (showMobileSearch = false)}
-			on:searchInput={(e) => handleMobileSearchInput(e.detail)}
-			on:submitSearch={(e) => handleMobileSearchSubmit(e.detail)}
-			on:sort={() => (showSortDropdown = true)}
-			on:filter={() => (showFullPageFilter = true)}
-		/>
+  <MobileMenuBar
+    openSearch={showMobileSearch}
+    searchValue={$searchTerm}
+    on:showSearch={() => showMobileSearch = true}
+    on:closeSearch={() => showMobileSearch = false}
+    on:searchInput={e => handleMobileSearchInput(e.detail)}
+    on:submitSearch={e => handleMobileSearchSubmit(e.detail)}
+    on:sort={() => (showSortDropdown = true)}
+    on:filter={() => (showFullPageFilter = true)}
+  />
 		<SortDropdown
 			open={showSortDropdown}
 			{sortChoices}
