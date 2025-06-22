@@ -1,11 +1,4 @@
-// adminutils.js
 
-export function stripAccent(str) {
-  return (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-}
-
-// New, robust CSV parser: throws on wrong header or row mismatch
-// adminutils.js
 import Papa from 'papaparse';
 
 export function stripAccent(str) {
