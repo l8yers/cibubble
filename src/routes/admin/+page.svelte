@@ -13,7 +13,7 @@
   let singleChannelError = '';
   let fetchedChannel = null;
 
-  // New: Channel add form state
+  // Single add form state
   let tagInput = '';
   let tags = [];
   let channelLevel = '';
@@ -22,7 +22,7 @@
   let addChannelError = '';
   let addChannelSuccess = '';
 
-  // Fetch minimal channel details (name + thumbnail)
+  // Fetch channel details
   async function fetchSingleChannel() {
     singleChannelLoading = true;
     singleChannelError = '';
@@ -52,7 +52,7 @@
     }
   }
 
-  // Tag input logic
+  // Tag input
   function addTag() {
     const val = tagInput.trim();
     if (val && !tags.includes(val)) tags = [...tags, val];
@@ -62,7 +62,7 @@
     tags = tags.filter(x => x !== t);
   }
 
-  // Add channel to DB
+  // Add channel to DB via /api/add-channel
   async function submitChannel() {
     addChannelError = '';
     addChannelSuccess = '';
@@ -77,18 +77,15 @@
     }
     addChannelLoading = true;
     try {
-      // Replace with your actual endpoint for adding a channel
       const res = await fetch('/api/add-channel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          channel_id: fetchedChannel.id || fetchedChannel.channelId,
           url: singleChannelUrl,
-          title: fetchedChannel.title,
-          thumbnail: fetchedChannel.thumbnail,
           tags,
           level: channelLevel,
           country: channelCountry,
+          added_by: null
         })
       });
       const json = await res.json();
@@ -96,7 +93,6 @@
         addChannelError = json.error;
       } else {
         addChannelSuccess = `✅ Channel "${fetchedChannel.title}" added.`;
-        // Reset states
         fetchedChannel = null;
         singleChannelUrl = '';
         tags = [];
@@ -112,7 +108,7 @@
     }
   }
 
-  // Everything else unchanged (admin tools)
+  // --- Admin tools (bulk upload, channels, playlists, etc) ---
   const countryOptions = [
     'Argentina','Canary Islands','Chile','Colombia','Costa Rica','Cuba','Dominican Republic','Ecuador','El Salvador','Equatorial Guinea','France','Guatemala','Italy','Latin America','Mexico','Panama','Paraguay','Peru','Puerto Rico','Spain','United States','Uruguay','Venezuela'
   ];
@@ -197,40 +193,207 @@
   }
 
   async function uploadCsv() {
-    // ...unchanged...
-    // (omitted for brevity)
+    if (!csvFile) return;
+    bulkUploading = true;
+    uploadFailures = [];
+    uploadSuccesses = [];
+    message = '';
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target.result;
+      let csvRows = [];
+      try {
+        csvRows = parseCsv(text);
+      } catch (err) {
+        message = `❌ CSV format error: ${err.message}`;
+        bulkUploading = false;
+        return;
+      }
+
+      let added = 0;
+      for (let [i, row] of csvRows.entries()) {
+        if (!row.url || !row.url.startsWith('http')) {
+          uploadFailures.push({ row, error: "Missing or invalid YouTube link", rownum: i + 2 });
+          continue;
+        }
+        try {
+          const res = await fetch('/api/add-video', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              url: row.url,
+              tags: row.tags,
+              country: row.country,
+              level: row.level,
+              added_by: null
+            })
+          });
+          const json = await res.json();
+          if (json.error) {
+            uploadFailures.push({ row, error: json.error, rownum: i + 2 });
+          } else {
+            added++;
+            uploadSuccesses.push({ row, status: 'OK', rownum: i + 2 });
+          }
+        } catch (err) {
+          uploadFailures.push({ row, error: err.message, rownum: i + 2 });
+        }
+      }
+
+      message = `✅ Uploaded ${added}/${csvRows.length} rows.`;
+      if (uploadFailures.length) message += ` ❌ ${uploadFailures.length} failed (see details below)`;
+      await refresh();
+      bulkUploading = false;
+      csvFile = null;
+      if (csvInput) csvInput.value = '';
+    };
+    reader.readAsText(csvFile);
   }
 
   async function refresh() {
-    // ...unchanged...
+    refreshing = true;
+    try {
+      let { data, error } = await supabase.from('channels').select('*');
+      if (error) {
+        message = "Channels error: " + (error.message ?? error);
+        allChannels = [];
+        return;
+      }
+      allChannels = await Promise.all(
+        (data || []).map(async (chan) => {
+          const { data: vids } = await supabase.from('videos').select('level').eq('channel_id', chan.id);
+          let _mainLevel = '';
+          if (vids && vids.length > 0) {
+            const levelsArr = vids.map((v) => v.level || '');
+            const uniqueLevels = Array.from(new Set(levelsArr));
+            _mainLevel = uniqueLevels.length === 1 ? (uniqueLevels[0] || '') : 'mixed';
+          }
+          let _tags = [];
+          try {
+            _tags = await getTagsForChannel(chan.id);
+          } catch (e) { _tags = []; }
+          return {
+            ...chan,
+            _country: chan.country || '',
+            _tags,
+            _newLevel: '',
+            _mainLevel
+          };
+        })
+      );
+      currentPage = 1;
+    } catch (e) {
+      message = "Refresh error: " + e.message;
+      allChannels = [];
+    } finally {
+      refreshing = false;
+    }
   }
 
   async function setChannelLevel(channelId, level) {
-    // ...unchanged...
+    if (!level) return;
+    settingLevel = { ...settingLevel, [channelId]: true };
+    await supabase.from('videos').update({ level }).eq('channel_id', channelId);
+    message = `✅ All videos for this channel set to "${levels.find((l) => l.value === level)?.label}"`;
+    await refresh();
+    settingLevel = { ...settingLevel, [channelId]: false };
   }
 
   async function setChannelCountry(channelId, country) {
-    // ...unchanged...
+    settingCountry = { ...settingCountry, [channelId]: true };
+    await supabase.from('channels').update({ country }).eq('id', channelId);
+    await supabase.from('videos').update({ country }).eq('channel_id', channelId);
+    message = '✅ Country updated';
+    await refresh();
+    settingCountry = { ...settingCountry, [channelId]: false };
   }
 
   async function togglePlaylistsFor(channelId) {
-    // ...unchanged...
+    if (showPlaylistsFor === channelId) {
+      showPlaylistsFor = null;
+      playlists = [];
+      return;
+    }
+    showPlaylistsFor = channelId;
+    playlistsLoading = true;
+    let { data, error } = await supabase.from('playlists').select('*').eq('channel_id', channelId);
+    if (!error) {
+      playlists = await Promise.all(
+        (data || []).map(async (pl) => {
+          const { data: vids } = await supabase.from('videos').select('level').eq('playlist_id', pl.id);
+          let currentLevel = '';
+          if (vids && vids.length > 0) {
+            const levelsArr = vids.map((v) => v.level || '');
+            const uniqueLevels = Array.from(new Set(levelsArr));
+            currentLevel = uniqueLevels.length === 1 ? (uniqueLevels[0] || '') : 'mixed';
+          }
+          const { count: videos_count } = await supabase.from('videos').select('id', { count: 'exact', head: true }).eq('playlist_id', pl.id);
+          return { ...pl, videos_count, _newLevel: '', currentLevel };
+        })
+      );
+    } else {
+      playlists = [];
+    }
+    playlistsLoading = false;
   }
 
   async function setPlaylistLevel(playlistId, level) {
-    // ...unchanged...
+    if (!level) return;
+    settingPlaylistLevel = { ...settingPlaylistLevel, [playlistId]: true };
+    await supabase.from('videos').update({ level }).eq('playlist_id', playlistId);
+    message = `✅ All videos for this playlist set to "${levels.find((l) => l.value === level)?.label}"`;
+    playlists = playlists.map((pl) =>
+      pl.id === playlistId ? { ...pl, currentLevel: level, _newLevel: '' } : pl
+    );
+    settingPlaylistLevel = { ...settingPlaylistLevel, [playlistId]: false };
   }
 
   async function deleteChannel(id) {
-    // ...unchanged...
+    const doDelete = typeof window !== 'undefined'
+      ? confirm('Delete this channel and ALL its videos/playlists?')
+      : false;
+    if (!doDelete) return;
+    deleting = { ...deleting, [id]: true };
+    await supabase.from('videos').delete().eq('channel_id', id);
+    await supabase.from('playlists').delete().eq('channel_id', id);
+    await supabase.from('channels').delete().eq('id', id);
+    await refresh();
+    deleting = { ...deleting, [id]: false };
   }
 
   async function importChannel() {
-    // ...unchanged...
+    message = '';
+    importing = true;
+    try {
+      const res = await fetch('/api/add-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, added_by: null })
+      });
+      const json = await res.json();
+      if (json.error) message = `❌ ${json.error}`;
+      else message = `✅ Imported channel "${json.channel?.name}". ${json.playlists_count} playlists, ${json.videos_added} videos.`;
+      await refresh();
+    } catch (e) {
+      message = '❌ Import failed.';
+    }
+    importing = false;
   }
 
   async function clearDatabase() {
-    // ...unchanged...
+    const confirmStr = typeof window !== 'undefined'
+      ? prompt('Are you sure? Type DELETE to confirm clearing ALL data.')
+      : null;
+    if (confirmStr !== 'DELETE') return;
+    clearing = true;
+    message = '';
+    await supabase.from('videos').delete().neq('id', '');
+    await supabase.from('playlists').delete().neq('id', '');
+    await supabase.from('channels').delete().neq('id', '');
+    await refresh();
+    message = '✅ Database cleared.';
+    clearing = false;
   }
 
   function handleBeforeUnload(event) {
@@ -298,8 +461,7 @@
                 <div class="channel-details" style="margin-top:1.2em;">
                   <b>Channel:</b> {fetchedChannel.title} <br>
                   <img src={fetchedChannel.thumbnail} alt="Channel" width="90" style="border-radius:50%;margin:0.5em 0;">
-                  
-                  <!-- === New: Add tags, level, country === -->
+                  <!-- === Add tags, level, country === -->
                   <div style="margin-top:1em;">
                     <label>Tags (comma or enter to add):</label>
                     <div class="tag-input-wrap">
@@ -349,7 +511,6 @@
                       <div class="admin-message">{addChannelSuccess}</div>
                     {/if}
                   </div>
-                  <!-- === End New === -->
                 </div>
               {/if}
             </div>
@@ -415,33 +576,6 @@
 {/if}
 
 <style>
-/* ...existing styles unchanged... */
-.tag-input-wrap { display:flex; align-items:center; gap:0.3em; }
-.tags-wrap { display:flex; flex-wrap:wrap; gap:0.5em; }
-.tag-badge {
-  background: #244fa2;
-  color: #fff;
-  border-radius: 13px;
-  padding: 0.14em 0.9em 0.14em 0.7em;
-  font-size: 1em;
-  margin-right: 0.3em;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4em;
-}
-.remove-tag {
-  cursor: pointer;
-  color: #fff;
-  margin-left: 0.5em;
-  font-weight: bold;
-}
-.main-btn.small {
-  font-size: 0.97em;
-  padding: 0.35em 0.9em;
-  border-radius: 6px;
-}
-
-
   .admin-main {
     min-height: 100vh;
     display: flex;
@@ -594,6 +728,30 @@
     background: #ddd;
     color: #aaa;
     cursor: not-allowed;
+  }
+  .main-btn.small {
+    font-size: 0.97em;
+    padding: 0.35em 0.9em;
+    border-radius: 6px;
+  }
+  .tag-input-wrap { display:flex; align-items:center; gap:0.3em; }
+  .tags-wrap { display:flex; flex-wrap:wrap; gap:0.5em; }
+  .tag-badge {
+    background: #244fa2;
+    color: #fff;
+    border-radius: 13px;
+    padding: 0.14em 0.9em 0.14em 0.7em;
+    font-size: 1em;
+    margin-right: 0.3em;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+  }
+  .remove-tag {
+    cursor: pointer;
+    color: #fff;
+    margin-left: 0.5em;
+    font-weight: bold;
   }
   @media (max-width: 900px) {
     .admin-panel {
