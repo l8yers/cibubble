@@ -294,7 +294,7 @@
 		selectedCountry.set(filters.country || '');
 		selectedChannel.set(filters.channel || '');
 		selectedPlaylist.set(filters.playlist || '');
-		sortBy.set(filters.sort || 'new');
+		sortBy.set(filters.sort || 'latest');
 		searchTerm.set(filters.search || '');
 
 		resetAndFetch();
@@ -314,7 +314,7 @@
 		selectedCountry.set(filters.country || '');
 		selectedChannel.set(filters.channel || '');
 		selectedPlaylist.set(filters.playlist || '');
-		sortBy.set(filters.sort || 'new');
+		sortBy.set(filters.sort || 'latest');
 		searchTerm.set(filters.search || '');
 
 		resetAndFetch();

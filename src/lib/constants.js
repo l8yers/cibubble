@@ -10,6 +10,7 @@ export const VALID_LEVELS = new Set(LEVELS.map((l) => l.value));
 
 export const SORT_CHOICES = [
   { value: 'random', label: 'Random' },
+  { value: 'latest', label: 'Latest' }, 
   { value: 'short', label: 'Short' },
   { value: 'long', label: 'Long' },
   { value: 'new', label: 'New' },

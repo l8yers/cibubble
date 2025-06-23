@@ -83,6 +83,34 @@ export async function GET({ url }) {
       });
     }
 
+    // --- LATEST: Get the latest video from each channel and sort by published desc ---
+    if (sort === 'latest') {
+      const params = {
+        p_levels: levels?.length ? levels : null,
+        p_tags: tags?.length ? tags : null,
+        p_country: country || null,
+        p_channel_ids: channel ? channel.split(',').filter(Boolean) : null,
+        p_playlist: playlist || null,
+        p_search: search || null,
+        p_limit: pageSize
+      };
+
+      console.log("Calling Supabase RPC latest_one_per_channel with", params);
+
+      const { data, error } = await supabase.rpc('latest_one_per_channel', params);
+
+      if (error) {
+        console.error('Supabase RPC latest_one_per_channel error:', error);
+        return json({ error: error.message }, { status: 500 });
+      }
+
+      return json({
+        videos: data ?? [],
+        total: data?.length ?? 0,
+        hasMore: false // Not paginated for now
+      });
+    }
+
     // --- NON-RANDOM: Standard paginated query ---
     const page = Number(url.searchParams.get('page') ?? 1);
     let query = supabase

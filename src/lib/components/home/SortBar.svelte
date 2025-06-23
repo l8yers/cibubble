@@ -490,7 +490,7 @@
 				on:click={() =>
 					emitChange({
 						selectedLevels: levels.map((l) => l.value),
-						sortBy: 'new',
+						sortBy: 'latest',
 						selectedCountry: '',
 						selectedTags: [],
 						hideWatched: false,
