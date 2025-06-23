@@ -62,62 +62,60 @@
     tags = tags.filter(x => x !== t);
   }
 
-  // Add channel to DB via /api/add-channel
- async function submitChannel() {
-  addChannelError = '';
-  addChannelSuccess = '';
-  try {
-    if (!fetchedChannel) throw new Error('No channel details loaded');
-    if (!channelLevel) throw new Error('Select a difficulty level.');
-    if (!channelCountry) throw new Error('Select a country.');
-
-    addChannelLoading = true;
-    const res = await fetch('/api/add-channel', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url: singleChannelUrl,
-        tags,
-        level: channelLevel,
-        country: channelCountry,
-        added_by: null
-      })
-    });
-    const text = await res.text();
-    let json;
+  // Add channel to DB via /api/add-video (NOT /api/add-channel!)
+  async function submitChannel() {
+    addChannelError = '';
+    addChannelSuccess = '';
     try {
-      json = JSON.parse(text);
-    } catch (err) {
-      addChannelError = '❌ API did not return valid JSON. See console.';
-      console.error('submitChannel: Invalid JSON:', text);
-      return;
-    }
-    if (json.error) {
-      addChannelError = `❌ ${json.error}`;
-      console.warn('submitChannel: API error', json.error);
-    } else {
-      addChannelSuccess = `✅ Channel "${fetchedChannel.title}" added (${json.videos_added} videos, ${json.playlists_count} playlists).`;
-      // Reset UI
-      fetchedChannel = null;
-      singleChannelUrl = '';
-      tags = [];
-      tagInput = '';
-      channelLevel = '';
-      channelCountry = '';
-      await refresh();
-    }
-  } catch (e) {
-    addChannelError = '❌ Add failed: ' + (e?.message ?? e);
-    console.error('submitChannel: JS error', e);
-  } finally {
-    addChannelLoading = false;
-    // Always force a message to show SOMETHING
-    if (!addChannelError && !addChannelSuccess) {
-      addChannelError = '❌ No response or error received. Check network and backend logs.';
+      if (!fetchedChannel) throw new Error('No channel details loaded');
+      if (!channelLevel) throw new Error('Select a difficulty level.');
+      if (!channelCountry) throw new Error('Select a country.');
+
+      addChannelLoading = true;
+      const res = await fetch('/api/add-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: singleChannelUrl,
+          tags,
+          level: channelLevel,
+          country: channelCountry,
+          added_by: null
+        })
+      });
+      const text = await res.text();
+      let json;
+      try {
+        json = JSON.parse(text);
+      } catch (err) {
+        addChannelError = '❌ API did not return valid JSON. See console.';
+        console.error('submitChannel: Invalid JSON:', text);
+        return;
+      }
+      if (json.error) {
+        addChannelError = `❌ ${json.error}`;
+        console.warn('submitChannel: API error', json.error);
+      } else {
+        addChannelSuccess = `✅ Channel "${fetchedChannel.title}" added (${json.videos_added} videos, ${json.playlists_count} playlists).`;
+        // Reset UI
+        fetchedChannel = null;
+        singleChannelUrl = '';
+        tags = [];
+        tagInput = '';
+        channelLevel = '';
+        channelCountry = '';
+        await refresh();
+      }
+    } catch (e) {
+      addChannelError = '❌ Add failed: ' + (e?.message ?? e);
+      console.error('submitChannel: JS error', e);
+    } finally {
+      addChannelLoading = false;
+      if (!addChannelError && !addChannelSuccess) {
+        addChannelError = '❌ No response or error received. Check network and backend logs.';
+      }
     }
   }
-}
-
 
   // --- Admin tools (bulk upload, channels, playlists, etc) ---
   const countryOptions = [
@@ -507,15 +505,15 @@
                       {/each}
                     </select>
 
-<button
-  type="button" 
-  class="main-btn"
-  style="margin-top:1.1em;"
-  disabled={addChannelLoading || !channelLevel || !channelCountry}
-  on:click={submitChannel}
->
-  {addChannelLoading ? "Adding..." : "Add Channel"}
-</button>
+                    <button
+                      type="button" 
+                      class="main-btn"
+                      style="margin-top:1.1em;"
+                      disabled={addChannelLoading || !channelLevel || !channelCountry}
+                      on:click={submitChannel}
+                    >
+                      {addChannelLoading ? "Adding..." : "Add Channel"}
+                    </button>
                     {#if addChannelError}
                       <div class="admin-message error">{addChannelError}</div>
                     {/if}

@@ -112,7 +112,7 @@
   z-index: 100;
   min-height: 55px;
 }
-.logo-img { height: 2.2em; width: auto; }
+.logo-img { height: 3em; width: auto; }
 .nav-links {
   display: flex;
   gap: 1.6em;
