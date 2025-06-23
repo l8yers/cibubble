@@ -10,17 +10,16 @@
   export let countryOptions = [];
   export let selectedCountry = '';
   export let myChannels = [];
-  export let selectedChannel = '';
+  export let selectedChannel = ''; // '' means none
   export let hideWatched = false;
 
   const dispatch = createEventDispatcher();
 
-  // Modal navigation state
-  let page = 'main'; // 'main', 'levels', 'tags', 'countries', 'channels'
+  let page = 'main';
   let localLevels = [...selectedLevels];
   let localTags = [...selectedTags];
   let localCountry = selectedCountry;
-  let localChannel = selectedChannel;
+  let localChannel = selectedChannel || ''; // default: none
   let localHideWatched = hideWatched;
 
   $: if (open) {
@@ -28,7 +27,7 @@
     localLevels = [...selectedLevels];
     localTags = [...selectedTags];
     localCountry = selectedCountry;
-    localChannel = selectedChannel;
+    localChannel = selectedChannel || '';
     localHideWatched = hideWatched;
   }
 
@@ -44,6 +43,14 @@
   function handleClose() {
     dispatch('close');
   }
+  function handleReset() {
+    localLevels = [];
+    localTags = [];
+    localCountry = '';
+    localChannel = '';
+    localHideWatched = false;
+    handleApply();
+  }
   function toggleLevel(level) {
     if (localLevels.includes(level)) localLevels = localLevels.filter(l => l !== level);
     else localLevels = [...localLevels, level];
@@ -51,6 +58,10 @@
   function toggleTag(tag) {
     if (localTags.includes(tag)) localTags = localTags.filter(t => t !== tag);
     else localTags = [...localTags, tag];
+  }
+  function toggleCountry(country) {
+    if (localCountry === country) localCountry = '';
+    else localCountry = country;
   }
 </script>
 
@@ -66,8 +77,8 @@
           <li on:click={() => page='levels'}>
             <BarChart3 class="icon"/><span>Levels</span> <ChevronRight class="chev"/>
           </li>
-          <li on:click={() => page='countries'}>
-            <Globe class="icon"/><span>Countries</span> <ChevronRight class="chev"/>
+          <li on:click={() => page='country'}>
+            <Globe class="icon"/><span>Country</span> <ChevronRight class="chev"/>
           </li>
           <li on:click={() => page='tags'}>
             <Tag class="icon"/><span>Tags</span> <ChevronRight class="chev"/>
@@ -88,6 +99,7 @@
           </li>
         </ul>
         <button class="apply-btn" on:click={handleApply}>View videos</button>
+        <button class="reset-btn" on:click={handleReset}>Reset filters</button>
       {:else if page === 'levels'}
         <div class="modal-header">
           <button class="back-btn" on:click={() => page='main'}><ChevronLeft /></button>
@@ -102,20 +114,34 @@
           {/each}
         </div>
         <button class="apply-btn" on:click={handleApply}>View videos</button>
-      {:else if page === 'countries'}
+        <button class="reset-btn" on:click={handleReset}>Reset filters</button>
+      {:else if page === 'country'}
         <div class="modal-header">
           <button class="back-btn" on:click={() => page='main'}><ChevronLeft /></button>
-          <span>Countries</span>
+          <span>Country</span>
         </div>
         <div class="options-list">
-          <select bind:value={localCountry} style="width:100%;font-size:1.1em;padding:0.7em;">
-            <option value="">All</option>
-            {#each countryOptions as country}
-              <option value={country}>{country}</option>
-            {/each}
-          </select>
+          <label class="checkbox-row">
+            <input
+              type="checkbox"
+              checked={localCountry === ''}
+              on:change={() => localCountry = ''}
+            />
+            <span>All</span>
+          </label>
+          {#each countryOptions as country}
+            <label class="checkbox-row">
+              <input
+                type="checkbox"
+                checked={localCountry === country}
+                on:change={() => localCountry = country}
+              />
+              <span>{country}</span>
+            </label>
+          {/each}
         </div>
         <button class="apply-btn" on:click={handleApply}>View videos</button>
+        <button class="reset-btn" on:click={handleReset}>Reset filters</button>
       {:else if page === 'tags'}
         <div class="modal-header">
           <button class="back-btn" on:click={() => page='main'}><ChevronLeft /></button>
@@ -130,20 +156,38 @@
           {/each}
         </div>
         <button class="apply-btn" on:click={handleApply}>View videos</button>
+        <button class="reset-btn" on:click={handleReset}>Reset filters</button>
       {:else if page === 'channels'}
         <div class="modal-header">
           <button class="back-btn" on:click={() => page='main'}><ChevronLeft /></button>
           <span>My Channels</span>
         </div>
         <div class="options-list">
-          <select bind:value={localChannel} style="width:100%;font-size:1.1em;padding:0.7em;">
-            <option value="">All</option>
-            {#each myChannels as ch}
-              <option value={ch.id}>{ch.name}</option>
-            {/each}
-          </select>
+          <label class="checkbox-row">
+            <input
+              type="radio"
+              name="channel"
+              value=""
+              checked={localChannel === ''}
+              on:change={() => localChannel = ''}
+            />
+            <span>All</span>
+          </label>
+          {#each myChannels as ch}
+            <label class="checkbox-row">
+              <input
+                type="radio"
+                name="channel"
+                value={ch.id}
+                checked={localChannel === ch.id}
+                on:change={() => localChannel = ch.id}
+              />
+              <span>{ch.name}</span>
+            </label>
+          {/each}
         </div>
         <button class="apply-btn" on:click={handleApply}>View videos</button>
+        <button class="reset-btn" on:click={handleReset}>Reset filters</button>
       {/if}
     </div>
   </div>
@@ -229,7 +273,7 @@
   }
   .switch input:checked + .slider:before { transform: translateX(16px);}
   .apply-btn {
-    display: block; width: calc(100% - 2.4em); margin: 1.4em auto 0 auto;
+    display: block; width: calc(100% - 2.4em); margin: 1.1em auto 0 auto;
     background: #0077ff; color: #fff; font-weight: 700;
     border: none; border-radius: 12px; padding: 1.05em 0; font-size: 1.13em;
     box-shadow: 0 2px 14px #0077ff33; cursor: pointer;
@@ -237,12 +281,21 @@
     letter-spacing: 0.04em;
   }
   .apply-btn:hover { background: #005dc1; }
-.options-list {
-  padding: 1em 1.5em 0.2em 1.5em;
-  background: #fff;
-  max-height: 60vh;
-  overflow-y: auto;
-}
+  .reset-btn {
+    display: block; width: calc(100% - 2.4em); margin: 0.7em auto 0 auto;
+    background: #f2f2f4; color: #27364b; font-weight: 700;
+    border: none; border-radius: 12px; padding: 1.05em 0; font-size: 1.05em;
+    box-shadow: 0 2px 14px #fafafc33; cursor: pointer;
+    transition: background 0.13s;
+    letter-spacing: 0.04em;
+  }
+  .reset-btn:hover { background: #e5e6ee; }
+  .options-list {
+    padding: 1em 1.5em 0.2em 1.5em;
+    background: #fff;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
   .checkbox-row {
     display: flex; align-items: center; gap: 0.95em;
     font-size: 1.13em; margin: 0.7em 0;

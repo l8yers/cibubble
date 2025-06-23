@@ -18,11 +18,22 @@
 	import { updateUrlFromFilters } from '$lib/utils/url.js';
 
 	import {
-		selectedChannel, selectedPlaylist, selectedLevels, sortBy, selectedCountry,
-		selectedTags, hideWatched, watchedIds, searchTerm
+		selectedChannel,
+		selectedPlaylist,
+		selectedLevels,
+		sortBy,
+		selectedCountry,
+		selectedTags,
+		hideWatched,
+		watchedIds,
+		searchTerm
 	} from '$lib/stores/videos.js';
 	import {
-		LEVELS, VALID_LEVELS, SORT_CHOICES, COUNTRY_OPTIONS, TAG_OPTIONS
+		LEVELS,
+		VALID_LEVELS,
+		SORT_CHOICES,
+		COUNTRY_OPTIONS,
+		TAG_OPTIONS
 	} from '$lib/constants.js';
 	import { user } from '$lib/stores/user.js';
 	import { userChannels } from '$lib/stores/userChannels.js';
@@ -158,8 +169,14 @@
 		searchOpen = e.detail.searchOpen;
 		selectedChannel.set(e.detail.selectedChannel ?? '');
 		updateUrlFromFilters({
-			selectedLevels, selectedTags, selectedCountry, selectedChannel,
-			selectedPlaylist, sortBy, searchTerm, get
+			selectedLevels,
+			selectedTags,
+			selectedCountry,
+			selectedChannel,
+			selectedPlaylist,
+			sortBy,
+			searchTerm,
+			get
 		});
 		resetAndFetch();
 	}
@@ -172,14 +189,38 @@
 	}
 	function handleMobileFilterApply(e) {
 		const detail = e.detail || {};
-		selectedLevels.set(new Set(detail.selectedLevels));
-		selectedTags.set(new Set(detail.selectedTags));
-		selectedCountry.set(detail.selectedCountry || '');
-		selectedChannel.set(detail.selectedChannel || '');
-		hideWatched.set(detail.hideWatched || false);
+		let levels = detail.selectedLevels || [];
+		const tags = detail.selectedTags || [];
+		const country = detail.selectedCountry || '';
+		const channel = detail.selectedChannel || '';
+		const hide = detail.hideWatched || false;
+
+		// If no levels selected, default to ALL levels (matches desktop behavior)
+		if (!levels.length) {
+			levels = ['easy', 'intermediate', 'advanced'];
+		}
+
+		selectedLevels.set(new Set(levels));
+		selectedTags.set(new Set(tags));
+		selectedCountry.set(country);
+		selectedChannel.set(channel);
+		hideWatched.set(hide);
+
+		updateUrlFromFilters({
+			selectedLevels,
+			selectedTags,
+			selectedCountry,
+			selectedChannel,
+			selectedPlaylist,
+			sortBy,
+			searchTerm,
+			get
+		});
+
 		showFullPageFilter = false;
 		resetAndFetch();
 	}
+
 	function handleMobileSearchInput(val) {
 		searchTerm.set(val);
 		resetAndFetch();
@@ -192,32 +233,56 @@
 	function filterByChannel(channelId) {
 		selectedChannel.set(channelId);
 		updateUrlFromFilters({
-			selectedLevels, selectedTags, selectedCountry, selectedChannel,
-			selectedPlaylist, sortBy, searchTerm, get
+			selectedLevels,
+			selectedTags,
+			selectedCountry,
+			selectedChannel,
+			selectedPlaylist,
+			sortBy,
+			searchTerm,
+			get
 		});
 		resetAndFetch();
 	}
 	function clearChannelFilter() {
 		selectedChannel.set('');
 		updateUrlFromFilters({
-			selectedLevels, selectedTags, selectedCountry, selectedChannel,
-			selectedPlaylist, sortBy, searchTerm, get
+			selectedLevels,
+			selectedTags,
+			selectedCountry,
+			selectedChannel,
+			selectedPlaylist,
+			sortBy,
+			searchTerm,
+			get
 		});
 		resetAndFetch();
 	}
 	function filterByPlaylist(playlistId) {
 		selectedPlaylist.set(playlistId);
 		updateUrlFromFilters({
-			selectedLevels, selectedTags, selectedCountry, selectedChannel,
-			selectedPlaylist, sortBy, searchTerm, get
+			selectedLevels,
+			selectedTags,
+			selectedCountry,
+			selectedChannel,
+			selectedPlaylist,
+			sortBy,
+			searchTerm,
+			get
 		});
 		resetAndFetch();
 	}
 	function clearPlaylistFilter() {
 		selectedPlaylist.set('');
 		updateUrlFromFilters({
-			selectedLevels, selectedTags, selectedCountry, selectedChannel,
-			selectedPlaylist, sortBy, searchTerm, get
+			selectedLevels,
+			selectedTags,
+			selectedCountry,
+			selectedChannel,
+			selectedPlaylist,
+			sortBy,
+			searchTerm,
+			get
 		});
 		resetAndFetch();
 	}
@@ -361,10 +426,10 @@
 		<MobileMenuBar
 			openSearch={showMobileSearch}
 			searchValue={$searchTerm}
-			on:showSearch={() => showMobileSearch = true}
-			on:closeSearch={() => showMobileSearch = false}
-			on:searchInput={e => handleMobileSearchInput(e.detail)}
-			on:submitSearch={e => handleMobileSearchSubmit(e.detail)}
+			on:showSearch={() => (showMobileSearch = true)}
+			on:closeSearch={() => (showMobileSearch = false)}
+			on:searchInput={(e) => handleMobileSearchInput(e.detail)}
+			on:submitSearch={(e) => handleMobileSearchSubmit(e.detail)}
 			on:sort={() => (showSortDropdown = true)}
 			on:filter={() => (showFullPageFilter = true)}
 		/>
