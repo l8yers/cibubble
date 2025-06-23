@@ -19,7 +19,7 @@
   let localLevels = [...selectedLevels];
   let localTags = [...selectedTags];
   let localCountry = selectedCountry;
-  let localChannel = selectedChannel || ''; // default: none
+  let localChannel = selectedChannel || ''; // nothing selected by default
   let localHideWatched = hideWatched;
 
   $: if (open) {
@@ -44,7 +44,7 @@
     dispatch('close');
   }
   function handleReset() {
-    localLevels = [];
+    localLevels = ['easy', 'intermediate', 'advanced'];
     localTags = [];
     localCountry = '';
     localChannel = '';
@@ -166,18 +166,18 @@
           <label class="checkbox-row">
             <input
               type="radio"
-              name="channel"
-              value=""
-              checked={localChannel === ''}
-              on:change={() => localChannel = ''}
+              name="mychannels"
+              value="__ALL__"
+              checked={localChannel === '__ALL__'}
+              on:change={() => localChannel = '__ALL__'}
             />
-            <span>All</span>
+            <span>All My Channels</span>
           </label>
           {#each myChannels as ch}
             <label class="checkbox-row">
               <input
                 type="radio"
-                name="channel"
+                name="mychannels"
                 value={ch.id}
                 checked={localChannel === ch.id}
                 on:change={() => localChannel = ch.id}
