@@ -1,57 +1,39 @@
 <script>
-	// --- Svelte/SvelteKit core ---
 	import { onMount, onDestroy } from 'svelte';
 	import { writable, get } from 'svelte/store';
 	import { page } from '$app/stores';
 
-	// --- UI Components ---
 	import VideoGrid from '$lib/components/home/VideoGrid.svelte';
 	import SortBar from '$lib/components/home/SortBar.svelte';
 	import FilterChip from '$lib/components/home/FilterChip.svelte';
 	import LoadingSpinner from '$lib/components/home/LoadingSpinner.svelte';
 	import ErrorMessage from '$lib/components/home/ErrorMessage.svelte';
 
-	// --- Mobile UI ---
 	import MobileMenuBar from '$lib/components/mobile/MobileMenuBar.svelte';
 	import SortDropdown from '$lib/components/mobile/SortDropdown.svelte';
 	import FullPageFilter from '$lib/components/mobile/FullPageFilter.svelte';
 
-	// --- Utility ---
 	import * as utils from '$lib/utils/utils.js';
 	import { filtersToQuery, queryToFilters } from '$lib/utils/filters.js';
 	import { updateUrlFromFilters } from '$lib/utils/url.js';
 
-	// --- State stores ---
 	import {
-		selectedChannel,
-		selectedPlaylist,
-		selectedLevels,
-		sortBy,
-		selectedCountry,
-		selectedTags,
-		hideWatched,
-		watchedIds,
-		searchTerm
+		selectedChannel, selectedPlaylist, selectedLevels, sortBy, selectedCountry,
+		selectedTags, hideWatched, watchedIds, searchTerm
 	} from '$lib/stores/videos.js';
 	import {
-		LEVELS,
-		VALID_LEVELS,
-		SORT_CHOICES,
-		COUNTRY_OPTIONS,
-		TAG_OPTIONS
+		LEVELS, VALID_LEVELS, SORT_CHOICES, COUNTRY_OPTIONS, TAG_OPTIONS
 	} from '$lib/constants.js';
 	import { user } from '$lib/stores/user.js';
 	import { userChannels } from '$lib/stores/userChannels.js';
 	import { getUserSavedChannels } from '$lib/api/userChannels.js';
 
-	// --- Mobile switching ---
 	const isMobile = writable(false);
 	let mounted = false;
 	let showSortDropdown = false;
 	let showFullPageFilter = false;
 	let showMobileSearch = false;
 
-	// Responsive watcher
 	onMount(() => {
 		mounted = true;
 		function check() {
@@ -62,7 +44,6 @@
 		return () => window.removeEventListener('resize', check);
 	});
 
-	// --- Local grid state ---
 	const PAGE_SIZE = 50;
 	const videos = writable([]);
 	const loading = writable(false);
@@ -165,7 +146,6 @@
 		fetchVideos({ append: false });
 	}
 
-	// --- Desktop SortBar handler ---
 	function handleSortBarChange(e) {
 		const rawLevels = e.detail.selectedLevels;
 		const safeLevels = new Set(Array.from(rawLevels).filter((lvl) => validLevels.has(lvl)));
@@ -178,19 +158,13 @@
 		searchOpen = e.detail.searchOpen;
 		selectedChannel.set(e.detail.selectedChannel ?? '');
 		updateUrlFromFilters({
-			selectedLevels,
-			selectedTags,
-			selectedCountry,
-			selectedChannel,
-			selectedPlaylist,
-			sortBy,
-			searchTerm,
-			get
+			selectedLevels, selectedTags, selectedCountry, selectedChannel,
+			selectedPlaylist, sortBy, searchTerm, get
 		});
 		resetAndFetch();
 	}
 
-	// --- Mobile handlers ---
+	// Mobile handlers
 	function handleMobileSortSelect(val) {
 		sortBy.set(val);
 		showSortDropdown = false;
@@ -202,85 +176,52 @@
 		selectedTags.set(new Set(detail.selectedTags));
 		selectedCountry.set(detail.selectedCountry || '');
 		selectedChannel.set(detail.selectedChannel || '');
-		hideWatched.set(detail.hideWatched || false); // Add this line!
+		hideWatched.set(detail.hideWatched || false);
 		showFullPageFilter = false;
 		resetAndFetch();
 	}
-	function handleMobileSearch(e) {
-		searchTerm.set(e.target.value);
+	function handleMobileSearchInput(val) {
+		searchTerm.set(val);
 		resetAndFetch();
 	}
-    function handleMobileSearchInput(val) {
-    searchTerm.set(val);
-    // Optionally, auto-fetch on every input, or debounce for prod
-    resetAndFetch();
-  }
-  function handleMobileSearchSubmit(val) {
-    searchTerm.set(val);
-    resetAndFetch();
-    // Optionally, close search on submit (not strictly required)
-    // showMobileSearch = false;
-  }
+	function handleMobileSearchSubmit(val) {
+		searchTerm.set(val);
+		resetAndFetch();
+	}
 
-	// --- Filter Chips ---
 	function filterByChannel(channelId) {
 		selectedChannel.set(channelId);
 		updateUrlFromFilters({
-			selectedLevels,
-			selectedTags,
-			selectedCountry,
-			selectedChannel,
-			selectedPlaylist,
-			sortBy,
-			searchTerm,
-			get
+			selectedLevels, selectedTags, selectedCountry, selectedChannel,
+			selectedPlaylist, sortBy, searchTerm, get
 		});
 		resetAndFetch();
 	}
 	function clearChannelFilter() {
 		selectedChannel.set('');
 		updateUrlFromFilters({
-			selectedLevels,
-			selectedTags,
-			selectedCountry,
-			selectedChannel,
-			selectedPlaylist,
-			sortBy,
-			searchTerm,
-			get
+			selectedLevels, selectedTags, selectedCountry, selectedChannel,
+			selectedPlaylist, sortBy, searchTerm, get
 		});
 		resetAndFetch();
 	}
 	function filterByPlaylist(playlistId) {
 		selectedPlaylist.set(playlistId);
 		updateUrlFromFilters({
-			selectedLevels,
-			selectedTags,
-			selectedCountry,
-			selectedChannel,
-			selectedPlaylist,
-			sortBy,
-			searchTerm,
-			get
+			selectedLevels, selectedTags, selectedCountry, selectedChannel,
+			selectedPlaylist, sortBy, searchTerm, get
 		});
 		resetAndFetch();
 	}
 	function clearPlaylistFilter() {
 		selectedPlaylist.set('');
 		updateUrlFromFilters({
-			selectedLevels,
-			selectedTags,
-			selectedCountry,
-			selectedChannel,
-			selectedPlaylist,
-			sortBy,
-			searchTerm,
-			get
+			selectedLevels, selectedTags, selectedCountry, selectedChannel,
+			selectedPlaylist, sortBy, searchTerm, get
 		});
 		resetAndFetch();
 	}
 
-	// --- On mount: parse filters from URL and load initial videos ---
 	let firstLoad = true;
 	let lastQuery = '';
 
@@ -301,7 +242,6 @@
 		firstLoad = false;
 	});
 
-	// --- Reactively reload videos if URL query changes ---
 	$: currentQuery = $page.url.search;
 	$: if (!firstLoad && currentQuery !== lastQuery) {
 		lastQuery = currentQuery;
@@ -332,7 +272,6 @@
 </script>
 
 <div class="page-container">
-	<!-- Desktop bar -->
 	{#if mounted && !$isMobile}
 		<div class="sortbar-container">
 			<SortBar
@@ -354,7 +293,6 @@
 		</div>
 	{/if}
 
-	<!-- Shared grid container for chips & grid -->
 	<div class="content-container">
 		{#if ($selectedChannel && $selectedChannel !== '__ALL__') || $selectedPlaylist}
 			<div class="chips-row">
@@ -410,7 +348,6 @@
 		{/if}
 	</div>
 
-	<!-- Centered loading/error/no-results messages -->
 	<div class="center-content">
 		{#if $loading && $videos.length === 0}
 			<LoadingSpinner />
@@ -421,22 +358,16 @@
 		{/if}
 	</div>
 	{#if mounted && $isMobile}
-		<div style="background:yellow;padding:1em;">MOBILE MENU BAR TEST (Live)</div>
-		<MobileMenuBar ... />
-	{/if}
-
-	<!-- Mobile menu and modals -->
-	{#if mounted && $isMobile}
-  <MobileMenuBar
-    openSearch={showMobileSearch}
-    searchValue={$searchTerm}
-    on:showSearch={() => showMobileSearch = true}
-    on:closeSearch={() => showMobileSearch = false}
-    on:searchInput={e => handleMobileSearchInput(e.detail)}
-    on:submitSearch={e => handleMobileSearchSubmit(e.detail)}
-    on:sort={() => (showSortDropdown = true)}
-    on:filter={() => (showFullPageFilter = true)}
-  />
+		<MobileMenuBar
+			openSearch={showMobileSearch}
+			searchValue={$searchTerm}
+			on:showSearch={() => showMobileSearch = true}
+			on:closeSearch={() => showMobileSearch = false}
+			on:searchInput={e => handleMobileSearchInput(e.detail)}
+			on:submitSearch={e => handleMobileSearchSubmit(e.detail)}
+			on:sort={() => (showSortDropdown = true)}
+			on:filter={() => (showFullPageFilter = true)}
+		/>
 		<SortDropdown
 			open={showSortDropdown}
 			{sortChoices}

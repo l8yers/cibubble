@@ -6,13 +6,12 @@
 	export let sortChoices = [];
 	export let countryOptions = [];
 	export let selectedLevels = [];
-	export let sortBy = 'new';
+	export let sortBy = 'latest';
 	export let selectedCountry = '';
 	export let selectedTags = [];
 	export let hideWatched = false;
 	export let searchTerm = '';
 	export let searchOpen = false;
-
 	export let myChannels = [];
 	export let selectedChannel = '';
 
@@ -32,7 +31,6 @@
 		});
 	}
 
-	// Level filter
 	function handleToggleLevel(lvl) {
 		const next = new Set(selectedLevels);
 		if (next.has(lvl)) next.delete(lvl);
@@ -43,19 +41,13 @@
 		if (selectedLevels.length === levels.length) emitChange({ selectedLevels: [] });
 		else emitChange({ selectedLevels: levels.map((l) => l.value) });
 	}
-
-	// Sort dropdown
 	function handleSetSort(val) {
 		emitChange({ sortBy: val });
 		showSortDropdown = false;
 	}
-
-	// Country filter
 	function handleSetCountry(c) {
 		emitChange({ selectedCountry: c === selectedCountry ? '' : c });
 	}
-
-	// TAGS FILTER (Top + All tags, no search)
 	function handleToggleTag(tag) {
 		const next = new Set(selectedTags);
 		if (next.has(tag)) next.delete(tag);
@@ -65,8 +57,6 @@
 	function handleClearTags() {
 		emitChange({ selectedTags: [] });
 	}
-
-	// Misc
 	function handleHideWatched() {
 		emitChange({ hideWatched: !hideWatched });
 	}
@@ -77,7 +67,6 @@
 		emitChange({ searchOpen: !searchOpen, searchTerm: searchOpen ? '' : searchTerm });
 	}
 
-	// Dropdown state (UI only)
 	let showSortDropdown = false;
 	let showLevelDropdown = false;
 	let showCountryDropdown = false;
@@ -111,14 +100,12 @@
 		return () => document.removeEventListener('click', handleDocumentClick);
 	});
 
-	// Title case util for friendly tag display
 	function toTitleCase(str) {
 		return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1));
 	}
 
-	// Helper to check if filters are not default
 	$: filtersChanged =
-		sortBy !== 'new' ||
+		sortBy !== 'latest' ||
 		selectedCountry !== '' ||
 		selectedTags.length > 0 ||
 		selectedLevels.length !== levels.length ||
@@ -126,130 +113,37 @@
 		searchTerm !== '' ||
 		selectedChannel !== '';
 
-	// --- Top Tags (hardcoded from your latest top 10) ---
+	function handleResetFilters() {
+		emitChange({
+			selectedLevels: levels.map((l) => l.value),
+			sortBy: 'latest',
+			selectedCountry: '',
+			selectedTags: [],
+			hideWatched: false,
+			searchTerm: '',
+			selectedChannel: ''
+		});
+	}
+
 	const topTags = [
-		'history',
-		'for learners',
-		'personal development',
-		"children's science",
-		'current events',
-		'videogames',
-		'health',
-		'news',
-		'lifestyle',
-		'random facts'
+		'history', 'for learners', 'personal development', "children's science", 'current events',
+		'videogames', 'health', 'news', 'lifestyle', 'random facts'
 	];
 
-	// --- All Tags: deduped, sorted, lowercased, split on / and trimmed (from your CSV) ---
 	const allTags = [
-		'ai voice',
-		'animated stories',
-		'animation',
-		'animals',
-		'art',
-		'argentina',
-		'bags',
-		'baseball',
-		'business',
-		'canary islands',
-		'challenges',
-		"children's history",
-		"children's science",
-		"children's stories",
-		'colombia',
-		'comedy',
-		'comedy jokes test rain',
-		'cooking',
-		'cost of living',
-		'country life',
-		'creepy',
-		'critiques',
-		'current events',
-		'cuba',
-		'culture',
-		'debates',
-		'dubbed show',
-		'education',
-		'el salvador',
-		'equatorial guinea',
-		'facts',
-		'fashion',
-		'finance',
-		'fitness',
-		'food reviews',
-		'for learners',
-		'france',
-		'gardening',
-		'geography',
-		'gravy',
-		'guatemala',
-		'health',
-		'heart',
-		'history',
-		"how it's made",
-		'human mind',
-		'iceland',
-		'interviews',
-		'italy',
-		'jam',
-		'jam toast',
-		'journalist',
-		"kid's show",
-		'kids show',
-		'kpop',
-		'language learning',
-		'latin america',
-		'law',
-		'level',
-		'life',
-		'life in iceland',
-		'life in japan',
-		'life in korea',
-		'lifestyle',
-		'lifestyle in japan',
-		'main',
-		'manufacturing',
-		'mexico',
-		'mindfullness',
-		'montessori',
-		'motivation',
-		'music',
-		'nasa',
-		'nature',
-		'news',
-		'not native speaker',
-		'panama',
-		'paraguay',
-		'peru',
-		'personal development',
-		'philosophy',
-		'playlists',
-		'politics',
-		'pop culture',
-		'positive affirmations',
-		'psychology',
-		'pyschology',
-		'puerto rico',
-		'random facts',
-		're sales',
-		'relationships',
-		'religion',
-		'science',
-		'shorts',
-		'sobriety',
-		'spain',
-		'sports',
-		'storytelling',
-		'street interviews',
-		'tarot',
-		'tech',
-		'test',
-		'travel',
-		'true crime',
-		'uruguay',
-		'various',
-		'videogames',
-		'weather'
+		'ai voice','animated stories','animation','animals','art','argentina','bags','baseball',
+		'business','canary islands','challenges',"children's history","children's science","children's stories",
+		'colombia','comedy','comedy jokes test rain','cooking','cost of living','country life','creepy','critiques',
+		'current events','cuba','culture','debates','dubbed show','education','el salvador','equatorial guinea',
+		'facts','fashion','finance','fitness','food reviews','for learners','france','gardening','geography',
+		'gravy','guatemala','health','heart','history',"how it's made",'human mind','iceland','interviews',
+		'italy','jam','jam toast','journalist',"kid's show",'kids show','kpop','language learning','latin america',
+		'law','level','life','life in iceland','life in japan','life in korea','lifestyle','lifestyle in japan',
+		'main','manufacturing','mexico','mindfullness','montessori','motivation','music','nasa','nature','news',
+		'not native speaker','panama','paraguay','peru','personal development','philosophy','playlists','politics',
+		'pop culture','positive affirmations','psychology','pyschology','puerto rico','random facts','re sales',
+		'relationships','religion','science','shorts','sobriety','spain','sports','storytelling','street interviews',
+		'tarot','tech','test','travel','true crime','uruguay','various','videogames','weather'
 	].sort((a, b) => a.localeCompare(b));
 </script>
 
@@ -322,7 +216,7 @@
 			{/if}
 		</div>
 
-		<!-- TAGS FILTER Dropdown (Top + All, no search) -->
+		<!-- Tags Dropdown (Top + All tags, no search) -->
 		<div class="dropdown" bind:this={tagDropdownRef}>
 			<button
 				class="dropdown-btn"
@@ -462,15 +356,7 @@
 							class="edit-my-channels-link"
 							style="display: flex; align-items: center; color: #7950f2; font-weight: 700; text-decoration: none; font-size: 1em; gap: 0.6em; padding: 0.2em 0.1em;"
 						>
-							<svg
-								width="18"
-								height="18"
-								fill="none"
-								stroke="#7950f2"
-								stroke-width="2"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-							>
+							<svg width="18" height="18" fill="none" stroke="#7950f2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 								<circle cx="9" cy="9" r="7.5" />
 								<path d="M12.5 7.5l-5 5" />
 								<path d="M7.5 7.5l5 5" />
@@ -482,33 +368,14 @@
 			</div>
 		{/if}
 
-		<!-- RESET FILTERS BUTTON (only visible if not defaults) -->
 		{#if filtersChanged}
-			<button
-				class="reset-filters-btn"
-				type="button"
-				on:click={() =>
-					emitChange({
-						selectedLevels: levels.map((l) => l.value),
-						sortBy: 'latest',
-						selectedCountry: '',
-						selectedTags: [],
-						hideWatched: false,
-						searchTerm: '',
-						selectedChannel: ''
-					})}
-			>
+			<button class="reset-filters-btn" type="button" on:click={handleResetFilters}>
 				reset filters
 			</button>
 		{/if}
 	</div>
 	<div class="controls-right">
-		<button
-			class="dropdown-btn hide-watched-btn"
-			type="button"
-			aria-pressed={hideWatched}
-			on:click={handleHideWatched}
-		>
+		<button class="dropdown-btn hide-watched-btn" type="button" aria-pressed={hideWatched} on:click={handleHideWatched}>
 			<span class="switch-slider" aria-hidden="true"></span>
 			<span class="switch-label-text">Hide watched</span>
 		</button>
@@ -523,17 +390,13 @@
 					autofocus
 				/>
 			{/if}
-			<button
-				class="search-toggle"
-				title="Search"
-				on:click={handleToggleSearch}
-				aria-label="Search"
-			>
+			<button class="search-toggle" title="Search" on:click={handleToggleSearch} aria-label="Search">
 				<Search size={22} style="color:#2e9be6;" />
 			</button>
 		</div>
 	</div>
 </div>
+
 
 <style>
 	.controls-bar {
