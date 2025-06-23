@@ -237,10 +237,12 @@
     letter-spacing: 0.04em;
   }
   .apply-btn:hover { background: #005dc1; }
-  .options-list {
-    padding: 1em 1.5em 0.2em 1.5em;
-    background: #fff;
-  }
+.options-list {
+  padding: 1em 1.5em 0.2em 1.5em;
+  background: #fff;
+  max-height: 60vh;
+  overflow-y: auto;
+}
   .checkbox-row {
     display: flex; align-items: center; gap: 0.95em;
     font-size: 1.13em; margin: 0.7em 0;
