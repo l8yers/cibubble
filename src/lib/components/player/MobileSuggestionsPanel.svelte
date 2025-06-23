@@ -88,7 +88,7 @@
   <div class="mobile-suggestions-overlay" on:click={onClose}>
     <div class="mobile-suggestions-panel" on:click|stopPropagation>
       <div class="panel-header sticky-header">
-        <span>
+        <span class="suggestions-label">
           {video.playlist_id
             ? (playlistTitle ? `Playlist: ${playlistTitle}` : "Playlist")
             : "More videos like this"}
@@ -177,9 +177,9 @@
   .mobile-suggestions-panel {
     background: #fff;
     width: 100vw;
-    height: calc(100vh - 70vw); /* 56vw is height of 16:9 video. Adjust if your player is different! */
-    border-top-left-radius: 18px;
-    border-top-right-radius: 18px;
+    height: calc(100vh - 66vw); /* 16:9 video height offset */
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
     box-shadow: 0 -6px 22px #0005;
     overflow: hidden;
     display: flex;
@@ -192,27 +192,41 @@
     to   { transform: translateY(0);}
   }
   .panel-header.sticky-header {
-    position: sticky;
-    top: 0;
-    background: #fff;
-    z-index: 2;
-    padding: 1.2em 0.8em 0.6em 0.8em;
-    font-size: 1.13em;
-    font-weight: 700;
     display: flex;
-    justify-content: space-between;
+    flex-direction: row;
     align-items: center;
+    justify-content: flex-start;
+    padding: 0em 0.7em 0.23em 1.08em;
+    font-size: 1em;
+    font-weight: 500;
     border-bottom: 1px solid #ececec;
+    gap: 0.5em;
+    text-align: left;
+  }
+  .suggestions-label {
+    font-size: 1em;
+    font-weight: 600;
+    color: #2b324a;
+    letter-spacing: 0.01em;
+    margin-right: auto;
+    text-align: left;
+    line-height: 1.24;
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .close-btn {
+    font-size: 1.18em;
+    margin-left: 0.5em;
+    padding: 0 0.06em;
+    flex: 0 0 auto;
+    color: #9696af;
     background: none;
     border: none;
-    font-size: 1.5em;
-    color: #9696af;
     cursor: pointer;
-    margin-left: 1em;
     line-height: 1;
-    padding: 0 0.1em;
   }
   .suggestions-list.scroll-list {
     overflow-y: auto;
@@ -223,6 +237,7 @@
     gap: 0.95em;
     min-height: 0;
   }
+  /* ...rest unchanged... */
   .suggestion-link {
     text-decoration: none;
     color: inherit;

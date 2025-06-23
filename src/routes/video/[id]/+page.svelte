@@ -60,12 +60,12 @@
 		tagAdding = false;
 	}
 
-async function loadTagCloud() {
-  tagCloudLoading = true;
-  const { data, error } = await supabase.rpc('get_popular_tags');
-  allTags = (data || []).map(t => t.tag).filter(Boolean);
-  tagCloudLoading = false;
-}
+	async function loadTagCloud() {
+		tagCloudLoading = true;
+		const { data, error } = await supabase.rpc('get_popular_tags');
+		allTags = (data || []).map((t) => t.tag).filter(Boolean);
+		tagCloudLoading = false;
+	}
 
 	function openTagModal() {
 		showTagModal = true;
@@ -277,62 +277,58 @@ async function loadTagCloud() {
 	<div class="player-container">
 		<div class="player-main-col">
 			<PlayerVideoBox {video} user={$user} {suggestions} {autoplayValue} {handlePlayNextVideo} />
-			  <div class="player-content">
-			<div class="player-title-row">
-				<div class="player-title">{video.title}</div>
-{#if $user && video?.channel_id}
-  <div class="add-to-channels-wrapper">
-    <AddToMyChannelsButton
-      {isChannelSaved}
-      {savingChannel}
-      {saveChannelToMyChannels}
-    />
-  </div>
-{/if}
+			<div class="player-content">
+				<div class="player-title-row">
+					<div class="player-title">{video.title}</div>
+					{#if $user && video?.channel_id}
+						<div class="add-to-channels-wrapper">
+							<AddToMyChannelsButton {isChannelSaved} {savingChannel} {saveChannelToMyChannels} />
+						</div>
+					{/if}
+				</div>
+				<PlayerMetaRow {video} {utils} />
+
+				<ChannelTagsBlock
+					{tagArray}
+					{tagColors}
+					{tagTextColors}
+					user={$user}
+					onAddClick={openTagModal}
+				/>
+
+				<TagModal
+					show={showTagModal}
+					{confirmStep}
+					{newTag}
+					{tagAdding}
+					{tagAddError}
+					{allTags}
+					{tagColors}
+					{tagTextColors}
+					{tagCloudLoading}
+					onClose={closeTagModal}
+					onTryAdd={tryAddTag}
+					onHandleAdd={handleAddTag}
+					onEdit={() => (confirmStep = false)}
+					onSelectCloudTag={selectCloudTag}
+					setNewTag={setNewTagValue}
+				/>
+
+				{#if tagSuccess}
+					<div class="tag-success">Tag added!</div>
+				{/if}
 			</div>
-			<PlayerMetaRow {video} {utils} />
 
-			<ChannelTagsBlock
-				{tagArray}
-				{tagColors}
-				{tagTextColors}
-				user={$user}
-				onAddClick={openTagModal}
-			/>
-
-			<TagModal
-				show={showTagModal}
-				{confirmStep}
-				{newTag}
-				{tagAdding}
-				{tagAddError}
-				{allTags}
-				{tagColors}
-				{tagTextColors}
-				{tagCloudLoading}
-				onClose={closeTagModal}
-				onTryAdd={tryAddTag}
-				onHandleAdd={handleAddTag}
-				onEdit={() => (confirmStep = false)}
-				onSelectCloudTag={selectCloudTag}
-				setNewTag={setNewTagValue}
-			/>
-
-			{#if tagSuccess}
-				<div class="tag-success">Tag added!</div>
+			{#if isMobile}
+				<button class="show-suggestions-btn" on:click={() => (showSuggestionsPanel = true)}>
+					More videos like this
+				</button>
+				<MobileSuggestionsPanel
+					open={showSuggestionsPanel}
+					{video}
+					onClose={() => (showSuggestionsPanel = false)}
+				/>
 			{/if}
-			</div>
-
-{#if isMobile}
-  <button class="show-suggestions-btn" on:click={() => (showSuggestionsPanel = true)}>
-    More videos like this
-  </button>
-  <MobileSuggestionsPanel
-    open={showSuggestionsPanel}
-    {video}
-    onClose={() => (showSuggestionsPanel = false)}
-  />
-{/if}
 		</div>
 		<aside class="player-sidebar" style:display={isMobile ? 'none' : undefined}>
 			<SideBar {video} />
@@ -498,73 +494,72 @@ async function loadTagCloud() {
 		}
 	}
 	@media (max-width: 800px) {
-  .player-container {
-    padding: 0 !important;
-    margin: 0 !important;
-    max-width: 100vw !important;
-    width: 100vw !important;
-  }
-  .player-main-col {
-    padding: 0 !important;
-    margin: 0 !important;
-    width: 100vw !important;
-    max-width: 100vw !important;
-  }
-  body, html {
-    margin: 0 !important;
-    padding: 0 !important;
-    width: 100vw !important;
-    max-width: 100vw !important;
-    background: #000 !important; /* optional, helps see the player edge */
-  }
-    .player-title {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: #23243a;      /* dark, but soft—not full black */
-    letter-spacing: 0.01em;
-    line-height: 1.2;
-    margin-top: 0.25em;
-    margin-bottom: 0.5em;
-    text-align: left;
-    text-shadow: 0 1px 0 #fff1, 0 0.5px 0 #fff1; /* subtle softening, optional */
-    /* Remove if you don't like text-shadow look */
-  }
-    .player-content {
-    padding: 0.8rem 1.1rem 0.5rem 1.1rem;
-    /* or adjust as you like, e.g. margin if you prefer */
-  }
-  .show-suggestions-btn {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 56px;
-    background: #fff;
-    border: none;
-    font-size: 1.1em;
-    font-weight: 700;
-    color: #232349;
-    box-shadow: 0 -2px 16px #0002;
-    z-index: 999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-top: 1px solid #e5e5ef;
-    letter-spacing: 0.02em;
-    cursor: pointer;
-    transition: background 0.13s;
-  }
-  .show-suggestions-btn:active {
-    background: #f7f8fa;
-  }
-}
-@media (max-width: 800px) {
-  .add-to-channels-wrapper {
-    display: none !important;
-  }
-}
-
-
-
-
+		.player-container {
+			padding: 0 !important;
+			margin: 0 !important;
+			max-width: 100vw !important;
+			width: 100vw !important;
+		}
+		.player-main-col {
+			padding: 0 !important;
+			margin: 0 !important;
+			width: 100vw !important;
+			max-width: 100vw !important;
+		}
+		body,
+		html {
+			margin: 0 !important;
+			padding: 0 !important;
+			width: 100vw !important;
+			max-width: 100vw !important;
+			background: #000 !important; /* optional, helps see the player edge */
+		}
+		.player-title {
+			font-size: 1.05rem;
+			font-weight: 700;
+			color: #23243a; /* dark, but soft—not full black */
+			letter-spacing: 0.01em;
+			line-height: 1.2;
+			margin-top: 0.25em;
+			margin-bottom: 0.5em;
+			text-align: left;
+			text-shadow:
+				0 1px 0 #fff1,
+				0 0.5px 0 #fff1; /* subtle softening, optional */
+			/* Remove if you don't like text-shadow look */
+		}
+		.player-content {
+			padding: 0.8rem 1.1rem 0.5rem 1.1rem;
+			/* or adjust as you like, e.g. margin if you prefer */
+		}
+		.show-suggestions-btn {
+			position: fixed;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			height: 56px;
+			background: #fff;
+			border: none;
+			font-size: 1.1em;
+			font-weight: 700;
+			color: #232349;
+			box-shadow: 0 -2px 16px #0002;
+			z-index: 999;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			border-top: 1px solid #e5e5ef;
+			letter-spacing: 0.02em;
+			cursor: pointer;
+			transition: background 0.13s;
+		}
+		.show-suggestions-btn:active {
+			background: #f7f8fa;
+		}
+	}
+	@media (max-width: 800px) {
+		.add-to-channels-wrapper {
+			display: none !important;
+		}
+	}
 </style>
