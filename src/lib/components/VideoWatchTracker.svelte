@@ -1,7 +1,7 @@
 <script>
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
-  import { markVideoWatched } from '$lib/stores/videos.js'; // <--- Import the mark watched helper!
+  import { markVideoWatched } from '$lib/stores/videos.js';
 
   export let videoId;
   export let videoDuration;
@@ -56,7 +56,7 @@
       if (!markedAsWatched && percentWatched >= 0.9 && userId) {
         markedAsWatched = true;
         await saveWatchSession(duration);
-        markVideoWatched(videoId);  // <-- update store with new Set (always safe)
+        markVideoWatched(videoId);
       }
     }, 1200);
   }
@@ -106,10 +106,11 @@
     if ([0, 2, 3].includes(event.data)) {
       flushProgress();
     }
-    // Handle autoplay here
+
+    // --- IMPROVED AUTOPLAY LOGIC ---
+    // Always play the first suggestion that's not the current video.
     if (event.data === 0 && autoplay && suggestions && suggestions.length) {
-      const idx = suggestions.findIndex(v => v.id === videoId);
-      const nextVid = suggestions[idx + 1];
+      let nextVid = suggestions.find(v => v.id !== videoId);
       if (nextVid) {
         dispatch('playNextVideo', nextVid.id);
       }
