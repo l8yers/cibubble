@@ -7,13 +7,37 @@
   import AdminChannelTable from '$lib/components/admin/AdminChannelTable.svelte';
   import { stripAccent, normalizeTags, parseCsv } from '$lib/utils/adminutils.js';
 
-  // === SINGLE CHANNEL FETCH STATE ===
+  // === SINGLE CHANNEL FETCH STATE (new minimal version) ===
   let singleChannelUrl = '';
   let singleChannelLoading = false;
   let singleChannelError = '';
   let fetchedChannel = null;
 
-  // --- OLD STATE (for other admin functions) ---
+  // Fetch minimal channel details (name + thumbnail)
+  async function fetchSingleChannel() {
+    singleChannelLoading = true;
+    singleChannelError = '';
+    fetchedChannel = null;
+    try {
+      const res = await fetch('/api/fetch-youtube-details', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: singleChannelUrl })
+      });
+      const json = await res.json();
+      if (json.error) {
+        singleChannelError = json.error;
+        return;
+      }
+      fetchedChannel = json.channel || null;
+    } catch (e) {
+      singleChannelError = 'Fetch failed: ' + e.message;
+    } finally {
+      singleChannelLoading = false;
+    }
+  }
+
+  // === Everything below here unchanged (admin tools) ===
   const countryOptions = [
     'Argentina','Canary Islands','Chile','Colombia','Costa Rica','Cuba','Dominican Republic','Ecuador','El Salvador','Equatorial Guinea','France','Guatemala','Italy','Latin America','Mexico','Panama','Paraguay','Peru','Puerto Rico','Spain','United States','Uruguay','Venezuela'
   ];
@@ -309,30 +333,6 @@
     }
   }
 
-  // === FETCH LOGIC ===
-  async function fetchSingleChannel() {
-    singleChannelLoading = true;
-    singleChannelError = '';
-    fetchedChannel = null;
-    try {
-      const res = await fetch('/api/fetch-youtube-details', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: singleChannelUrl })
-      });
-      const json = await res.json();
-      if (json.error) {
-        singleChannelError = json.error;
-        return;
-      }
-      fetchedChannel = json.channel || null;
-    } catch (e) {
-      singleChannelError = 'Fetch failed: ' + e.message;
-    } finally {
-      singleChannelLoading = false;
-    }
-  }
-
   onMount(() => {
     window.addEventListener('beforeunload', handleBeforeUnload);
     refresh();
@@ -344,6 +344,7 @@
     }
   });
 </script>
+
 
 {#if false}
   <div style="margin: 4em auto; text-align: center;">Checking admin access…</div>
@@ -389,8 +390,7 @@
                 <div class="channel-details" style="margin-top:1.2em;">
                   <b>Channel:</b> {fetchedChannel.title} <br>
                   <img src={fetchedChannel.thumbnail} alt="Channel" width="90" style="border-radius:50%;margin:0.5em 0;">
-                  <div style="margin:0.5em 0 0.5em 0;">Subscribers: {fetchedChannel.subscribers}</div>
-                  <div style="color:#888;font-size:0.97em;">{fetchedChannel.description}</div>
+ 
                 </div>
               {/if}
             </div>
