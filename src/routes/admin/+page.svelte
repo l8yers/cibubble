@@ -1,24 +1,22 @@
 <script>
   import { supabase } from '$lib/supabaseClient.js';
-  import { onMount } from 'svelte';
-  import { get } from 'svelte/store';
-  import { user } from '$lib/stores/user.js';
-  import { onDestroy } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { getTagsForChannel } from '$lib/api/tags.js';
-
-  import AdminImportBar from '$lib/components/admin/AdminImportBar.svelte';
   import AdminCsvUploadBar from '$lib/components/admin/AdminCsvUploadBar.svelte';
   import AdminSearchBar from '$lib/components/admin/AdminSearchBar.svelte';
   import AdminChannelTable from '$lib/components/admin/AdminChannelTable.svelte';
-
   import { stripAccent, normalizeTags, parseCsv } from '$lib/utils/adminutils.js';
 
-  // --- NO ADMIN GUARD ---
+  // === SINGLE CHANNEL FETCH STATE ===
+  let singleChannelUrl = '';
+  let singleChannelLoading = false;
+  let singleChannelError = '';
+  let fetchedChannel = null;
 
+  // --- OLD STATE (for other admin functions) ---
   const countryOptions = [
     'Argentina','Canary Islands','Chile','Colombia','Costa Rica','Cuba','Dominican Republic','Ecuador','El Salvador','Equatorial Guinea','France','Guatemala','Italy','Latin America','Mexico','Panama','Paraguay','Peru','Puerto Rico','Spain','United States','Uruguay','Venezuela'
   ];
-
   const levels = [
     { value: '', label: 'Set Level' },
     { value: 'easy', label: 'Easy' },
@@ -26,7 +24,6 @@
     { value: 'advanced', label: 'Advanced' },
     { value: 'notyet', label: 'Not Yet Rated' }
   ];
-
   let currentTab = "upload";
   let url = '';
   let message = '';
@@ -52,7 +49,6 @@
   let uploadFailures = [];
   let uploadSuccesses = [];
 
-  // --- Filtered channels logic ---
   $: {
     let s = stripAccent(search.trim().toLowerCase());
     let filtered = !s
@@ -81,7 +77,6 @@
     csvFile = e.target.files[0];
   }
 
-  // --- Download upload failures as CSV ---
   function downloadFailuresCsv() {
     if (!uploadFailures.length) return;
     const rows = uploadFailures.map(f => ({
@@ -102,7 +97,6 @@
     URL.revokeObjectURL(url);
   }
 
-  // --- Bulk CSV upload logic ---
   async function uploadCsv() {
     if (!csvFile) return;
     bulkUploading = true;
@@ -115,7 +109,7 @@
       const text = event.target.result;
       let csvRows = [];
       try {
-        csvRows = parseCsv(text); // throws if header or rows are wrong
+        csvRows = parseCsv(text);
       } catch (err) {
         message = `❌ CSV format error: ${err.message}`;
         bulkUploading = false;
@@ -129,7 +123,6 @@
           continue;
         }
         try {
-          // Just pass null for user
           const res = await fetch('/api/add-video', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -163,7 +156,6 @@
     reader.readAsText(csvFile);
   }
 
-  // --- Admin logic: refresh, set channel level, country, etc ---
   async function refresh() {
     refreshing = true;
     try {
@@ -279,7 +271,6 @@
     message = '';
     importing = true;
     try {
-      // No user check, just import
       const res = await fetch('/api/add-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -318,6 +309,30 @@
     }
   }
 
+  // === FETCH LOGIC ===
+  async function fetchSingleChannel() {
+    singleChannelLoading = true;
+    singleChannelError = '';
+    fetchedChannel = null;
+    try {
+      const res = await fetch('/api/fetch-youtube-details', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: singleChannelUrl })
+      });
+      const json = await res.json();
+      if (json.error) {
+        singleChannelError = json.error;
+        return;
+      }
+      fetchedChannel = json.channel || null;
+    } catch (e) {
+      singleChannelError = 'Fetch failed: ' + e.message;
+    } finally {
+      singleChannelLoading = false;
+    }
+  }
+
   onMount(() => {
     window.addEventListener('beforeunload', handleBeforeUnload);
     refresh();
@@ -331,13 +346,11 @@
 </script>
 
 {#if false}
-  <!-- This disables admin/user check block -->
   <div style="margin: 4em auto; text-align: center;">Checking admin access…</div>
 {:else}
   <div class="admin-main">
     <div class="admin-panel">
       <h2>Admin Tools</h2>
-
       <div class="tabs">
         <button
           class:tab-active={currentTab === 'upload'}
@@ -351,21 +364,39 @@
 
       {#if currentTab === 'upload'}
         <div class="tab-panel">
-          <AdminImportBar
-            {url}
-            setUrl={v => url = v}
-            {importing}
-            {importChannel}
-            {refreshing}
-            {refresh}
-            {clearing}
-            {clearDatabase}
-            {csvInput}
-            {handleCsvFile}
-            {uploadCsv}
-            {csvFile}
-            {bulkUploading}
-          />
+
+          <!-- === Single Channel Fetch UI === -->
+          <div class="single-channel-upload">
+            <div class="single-channel-box">
+              <label>Paste YouTube Channel Link:</label>
+              <input
+                type="text"
+                bind:value={singleChannelUrl}
+                class="main-input"
+                placeholder="https://youtube.com/channel/..."
+                style="width:380px;max-width:90%">
+              <button
+                class="main-btn"
+                disabled={singleChannelLoading || !singleChannelUrl}
+                on:click={fetchSingleChannel}
+                style="margin-top:0.5em;">
+                {singleChannelLoading ? 'Loading...' : 'Fetch Details'}
+              </button>
+              {#if singleChannelError}
+                <div class="admin-message error">{singleChannelError}</div>
+              {/if}
+              {#if fetchedChannel}
+                <div class="channel-details" style="margin-top:1.2em;">
+                  <b>Channel:</b> {fetchedChannel.title} <br>
+                  <img src={fetchedChannel.thumbnail} alt="Channel" width="90" style="border-radius:50%;margin:0.5em 0;">
+                  <div style="margin:0.5em 0 0.5em 0;">Subscribers: {fetchedChannel.subscribers}</div>
+                  <div style="color:#888;font-size:0.97em;">{fetchedChannel.description}</div>
+                </div>
+              {/if}
+            </div>
+          </div>
+          <!-- === End Single Channel Fetch UI === -->
+
           <AdminCsvUploadBar
             {csvInput}
             {handleCsvFile}
@@ -447,13 +478,11 @@
     align-items: center;
     min-width: 380px;
   }
-
   .admin-section {
     width: 100%;
     overflow-x: auto;
     margin-top: 0.8em;
   }
-
   .admin-table {
     width: 100%;
     border-collapse: separate;
@@ -525,6 +554,61 @@
     color: #e93c2f;
     border: 1px solid #e93c2f44;
   }
+  /* === Single Channel Upload Styles === */
+  .single-channel-upload {
+    margin-bottom: 1.4em;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .single-channel-box {
+    margin: 1em auto 0 auto;
+    background: #fff8;
+    border-radius: 13px;
+    box-shadow: 0 2px 18px #0011;
+    padding: 1.5em 1.2em 1.2em 1.2em;
+    min-width: 320px;
+    max-width: 500px;
+    width: 100%;
+  }
+  .single-channel-box label {
+    font-weight: 700;
+    margin-bottom: 0.3em;
+    display: block;
+  }
+  .channel-details {
+    text-align: center;
+    font-size: 1.08em;
+  }
+  .main-input {
+    display: block;
+    margin: 0.5em auto;
+    padding: 0.6em;
+    border-radius: 6px;
+    border: 1px solid #e3e8ee;
+    width: 90%;
+    font-size: 1.05em;
+    background: #fff;
+  }
+  .main-btn {
+    background: #e93c2f;
+    color: #fff;
+    font-weight: 700;
+    border: none;
+    border-radius: 7px;
+    padding: 0.6em 1.3em;
+    font-size: 1.08em;
+    cursor: pointer;
+    margin-top: 0.1em;
+    transition: background 0.17s, box-shadow 0.15s;
+    box-shadow: 0 1px 5px #e93c2f23;
+  }
+  .main-btn:disabled {
+    background: #ddd;
+    color: #aaa;
+    cursor: not-allowed;
+  }
   @media (max-width: 900px) {
     .admin-panel {
       padding: 1.4em 0.4em 1.4em 0.4em;
@@ -535,6 +619,11 @@
     }
     .tab-panel {
       padding: 0.5em 0.1em 0.4em 0.1em;
+    }
+    .single-channel-box {
+      min-width: unset;
+      max-width: 99vw;
+      padding: 1em 0.5em 1em 0.5em;
     }
   }
 </style>
