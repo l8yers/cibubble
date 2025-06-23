@@ -63,33 +63,15 @@
   }
 
   // Add channel to DB via /api/add-channel
-  async function submitChannel() {
+ async function submitChannel() {
   addChannelError = '';
   addChannelSuccess = '';
-  if (!fetchedChannel) {
-    addChannelError = 'No channel details loaded.';
-    console.warn('submitChannel: No channel loaded');
-    return;
-  }
-  if (!channelLevel) {
-    addChannelError = "Select a difficulty level.";
-    console.warn('submitChannel: Level missing');
-    return;
-  }
-  if (!channelCountry) {
-    addChannelError = "Select a country.";
-    console.warn('submitChannel: Country missing');
-    return;
-  }
-  addChannelLoading = true;
-  console.log('submitChannel: sending', {
-    url: singleChannelUrl,
-    tags,
-    level: channelLevel,
-    country: channelCountry,
-    added_by: null
-  });
   try {
+    if (!fetchedChannel) throw new Error('No channel details loaded');
+    if (!channelLevel) throw new Error('Select a difficulty level.');
+    if (!channelCountry) throw new Error('Select a country.');
+
+    addChannelLoading = true;
     const res = await fetch('/api/add-channel', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -110,7 +92,6 @@
       console.error('submitChannel: Invalid JSON:', text);
       return;
     }
-    console.log('submitChannel: API response', json);
     if (json.error) {
       addChannelError = `❌ ${json.error}`;
       console.warn('submitChannel: API error', json.error);
@@ -126,12 +107,17 @@
       await refresh();
     }
   } catch (e) {
-    addChannelError = '❌ Add failed: ' + e.message;
-    console.error('submitChannel: Network error', e);
+    addChannelError = '❌ Add failed: ' + (e?.message ?? e);
+    console.error('submitChannel: JS error', e);
   } finally {
     addChannelLoading = false;
+    // Always force a message to show SOMETHING
+    if (!addChannelError && !addChannelSuccess) {
+      addChannelError = '❌ No response or error received. Check network and backend logs.';
+    }
   }
 }
+
 
   // --- Admin tools (bulk upload, channels, playlists, etc) ---
   const countryOptions = [
@@ -521,14 +507,15 @@
                       {/each}
                     </select>
 
-                    <button
-                      class="main-btn"
-                      style="margin-top:1.1em;"
-                      disabled={addChannelLoading || !channelLevel || !channelCountry}
-                      on:click={submitChannel}
-                    >
-                      {addChannelLoading ? "Adding..." : "Add Channel"}
-                    </button>
+<button
+  type="button" 
+  class="main-btn"
+  style="margin-top:1.1em;"
+  disabled={addChannelLoading || !channelLevel || !channelCountry}
+  on:click={submitChannel}
+>
+  {addChannelLoading ? "Adding..." : "Add Channel"}
+</button>
                     {#if addChannelError}
                       <div class="admin-message error">{addChannelError}</div>
                     {/if}
