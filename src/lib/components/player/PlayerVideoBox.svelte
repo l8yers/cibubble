@@ -44,4 +44,28 @@
   margin-bottom: 0.8rem;
   position: relative;
 }
+@media (max-width: 800px) {
+  .player-video-box {
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    left: 0 !important;
+    right: 0 !important;
+  }
+  .player-video-box iframe {
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: auto;
+    aspect-ratio: 16/9;
+    display: block;
+  }
+}
+
 </style>

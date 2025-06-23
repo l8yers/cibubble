@@ -218,6 +218,15 @@
   .menu-toggle { display: block; }
   .header { min-height: 44px; }
   .mobile-dropdown { top: 44px; min-height: calc(100vh - 44px); }
+  .header {
+    padding-top: 0.28em !important;
+    padding-bottom: 0.18em !important;
+    min-height: 40px !important;
+  }
+  .logo-img {
+    height: 2.15em !important;
+    max-height: 40px !important;
+  }
 }
 @media (min-width: 721px) {
   .mobile-dropdown, .dropdown-inner { display: none !important; }

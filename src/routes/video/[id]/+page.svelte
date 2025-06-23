@@ -277,11 +277,18 @@ async function loadTagCloud() {
 	<div class="player-container">
 		<div class="player-main-col">
 			<PlayerVideoBox {video} user={$user} {suggestions} {autoplayValue} {handlePlayNextVideo} />
+			  <div class="player-content">
 			<div class="player-title-row">
 				<div class="player-title">{video.title}</div>
-				{#if $user && video?.channel_id}
-					<AddToMyChannelsButton {isChannelSaved} {savingChannel} {saveChannelToMyChannels} />
-				{/if}
+{#if $user && video?.channel_id}
+  <div class="add-to-channels-wrapper">
+    <AddToMyChannelsButton
+      {isChannelSaved}
+      {savingChannel}
+      {saveChannelToMyChannels}
+    />
+  </div>
+{/if}
 			</div>
 			<PlayerMetaRow {video} {utils} />
 
@@ -314,6 +321,7 @@ async function loadTagCloud() {
 			{#if tagSuccess}
 				<div class="tag-success">Tag added!</div>
 			{/if}
+			</div>
 
 {#if isMobile}
   <button class="show-suggestions-btn" on:click={() => (showSuggestionsPanel = true)}>
@@ -489,7 +497,42 @@ async function loadTagCloud() {
 			z-index: 1001;
 		}
 	}
-  @media (max-width: 800px) {
+	@media (max-width: 800px) {
+  .player-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100vw !important;
+    width: 100vw !important;
+  }
+  .player-main-col {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+  }
+  body, html {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    background: #000 !important; /* optional, helps see the player edge */
+  }
+    .player-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #23243a;      /* dark, but soft—not full black */
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+    margin-top: 0.25em;
+    margin-bottom: 0.5em;
+    text-align: left;
+    text-shadow: 0 1px 0 #fff1, 0 0.5px 0 #fff1; /* subtle softening, optional */
+    /* Remove if you don't like text-shadow look */
+  }
+    .player-content {
+    padding: 0.8rem 1.1rem 0.5rem 1.1rem;
+    /* or adjust as you like, e.g. margin if you prefer */
+  }
   .show-suggestions-btn {
     position: fixed;
     left: 0;
@@ -515,6 +558,13 @@ async function loadTagCloud() {
     background: #f7f8fa;
   }
 }
+@media (max-width: 800px) {
+  .add-to-channels-wrapper {
+    display: none !important;
+  }
+}
+
+
 
 
 </style>
