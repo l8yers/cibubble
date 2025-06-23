@@ -44,7 +44,14 @@
   {#if suggestions.length > 0}
     <ul class="suggestions">
       {#each suggestions as tag}
-        <li on:click={() => { tagInput = tag.name; handleAddTag(); }}>{tag.name}</li>
+        <li>
+          <button
+            type="button"
+            class="suggestion-btn"
+            on:click={() => { tagInput = tag.name; handleAddTag(); }}>
+            {tag.name}
+          </button>
+        </li>
       {/each}
     </ul>
   {/if}
@@ -58,6 +65,7 @@
   gap: 0.2em;
   min-width: 95px;
   max-width: 150px;
+  position: relative;
 }
 .tag-manager-admin input[type="text"] {
   font-size: 0.93em;
@@ -96,13 +104,28 @@ ul.suggestions {
   list-style: none;
   font-size: 0.93em;
   left: 0;
+  min-width: 90px;
 }
 ul.suggestions li {
-  cursor: pointer;
-  padding: 0.10em 0;
+  padding: 0;
+  margin: 0;
+  list-style: none;
 }
-ul.suggestions li:hover {
+.suggestion-btn {
+  background: none;
+  border: none;
+  width: 100%;
+  padding: 0.10em 0;
+  text-align: left;
+  cursor: pointer;
+  font-size: inherit;
+  color: inherit;
+  font-family: inherit;
+}
+.suggestion-btn:hover, .suggestion-btn:focus {
   color: #e93c2f;
   font-weight: bold;
+  background: #f5f8fc;
+  outline: none;
 }
 </style>
