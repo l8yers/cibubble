@@ -1,10 +1,14 @@
+// src/routes/api/fetch-youtube-details/+server.js
 import { fetchYouTubeChannelDetails } from '$lib/api/fetch-youtube-details.js';
+import { YOUTUBE_API_KEY } from '$env/static/private';
 
 export async function POST({ request }) {
   try {
     const { url } = await request.json();
-    if (!url) return new Response(JSON.stringify({ error: "Missing URL" }), { status: 400 });
-    const channel = await fetchYouTubeChannelDetails(url);
+    if (!url) {
+      return new Response(JSON.stringify({ error: "Missing URL" }), { status: 400 });
+    }
+    const channel = await fetchYouTubeChannelDetails(url, YOUTUBE_API_KEY);
     return new Response(JSON.stringify({ channel }), {
       status: 200,
       headers: { "Content-Type": "application/json" }

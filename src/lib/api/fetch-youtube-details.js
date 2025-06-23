@@ -1,5 +1,4 @@
 // src/lib/api/fetch-youtube-details.js
-import { YOUTUBE_API_KEY } from '$env/static/private';
 
 /**
  * Extracts channel ID, handle, user, or custom name from a YouTube channel URL or input.
@@ -42,7 +41,7 @@ function extractChannelId(url) {
   return null;
 }
 
-export async function fetchYouTubeChannelDetails(url) {
+export async function fetchYouTubeChannelDetails(url, apiKey) {
   let idObj = extractChannelId(url);
   let channelId = null;
 
@@ -57,7 +56,7 @@ export async function fetchYouTubeChannelDetails(url) {
   if (typeof idObj === 'string' && idObj.startsWith('@')) {
     // Try API handle lookup
     let infoRes = await fetch(
-      `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&forHandle=${idObj}&key=${YOUTUBE_API_KEY}`
+      `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&forHandle=${idObj}&key=${apiKey}`
     );
     let infoJson = await infoRes.json();
     if (infoJson.items?.[0]?.id) channelId = infoJson.items[0].id;
@@ -66,7 +65,7 @@ export async function fetchYouTubeChannelDetails(url) {
     if (!channelId) {
       const q = idObj.replace(/^@/, '');
       const searchRes = await fetch(
-        `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(q)}&key=${YOUTUBE_API_KEY}`
+        `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(q)}&key=${apiKey}`
       );
       const searchJson = await searchRes.json();
       channelId = searchJson.items?.[0]?.snippet?.channelId;
@@ -77,7 +76,7 @@ export async function fetchYouTubeChannelDetails(url) {
   // === 3. Username (/user/...) ===
   if (typeof idObj === 'object' && idObj.user) {
     let infoRes = await fetch(
-      `https://www.googleapis.com/youtube/v3/channels?part=id&forUsername=${idObj.user}&key=${YOUTUBE_API_KEY}`
+      `https://www.googleapis.com/youtube/v3/channels?part=id&forUsername=${idObj.user}&key=${apiKey}`
     );
     let infoJson = await infoRes.json();
     if (infoJson.items?.[0]?.id) channelId = infoJson.items[0].id;
@@ -90,7 +89,7 @@ export async function fetchYouTubeChannelDetails(url) {
     let infoRes = await fetch(
       `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(
         idObj.custom
-      )}&key=${YOUTUBE_API_KEY}`
+      )}&key=${apiKey}`
     );
     let infoJson = await infoRes.json();
     // Best guess: use first match
@@ -103,7 +102,7 @@ export async function fetchYouTubeChannelDetails(url) {
 
   // === Fetch channel details ===
   const infoRes = await fetch(
-    `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelId}&key=${YOUTUBE_API_KEY}`
+    `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelId}&key=${apiKey}`
   );
   const infoJson = await infoRes.json();
   if (!infoJson.items?.[0]) throw new Error("Channel not found");
