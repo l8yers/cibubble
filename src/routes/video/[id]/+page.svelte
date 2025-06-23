@@ -60,15 +60,12 @@
 		tagAdding = false;
 	}
 
-	async function loadTagCloud() {
-		tagCloudLoading = true;
-		const { data } = await supabase.from('tags').select('name');
-		allTags = (data || [])
-			.map((t) => t.name)
-			.filter(Boolean)
-			.sort((a, b) => a.localeCompare(b));
-		tagCloudLoading = false;
-	}
+async function loadTagCloud() {
+  tagCloudLoading = true;
+  const { data, error } = await supabase.rpc('get_popular_tags');
+  allTags = (data || []).map(t => t.tag).filter(Boolean);
+  tagCloudLoading = false;
+}
 
 	function openTagModal() {
 		showTagModal = true;
