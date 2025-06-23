@@ -64,49 +64,74 @@
 
   // Add channel to DB via /api/add-channel
   async function submitChannel() {
-    addChannelError = '';
-    addChannelSuccess = '';
-    if (!fetchedChannel) return;
-    if (!channelLevel) {
-      addChannelError = "Select a difficulty level.";
-      return;
-    }
-    if (!channelCountry) {
-      addChannelError = "Select a country.";
-      return;
-    }
-    addChannelLoading = true;
-    try {
-      const res = await fetch('/api/add-channel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: singleChannelUrl,
-          tags,
-          level: channelLevel,
-          country: channelCountry,
-          added_by: null
-        })
-      });
-      const json = await res.json();
-      if (json.error) {
-        addChannelError = json.error;
-      } else {
-        addChannelSuccess = `✅ Channel "${fetchedChannel.title}" added.`;
-        fetchedChannel = null;
-        singleChannelUrl = '';
-        tags = [];
-        tagInput = '';
-        channelLevel = '';
-        channelCountry = '';
-        await refresh();
-      }
-    } catch (e) {
-      addChannelError = 'Add failed: ' + e.message;
-    } finally {
-      addChannelLoading = false;
-    }
+  addChannelError = '';
+  addChannelSuccess = '';
+  if (!fetchedChannel) {
+    addChannelError = 'No channel details loaded.';
+    console.warn('submitChannel: No channel loaded');
+    return;
   }
+  if (!channelLevel) {
+    addChannelError = "Select a difficulty level.";
+    console.warn('submitChannel: Level missing');
+    return;
+  }
+  if (!channelCountry) {
+    addChannelError = "Select a country.";
+    console.warn('submitChannel: Country missing');
+    return;
+  }
+  addChannelLoading = true;
+  console.log('submitChannel: sending', {
+    url: singleChannelUrl,
+    tags,
+    level: channelLevel,
+    country: channelCountry,
+    added_by: null
+  });
+  try {
+    const res = await fetch('/api/add-channel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: singleChannelUrl,
+        tags,
+        level: channelLevel,
+        country: channelCountry,
+        added_by: null
+      })
+    });
+    const text = await res.text();
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch (err) {
+      addChannelError = '❌ API did not return valid JSON. See console.';
+      console.error('submitChannel: Invalid JSON:', text);
+      return;
+    }
+    console.log('submitChannel: API response', json);
+    if (json.error) {
+      addChannelError = `❌ ${json.error}`;
+      console.warn('submitChannel: API error', json.error);
+    } else {
+      addChannelSuccess = `✅ Channel "${fetchedChannel.title}" added (${json.videos_added} videos, ${json.playlists_count} playlists).`;
+      // Reset UI
+      fetchedChannel = null;
+      singleChannelUrl = '';
+      tags = [];
+      tagInput = '';
+      channelLevel = '';
+      channelCountry = '';
+      await refresh();
+    }
+  } catch (e) {
+    addChannelError = '❌ Add failed: ' + e.message;
+    console.error('submitChannel: Network error', e);
+  } finally {
+    addChannelLoading = false;
+  }
+}
 
   // --- Admin tools (bulk upload, channels, playlists, etc) ---
   const countryOptions = [
