@@ -1,6 +1,6 @@
 <script>
 	import { createEventDispatcher, onMount } from 'svelte';
-	import { Sparkles, BarChart3, Search, Globe, Tag, User } from 'lucide-svelte';
+	import { ArrowDownUp, BarChart3, Search, Earth, Tag, User } from 'lucide-svelte';
 
 	export let levels = [];
 	export let sortChoices = [];
@@ -156,7 +156,7 @@
 				on:click={() => (showSortDropdown = !showSortDropdown)}
 				type="button"
 			>
-				<Sparkles size={18} style="margin-right:7px;vertical-align:-3px;color:#2e9be6;" />
+				<ArrowDownUp size={18} style="margin-right:7px;vertical-align:-3px;color:#2e9be6;" />
 				Sort by
 				<svg width="12" height="9" style="margin-left:7px;" fill="none">
 					<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
@@ -283,7 +283,7 @@
 				on:click={() => (showCountryDropdown = !showCountryDropdown)}
 				type="button"
 			>
-				<Globe size={18} style="margin-right:7px;vertical-align:-3px;color:#c367f2;" />
+				<Earth size={18} style="margin-right:7px;vertical-align:-3px;color:#c367f2;" />
 				Country
 				<svg width="12" height="9" style="margin-left:7px;" fill="none">
 					<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />

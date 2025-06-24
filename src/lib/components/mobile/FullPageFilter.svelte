@@ -1,6 +1,6 @@
 <script>
   import { createEventDispatcher } from 'svelte';
-  import { ChevronRight, ChevronLeft, BarChart3, Globe, Tag, Eye, User } from 'lucide-svelte';
+  import { ChevronRight, ChevronLeft, BarChart3, Earth, Tag, Eye, User } from 'lucide-svelte';
 
   export let open = false;
   export let levels = [];
@@ -78,7 +78,7 @@
             <BarChart3 class="icon"/><span>Levels</span> <ChevronRight class="chev"/>
           </li>
           <li on:click={() => page='country'}>
-            <Globe class="icon"/><span>Country</span> <ChevronRight class="chev"/>
+            <Earth class="icon"/><span>Country</span> <ChevronRight class="chev"/>
           </li>
           <li on:click={() => page='tags'}>
             <Tag class="icon"/><span>Tags</span> <ChevronRight class="chev"/>
