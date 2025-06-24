@@ -1,6 +1,6 @@
 <script>
   import { createEventDispatcher } from 'svelte';
-  import { Sparkles, BarChart3, Search as SearchIcon } from 'lucide-svelte';
+  import { ArrowDownUp, ListFilter, Search as SearchIcon, ChevronUp } from 'lucide-svelte';
 
   export let openSearch = false;
   export let searchValue = '';
@@ -33,15 +33,17 @@
 <nav class="mobile-menu-bar">
   {#if !openSearch}
     <button class="menu-btn" title="Sort" on:click={() => dispatch('sort')}>
-      <Sparkles size={21} style="margin-right:0.45em;color:#0077ff;" />
+      <ArrowDownUp size={18} class="menu-icon" />
       <span>Sort</span>
+      <ChevronUp size={12} class="chevron" />
     </button>
     <button class="menu-btn" title="Filters" on:click={() => dispatch('filter')}>
-      <BarChart3 size={21} style="margin-right:0.45em;color:#ee4ea5;" />
+      <ListFilter size={18} class="menu-icon" />
       <span>Filters</span>
+      <ChevronUp size={12} class="chevron" />
     </button>
     <button class="menu-btn" title="Search" on:click={handleSearchClick}>
-      <SearchIcon size={21} style="margin-right:0.45em;" />
+      <SearchIcon size={18} class="menu-icon" />
       <span>Search</span>
     </button>
   {:else}
@@ -72,11 +74,11 @@
     align-items: stretch;
     background: #fafbff;
     border-top: 1.5px solid #ececec;
-    min-height: 50px;
+    min-height: 43px;
     box-shadow: 0 -2px 12px #ececec70;
     pointer-events: auto;
-    padding: 0 0.2em;
-    gap: 0.2em;
+    padding: 0 0.07em;
+    gap: 0.12em;
   }
   .menu-btn {
     flex: 1 1 0;
@@ -84,67 +86,79 @@
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 0.2em;
+    gap: 0.13em;
     background: none;
     border: none;
-    font-size: 1.05em;
+    font-size: 0.92em;
     font-weight: 700;
-    border-radius: 10px;
-    color: #2451c7;
-    padding: 0.45em 0 0.45em 0;
+    border-radius: 8px;
+    color: #181818;
+    padding: 0.32em 0 0.32em 0;
     transition: background 0.13s;
     min-width: 0;
-    min-height: 44px;
-    line-height: 1.1;
+    min-height: 36px;
+    line-height: 1.05;
+    position: relative;
   }
   .menu-btn:active,
   .menu-btn:focus {
-    background: #e9f0ff;
+    background: #e9e9ea;
     outline: none;
   }
-  .menu-btn svg {
-    display: inline-block;
-    margin-bottom: -2px;
+  .menu-icon {
+    color: #181818;
+    stroke-width: 2.1px;
+    margin-bottom: -1.2px;
+    flex-shrink: 0;
+  }
+  .chevron {
+    color: #181818;
+    margin-left: 0.03em;
+    flex-shrink: 0;
+    opacity: 0.7;
+    margin-bottom: -0.7px;
   }
   .menu-btn span {
-    font-size: 0.98em;
+    font-size: 0.95em;
     letter-spacing: 0.01em;
     margin: 0;
     line-height: 1.1;
     padding-left: 0.02em;
+    color: #181818;
   }
   .search-bar {
     display: flex;
     flex: 1 1 0;
     align-items: center;
     width: 100vw;
-    padding: 0 1.1em;
-    gap: 0.5em;
+    padding: 0 0.6em;
+    gap: 0.3em;
   }
   .search-bar input[type="text"] {
     flex: 1 1 0;
-    font-size: 1.1em;
-    padding: 0.6em 1em;
+    font-size: 1em;
+    padding: 0.47em 0.9em;
     border: 1px solid #ddd;
-    border-radius: 10px;
+    border-radius: 8px;
     outline: none;
     background: #fff;
+    color: #181818;
   }
   .close-btn {
-    font-size: 2em;
+    font-size: 1.4em;
     color: #888;
     background: none;
     border: none;
-    padding: 0 0.2em;
+    padding: 0 0.13em;
     border-radius: 50%;
     cursor: pointer;
     transition: background 0.13s;
-    margin-left: 0.4em;
-    min-width: 36px;
-    min-height: 36px;
+    margin-left: 0.24em;
+    min-width: 30px;
+    min-height: 30px;
     display: flex; align-items: center; justify-content: center;
   }
   .close-btn:hover {
-    background: #f0f0f0;
+    background: #ececec;
   }
 </style>
