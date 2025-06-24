@@ -9,7 +9,6 @@
 	import PlayerMetaRow from '$lib/components/player/PlayerMetaRow.svelte';
 	import ChannelTagsBlock from '$lib/components/player/ChannelTagsBlock.svelte';
 	import TagModal from '$lib/components/player/TagModal.svelte';
-	import MobileSuggestionsPanel from '$lib/components/player/MobileSuggestionsPanel.svelte';
 	import * as utils from '$lib/utils/utils.js';
 	import { goto } from '$app/navigation';
 	import { autoplay } from '$lib/stores/autoplay.js';
@@ -268,7 +267,6 @@
 		tagAddError = '';
 	}
 </script>
-
 {#if loading}
 	<div class="player-loading">Loading…</div>
 {:else if !video}
@@ -277,6 +275,8 @@
 	<div class="player-container">
 		<div class="player-main-col">
 			<PlayerVideoBox {video} user={$user} {suggestions} {autoplayValue} {handlePlayNextVideo} />
+			
+			<!-- Main content: Title, tags, tag modal, tag success -->
 			<div class="player-content">
 				<div class="player-title-row">
 					<div class="player-title">{video.title}</div>
@@ -286,8 +286,7 @@
 						</div>
 					{/if}
 				</div>
-				<PlayerMetaRow {video} {utils} />
-
+				
 				<ChannelTagsBlock
 					{tagArray}
 					{tagColors}
@@ -319,17 +318,20 @@
 				{/if}
 			</div>
 
+			<!-- Meta row is now in its own container -->
+			<div class="player-meta-row">
+				<PlayerMetaRow {video} {utils} />
+			</div>
+
+			<!-- Suggestions (on mobile only) -->
 			{#if isMobile}
-				<button class="show-suggestions-btn" on:click={() => (showSuggestionsPanel = true)}>
-					More videos like this
-				</button>
-				<MobileSuggestionsPanel
-					open={showSuggestionsPanel}
-					{video}
-					onClose={() => (showSuggestionsPanel = false)}
-				/>
+				<div class="mobile-suggestions-block">
+					<SideBar {video} />
+				</div>
 			{/if}
 		</div>
+
+		<!-- Desktop sidebar (hidden on mobile) -->
 		<aside class="player-sidebar" style:display={isMobile ? 'none' : undefined}>
 			<SideBar {video} />
 		</aside>
@@ -337,229 +339,156 @@
 {/if}
 
 <style>
+.player-container {
+	display: grid;
+	grid-template-columns: 1fr 380px;
+	gap: 2.5rem;
+	max-width: 1550px;
+	margin: 0 auto;
+	height: 100vh;
+	min-height: 100vh;
+}
+
+.player-main-col {
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	padding: 0; /* No padding! */
+}
+
+.player-main-col > :first-child,
+.player-main-col video,
+.player-main-col iframe,
+.PlayerVideoBox {
+	margin: 0 !important;
+	padding: 0 !important;
+	border-radius: 0;
+	background: #000;
+	box-shadow: none;
+	width: 100%;
+	max-width: 100%;
+	display: block;
+}
+
+/* Main content blocks: small margin for nice appearance */
+.player-content,
+.player-meta-row,
+.mobile-suggestions-block {
+	margin-left: 1.1rem;
+	margin-right: 1.1rem;
+}
+
+.player-title-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1.2em;
+	margin-bottom: 0.5em;
+}
+
+.player-title {
+	font-size: 1.38rem;
+	font-weight: 800;
+	color: #1a1a1a;
+	line-height: 1.21;
+	overflow-wrap: anywhere;
+	flex: 1 1 auto;
+	min-width: 0;
+	margin-bottom: 0.7em;
+	margin-top: 0.5em;
+}
+
+.player-loading {
+	text-align: center;
+	margin-top: 3rem;
+	color: #aaa;
+	font-size: 1.1rem;
+}
+
+.player-sidebar {
+	padding: 1.7rem 2px 1.3rem 2px;
+}
+
+.tag-success {
+	color: #17b052;
+	margin-top: 0.3em;
+	font-weight: 600;
+	font-size: 1.03em;
+	letter-spacing: 0.02em;
+}
+
+/* ---- MOBILE STYLE ---- */
+@media (max-width: 800px) {
 	.player-container {
-		display: grid;
-		grid-template-columns: 1fr 380px;
-		gap: 2.5rem;
-		max-width: 1550px;
-		margin: 0 auto;
-		height: 100vh;
-		min-height: 100vh;
-	}
-	.player-main-col {
 		display: flex;
 		flex-direction: column;
-		overflow: hidden;
-		padding: 2.3rem 0 1.2rem 0;
+		gap: 0;
+		max-width: 100vw;
+		width: 100vw;
+		height: auto;
+		min-height: 0;
+		margin: 0;
+		padding: 0;
 	}
-	.player-title-row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1.2em;
-		margin-bottom: 0.5em;
-	}
-	.player-title {
-		font-size: 1.38rem;
-		font-weight: 800;
-		color: #1a1a1a;
-		line-height: 1.21;
-		overflow-wrap: anywhere;
-		flex: 1 1 auto;
-		min-width: 0;
-		margin-bottom: 0.7em;
-		margin-top: 0.5em;
-	}
-	.player-loading {
-		text-align: center;
-		margin-top: 3rem;
-		color: #aaa;
-		font-size: 1.1rem;
+	.player-main-col {
+		padding: 0;
+		margin: 0;
+		width: 100vw;
+		max-width: 100vw;
 	}
 	.player-sidebar {
-		padding: 1.7rem 2px 1.3rem 2px;
+		display: none;
 	}
-	.tag-success {
-		color: #17b052;
-		margin-top: 0.3em;
-		font-weight: 600;
-		font-size: 1.03em;
-		letter-spacing: 0.02em;
+	.player-title-row {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.2em;
+		margin-bottom: 0.5em;
+		width: 100%;
+	}
+	.player-title {
+		font-size: 1.18rem;
+		text-align: left;
+		font-weight: 800;
+		color: #181820;
+		margin-bottom: 0.4em;
+		margin-top: 0.4em;
+		width: 100%;
+	}
+	/* Player video is edge-to-edge */
+	.player-main-col > :first-child,
+	.player-main-col video,
+	.player-main-col iframe,
+	.PlayerVideoBox {
+		width: 100vw !important;
+		max-width: 100vw !important;
+		margin: 0 !important;
+		padding: 0 !important;
+		border-radius: 0;
+		background: #000;
+		box-shadow: none;
+		min-height: 205px;
+		aspect-ratio: 16/9;
 	}
 
-	/* ---- MOBILE STYLE ---- */
-	@media (max-width: 800px) {
-		.player-container {
-			display: flex;
-			flex-direction: column;
-			gap: 0;
-			max-width: 100vw;
-			height: auto;
-			min-height: 0;
-			margin: 0;
-			padding: 0;
-		}
-		.player-main-col {
-			padding: 0.5rem 0.5rem 0 0.5rem;
-			flex-direction: column;
-			width: 100vw;
-			max-width: 100vw;
-		}
-		.player-sidebar {
-			display: none;
-		}
-		.player-title-row {
-			flex-direction: column;
-			align-items: flex-start;
-			gap: 0.2em;
-			margin-bottom: 0.5em;
-			width: 100%;
-		}
-		.player-title {
-			font-size: 1.25rem;
-			text-align: left;
-			font-weight: 800;
-			color: #181820;
-			margin-bottom: 0.4em;
-			margin-top: 0.4em;
-			width: 100%;
-		}
-		/* Video box should be full width */
-		.player-main-col > :first-child,
-		.player-main-col video,
-		.player-main-col iframe,
-		.PlayerVideoBox {
-			width: 100vw !important;
-			max-width: 100vw !important;
-			margin-left: -0.5rem;
-			margin-right: -0.5rem;
-			border-radius: 0;
-			background: #000;
-			box-shadow: none;
-			min-height: 205px;
-			aspect-ratio: 16/9;
-		}
-		/* Make action buttons and meta rows touch-friendly */
-		.player-title-row button,
-		.player-main-col .AddToMyChannelsButton,
-		.player-main-col .PlayerMetaRow,
-		.player-main-col .ChannelTagsBlock {
-			width: 100%;
-			min-height: 46px;
-			font-size: 1.03rem;
-			margin-bottom: 0.1rem;
-			margin-top: 0;
-		}
-		.player-main-col .ChannelTagsBlock {
-			flex-wrap: wrap;
-			justify-content: flex-start;
-			margin-bottom: 0.5rem;
-			gap: 0.35rem;
-		}
-		/* Description block */
-		.player-main-col .player-desc {
-			font-size: 1.03rem;
-			color: #23233b;
-			padding: 0.6em 0 0.9em 0;
-			margin: 0 0 0.7em 0;
-			line-height: 1.5;
-			text-align: left;
-			background: none;
-			border: none;
-		}
-		/* Comments, next video, etc */
-		.player-main-col .view-comments,
-		.player-main-col .suggested-videos-block {
-			width: 100vw;
-			margin-left: -0.5rem;
-			margin-right: -0.5rem;
-			border-radius: 0;
-			font-size: 1.09rem;
-		}
-		/* Suggestions button for mobile */
-		.show-suggestions-btn {
-			width: 100%;
-			padding: 1.1em 0;
-			background: #fff;
-			border: none;
-			border-top: 1px solid #e5e5e9;
-			font-size: 1.11em;
-			font-weight: 700;
-			color: #1a1a2f;
-			box-shadow: 0 0.5px 7px #0002;
-			cursor: pointer;
-			position: sticky;
-			bottom: 0;
-			z-index: 1001;
-		}
+	/* Content blocks: small side margin */
+	.player-content,
+	.player-meta-row,
+	.mobile-suggestions-block {
+		margin-left: 0.7rem;
+		margin-right: 0.7rem;
 	}
-	@media (max-width: 800px) {
-		.player-container {
-			padding: 0 !important;
-			margin: 0 !important;
-			max-width: 100vw !important;
-			width: 100vw !important;
-		}
-		.player-main-col {
-			padding: 0 !important;
-			margin: 0 !important;
-			width: 100vw !important;
-			max-width: 100vw !important;
-		}
-		body,
-		html {
-			margin: 0 !important;
-			padding: 0 !important;
-			width: 100vw !important;
-			max-width: 100vw !important;
-			background: #000 !important; /* optional, helps see the player edge */
-		}
-		.player-title {
-			font-size: 1.05rem;
-			font-weight: 700;
-			color: #23243a; /* dark, but soft—not full black */
-			letter-spacing: 0.01em;
-			line-height: 1.2;
-			margin-top: 0.25em;
-			margin-bottom: 0.5em;
-			text-align: left;
-			text-shadow:
-				0 1px 0 #fff1,
-				0 0.5px 0 #fff1; /* subtle softening, optional */
-			/* Remove if you don't like text-shadow look */
-		}
-		.player-content {
-			padding: 0.8rem 1.1rem 0.5rem 1.1rem;
-			/* or adjust as you like, e.g. margin if you prefer */
-		}
-		.show-suggestions-btn {
-			position: fixed;
-			left: 0;
-			right: 0;
-			bottom: 0;
-			height: 56px;
-			background: #fff;
-			border: none;
-			font-size: 1.1em;
-			font-weight: 700;
-			color: #232349;
-			box-shadow: 0 -2px 16px #0002;
-			z-index: 999;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			border-top: 1px solid #e5e5ef;
-			letter-spacing: 0.02em;
-			cursor: pointer;
-			transition: background 0.13s;
-		}
-		.show-suggestions-btn:active {
-			background: #f7f8fa;
-		}
+
+	.player-main-col .ChannelTagsBlock {
+		flex-wrap: wrap;
+		justify-content: flex-start;
+		margin-bottom: 0.5rem;
+		gap: 0.35rem;
 	}
-	@media (max-width: 800px) {
-		.add-to-channels-wrapper {
-			display: none !important;
-		}
+
+	.add-to-channels-wrapper {
+		display: none !important;
 	}
+}
+
 </style>
