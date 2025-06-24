@@ -55,7 +55,6 @@
   function closeMenu() { menuOpen = false; }
   function handleLogout() { logout(); closeMenu(); }
 </script>
-
 <nav class="header">
   <a href="/" aria-label="CIBUBBLE Home">
     <img src="/logo.png" alt="CIBUBBLE logo" class="logo-img" />
@@ -79,23 +78,23 @@
     <ThemeToggle {dark} {toggleDark} />
   </div>
 
-  <!-- Mobile full-width dropdown menu -->
+  <!-- Mobile right-side drawer menu -->
   {#if menuOpen}
-    <div class="mobile-dropdown">
-      <div class="dropdown-inner">
-        <button class="mobile-menu-close" aria-label="Close menu" on:click={closeMenu}>×</button>
-        <a class="mobile-menu-item" href="/" on:click={closeMenu}>Watch</a>
+    <div class="drawer-backdrop" on:click={closeMenu}>
+      <aside class="mobile-drawer" on:click|stopPropagation>
+        <button class="drawer-close" aria-label="Close menu" on:click={closeMenu}>×</button>
+        <a class="drawer-item" href="/" on:click={closeMenu}>Watch</a>
         {#if $user}
-          <a class="mobile-menu-item" href="/progress" on:click={closeMenu}>Progress</a>
-          <button class="mobile-menu-item" on:click={handleLogout}>Logout</button>
+          <a class="drawer-item" href="/progress" on:click={closeMenu}>Progress</a>
+          <button class="drawer-item" on:click={handleLogout}>Logout</button>
         {:else}
-          <a class="mobile-menu-item" href="/signup" on:click={closeMenu}>Sign Up</a>
-          <a class="mobile-menu-item" href="/login" on:click={closeMenu}>Login</a>
+          <a class="drawer-item" href="/signup" on:click={closeMenu}>Sign Up</a>
+          <a class="drawer-item" href="/login" on:click={closeMenu}>Login</a>
         {/if}
-        <div class="mobile-theme-row">
+        <div class="drawer-theme-row">
           <ThemeToggle {dark} {toggleDark} />
         </div>
-      </div>
+      </aside>
     </div>
   {/if}
 </nav>
@@ -144,72 +143,105 @@
 }
 .menu-icon { width: 2em; height: 2em; stroke: #181818; }
 
-/* --- Mobile FULL WIDTH Dropdown --- */
-.mobile-dropdown {
+/* --- Mobile Right Drawer --- */
+.drawer-backdrop {
   position: fixed;
-  left: 0; right: 0; top: 55px; /* or match header height */
-  background: rgba(255,255,255,0.97);
-  width: 100vw;
-  min-height: calc(100vh - 55px);
-  z-index: 1100;
-  animation: dropdown .15s cubic-bezier(.68,-0.55,.27,1.55);
-  box-shadow: 0 10px 32px #0001;
+  inset: 0;
+  background: rgba(30,40,60, 0.13);
+  z-index: 2000;
+  display: flex;
+  justify-content: flex-end;
+  animation: backdropFade .17s;
+}
+@keyframes backdropFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.mobile-drawer {
+  background: #fff;
+  width: 75vw;
+  max-width: 340px;
+  min-width: 210px;
+  height: 100vh;
+  box-shadow: -4px 0 24px #2e9be633;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  padding: 1.05em 0.9em 1em 1em;
+  position: relative;
+  animation: drawerSlideIn .19s cubic-bezier(.37,1.24,.34,.97);
+  border-radius: 0;
+  box-sizing: border-box;
 }
-@keyframes dropdown {
-  from { transform: translateY(-16px); opacity: 0.6;}
-  to { transform: translateY(0); opacity: 1;}
+@keyframes drawerSlideIn {
+  from { transform: translateX(60px); opacity: 0.73; }
+  to { transform: translateX(0); opacity: 1; }
 }
-.dropdown-inner {
-  width: 100%;
-  max-width: 440px;
-  margin: 0 auto;
-  padding: 2em 1em 2em 1em;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0.5em;
-}
-.mobile-menu-close {
+.drawer-close {
   align-self: flex-end;
   background: none;
   border: none;
-  font-size: 2.2em;
-  color: #888;
+  font-size: 2.1em;
+  color: #2e9be6;
   cursor: pointer;
-  margin-bottom: 0.5em;
-  margin-right: 0.1em;
+  margin-bottom: 0.15em;
+  margin-right: 0;
+  line-height: 1;
+  padding: 0;
+  transition: color 0.12s;
+  border-radius: 0;
 }
-.mobile-menu-item {
-  margin: 0.5em 0 0.7em 0;
-  font-size: 1.13em;
+.drawer-close:hover { color: #e93c2f; }
+.drawer-item {
+  margin: 0.16em 0 0.32em 0;
+  font-size: 1.09em;
   font-weight: 600;
-  color: #181818;
+  color: #23253c;
   background: none;
   border: none;
   text-align: left;
-  padding: 0.5em 0.7em;
-  border-radius: 8px;
+  padding: 0.46em 0.5em 0.46em 0.15em;
+  border-radius: 0;
   cursor: pointer;
-  transition: background 0.10s;
+  transition: background 0.11s, color 0.13s;
   display: block;
   text-decoration: none;
+  letter-spacing: 0.01em;
 }
-.mobile-menu-item:hover, .mobile-menu-item:focus {
-  background: #f2f5ff;
-  color: #0077ff;
+.drawer-item:hover, .drawer-item:focus {
+  background: #e6f1fb;
+  color: #2e9be6;
+  outline: none;
 }
-.mobile-theme-row {
-  margin-top: 1.3em;
-  border-top: 1.5px solid #eee;
-  padding-top: 1em;
+.drawer-theme-row {
+  margin-top: 0.65em;
+  border-top: 1.2px solid #e3ecf7;
+  padding-top: 0.65em;
   display: flex;
   align-items: center;
-  gap: 0.8em;
+  gap: 0.5em;
   font-size: 1em;
   justify-content: flex-start;
+  border-radius: 0;
+}
+
+/* Dark mode for drawer */
+body.dark-mode .mobile-drawer {
+  background: #161c23;
+  box-shadow: -6px 0 18px #0009, -1px 0 5px #2e9be633;
+}
+body.dark-mode .drawer-item {
+  color: #f4f7fa;
+  background: none;
+}
+body.dark-mode .drawer-item:hover, body.dark-mode .drawer-item:focus {
+  background: #223040;
+  color: #6bb8ff;
+}
+body.dark-mode .drawer-close {
+  color: #6bb8ff;
+}
+body.dark-mode .drawer-theme-row {
+  border-top: 1.2px solid #212837;
 }
 
 /* Responsive rules */
@@ -217,18 +249,13 @@
   .nav-links { display: none; }
   .menu-toggle { display: block; }
   .header { min-height: 44px; }
-  .mobile-dropdown { top: 44px; min-height: calc(100vh - 44px); }
-  .header {
-    padding-top: 0.28em !important;
-    padding-bottom: 0.18em !important;
-    min-height: 40px !important;
-  }
+  .mobile-drawer { min-height: calc(100vh - 0px); }
   .logo-img {
     height: 2.15em !important;
     max-height: 40px !important;
   }
 }
 @media (min-width: 721px) {
-  .mobile-dropdown, .dropdown-inner { display: none !important; }
+  .drawer-backdrop, .mobile-drawer { display: none !important; }
 }
 </style>

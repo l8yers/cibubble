@@ -337,7 +337,7 @@
 								checked={selectedChannel === '__ALL__'}
 								on:change={() => emitChange({ selectedChannel: '__ALL__' })}
 							/>
-							<span>All My Channels</span>
+							<span>All Saved Channels</span>
 						</label>
 						{#each myChannels as ch}
 							<label class="level-checkbox">
@@ -564,12 +564,6 @@
 	.search-toggle:hover,
 	.search-toggle:focus-visible {
 		background: #e5f2fd;
-	}
-	.search-toggle svg {
-		transition: stroke 0.15s;
-	}
-	.search-toggle:hover svg {
-		stroke: #2e9be6;
 	}
 
 	.reset-filters-btn {
