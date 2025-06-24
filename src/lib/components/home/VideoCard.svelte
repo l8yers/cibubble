@@ -216,4 +216,26 @@
   white-space: nowrap;
   border: 0;
 }
+@media (max-width: 720px) {
+  .card-title {
+    font-size: 0.95em;
+    font-weight: 600;
+    line-height: 1.23;
+    min-height: 2.1em;
+    max-height: 2.3em;
+  }
+  .card-meta {
+    font-size: 0.8em;
+  }
+  .badge {
+    font-size: 0.88em;
+    padding: 0.11em 0.45em;
+  }
+  .meta-link,
+  .channel-name {
+    font-size: 0.93em;
+    max-width: 95px;
+    padding: 0.05em 0.28em;
+  }
+}
 </style>
