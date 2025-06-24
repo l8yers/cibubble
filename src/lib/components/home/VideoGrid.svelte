@@ -51,7 +51,7 @@
   .video-grid {
     grid-template-columns: 1fr;
     max-width: 420px;
-    padding: 0 1rem;
+    padding: 0 0.2rem;
   }
 }
 </style>
