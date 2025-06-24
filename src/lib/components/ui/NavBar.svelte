@@ -55,6 +55,7 @@
   function closeMenu() { menuOpen = false; }
   function handleLogout() { logout(); closeMenu(); }
 </script>
+
 <nav class="header">
   <a href="/" aria-label="CIBUBBLE Home">
     <img src="/logo.png" alt="CIBUBBLE logo" class="logo-img" />
@@ -82,7 +83,12 @@
   {#if menuOpen}
     <div class="drawer-backdrop" on:click={closeMenu}>
       <aside class="mobile-drawer" on:click|stopPropagation>
-        <button class="drawer-close" aria-label="Close menu" on:click={closeMenu}>×</button>
+        <div class="drawer-top-row">
+          <div class="drawer-theme-toggle">
+            <ThemeToggle {dark} {toggleDark} />
+          </div>
+          <button class="drawer-close" aria-label="Close menu" on:click={closeMenu}>×</button>
+        </div>
         <a class="drawer-item" href="/" on:click={closeMenu}>Watch</a>
         {#if $user}
           <a class="drawer-item" href="/progress" on:click={closeMenu}>Progress</a>
@@ -91,8 +97,8 @@
           <a class="drawer-item" href="/signup" on:click={closeMenu}>Sign Up</a>
           <a class="drawer-item" href="/login" on:click={closeMenu}>Login</a>
         {/if}
-        <div class="drawer-theme-row">
-          <ThemeToggle {dark} {toggleDark} />
+        <div class="drawer-theme-row" style="display: none;">
+          <!-- Hidden: theme toggle is now at the top row -->
         </div>
       </aside>
     </div>
@@ -176,8 +182,22 @@
   from { transform: translateX(60px); opacity: 0.73; }
   to { transform: translateX(0); opacity: 1; }
 }
+
+/* --- Drawer top row --- */
+.drawer-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.4em;
+  padding-right: 0.1em;
+}
+.drawer-theme-toggle {
+  display: flex;
+  align-items: center;
+}
+
+/* --- Drawer close --- */
 .drawer-close {
-  align-self: flex-end;
   background: none;
   border: none;
   font-size: 2.1em;
@@ -191,6 +211,8 @@
   border-radius: 0;
 }
 .drawer-close:hover { color: #e93c2f; }
+
+/* --- Drawer items --- */
 .drawer-item {
   margin: 0.16em 0 0.32em 0;
   font-size: 1.09em;
@@ -212,16 +234,10 @@
   color: #2e9be6;
   outline: none;
 }
+
+/* Hide bottom theme row */
 .drawer-theme-row {
-  margin-top: 0.65em;
-  border-top: 1.2px solid #e3ecf7;
-  padding-top: 0.65em;
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
-  font-size: 1em;
-  justify-content: flex-start;
-  border-radius: 0;
+  display: none;
 }
 
 /* Dark mode for drawer */
@@ -239,9 +255,6 @@ body.dark-mode .drawer-item:hover, body.dark-mode .drawer-item:focus {
 }
 body.dark-mode .drawer-close {
   color: #6bb8ff;
-}
-body.dark-mode .drawer-theme-row {
-  border-top: 1.2px solid #212837;
 }
 
 /* Responsive rules */
