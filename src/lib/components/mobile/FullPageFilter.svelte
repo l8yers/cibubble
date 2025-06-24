@@ -1,6 +1,6 @@
 <script>
   import { createEventDispatcher } from 'svelte';
-  import { ChevronRight, ChevronLeft, BarChart3, Globe, Tag, Eye } from 'lucide-svelte';
+  import { ChevronRight, ChevronLeft, BarChart3, Globe, Tag, Eye, User } from 'lucide-svelte';
 
   export let open = false;
   export let levels = [];
@@ -10,7 +10,7 @@
   export let countryOptions = [];
   export let selectedCountry = '';
   export let myChannels = [];
-  export let selectedChannel = ''; // '' means none
+  export let selectedChannel = '';
   export let hideWatched = false;
 
   const dispatch = createEventDispatcher();
@@ -19,7 +19,7 @@
   let localLevels = [...selectedLevels];
   let localTags = [...selectedTags];
   let localCountry = selectedCountry;
-  let localChannel = selectedChannel || ''; // nothing selected by default
+  let localChannel = selectedChannel || '';
   let localHideWatched = hideWatched;
 
   $: if (open) {
@@ -85,9 +85,7 @@
           </li>
           {#if myChannels.length}
           <li on:click={() => page='channels'}>
-            <svg class="icon" width="19" height="19"><circle cx="9" cy="9" r="8" fill="#0077ff"/><text x="9" y="13" text-anchor="middle" font-size="12" fill="#fff">C</text></svg>
-            <span>My Channels</span>
-            <ChevronRight class="chev"/>
+            <User class="icon"/><span>My Channels</span> <ChevronRight class="chev"/>
           </li>
           {/if}
           <li class="toggle-row">
@@ -196,108 +194,135 @@
 <style>
   .modal-bg {
     position: fixed; inset: 0;
-    background: #222a 0.32;
+    background: #161c23cc;
     z-index: 2000;
     display: flex; align-items: flex-end; justify-content: center;
   }
   .filter-modal {
     background: #fff;
-    border-radius: 24px 24px 0 0;
+    border-radius: 0;
     padding: 0 0 2em 0;
     min-width: 100vw;
     max-width: 100vw;
-    box-shadow: 0 -2px 24px #2222;
-    animation: slideUp 0.24s cubic-bezier(.16,1,.3,1);
+    box-shadow: 0 -2px 24px #2225;
+    animation: slideUp 0.22s cubic-bezier(.16,1,.3,1);
+    font-family: inherit;
   }
   @keyframes slideUp { from { transform: translateY(100%);} to { transform: none;} }
   .modal-header {
     display: flex; align-items: center; justify-content: center;
-    font-size: 1.25em; font-weight: 700;
-    background: #f6f7fa;
-    border-radius: 24px 24px 0 0;
-    min-height: 56px;
+    font-size: 1.05em;
+    font-weight: 800;
+    background: #f7f8fa;
+    border-radius: 0;
+    min-height: 48px;
     position: relative;
-    margin-bottom: 0.2em;
+    margin-bottom: 0.16em;
+    letter-spacing: 0.01em;
+    color: #181818;
   }
   .modal-header .close-btn {
-    position: absolute; right: 1.4em; top: 50%; transform: translateY(-50%);
-    font-size: 2em;
-    background: none; border: none; color: #888; cursor: pointer;
+    position: absolute; right: 1.2em; top: 50%; transform: translateY(-50%);
+    font-size: 1.4em;
+    background: none; border: none; color: #2e9be6; cursor: pointer;
+    border-radius: 0;
   }
   .modal-header .back-btn {
-    position: absolute; left: 1.3em; top: 50%; transform: translateY(-50%);
-    background: none; border: none; color: #0077ff; font-size: 1.7em; cursor: pointer;
-    padding: 0.2em;
+    position: absolute; left: 1.05em; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: #2e9be6; font-size: 1.23em; cursor: pointer;
+    padding: 0.14em;
+    border-radius: 0;
   }
   .filter-list {
     padding: 0; margin: 0;
     list-style: none;
     background: #fff;
-    border-radius: 24px 24px 0 0;
-    font-size: 1.13em;
+    border-radius: 0;
+    font-size: 1em;
+    color: #161c23;
+    font-weight: 700;
+    letter-spacing: 0.01em;
   }
   .filter-list li {
-    display: flex; align-items: center; gap: 1em;
-    border-bottom: 1px solid #f1f1f1;
-    padding: 1.05em 1.5em;
-    font-weight: 500; color: #1d293a;
+    display: flex; align-items: center; gap: 0.7em;
+    border-bottom: 1px solid #f1f1f3;
+    padding: 0.88em 1.1em;
+    font-size: 1.01em;
+    font-weight: 700; color: #181818;
     cursor: pointer;
     background: #fff;
-    transition: background 0.13s;
+    transition: background 0.13s, color 0.13s;
+    line-height: 1.17;
+    border-radius: 0;
   }
   .filter-list li:last-child { border-bottom: none; }
   .filter-list li:active,
-  .filter-list li:hover { background: #f7f9fc; }
-  .filter-list .icon { width: 1.4em; height: 1.4em; color: #8395b2;}
-  .filter-list .chev { margin-left:auto; color: #ccd6e3; }
+  .filter-list li:hover { background: #f4f7fa; color: #2e9be6;}
+  .filter-list .icon {
+    width: 1.2em; height: 1.2em;
+    color: #181818;
+    margin-right: 0.12em;
+    flex-shrink: 0;
+  }
+  .filter-list .chev {
+    margin-left:auto; color: #c4cad6;
+    width: 1.1em; height: 1.1em; flex-shrink: 0;
+  }
   .toggle-row {
     cursor: default;
     gap: 1em;
     border-bottom: none;
-    padding-top: 1.2em;
-    padding-bottom: 1.2em;
-    color: #27364b;
+    padding-top: 1em;
+    padding-bottom: 1em;
+    color: #181818;
+    font-weight: 700;
+    font-size: 1em;
   }
   .switch {
-    position: relative; display: inline-block; width: 38px; height: 22px;
+    position: relative; display: inline-block; width: 34px; height: 19px;
+    vertical-align: middle;
   }
   .switch input { opacity: 0; width: 0; height: 0;}
   .slider {
     position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
-    background: #cfd7e6; border-radius: 11px; transition: .2s;
+    background: #ccd4e4; border-radius: 11px; transition: .2s;
   }
-  .switch input:checked + .slider { background: #0077ff; }
+  .switch input:checked + .slider { background: #2e9be6; }
   .slider:before {
-    position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px;
+    position: absolute; content: ""; height: 13px; width: 13px; left: 3px; bottom: 3px;
     background: white; border-radius: 50%; transition: .2s;
   }
-  .switch input:checked + .slider:before { transform: translateX(16px);}
+  .switch input:checked + .slider:before { transform: translateX(13px);}
   .apply-btn {
     display: block; width: calc(100% - 2.4em); margin: 1.1em auto 0 auto;
-    background: #0077ff; color: #fff; font-weight: 700;
-    border: none; border-radius: 12px; padding: 1.05em 0; font-size: 1.13em;
-    box-shadow: 0 2px 14px #0077ff33; cursor: pointer;
+    background: #2e9be6; color: #fff; font-weight: 800;
+    border: none; border-radius: 0; padding: 0.9em 0; font-size: 1.02em;
+    box-shadow: 0 2px 14px #2e9be633; cursor: pointer;
     transition: background 0.13s;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.1em;
   }
-  .apply-btn:hover { background: #005dc1; }
+  .apply-btn:hover { background: #197bb8; }
   .reset-btn {
     display: block; width: calc(100% - 2.4em); margin: 0.7em auto 0 auto;
-    background: #f2f2f4; color: #27364b; font-weight: 700;
-    border: none; border-radius: 12px; padding: 1.05em 0; font-size: 1.05em;
-    box-shadow: 0 2px 14px #fafafc33; cursor: pointer;
+    background: #f5f7fa; color: #181818; font-weight: 700;
+    border: none; border-radius: 0; padding: 0.86em 0; font-size: 0.98em;
+    box-shadow: 0 2px 14px #f7fafc2b; cursor: pointer;
     transition: background 0.13s;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.02em;
   }
-  .reset-btn:hover { background: #e5e6ee; }
+  .reset-btn:hover { background: #e7eaf2; }
   .options-list {
-    padding: 1em 1.5em 0.2em 1.5em;
+    padding: 1em 1.1em 0.2em 1.1em;
     background: #fff;
     max-height: 60vh;
     overflow-y: auto;
   }
   .checkbox-row {
-    display: flex; align-items: center; gap: 0.95em;
-    font-size: 1.13em; margin: 0.7em 0;
+    display: flex; align-items: center; gap: 0.7em;
+    font-size: 1em; margin: 0.5em 0;
+    color: #181818;
+    font-weight: 600;
+    letter-spacing: 0.01em;
   }
 </style>

@@ -35,53 +35,69 @@
 <style>
   .modal-bg {
     position: fixed; inset: 0;
-    background: #222a 0.3;
-    z-index: 1000;
+    background: #161c23cc;
+    z-index: 1100;
     display: flex; align-items: center; justify-content: center;
   }
   .sort-modal {
     background: #fff;
-    border-radius: 18px;
-    padding: 1.5em 1.3em 1.3em 1.3em;
-    max-width: 98vw;
-    min-width: 290px;
-    box-shadow: 0 2px 20px #aaa5;
+    border-radius: 0;
+    padding: 1.2em 1em 1.1em 1em;
+    max-width: 95vw;
+    min-width: 230px;
+    box-shadow: 0 3px 22px #2e9be644;
+    font-family: inherit;
   }
   .modal-header {
     display: flex; justify-content: space-between; align-items: center;
-    font-size: 1.1em; font-weight: 700; letter-spacing: 0.01em;
-    margin-bottom: 1em;
+    font-size: 1.08em;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    margin-bottom: 1.05em;
     text-transform: uppercase;
+    color: #23253c;
+    padding-bottom: 0.28em;
+    border-bottom: 1px solid #e8e8f1;
   }
   .close-btn {
-    background: none; border: none; font-size: 1.7em; color: #888;
-    cursor: pointer; border-radius: 50%; padding: 0 0.2em;
-    transition: background 0.13s;
+    background: none;
+    border: none;
+    font-size: 1.4em;
+    color: #2e9be6;
+    cursor: pointer;
+    border-radius: 0;
+    padding: 0 0.16em;
+    line-height: 1;
+    margin-left: 0.12em;
+    transition: color 0.13s, background 0.13s;
   }
-  .close-btn:hover { background: #eee; }
+  .close-btn:hover { color: #e93c2f; background: none; }
   .sort-list {
     display: flex;
     flex-direction: column;
-    gap: 1em;
+    gap: 0.5em;
+    margin-top: 0.7em;
   }
   .sort-option {
     width: 100%;
-    padding: 0.8em 0.6em;
+    min-height: 44px;
+    padding: 0.65em 0.7em;
     border: none;
-    border-radius: 10px;
+    border-radius: 0;
     background: #f8faff;
-    color: #23396a;
-    font-size: 1.12em;
-    font-weight: 600;
+    color: #181818;
+    font-size: 1.05em;      /* Match menu bar size */
+    font-weight: 700;
     text-align: left;
     cursor: pointer;
     transition: background 0.13s, color 0.13s;
     outline: none;
+    letter-spacing: 0.01em;
   }
   .sort-option.selected,
   .sort-option:focus,
   .sort-option:hover {
-    background: #e5f2fd;
-    color: #0077ff;
+    background: #e6f1fb;
+    color: #2e9be6;
   }
 </style>
