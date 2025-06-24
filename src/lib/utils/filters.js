@@ -1,5 +1,3 @@
-// src/lib/utils/filters.js
-
 // ---- Constants ----
 export const ALL_LEVELS = ['easy', 'intermediate', 'advanced'];
 
@@ -10,7 +8,7 @@ export function filtersToQuery({
   country = '',
   channel = '',
   playlist = '',
-  sort = 'new',
+  sort = 'latest',
   search = ''
 } = {}) {
   const params = new URLSearchParams();
@@ -31,7 +29,7 @@ export function filtersToQuery({
   if (channel) params.set('channel', channel);
   if (playlist) params.set('playlist', playlist);
 
-  // **Always include sort param (including 'new')**
+  // **Always include sort param (including 'latest')**
   if (sort) params.set('sort', sort);
 
   if (search) params.set('search', search);
@@ -59,7 +57,7 @@ export function queryToFilters(qs = '') {
     country: params.get('country') || '',
     channel: params.get('channel') || '',
     playlist: params.get('playlist') || '',
-    sort: params.get('sort') || 'new',
+    sort: params.get('sort') || 'latest',
     search: params.get('search') || ''
   };
 }
@@ -80,7 +78,7 @@ export function isDefaultFilters(filters) {
     !filters.country &&
     !filters.channel &&
     !filters.playlist &&
-    (!filters.sort || filters.sort === 'new') &&
+    (!filters.sort || filters.sort === 'latest') &&
     !filters.search
   );
 }
@@ -108,6 +106,6 @@ export function applyFiltersFromQueryString(qs) {
   selectedCountry.set(filters.country || '');
   selectedChannel.set(filters.channel || '');
   selectedPlaylist.set(filters.playlist || '');
-  sortBy.set(filters.sort || 'new');
+  sortBy.set(filters.sort || 'latest');
   searchTerm.set(filters.search || '');
 }

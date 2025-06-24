@@ -109,7 +109,6 @@
 		selectedCountry !== '' ||
 		selectedTags.length > 0 ||
 		selectedLevels.length !== levels.length ||
-		hideWatched !== false ||
 		searchTerm !== '' ||
 		selectedChannel !== '';
 
