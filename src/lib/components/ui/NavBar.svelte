@@ -259,6 +259,9 @@ body.dark-mode .drawer-close {
 
 /* Responsive rules */
 @media (max-width: 720px) {
+  .header {
+  padding: 0.2em 2vw;
+}
   .nav-links { display: none; }
   .menu-toggle { display: block; }
   .header { min-height: 44px; }
