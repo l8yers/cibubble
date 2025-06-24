@@ -30,7 +30,7 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 1.5rem;
-  margin: 2.5rem auto 2.5rem auto;
+  margin: 1.5rem auto 2.5rem auto;
   max-width: 1700px;
   padding: 0 2rem;
   box-sizing: border-box;

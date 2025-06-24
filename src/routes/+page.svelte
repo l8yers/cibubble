@@ -543,4 +543,5 @@
 		opacity: 0.66;
 		cursor: not-allowed;
 	}
+	
 </style>
