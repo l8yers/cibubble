@@ -1,6 +1,5 @@
 <script>
   import { goto } from '$app/navigation';
-  import { ListMusic } from 'lucide-svelte';
 
   export let video;
   export let getBestThumbnail;
@@ -8,18 +7,11 @@
   export let difficultyLabel;
   export let formatLength;
   export let filterByChannel;
-  export let filterByPlaylist;
-  export let query = ""; // 👈 New!
+  export let query = "";
 
   function makeChannelUrl(channelId) {
     const params = new URLSearchParams(query);
     params.set('channel', channelId);
-    return `/?${params.toString()}`;
-  }
-
-  function makePlaylistUrl(playlistId) {
-    const params = new URLSearchParams(query);
-    params.set('playlist', playlistId);
     return `/?${params.toString()}`;
   }
 </script>
@@ -57,18 +49,6 @@
           on:click|preventDefault={() => goto(makeChannelUrl(video.channel_id))}
         >
           {video.channel?.name ?? video.channel_name}
-        </a>
-      {/if}
-
-      {#if video.playlist_id && video.playlist?.title}
-        <a
-          class="meta-link playlist-icon"
-          title="Show all videos in this playlist"
-          href={makePlaylistUrl(video.playlist_id)}
-          on:click|preventDefault={() => goto(makePlaylistUrl(video.playlist_id))}
-        >
-          <ListMusic size={18} />
-          <span class="sr-only">{video.playlist.title}</span>
         </a>
       {/if}
     </div>
@@ -169,8 +149,10 @@
   text-shadow: 0 1px 4px #0001;
   white-space: nowrap;
 }
-.meta-link {
-  color: #252525;
+/* Remove any max-width and truncation from channel name */
+.meta-link,
+.channel-name {
+  color: #2e9be6;
   font-size: 0.97em;
   text-decoration: none;
   background: #f6f6f6;
@@ -179,43 +161,17 @@
   margin-right: 0.18em;
   font-weight: 500;
   transition: background 0.13s, color 0.13s;
-  display: flex;
-  align-items: center;
-  /* Remove line wrapping for all meta links by default */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 140px;  /* Or adjust to fit your card */
+  display: inline-block;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  max-width: none;
 }
 .meta-link:hover {
   background: #e4e4e4;
   color: #e93c2f;
 }
-.channel-name {
-  /* Limit channel name links to one line */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 140px; /* Adjust as needed for your card width */
-  display: inline-block;
-  vertical-align: bottom;
-}
-.playlist-icon :global(svg) {
-  vertical-align: middle;
-  color: #9326e9;
-}
 
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0,0,0,0);
-  white-space: nowrap;
-  border: 0;
-}
 @media (max-width: 720px) {
   .card-title {
     font-size: 0.95em;
@@ -234,8 +190,11 @@
   .meta-link,
   .channel-name {
     font-size: 0.93em;
-    max-width: 95px;
+    max-width: none;
     padding: 0.05em 0.28em;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
   }
 }
 </style>
