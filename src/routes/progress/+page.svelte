@@ -255,13 +255,21 @@
       />
 
       <div class="progress-controls-row">
-        <button class="toggle-btn subtle" aria-expanded={dailyOpen} on:click={openDailyOnly}>
-          <span class="toggle-icon">{dailyOpen ? '➖' : '➕'}</span>
-          <span class="toggle-label">Show Daily Breakdown</span>
+        <button
+          class="cibubble-btn"
+          aria-expanded={dailyOpen}
+          on:click={openDailyOnly}
+          type="button"
+        >
+          {dailyOpen ? 'Hide Daily Breakdown' : 'Show Daily Breakdown'}
         </button>
-        <button class="toggle-btn subtle" aria-expanded={manualOpen} on:click={openManualOnly}>
-          <span class="toggle-icon">{manualOpen ? '➖' : '➕'}</span>
-          <span class="toggle-label">Add Time From Outside the Platform</span>
+        <button
+          class="cibubble-btn"
+          aria-expanded={manualOpen}
+          on:click={openManualOnly}
+          type="button"
+        >
+          {manualOpen ? 'Hide Manual Time Entry' : 'Add Time From Outside the Platform'}
         </button>
       </div>
 
@@ -303,7 +311,7 @@
 
 <style>
   .profile-main {
-    max-width: 1200px;
+    max-width: 1700px;
     margin: 2.2rem auto 0 auto;
     padding: 2rem 3vw 2.3rem 3vw;
     background: #fff;
@@ -346,39 +354,31 @@
     justify-content: flex-start;
     gap: 1.4em;
     margin-bottom: 1.5em;
+    flex-wrap: wrap;
   }
-  .toggle-btn.subtle {
-    display: flex;
-    align-items: center;
-    gap: 0.5em;
-    background: none;
+  /* CIBUBBLE button style */
+  .cibubble-btn {
+    display: inline-block;
+    padding: 0.83em 2.3em;
+    font-size: 1.09em;
+    font-weight: 700;
+    background: #2562e9;
+    color: #fff;
     border: none;
-    font-size: 1.08em;
-    font-weight: 600;
-    color: #4b5771;
-    padding: 0.3em 0.4em 0.3em 0.4em;
+    border-radius: 11px;
+    box-shadow: 0 2px 9px #ececec66;
     cursor: pointer;
-    border-radius: 8px;
-    transition: background 0.13s, color 0.13s;
+    margin-right: 1em;
+    margin-bottom: 0.4em;
+    transition: background 0.16s, color 0.16s, box-shadow 0.16s;
+    letter-spacing: 0.03em;
     outline: none;
   }
-  .toggle-btn.subtle:focus,
-  .toggle-btn.subtle:hover {
-    background: #f5f5f8;
-    color: #e93c2f;
-  }
-  .toggle-icon {
-    font-size: 1.24em;
-    color: #a3a3b2;
-    transition: color 0.14s;
-  }
-  .toggle-btn.subtle:hover .toggle-icon {
-    color: #e93c2f;
-  }
-  .toggle-label {
-    font-weight: 500;
-    font-size: 1em;
-    letter-spacing: 0.01em;
+  .cibubble-btn:hover,
+  .cibubble-btn:focus {
+    background: #e93c2f;
+    color: #fff;
+    box-shadow: 0 3px 12px #e93c2f22;
   }
   /* Mobile tweaks */
   @media (max-width: 600px) {
@@ -396,6 +396,13 @@
     .progress-controls-row {
       flex-direction: column;
       gap: 1em;
+    }
+    .cibubble-btn {
+      width: 100%;
+      margin-right: 0;
+      margin-bottom: 0.8em;
+      font-size: 1em;
+      padding: 1em 0.7em;
     }
     .history-link-row {
       margin-top: 0.8em;

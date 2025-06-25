@@ -1,5 +1,5 @@
 <script>
-  import VideoCard from '$lib/components/home/VideoCard.svelte';
+  import HistoryVideoCard from '$lib/components/progress/HistoryVideoCard.svelte';
   export let watchedVideos = [];
   export let utils;
 </script>
@@ -15,7 +15,7 @@
     <div class="history-row">
       {#each watchedVideos.slice(0, 15) as v}
         <div class="history-card">
-          <VideoCard
+          <HistoryVideoCard
             video={v}
             getBestThumbnail={utils.getBestThumbnail}
             difficultyColor={utils.difficultyColor}
@@ -54,12 +54,13 @@
 }
 .history-row {
   display: flex;
-  gap: 1.5em;
+  gap: 0.1em;    /* Reduced gap */
   overflow-x: auto;
-  padding-bottom: 0.7em;
+  padding-bottom: 0.5em;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
 }
+
 .history-row::-webkit-scrollbar {
   height: 9px;
   background: #f6f6f6;
@@ -69,11 +70,17 @@
   border-radius: 6px;
 }
 .history-card {
-  flex: 0 0 300x;
-  min-width: 300px;
+  flex: 0 0 340px;
+  min-width: 340px;
   max-width: 400px;
   scroll-snap-align: start;
+  background: none;
 }
+
+/* Smaller badge & channel just for history card */
+
+
+
 @media (max-width: 650px) {
   .history-card {
     flex-basis: 92vw;
@@ -84,4 +91,5 @@
     gap: 1em;
   }
 }
+
 </style>

@@ -33,54 +33,74 @@
   </div>
 {/if}
 
+
 <style>
-.section-title {
-  color: #181818;
-  font-size: 1.25rem;
-  font-weight: bold;
-  letter-spacing: 0.3px;
-}
 .table-card {
   background: #fff;
-  border-radius: 18px;
-  box-shadow: 0 2px 8px #e5e5f322;
-  padding: 1.4em 2.3em 1.7em 2.3em;
-  margin-top: 0.6em;
-  margin-bottom: 1.2em;
-  max-width: 820px;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px #ececec55;
+  padding: 2.2em 2.6em 2.2em 2.6em;
+  margin: 2em auto 2em auto;
+  max-width: 1700px;
   width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #ececec;
 }
-.daily-totals-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: transparent;
-  font-size: 1.09em;
-}
-.daily-totals-table th,
-.daily-totals-table td {
-  padding: 0.8em 1.1em;
-  text-align: left;
-}
-.daily-totals-table th {
-  background: #f2f5f7;
-  color: #47476b;
-  font-weight: bold;
-  border-bottom: 1px solid #e7e7ed;
-}
-.daily-totals-table tr:nth-child(even) td {
-  background: #f9f9fd;
-}
-.daily-totals-table tr:hover td {
-  background: #f5f6fb;
-}
-.empty-row {
-  color: #888;
-  margin: 1em 0 1.3em 0;
+
+@media (max-width: 1200px) {
+  .table-card {
+    max-width: 1100px;
+    padding: 1.5em 1.2em 1.7em 1.2em;
+  }
 }
 @media (max-width: 900px) {
   .table-card {
-    padding: 1.1em 0.7em;
-    max-width: 98vw;
+    max-width: 700px;
+    padding: 1.1em 0.7em 1.1em 0.7em;
   }
+}
+@media (max-width: 600px) {
+  .table-card {
+    max-width: 100vw;
+    border-radius: 0;
+    margin: 0;
+    padding: 0.9em 0.3em 1em 0.3em;
+  }
+}
+
+/* ----- Daily Totals Table ----- */
+.daily-totals-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 1.09em;
+  background: transparent;
+}
+
+.daily-totals-table th,
+.daily-totals-table td {
+  padding: 0.85em 1.2em;
+  text-align: left;
+}
+
+.daily-totals-table th {
+  background: #f6f7fb;
+  color: #45457a;
+  font-weight: bold;
+  border-bottom: 1.5px solid #e3e3f1;
+  font-size: 1.02em;
+}
+
+.daily-totals-table tr:nth-child(even) td {
+  background: #f9fafd;
+}
+.daily-totals-table tr:hover td {
+  background: #f5f6fa;
+}
+
+.empty-row {
+  color: #b5b5c7;
+  margin: 1em 0 1.3em 0;
+  text-align: center;
+  font-style: italic;
 }
 </style>

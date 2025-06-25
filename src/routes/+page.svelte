@@ -5,6 +5,7 @@
 
 	import VideoGrid from '$lib/components/home/VideoGrid.svelte';
 	import SortBar from '$lib/components/home/SortBar.svelte';
+	import SortBarTablet from '$lib/components/home/SortBarTablet.svelte';
 	import FilterChip from '$lib/components/home/FilterChip.svelte';
 	import LoadingSpinner from '$lib/components/home/LoadingSpinner.svelte';
 	import ErrorMessage from '$lib/components/home/ErrorMessage.svelte';
@@ -38,7 +39,8 @@
 	import { userChannels } from '$lib/stores/userChannels.js';
 	import { getUserSavedChannels } from '$lib/api/userChannels.js';
 
-	const isMobile = writable(false);
+	import { isMobile, isTablet } from '$lib/stores/screen.js';
+
 	let mounted = false;
 	let showSortDropdown = false;
 	let showFullPageFilter = false;
@@ -46,12 +48,6 @@
 
 	onMount(() => {
 		mounted = true;
-		function check() {
-			isMobile.set(window.innerWidth <= 700);
-		}
-		check();
-		window.addEventListener('resize', check);
-		return () => window.removeEventListener('resize', check);
 	});
 
 	const PAGE_SIZE = 36;
@@ -336,9 +332,31 @@
 </script>
 
 <div class="page-container">
-	{#if mounted && !$isMobile}
+	{#if mounted && !$isMobile && !$isTablet}
+		<!-- DESKTOP: SortBar only -->
 		<div class="sortbar-container">
 			<SortBar
+				{levels}
+				{sortChoices}
+				{countryOptions}
+				{tagOptions}
+				selectedLevels={Array.from($selectedLevels)}
+				sortBy={$sortBy}
+				selectedCountry={$selectedCountry}
+				selectedTags={Array.from($selectedTags)}
+				hideWatched={$hideWatched}
+				searchTerm={$searchTerm}
+				{searchOpen}
+				myChannels={$userChannels}
+				selectedChannel={$selectedChannel}
+				on:change={handleSortBarChange}
+			/>
+		</div>
+	{:else if mounted && $isTablet}
+		<!-- TABLET: SortBarTablet only -->
+		<div class="sortbar-container">
+			<p>TABLE SORTBAR!!!</p>
+			<SortBarTablet
 				{levels}
 				{sortChoices}
 				{countryOptions}

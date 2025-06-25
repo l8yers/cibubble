@@ -6,35 +6,36 @@
   --advanced: #dc2626;
 }
 
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
+/* Reset & base */
+*, *::before, *::after { box-sizing: border-box; }
 
 html, body {
   margin: 0;
   padding: 0;
   color: #181818;
-  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;}
-
-body { background: none; }
-
-a {
-  color: var(--accent);
-  text-decoration: none;
-}
-a:hover {
-  color: var(--accent-hover);
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  background: #fafbff;
+  min-height: 100vh;
 }
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 1rem;
-}
+/* Links */
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-hover); }
 
+/* Utility classes */
+.container { max-width: 1200px; margin: 0 auto; padding: 1rem; }
 .text-center { text-align: center; }
 .mt-1 { margin-top: 1rem; }
 .mb-1 { margin-bottom: 1rem; }
 
-/* a comment  */
+/* Buttons and form elements */
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: 1em;
+}
+
+/* Images */
+img { max-width: 100%; display: block; }
+
+/* Headings (optional) */
+h1, h2, h3, h4, h5 { font-family: inherit; font-weight: 700; color: #222; margin-top: 0.7em; margin-bottom: 0.4em; }
