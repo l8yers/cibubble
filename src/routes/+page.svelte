@@ -19,7 +19,6 @@
 
 	import {
 		selectedChannel,
-		selectedPlaylist,
 		selectedLevels,
 		sortBy,
 		selectedCountry,
@@ -116,7 +115,6 @@
 			tags: Array.from(get(selectedTags)).join(','),
 			country: get(selectedCountry),
 			channel: channelFilter,
-			playlist: get(selectedPlaylist),
 			sort: get(sortBy),
 			search: get(searchTerm)
 		});
@@ -173,7 +171,6 @@
 			selectedTags,
 			selectedCountry,
 			selectedChannel,
-			selectedPlaylist,
 			sortBy,
 			searchTerm,
 			get
@@ -211,7 +208,6 @@
 			selectedTags,
 			selectedCountry,
 			selectedChannel,
-			selectedPlaylist,
 			sortBy,
 			searchTerm,
 			get
@@ -237,7 +233,6 @@
 			selectedTags,
 			selectedCountry,
 			selectedChannel,
-			selectedPlaylist,
 			sortBy,
 			searchTerm,
 			get
@@ -251,35 +246,6 @@
 			selectedTags,
 			selectedCountry,
 			selectedChannel,
-			selectedPlaylist,
-			sortBy,
-			searchTerm,
-			get
-		});
-		resetAndFetch();
-	}
-	function filterByPlaylist(playlistId) {
-		selectedPlaylist.set(playlistId);
-		updateUrlFromFilters({
-			selectedLevels,
-			selectedTags,
-			selectedCountry,
-			selectedChannel,
-			selectedPlaylist,
-			sortBy,
-			searchTerm,
-			get
-		});
-		resetAndFetch();
-	}
-	function clearPlaylistFilter() {
-		selectedPlaylist.set('');
-		updateUrlFromFilters({
-			selectedLevels,
-			selectedTags,
-			selectedCountry,
-			selectedChannel,
-			selectedPlaylist,
 			sortBy,
 			searchTerm,
 			get
@@ -299,7 +265,6 @@
 		selectedTags.set(filters.tags.size ? filters.tags : new Set());
 		selectedCountry.set(filters.country || '');
 		selectedChannel.set(filters.channel || '');
-		selectedPlaylist.set(filters.playlist || '');
 		sortBy.set(filters.sort || 'latest');
 		searchTerm.set(filters.search || '');
 
@@ -318,7 +283,6 @@
 		selectedTags.set(filters.tags.size ? filters.tags : new Set());
 		selectedCountry.set(filters.country || '');
 		selectedChannel.set(filters.channel || '');
-		selectedPlaylist.set(filters.playlist || '');
 		sortBy.set(filters.sort || 'latest');
 		searchTerm.set(filters.search || '');
 
@@ -359,30 +323,17 @@
 	{/if}
 
 	<div class="content-container">
-		{#if ($selectedChannel && $selectedChannel !== '__ALL__') || $selectedPlaylist}
+		{#if $selectedChannel && $selectedChannel !== '__ALL__'}
 			<div class="chips-row">
-				{#if $selectedChannel && $selectedChannel !== '__ALL__'}
-					<FilterChip
-						type="info"
-						label="Filtered by channel"
-						value={$videos.length > 0
-							? ($videos[0].channel?.name ?? $videos[0].channel_name ?? $selectedChannel)
-							: $selectedChannel}
-						onClear={clearChannelFilter}
-						clearClass="clear-btn--blue"
-					/>
-				{/if}
-				{#if $selectedPlaylist}
-					<FilterChip
-						type="warning"
-						label="Filtered by playlist"
-						value={$videos.length > 0
-							? ($videos[0].playlist?.title ?? $selectedPlaylist)
-							: $selectedPlaylist}
-						onClear={clearPlaylistFilter}
-						clearClass="clear-btn--purple"
-					/>
-				{/if}
+				<FilterChip
+					type="info"
+					label="Filtered by channel"
+					value={$videos.length > 0
+						? ($videos[0].channel?.name ?? $videos[0].channel_name ?? $selectedChannel)
+						: $selectedChannel}
+					onClear={clearChannelFilter}
+					clearClass="clear-btn--blue"
+				/>
 			</div>
 		{/if}
 
@@ -394,7 +345,6 @@
 				difficultyLabel={utils.difficultyLabel}
 				formatLength={utils.formatLength}
 				{filterByChannel}
-				{filterByPlaylist}
 				query={$page.url.search}
 			/>
 			{#if $sortBy === 'random'}
