@@ -163,7 +163,7 @@
 }
 .mobile-drawer {
   background: #fff;
-  width: 75vw;
+  width: 55vw;
   max-width: 340px;
   min-width: 210px;
   height: 100vh;
