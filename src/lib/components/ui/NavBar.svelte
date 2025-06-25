@@ -253,12 +253,29 @@ body.dark-mode .drawer-item:hover, body.dark-mode .drawer-item:focus {
 body.dark-mode .drawer-close {
   color: #6bb8ff;
 }
+@media (max-width: 720px) {
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 2100; /* Higher than drawer, lower than modal overlay */
+    background: #fff;
+    padding: 0.2em 2vw;
+    min-height: 44px;
+  }
+  .nav-links { display: none; }
+  .menu-toggle { display: block; }
+  .logo-img {
+    height: 2.15em !important;
+    max-height: 40px !important;
+  }
+}
 
 /* Responsive rules */
 @media (max-width: 720px) {
   .header {
   padding: 0.2em 2vw;
 }
+
   .nav-links { display: none; }
   .menu-toggle { display: block; }
   .header { min-height: 44px; }
@@ -271,4 +288,5 @@ body.dark-mode .drawer-close {
 @media (min-width: 721px) {
   .drawer-backdrop, .mobile-drawer { display: none !important; }
 }
+
 </style>
