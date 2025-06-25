@@ -5,7 +5,6 @@
 	import { user } from '$lib/stores/user.js';
 	import SideBar from '$lib/components/player/SideBar.svelte';
 	import PlayerVideoBox from '$lib/components/player/PlayerVideoBox.svelte';
-	import AddToMyChannelsButton from '$lib/components/player/AddToMyChannelsButton.svelte';
 	import PlayerMetaRow from '$lib/components/player/PlayerMetaRow.svelte';
 	import ChannelTagsBlock from '$lib/components/player/ChannelTagsBlock.svelte';
 	import TagModal from '$lib/components/player/TagModal.svelte';
@@ -177,28 +176,12 @@
 	}
 
 	const tagColors = [
-		'#b5e0fa',
-		'#ffdfab',
-		'#c6f6d5',
-		'#fcbad3',
-		'#ffe066',
-		'#b8b5ff',
-		'#ffd6a5',
-		'#f9f871',
-		'#d0f4de',
-		'#b4f8c8'
+		'#b5e0fa', '#ffdfab', '#c6f6d5', '#fcbad3', '#ffe066',
+		'#b8b5ff', '#ffd6a5', '#f9f871', '#d0f4de', '#b4f8c8'
 	];
 	const tagTextColors = [
-		'#235085',
-		'#965200',
-		'#236048',
-		'#aa234b',
-		'#7c6d10',
-		'#413b7b',
-		'#9e5d13',
-		'#868017',
-		'#226352',
-		'#257055'
+		'#235085', '#965200', '#236048', '#aa234b', '#7c6d10',
+		'#413b7b', '#9e5d13', '#868017', '#226352', '#257055'
 	];
 
 	$: tagArray = Array.isArray(video?.channel?.tags)
@@ -232,14 +215,12 @@
 			let updatedTags = [...tagArray, tag];
 			let tagsPayload = Array.isArray(video.channel.tags) ? updatedTags : updatedTags.join(',');
 
-			// 1. Channel update only!
 			let chRes = await supabase
 				.from('channels')
 				.update({ tags: tagsPayload })
 				.eq('id', video.channel_id);
 			if (chRes.error) throw chRes.error;
 
-			// 2. Upsert for global tags table (optional, for tag cloud/autocomplete)
 			let tRes = await supabase.from('tags').upsert([{ name: tag }], { onConflict: ['name'] });
 			if (tRes.error) throw tRes.error;
 
@@ -276,24 +257,15 @@
 			<PlayerVideoBox {video} user={$user} {suggestions} {autoplayValue} {handlePlayNextVideo} />
 
 			<div class="player-content">
-				<div class="player-title-block">
-					<div class="player-title-row">
-						<div class="player-title">{video.title}</div>
-						{#if $user && video?.channel_id}
-							<div class="add-to-channels-wrapper">
-								<AddToMyChannelsButton {isChannelSaved} {savingChannel} {saveChannelToMyChannels} />
-							</div>
-						{/if}
-					</div>
-					{#if video?.channel?.name}
-						<div class="player-channel">{video.channel.name}</div>
-					{/if}
-				</div>
-
-				<!-- Meta row above tags -->
-				<div class="player-meta-row">
-					<PlayerMetaRow {video} {utils} />
-				</div>
+				<!-- All meta info block handled in PlayerMetaRow -->
+				<PlayerMetaRow
+					{video}
+					{utils}
+					user={$user}
+					isChannelSaved={isChannelSaved}
+					savingChannel={savingChannel}
+					saveChannelToMyChannels={saveChannelToMyChannels}
+				/>
 
 				<ChannelTagsBlock
 					{tagArray}
@@ -338,6 +310,7 @@
 		</aside>
 	</div>
 {/if}
+
 <style>
 .player-container {
 	display: grid;
@@ -371,52 +344,6 @@
 	width: 100%;
 	max-width: 100%;
 	display: block;
-}
-
-/* Title block: column stack overall */
-.player-title-block {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	margin-bottom: 0.6em;
-	gap: 0.16em;
-	width: 100%;
-}
-
-/* Title row: title left, button right */
-.player-title-row {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	justify-content: space-between;
-	gap: 1.2em;
-	width: 100%;
-}
-
-.player-title {
-	font-size: 1.38rem;
-	font-weight: 800;
-	color: #1a1a1a;
-	line-height: 1.21;
-	overflow-wrap: anywhere;
-	flex: 1 1 auto;
-	min-width: 0;
-	margin-bottom: 0.13em;
-	margin-top: 0.5em;
-}
-
-.add-to-channels-wrapper {
-	flex-shrink: 0;
-	display: flex;
-	align-items: center;
-}
-
-.player-channel {
-	font-size: 1.05rem;
-	font-weight: 500;
-	color: #435576;
-	margin-bottom: 0.18em;
-	letter-spacing: 0.01em;
 }
 
 .player-content,
@@ -467,70 +394,14 @@
 	.player-sidebar {
 		display: none;
 	}
-	.player-title-block {
-		margin-bottom: 0.29em;
-		gap: 0.07em;
-	}
-	.player-title-row {
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 0.12em;
-		width: 100%;
-	}
-	.player-title {
-		font-size: 1rem;
-		font-weight: 800;
-		letter-spacing: 0.015em;
-		color: #232346;
-		margin-bottom: 0.08em;
-		margin-top: 0.25em;
-		width: 100%;
-		line-height: 1.18;
-		overflow-wrap: anywhere;
-		text-shadow: 0 1.5px 0 #fff3, 0 0.5px 0 #fff1;
-	}
-	.player-channel {
-		font-size: 0.96rem;
-		color: #5a6692;
-		margin-bottom: 0.09em;
-	}
-	.add-to-channels-wrapper {
-		width: 100%;
-		padding-top: 0.13em;
-		justify-content: flex-start;
-	}
-	.player-main-col > :first-child,
-	.player-main-col video,
-	.player-main-col iframe,
-	.PlayerVideoBox {
-		width: 100vw !important;
-		max-width: 100vw !important;
-		margin: 0 !important;
-		padding: 0 !important;
-		border-radius: 0;
-		background: #000;
-		box-shadow: none;
-		min-height: 205px;
-		aspect-ratio: 16/9;
-	}
 	.player-content,
 	.player-meta-row,
 	.mobile-suggestions-block {
 		margin-left: 0.55rem;
 		margin-right: 0.55rem;
 	}
-	/* Meta, tags, tag success: smaller text on mobile */
-	.player-meta-row,
-	.ChannelTagsBlock,
 	.tag-success {
 		font-size: 0.91rem !important;
-	}
-	/* Tags and tag input/buttons smaller */
-	.ChannelTagsBlock .tag,
-	.ChannelTagsBlock button,
-	.ChannelTagsBlock input {
-		font-size: 0.9em !important;
-		padding: 0.18em 0.55em !important;
 	}
 	.mobile-suggestions-block {
 		flex: 1 1 0;
