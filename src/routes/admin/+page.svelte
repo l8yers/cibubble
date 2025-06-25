@@ -5,7 +5,7 @@
   import AdminCsvUploadBar from '$lib/components/admin/AdminCsvUploadBar.svelte';
   import AdminSearchBar from '$lib/components/admin/AdminSearchBar.svelte';
   import AdminChannelTable from '$lib/components/admin/AdminChannelTable.svelte';
-  import { stripAccent, normalizeTags, parseCsv } from '$lib/utils/adminutils.js';
+  import { stripAccent, normalizeTags, parseCsv } from '$lib/utils/adminUtils.js';
 
   // === SINGLE CHANNEL FETCH STATE ===
   let singleChannelUrl = '';
