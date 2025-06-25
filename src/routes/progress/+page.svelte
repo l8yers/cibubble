@@ -360,7 +360,7 @@
   .cibubble-btn {
     display: inline-block;
     padding: 0.83em 2.3em;
-    font-size: 1.09em;
+    font-size: 0.8em;
     font-weight: 700;
     background: #2562e9;
     color: #fff;

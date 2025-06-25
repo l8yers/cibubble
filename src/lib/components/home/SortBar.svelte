@@ -18,7 +18,7 @@
 
 	const dispatch = createEventDispatcher();
 
-	// --- Dropdown state
+	// Dropdown state
 	let showSortDropdown = false;
 	let showLevelDropdown = false;
 	let showCountryDropdown = false;
@@ -93,7 +93,7 @@
 		});
 	}
 
-	// --- Dropdown close on outside click ---
+	// Dropdown close on outside click
 	function handleDocumentClick(event) {
 		if (showSortDropdown && sortDropdownRef && !sortDropdownRef.contains(event.target))
 			showSortDropdown = false;
@@ -155,7 +155,7 @@
 		<!-- Sort Dropdown -->
 		<div class="dropdown" bind:this={sortDropdownRef}>
 			<button class="dropdown-btn" aria-expanded={showSortDropdown} on:click={() => (showSortDropdown = !showSortDropdown)} type="button">
-				<ArrowDownUp size={18} style="margin-right:7px;vertical-align:-3px;color:#2e9be6;" />
+				<ArrowDownUp size={18} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
 				Sort by
 				<svg width="12" height="9" style="margin-left:7px;" fill="none">
 					<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
@@ -177,7 +177,7 @@
 		<!-- Levels Dropdown -->
 		<div class="dropdown" bind:this={levelsDropdownRef}>
 			<button class="dropdown-btn" aria-expanded={showLevelDropdown} on:click={() => (showLevelDropdown = !showLevelDropdown)} type="button">
-				<BarChart3 size={18} style="margin-right:7px;vertical-align:-3px;color:#f365a0;" />
+				<BarChart3 size={18} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
 				Levels
 				<svg width="12" height="9" style="margin-left:7px;" fill="none">
 					<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
@@ -211,7 +211,7 @@
 			<!-- Individual Dropdowns on Desktop -->
 			<div class="dropdown" bind:this={tagDropdownRef}>
 				<button class="dropdown-btn" aria-expanded={showTagDropdown} on:click={() => (showTagDropdown = !showTagDropdown)} type="button">
-					<Tag size={18} style="margin-right:7px;vertical-align:-3px;color:#f2a02b;" />
+					<Tag size={18} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
 					Tags
 					<svg width="12" height="9" style="margin-left:7px;" fill="none">
 						<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
@@ -261,7 +261,7 @@
 			</div>
 			<div class="dropdown" bind:this={countryDropdownRef}>
 				<button class="dropdown-btn" aria-expanded={showCountryDropdown} on:click={() => (showCountryDropdown = !showCountryDropdown)} type="button">
-					<Earth size={18} style="margin-right:7px;vertical-align:-3px;color:#c367f2;" />
+					<Earth size={18} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
 					Country
 					<svg width="12" height="9" style="margin-left:7px;" fill="none">
 						<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
@@ -293,7 +293,7 @@
 			{#if myChannels && myChannels.length}
 				<div class="dropdown" bind:this={myChannelsDropdownRef}>
 					<button class="dropdown-btn" aria-expanded={showMyChannelsDropdown} on:click={() => (showMyChannelsDropdown = !showMyChannelsDropdown)} type="button">
-						<User size={18} style="margin-right:7px;vertical-align:-3px;color:#7950f2;" />
+						<User size={18} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
 						My Channels
 						<svg width="12" height="9" style="margin-left:7px;" fill="none">
 							<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
@@ -341,7 +341,7 @@
 			<!-- TABLET: More Dropdown for Tags, Country, Channels -->
 			<div class="dropdown" bind:this={moreDropdownRef}>
 				<button class="dropdown-btn" aria-expanded={showMoreDropdown} on:click={() => (showMoreDropdown = !showMoreDropdown)} type="button">
-					<MoreHorizontal size={18} style="margin-right:7px;vertical-align:-3px;color:#888;" />
+					<MoreHorizontal size={18} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
 					More
 					<svg width="12" height="9" style="margin-left:7px;" fill="none">
 						<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
@@ -472,12 +472,11 @@
 				/>
 			{/if}
 			<button class="search-toggle" title="Search" on:click={handleToggleSearch} aria-label="Search">
-				<Search size={22} style="color:#2e9be6;" />
+				<Search size={22} style="color:currentColor;" />
 			</button>
 		</div>
 	</div>
 </div>
-
 
 <style>
 /* --- SORTBAR WRAPPER --- */
@@ -625,9 +624,9 @@
   transition: border 0.13s, background 0.13s, color 0.13s;
 }
 .hide-watched-btn[aria-pressed="true"] {
-  background: #fd2b2330;
+  background: #fdfdff;
   color: #e93c2f;
-  border: 1.3px solid #fd2b23;
+  border: 1.3px solid #e7e7f6;
 }
 .switch-slider {
   width: 36px;
@@ -731,14 +730,11 @@
     margin-top: 0.7em;
   }
 }
-
 @media (max-width: 900px) {
   .controls-bar {
     gap: 1em;
   }
 }
-
-
 @media (max-width: 700px) {
   .controls-bar {
     gap: 0.6em;
