@@ -276,12 +276,17 @@
 			<PlayerVideoBox {video} user={$user} {suggestions} {autoplayValue} {handlePlayNextVideo} />
 
 			<div class="player-content">
-				<div class="player-title-row">
-					<div class="player-title">{video.title}</div>
-					{#if $user && video?.channel_id}
-						<div class="add-to-channels-wrapper">
-							<AddToMyChannelsButton {isChannelSaved} {savingChannel} {saveChannelToMyChannels} />
-						</div>
+				<div class="player-title-block">
+					<div class="player-title-row">
+						<div class="player-title">{video.title}</div>
+						{#if $user && video?.channel_id}
+							<div class="add-to-channels-wrapper">
+								<AddToMyChannelsButton {isChannelSaved} {savingChannel} {saveChannelToMyChannels} />
+							</div>
+						{/if}
+					</div>
+					{#if video?.channel?.name}
+						<div class="player-channel">{video.channel.name}</div>
 					{/if}
 				</div>
 
@@ -333,9 +338,7 @@
 		</aside>
 	</div>
 {/if}
-
 <style>
-
 .player-container {
 	display: grid;
 	grid-template-columns: 1fr 380px;
@@ -345,8 +348,8 @@
 	margin-top: 2rem;
 	height: 100vh;
 	min-height: 100vh;
-	    overflow: hidden;
-    width: 100vw;
+	overflow: hidden;
+	width: 100vw;
 }
 
 .player-main-col {
@@ -370,19 +373,24 @@
 	display: block;
 }
 
-.player-content,
-.player-meta-row,
-.mobile-suggestions-block {
-	margin-left: 1.1rem;
-	margin-right: 1.1rem;
+/* Title block: column stack overall */
+.player-title-block {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	margin-bottom: 0.6em;
+	gap: 0.16em;
+	width: 100%;
 }
 
+/* Title row: title left, button right */
 .player-title-row {
 	display: flex;
+	flex-direction: row;
 	align-items: center;
 	justify-content: space-between;
 	gap: 1.2em;
-	margin-bottom: 0.5em;
+	width: 100%;
 }
 
 .player-title {
@@ -393,8 +401,29 @@
 	overflow-wrap: anywhere;
 	flex: 1 1 auto;
 	min-width: 0;
-	margin-bottom: 0.7em;
+	margin-bottom: 0.13em;
 	margin-top: 0.5em;
+}
+
+.add-to-channels-wrapper {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+}
+
+.player-channel {
+	font-size: 1.05rem;
+	font-weight: 500;
+	color: #435576;
+	margin-bottom: 0.18em;
+	letter-spacing: 0.01em;
+}
+
+.player-content,
+.player-meta-row,
+.mobile-suggestions-block {
+	margin-left: 0;
+	margin-right: 0;
 }
 
 .player-loading {
@@ -438,28 +467,37 @@
 	.player-sidebar {
 		display: none;
 	}
+	.player-title-block {
+		margin-bottom: 0.29em;
+		gap: 0.07em;
+	}
 	.player-title-row {
 		flex-direction: column;
 		align-items: flex-start;
-		gap: 0.2em;
-		margin-bottom: 0.5em;
+		gap: 0.12em;
 		width: 100%;
 	}
-.player-title {
+	.player-title {
 		font-size: 1rem;
 		font-weight: 800;
 		letter-spacing: 0.015em;
 		color: #232346;
-		margin-bottom: 0.29em;
+		margin-bottom: 0.08em;
 		margin-top: 0.25em;
 		width: 100%;
 		line-height: 1.18;
 		overflow-wrap: anywhere;
-		text-shadow:
-			0 1.5px 0 #fff3,
-			0 0.5px 0 #fff1;
-		text-transform: none;
-
+		text-shadow: 0 1.5px 0 #fff3, 0 0.5px 0 #fff1;
+	}
+	.player-channel {
+		font-size: 0.96rem;
+		color: #5a6692;
+		margin-bottom: 0.09em;
+	}
+	.add-to-channels-wrapper {
+		width: 100%;
+		padding-top: 0.13em;
+		justify-content: flex-start;
 	}
 	.player-main-col > :first-child,
 	.player-main-col video,
@@ -481,9 +519,6 @@
 		margin-left: 0.55rem;
 		margin-right: 0.55rem;
 	}
-	.add-to-channels-wrapper {
-		display: none !important;
-	}
 	/* Meta, tags, tag success: smaller text on mobile */
 	.player-meta-row,
 	.ChannelTagsBlock,
@@ -497,35 +532,36 @@
 		font-size: 0.9em !important;
 		padding: 0.18em 0.55em !important;
 	}
-}
-@media (max-width: 800px) {
-  html, body {
-    height: 100vh;
-    overflow: hidden;
-    position: fixed;
-    width: 100vw;
-  }
-  .player-container {
-    height: 100vh;
-    min-height: 100vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-  .player-main-col {
-    flex: 1 1 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    min-height: 0;
-  }
-  .mobile-suggestions-block {
-    flex: 1 1 0;
-    overflow-y: auto;
-    min-height: 0;
-    max-height: 100%;
-    -webkit-overflow-scrolling: touch;
-  }
+	.mobile-suggestions-block {
+		flex: 1 1 0;
+		overflow-y: auto;
+		min-height: 0;
+		max-height: 100%;
+		-webkit-overflow-scrolling: touch;
+	}
 }
 
+@media (max-width: 800px) {
+	html,
+	body {
+		height: 100vh;
+		overflow: hidden;
+		position: fixed;
+		width: 100vw;
+	}
+	.player-container {
+		height: 100vh;
+		min-height: 100vh;
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+	}
+	.player-main-col {
+		flex: 1 1 0;
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+		min-height: 0;
+	}
+}
 </style>

@@ -10,7 +10,6 @@
   >
     {utils.difficultyLabel(video.level)}
   </span>
-  <span class="player-channel">{video.channel?.name ?? video.channel_name}</span>
   {#if video.length}
     <span class="player-duration">{utils.formatLength(video.length)}</span>
   {/if}
