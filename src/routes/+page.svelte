@@ -71,6 +71,21 @@
 	let countryOptions = COUNTRY_OPTIONS;
 	let tagOptions = TAG_OPTIONS;
 
+	function saveFiltersToStorage(filters) {
+		try {
+			localStorage.setItem('cibubble-filters', JSON.stringify(filters));
+		} catch (_) {}
+	}
+
+	function loadFiltersFromStorage() {
+		try {
+			const data = localStorage.getItem('cibubble-filters');
+			return data ? JSON.parse(data) : null;
+		} catch {
+			return null;
+		}
+	}
+
 	function setupObserver() {
 		if (observerInstance) {
 			observerInstance.disconnect();
@@ -257,12 +272,23 @@
 	let lastQuery = '';
 
 	onMount(() => {
-		const filters = queryToFilters($page.url.search);
-		const safeLevels = new Set(Array.from(filters.levels).filter((lvl) => validLevels.has(lvl)));
+		let filters;
+		if ($page.url.search && $page.url.search.length > 1) {
+			// Query string present: use that, save to storage
+			filters = queryToFilters($page.url.search);
+			saveFiltersToStorage(filters);
+		} else {
+			// No query string: try to restore from storage
+			filters = loadFiltersFromStorage() || {};
+		}
+
+		const safeLevels = new Set(
+			Array.from(filters.levels || []).filter((lvl) => validLevels.has(lvl))
+		);
 		selectedLevels.set(
 			safeLevels.size ? safeLevels : new Set(['easy', 'intermediate', 'advanced'])
 		);
-		selectedTags.set(filters.tags.size ? filters.tags : new Set());
+		selectedTags.set(filters.tags && filters.tags.length ? new Set(filters.tags) : new Set());
 		selectedCountry.set(filters.country || '');
 		selectedChannel.set(filters.channel || '');
 		sortBy.set(filters.sort || 'new');
@@ -298,6 +324,15 @@
 	} else {
 		userChannels.set([]);
 	}
+
+	$: saveFiltersToStorage({
+		levels: Array.from($selectedLevels),
+		tags: Array.from($selectedTags),
+		country: $selectedCountry,
+		channel: $selectedChannel,
+		sort: $sortBy,
+		search: $searchTerm
+	});
 </script>
 
 <div class="page-container">
