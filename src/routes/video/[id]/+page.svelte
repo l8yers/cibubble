@@ -11,6 +11,7 @@
 	import * as utils from '$lib/utils/utils.js';
 	import { goto } from '$app/navigation';
 	import { autoplay } from '$lib/stores/autoplay.js';
+	import VideoWatchTracker from '$lib/components/VideoWatchTracker.svelte';
 
 	let video = null;
 	let loading = true;
