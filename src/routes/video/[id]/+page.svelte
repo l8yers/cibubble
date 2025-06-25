@@ -12,6 +12,10 @@
 	import { goto } from '$app/navigation';
 	import { autoplay } from '$lib/stores/autoplay.js';
 	import VideoWatchTracker from '$lib/components/VideoWatchTracker.svelte';
+	import { shuffle, parseTags, fetchSuggestions } from '$lib/utils/videoUtils.js';
+
+	// >>>>> NEW TAG LOGIC
+	import * as tagUtils from '$lib/utils/playerTags.js';
 
 	let video = null;
 	let loading = true;
@@ -24,16 +28,8 @@
 	let savingChannel = false;
 	let isChannelSaved = false;
 
-	// Tag modal state/logic
-	let showTagModal = false;
-	let newTag = '';
-	let tagAdding = false;
-	let tagAddError = '';
-	let tagSuccess = false;
-	let tagSuccessTimeout = null;
-	let confirmStep = false;
-	let allTags = [];
-	let tagCloudLoading = false;
+	// --- Tag state from external util
+	let tagState = tagUtils.getInitialTagState();
 
 	$: id = $page.params.id;
 	$: if (id) initializePlayer();
@@ -47,30 +43,21 @@
 
 	onDestroy(() => {
 		if (unsubscribe) unsubscribe();
-		if (tagSuccessTimeout) clearTimeout(tagSuccessTimeout);
+		if (tagState.tagSuccessTimeout) clearTimeout(tagState.tagSuccessTimeout);
 	});
 
-	function closeTagModal() {
-		showTagModal = false;
-		confirmStep = false;
-		newTag = '';
-		tagAddError = '';
-		tagAdding = false;
-	}
-
 	async function loadTagCloud() {
-		tagCloudLoading = true;
+		tagState.tagCloudLoading = true;
 		const { data } = await supabase.rpc('get_popular_tags');
-		allTags = (data || []).map((t) => t.tag).filter(Boolean);
-		tagCloudLoading = false;
+		tagState.allTags = (data || []).map((t) => t.tag).filter(Boolean);
+		tagState.tagCloudLoading = false;
 	}
 
 	function openTagModal() {
-		showTagModal = true;
-		tagAddError = '';
-		newTag = '';
-		confirmStep = false;
-		loadTagCloud();
+		tagUtils.openTagModal(tagState, loadTagCloud);
+	}
+	function closeTagModal() {
+		tagUtils.closeTagModal(tagState);
 	}
 
 	async function initializePlayer() {
@@ -88,60 +75,8 @@
 		video = vid;
 		loading = false;
 		if (!video) return;
-		await fetchSuggestions();
+		suggestions = await fetchSuggestions(video, supabase);
 		if ($user && video?.channel_id) checkIfChannelSaved();
-	}
-
-	async function fetchSuggestions() {
-		if (!video) return;
-		if (video.playlist_id) {
-			const { data: playlistVids } = await supabase
-				.from('videos')
-				.select('*, channel:channel_id(name), playlist:playlist_id(title)')
-				.eq('playlist_id', video.playlist_id)
-				.order('playlist_position', { ascending: true })
-				.limit(50);
-			suggestions = playlistVids || [];
-			if (playlistVids && playlistVids[0]?.playlist?.title) {
-				playlistTitle = playlistVids[0].playlist.title;
-			}
-		} else {
-			const { data: sameChannel } = await supabase
-				.from('videos')
-				.select('*, channel:channel_id(name)')
-				.eq('channel_id', video.channel_id)
-				.neq('id', video.id)
-				.limit(30);
-			const { data: otherChannelsRaw } = await supabase
-				.from('videos')
-				.select('*, channel:channel_id(name)')
-				.neq('channel_id', video.channel_id)
-				.neq('id', video.id)
-				.limit(400);
-
-			function shuffle(arr) {
-				return (arr || [])
-					.map((v) => [Math.random(), v])
-					.sort(([a], [b]) => a - b)
-					.map(([, v]) => v);
-			}
-			const channelMap = {};
-			for (const v of shuffle(otherChannelsRaw || [])) {
-				if (!channelMap[v.channel_id]) channelMap[v.channel_id] = v;
-			}
-			const otherVids = Object.values(channelMap).slice(0, 23);
-			let channelVids = shuffle(sameChannel || []).slice(0, 7);
-			let suggestionsMixed = otherVids.slice();
-			let insertIndexes = shuffle([...Array(Math.min(15, suggestionsMixed.length)).keys()]).slice(
-				0,
-				channelVids.length
-			);
-			insertIndexes.forEach((idx, i) => {
-				let pos = Math.min(idx, suggestionsMixed.length);
-				suggestionsMixed.splice(pos, 0, channelVids[i]);
-			});
-			suggestions = suggestionsMixed.slice(0, 30);
-		}
 	}
 
 	async function checkIfChannelSaved() {
@@ -185,34 +120,17 @@
 		'#413b7b', '#9e5d13', '#868017', '#226352', '#257055'
 	];
 
-	$: tagArray = Array.isArray(video?.channel?.tags)
-		? video.channel.tags.map((t) => t.toLowerCase())
-		: video?.channel?.tags
-			? video.channel.tags
-					.split(',')
-					.map((t) => t.trim().toLowerCase())
-					.filter(Boolean)
-			: [];
+	$: tagArray = parseTags(video?.channel?.tags);
 
 	function tryAddTag() {
-		tagAddError = '';
-		let tag = newTag.trim().toLowerCase();
-		if (!tag || tag.length < 2 || tag.length > 32) {
-			tagAddError = 'Tags must be 2–32 characters.';
-			return;
-		}
-		if (tagArray.some((t) => t === tag)) {
-			tagAddError = 'That tag already exists.';
-			return;
-		}
-		confirmStep = true;
+		tagUtils.tryAddTag(tagState, tagArray);
 	}
 
 	async function handleAddTag() {
-		tagAddError = '';
-		tagAdding = true;
+		tagState.tagAddError = '';
+		tagState.tagAdding = true;
 		try {
-			let tag = newTag.trim().toLowerCase();
+			let tag = tagState.newTag.trim().toLowerCase();
 			let updatedTags = [...tagArray, tag];
 			let tagsPayload = Array.isArray(video.channel.tags) ? updatedTags : updatedTags.join(',');
 
@@ -225,26 +143,24 @@
 			let tRes = await supabase.from('tags').upsert([{ name: tag }], { onConflict: ['name'] });
 			if (tRes.error) throw tRes.error;
 
-			tagAdding = false;
-			tagSuccess = true;
+			tagState.tagAdding = false;
+			tagState.tagSuccess = true;
 			closeTagModal();
-			if (tagSuccessTimeout) clearTimeout(tagSuccessTimeout);
-			tagSuccessTimeout = setTimeout(() => (tagSuccess = false), 1600);
+			if (tagState.tagSuccessTimeout) clearTimeout(tagState.tagSuccessTimeout);
+			tagState.tagSuccessTimeout = setTimeout(() => (tagState.tagSuccess = false), 1600);
 			initializePlayer();
 		} catch (err) {
-			tagAddError = (err?.message || err) + ' (see console)';
-			tagAdding = false;
+			tagState.tagAddError = (err?.message || err) + ' (see console)';
+			tagState.tagAdding = false;
 			console.error('[DEBUG] Error in handleAddTag', err);
 		}
 	}
 
 	function selectCloudTag(tag) {
-		newTag = tag;
-		tagAddError = '';
+		tagUtils.selectCloudTag(tagState, tag);
 	}
 	function setNewTagValue(val) {
-		newTag = val;
-		tagAddError = '';
+		tagUtils.setNewTagValue(tagState, val);
 	}
 </script>
 
@@ -258,7 +174,6 @@
 			<PlayerVideoBox {video} user={$user} {suggestions} {autoplayValue} {handlePlayNextVideo} />
 
 			<div class="player-content">
-				<!-- All meta info block handled in PlayerMetaRow -->
 				<PlayerMetaRow
 					{video}
 					{utils}
@@ -277,24 +192,24 @@
 				/>
 
 				<TagModal
-					show={showTagModal}
-					{confirmStep}
-					{newTag}
-					{tagAdding}
-					{tagAddError}
-					{allTags}
-					{tagColors}
-					{tagTextColors}
-					{tagCloudLoading}
+					show={tagState.showTagModal}
+					confirmStep={tagState.confirmStep}
+					newTag={tagState.newTag}
+					tagAdding={tagState.tagAdding}
+					tagAddError={tagState.tagAddError}
+					allTags={tagState.allTags}
+					tagColors={tagColors}
+					tagTextColors={tagTextColors}
+					tagCloudLoading={tagState.tagCloudLoading}
 					onClose={closeTagModal}
 					onTryAdd={tryAddTag}
 					onHandleAdd={handleAddTag}
-					onEdit={() => (confirmStep = false)}
+					onEdit={() => (tagState.confirmStep = false)}
 					onSelectCloudTag={selectCloudTag}
 					setNewTag={setNewTagValue}
 				/>
 
-				{#if tagSuccess}
+				{#if tagState.tagSuccess}
 					<div class="tag-success">Tag added!</div>
 				{/if}
 			</div>
@@ -410,7 +325,7 @@
 		min-height: 0;
 		max-height: 100%;
 		-webkit-overflow-scrolling: touch;
-		  margin-top: 1.25em; /* <-- add this line for nice white space */
+		margin-top: 1.25em; /* <-- add this line for nice white space */
 	}
 }
 

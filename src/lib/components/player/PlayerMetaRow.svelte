@@ -56,15 +56,22 @@
 </div>
 
 <style>
+/* New, more balanced spacing */
 .player-meta-row {
 	display: flex;
 	flex-direction: column;
 	align-items: flex-start;
-	gap: 0.55em;
-	margin-bottom: 1.2em;
+	gap: 0.43em;          /* Slightly tighter overall vertical gap */
+	margin-bottom: 0.95em; /* Less space below */
 	width: 100%;
-	padding-top: 1em;
-	padding-bottom: 1em;
+}
+
+.player-meta-badges {
+	display: flex;
+	align-items: center;
+	gap: 0.9em;
+	margin-top: 0.22em;   /* Was 0.08em, increase for a little more space above */
+	margin-bottom: 0;     /* Remove extra bottom space here if any */
 }
 .meta-title-row {
 	display: flex;
@@ -112,12 +119,6 @@
 	margin-left: 1em;
 	white-space: nowrap;
 }
-.player-meta-badges {
-	display: flex;
-	align-items: center;
-	gap: 0.9em;
-	margin-top: 0.08em;
-}
 .player-diff-badge {
 	display: inline-flex;
 	align-items: center;
@@ -142,62 +143,82 @@
 }
 @media (max-width: 800px) {
 	.player-meta-row {
+		display: flex;
+		flex-direction: column;
 		gap: 0.33em;
-		margin-bottom: 0.72em;
-		padding-left: 0.08em;
-		padding-right: 0.08em;
-		padding-top: 0.6em;
-		padding-bottom: 0.6em;
 		width: 100%;
+		margin-bottom: 0.72em;
+		padding: 0.6em 0.08em;
 	}
+
 	.meta-title-row {
+		display: flex;
 		flex-direction: column;
 		align-items: flex-start;
 		gap: 0.08em;
 		width: 100%;
 	}
+
 	.player-title {
 		font-size: 1.07rem;
-		margin-bottom: 0.12em;
 		line-height: 1.18;
+		margin-bottom: 0.12em;
 	}
+
 	.add-to-channels-wrapper {
 		width: 100%;
 		margin-left: 0;
 		margin-top: 0.11em;
+		display: flex;
 		justify-content: flex-start;
 	}
+
 	.add-to-channels-wrapper.mobile {
 		width: auto;
 		margin-left: 0.42em;
 		margin-top: 0;
 		justify-content: flex-start;
 	}
+
 	.meta-channel-row {
+		display: flex;
 		flex-direction: row;
 		align-items: center;
 		justify-content: space-between;
-		margin-top: 0.06em;
-		margin-bottom: 0.06em;
 		width: 100%;
+		margin: 0.06em 0;
 	}
+
 	.player-channel {
 		font-size: 0.97rem;
 		max-width: 70vw;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
+
 	.player-duration {
 		font-size: 0.96em;
 		margin-left: 0.7em;
+		white-space: nowrap;
 	}
+
 	.player-meta-badges {
-		margin-top: 0.07em;
+		display: flex;
+		align-items: center;
 		gap: 0.44em;
+		margin-top: 0.07em;
 	}
+
 	.player-diff-badge {
 		font-size: 0.90em;
 		height: 26px;
 		padding: 0 0.75em;
 		border-radius: 7px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 	}
 }
+
 </style>
