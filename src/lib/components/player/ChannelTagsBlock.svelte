@@ -1,84 +1,150 @@
 <script>
-  export let tagArray = [];
-  export let tagColors = [];
-  export let tagTextColors = [];
-  export let onAddClick;
-  export let user = null;
+	import { goto } from '$app/navigation';
+
+export let tagColors = [
+	'#B91C1C', // deep red
+	'#7C3AED', // purple
+	'#1D4ED8', // blue
+	'#15803D', // dark green
+	'#EA580C', // dark orange
+	'#A21CAF', // fuchsia
+	'#27272A', // blackish
+	'#334155', // slate blue
+	'#374151', // zinc/graphite
+	'#CA8A04', // gold, still fairly dark
+	'#3730A3', // indigo
+	'#BE185D', // deep magenta
+	'#065F46', // deep emerald
+	'#5B21B6', // violet
+	'#D97706', // dark amber
+	'#A16207', // dark yellow-ochre
+];
+
+	export let tagArray = [];
+	export let user = null;
+	export let onAddClick = () => {};
+
+	function getTagColor(idx) {
+		return tagColors[idx % tagColors.length];
+	}
+	const labelColor = '#27272A'; // slate black for "Channel tags" label
+
+	function goToTag(tag) {
+		const tagParam = encodeURIComponent(tag);
+		goto(`/?tags=${tagParam}`);
+	}
 </script>
 
-<div class="channel-tags-block">
-  <div class="tags-row">
-    <strong>Channel Tags:</strong>
-    {#if tagArray.length}
-      {#each tagArray as tag, i (tag)}
-        <a
-          class="tag-chip"
-          href={`/?tags=${encodeURIComponent(tag)}`}
-          style="background:{tagColors[i % tagColors.length]};color:{tagTextColors[i % tagTextColors.length]};"
-        >{tag}</a>
-      {/each}
-    {:else}
-      <span class="no-tags">No tags yet.</span>
-    {/if}
-    {#if user}
-      <button class="add-tag-btn" on:click={onAddClick} title="Add tag">+</button>
-    {/if}
-  </div>
+<div class="ChannelTagsBlock">
+	<span
+		class="player-tag-badge tag-label"
+		style="background: {labelColor}; color: #fff;"
+	>
+		Channel tags
+	</span>
+	{#each tagArray as tag, i}
+		<span
+			class="player-tag-badge tag"
+			style="background: {getTagColor(i)}; color: #fff;"
+			on:click={() => goToTag(tag)}
+			title="Show all videos with this tag"
+			tabindex="0"
+			role="button"
+		>
+			{tag}
+		</span>
+	{/each}
+	{#if user}
+		<button
+			class="player-tag-badge tag-add"
+			title="Add tag"
+			type="button"
+			on:click={onAddClick}
+			style="background: #374151; color: #fff; font-weight: 800;"
+		>
+			+ Add Tag
+		</button>
+	{/if}
 </div>
 
 <style>
-.channel-tags-block {
-  margin: 1.1em 0 0.8em 0;
+.ChannelTagsBlock {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	margin-bottom: 0.7em;
+	gap: 0.14em;
 }
-.tags-row {
-  display: flex;
-  align-items: center;
-  gap: 0.6em;
-  flex-wrap: wrap;
-  font-size: 1.05rem;
+
+/* NO BORDER, dark solid pill shape, white text, crisp shadow for pop */
+.player-tag-badge,
+.tag-label,
+.tag,
+.tag-add {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 38px;
+	height: 30px;
+	font-size: 0.99em;
+	font-weight: 700;
+	padding: 0 1em;
+	border-radius: 8px;
+	color: #fff;
+	background: #27272A;
+	letter-spacing: 0.01em;
+	box-shadow: 0 1px 6px #0002;
+	white-space: nowrap;
+	margin-right: 0.65em;
+	text-shadow: 0 1px 3px #0007;
+	transition: box-shadow 0.13s, background 0.13s, color 0.13s;
+	cursor: pointer;
+	user-select: none;
+	border: none;
 }
-.tag-chip {
-  display: inline-block;
-  border-radius: 1.2em;
-  padding: 0.19em 1em 0.19em 1em;
-  font-size: 1em;
-  font-weight: 600;
-  margin-right: 0.19em;
-  margin-bottom: 0.13em;
-  transition: box-shadow 0.15s, background 0.12s;
-  box-shadow: 0 1px 6px #0002;
-  letter-spacing: 0.01em;
-  text-decoration: none;
+
+.tag-label {
+	cursor: default;
+	pointer-events: none;
+	margin-right: 0.8em;
+	font-weight: 900;
 }
-.tag-chip:hover {
-  filter: brightness(1.1);
-  box-shadow: 0 2px 12px #bebebe30;
-  background: #f2f9ff;
+
+.tag {
+	cursor: pointer;
 }
-.add-tag-btn {
-  background: #20b288;
-  color: #fff;
-  border: none;
-  border-radius: 50%;
-  width: 1.8em;
-  height: 1.8em;
-  font-size: 1.19em;
-  font-weight: bold;
-  margin-left: 0.4em;
-  cursor: pointer;
-  transition: background 0.13s, box-shadow 0.13s;
-  vertical-align: middle;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 1px 4px #0002;
+.tag:focus {
+	outline: 2px solid #fff7;
+	outline-offset: 1px;
 }
-.add-tag-btn:hover, .add-tag-btn:focus {
-  background: #1e8b6b;
+.tag:hover {
+	box-shadow: 0 2px 10px #0004;
+	filter: brightness(1.1);
 }
-.no-tags {
-  color: #aab1be;
-  font-style: italic;
-  margin-right: 0.6em;
+
+.tag-add {
+	background: #374151 !important;
+	color: #fff !important;
+	font-weight: 800;
+}
+.tag-add:hover,
+.tag-add:focus {
+	background: #1e293b !important;
+	color: #fff !important;
+}
+
+@media (max-width: 800px) {
+	.player-tag-badge,
+	.tag-label,
+	.tag,
+	.tag-add {
+		height: 26px;
+		font-size: 0.91em;
+		padding: 0 0.75em;
+		margin-right: 0.45em;
+	}
+	.ChannelTagsBlock {
+		margin-bottom: 0.29em;
+	}
 }
 </style>
