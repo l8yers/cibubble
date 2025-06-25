@@ -1,6 +1,7 @@
 <script>
 	import { createEventDispatcher, onMount } from 'svelte';
-	import { ArrowDownUp, BarChart3, Search, Earth, Tag, User } from 'lucide-svelte';
+	import { isTablet } from '$lib/stores/screen.js';
+	import { ArrowDownUp, BarChart3, Search, Earth, Tag, User, MoreHorizontal } from 'lucide-svelte';
 
 	export let levels = [];
 	export let sortChoices = [];
@@ -16,6 +17,16 @@
 	export let selectedChannel = '';
 
 	const dispatch = createEventDispatcher();
+
+	// --- Dropdown state
+	let showSortDropdown = false;
+	let showLevelDropdown = false;
+	let showCountryDropdown = false;
+	let showTagDropdown = false;
+	let showMyChannelsDropdown = false;
+	let showMoreDropdown = false;
+
+	let sortDropdownRef, levelsDropdownRef, tagDropdownRef, countryDropdownRef, myChannelsDropdownRef, moreDropdownRef;
 
 	function emitChange(data = {}) {
 		dispatch('change', {
@@ -66,34 +77,40 @@
 	function handleToggleSearch() {
 		emitChange({ searchOpen: !searchOpen, searchTerm: searchOpen ? '' : searchTerm });
 	}
-
-	let showSortDropdown = false;
-	let showLevelDropdown = false;
-	let showCountryDropdown = false;
-	let showTagDropdown = false;
-	let showMyChannelsDropdown = false;
-	let sortDropdownRef, levelsDropdownRef, tagDropdownRef, countryDropdownRef, myChannelsDropdownRef;
-
 	function handleSetChannel(channelId) {
 		emitChange({ selectedChannel: channelId });
 		showMyChannelsDropdown = false;
 	}
+	function handleResetFilters() {
+		emitChange({
+			selectedLevels: levels.map((l) => l.value),
+			sortBy: 'new',
+			selectedCountry: '',
+			selectedTags: [],
+			hideWatched: false,
+			searchTerm: '',
+			selectedChannel: ''
+		});
+	}
 
+	// --- Dropdown close on outside click ---
 	function handleDocumentClick(event) {
 		if (showSortDropdown && sortDropdownRef && !sortDropdownRef.contains(event.target))
 			showSortDropdown = false;
 		if (showLevelDropdown && levelsDropdownRef && !levelsDropdownRef.contains(event.target))
 			showLevelDropdown = false;
-		if (showTagDropdown && tagDropdownRef && !tagDropdownRef.contains(event.target))
-			showTagDropdown = false;
-		if (showCountryDropdown && countryDropdownRef && !countryDropdownRef.contains(event.target))
-			showCountryDropdown = false;
-		if (
-			showMyChannelsDropdown &&
-			myChannelsDropdownRef &&
-			!myChannelsDropdownRef.contains(event.target)
-		)
-			showMyChannelsDropdown = false;
+		if (!$isTablet) {
+			if (showTagDropdown && tagDropdownRef && !tagDropdownRef.contains(event.target))
+				showTagDropdown = false;
+			if (showCountryDropdown && countryDropdownRef && !countryDropdownRef.contains(event.target))
+				showCountryDropdown = false;
+			if (showMyChannelsDropdown && myChannelsDropdownRef && !myChannelsDropdownRef.contains(event.target))
+				showMyChannelsDropdown = false;
+		}
+		if ($isTablet) {
+			if (showMoreDropdown && moreDropdownRef && !moreDropdownRef.contains(event.target))
+				showMoreDropdown = false;
+		}
 	}
 	onMount(() => {
 		document.addEventListener('click', handleDocumentClick);
@@ -112,23 +129,10 @@
 		searchTerm !== '' ||
 		selectedChannel !== '';
 
-	function handleResetFilters() {
-		emitChange({
-			selectedLevels: levels.map((l) => l.value),
-			sortBy: 'new',
-			selectedCountry: '',
-			selectedTags: [],
-			hideWatched: false,
-			searchTerm: '',
-			selectedChannel: ''
-		});
-	}
-
 	const topTags = [
 		'history', 'for learners', 'personal development', "children's science", 'current events',
 		'videogames', 'health', 'news', 'lifestyle', 'random facts'
 	];
-
 	const allTags = [
 		'ai voice','animated stories','animation','animals','art','argentina','bags','baseball',
 		'business','canary islands','challenges',"children's history","children's science","children's stories",
@@ -150,12 +154,7 @@
 	<div class="controls-left">
 		<!-- Sort Dropdown -->
 		<div class="dropdown" bind:this={sortDropdownRef}>
-			<button
-				class="dropdown-btn"
-				aria-expanded={showSortDropdown}
-				on:click={() => (showSortDropdown = !showSortDropdown)}
-				type="button"
-			>
+			<button class="dropdown-btn" aria-expanded={showSortDropdown} on:click={() => (showSortDropdown = !showSortDropdown)} type="button">
 				<ArrowDownUp size={18} style="margin-right:7px;vertical-align:-3px;color:#2e9be6;" />
 				Sort by
 				<svg width="12" height="9" style="margin-left:7px;" fill="none">
@@ -165,11 +164,9 @@
 			{#if showSortDropdown}
 				<div class="dropdown-content">
 					{#each sortChoices as opt}
-						<div
-							class:active-sort-option={opt.value === sortBy}
+						<div class:active-sort-option={opt.value === sortBy}
 							style="padding:0.32em 0.2em;cursor:pointer;display:flex;align-items:center;"
-							on:click={() => handleSetSort(opt.value)}
-						>
+							on:click={() => handleSetSort(opt.value)}>
 							<span>{opt.label}</span>
 						</div>
 					{/each}
@@ -179,12 +176,7 @@
 
 		<!-- Levels Dropdown -->
 		<div class="dropdown" bind:this={levelsDropdownRef}>
-			<button
-				class="dropdown-btn"
-				aria-expanded={showLevelDropdown}
-				on:click={() => (showLevelDropdown = !showLevelDropdown)}
-				type="button"
-			>
+			<button class="dropdown-btn" aria-expanded={showLevelDropdown} on:click={() => (showLevelDropdown = !showLevelDropdown)} type="button">
 				<BarChart3 size={18} style="margin-right:7px;vertical-align:-3px;color:#f365a0;" />
 				Levels
 				<svg width="12" height="9" style="margin-left:7px;" fill="none">
@@ -215,44 +207,22 @@
 			{/if}
 		</div>
 
-		<!-- Tags Dropdown (Top + All tags, no search) -->
-		<div class="dropdown" bind:this={tagDropdownRef}>
-			<button
-				class="dropdown-btn"
-				aria-expanded={showTagDropdown}
-				on:click={() => (showTagDropdown = !showTagDropdown)}
-				type="button"
-			>
-				<Tag size={18} style="margin-right:7px;vertical-align:-3px;color:#f2a02b;" />
-				Tags
-				<svg width="12" height="9" style="margin-left:7px;" fill="none">
-					<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
-				</svg>
-			</button>
-			{#if showTagDropdown}
-				<div class="dropdown-content tags-dropdown-content">
-					<!-- TOP TAGS -->
-					<div style="margin-bottom:0.7em;">
-						<div class="dropdown-label" style="font-weight:700; font-size:1.01em;">Top Tags</div>
-						{#each topTags as tag}
-							<label class="level-checkbox">
-								<input
-									type="checkbox"
-									checked={selectedTags.includes(tag)}
-									on:change={() => handleToggleTag(tag)}
-								/>
-								<span>{toTitleCase(tag)}</span>
-							</label>
-						{/each}
-					</div>
-
-					<hr style="margin:0.5em 0 0.5em 0;" />
-
-					<!-- ALL OTHER TAGS -->
-					<div>
-						<div class="dropdown-label" style="font-weight:700; font-size:1.01em;">All Tags</div>
-						{#each allTags as tag}
-							{#if !topTags.includes(tag)}
+		{#if !$isTablet}
+			<!-- Individual Dropdowns on Desktop -->
+			<div class="dropdown" bind:this={tagDropdownRef}>
+				<button class="dropdown-btn" aria-expanded={showTagDropdown} on:click={() => (showTagDropdown = !showTagDropdown)} type="button">
+					<Tag size={18} style="margin-right:7px;vertical-align:-3px;color:#f2a02b;" />
+					Tags
+					<svg width="12" height="9" style="margin-left:7px;" fill="none">
+						<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+					</svg>
+				</button>
+				{#if showTagDropdown}
+					<div class="dropdown-content tags-dropdown-content">
+						<!-- TOP TAGS -->
+						<div style="margin-bottom:0.7em;">
+							<div class="dropdown-label" style="font-weight:700; font-size:1.01em;">Top Tags</div>
+							{#each topTags as tag}
 								<label class="level-checkbox">
 									<input
 										type="checkbox"
@@ -261,107 +231,219 @@
 									/>
 									<span>{toTitleCase(tag)}</span>
 								</label>
-							{/if}
-						{/each}
+							{/each}
+						</div>
+						<hr style="margin:0.5em 0 0.5em 0;" />
+						<!-- ALL OTHER TAGS -->
+						<div>
+							<div class="dropdown-label" style="font-weight:700; font-size:1.01em;">All Tags</div>
+							{#each allTags as tag}
+								{#if !topTags.includes(tag)}
+									<label class="level-checkbox">
+										<input
+											type="checkbox"
+											checked={selectedTags.includes(tag)}
+											on:change={() => handleToggleTag(tag)}
+										/>
+										<span>{toTitleCase(tag)}</span>
+									</label>
+								{/if}
+							{/each}
+						</div>
+						<button
+							style="margin-top:0.7em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;"
+							on:click={handleClearTags}
+						>
+							Clear all
+						</button>
 					</div>
-
-					<button
-						style="margin-top:0.7em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;"
-						on:click={handleClearTags}
-					>
-						Clear all
-					</button>
-				</div>
-			{/if}
-		</div>
-
-		<!-- Countries Dropdown -->
-		<div class="dropdown" bind:this={countryDropdownRef}>
-			<button
-				class="dropdown-btn"
-				aria-expanded={showCountryDropdown}
-				on:click={() => (showCountryDropdown = !showCountryDropdown)}
-				type="button"
-			>
-				<Earth size={18} style="margin-right:7px;vertical-align:-3px;color:#c367f2;" />
-				Country
-				<svg width="12" height="9" style="margin-left:7px;" fill="none">
-					<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
-				</svg>
-			</button>
-			{#if showCountryDropdown}
-				<div class="dropdown-content">
-					<label class="level-checkbox">
-						<input
-							type="checkbox"
-							checked={selectedCountry === ''}
-							on:change={() => handleSetCountry('')}
-						/>
-						<span>All Countries</span>
-					</label>
-					{#each countryOptions as country}
-						<label class="level-checkbox">
-							<input
-								type="checkbox"
-								checked={selectedCountry === country}
-								on:change={() => handleSetCountry(country)}
-							/>
-							<span>{country}</span>
-						</label>
-					{/each}
-				</div>
-			{/if}
-		</div>
-
-		<!-- My Channels Dropdown -->
-		{#if myChannels && myChannels.length}
-			<div class="dropdown" bind:this={myChannelsDropdownRef}>
-				<button
-					class="dropdown-btn"
-					aria-expanded={showMyChannelsDropdown}
-					on:click={() => (showMyChannelsDropdown = !showMyChannelsDropdown)}
-					type="button"
-				>
-					<User size={18} style="margin-right:7px;vertical-align:-3px;color:#7950f2;" />
-					My Channels
+				{/if}
+			</div>
+			<div class="dropdown" bind:this={countryDropdownRef}>
+				<button class="dropdown-btn" aria-expanded={showCountryDropdown} on:click={() => (showCountryDropdown = !showCountryDropdown)} type="button">
+					<Earth size={18} style="margin-right:7px;vertical-align:-3px;color:#c367f2;" />
+					Country
 					<svg width="12" height="9" style="margin-left:7px;" fill="none">
 						<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
 					</svg>
 				</button>
-				{#if showMyChannelsDropdown}
+				{#if showCountryDropdown}
 					<div class="dropdown-content">
-						<!-- All My Channels option -->
 						<label class="level-checkbox">
 							<input
 								type="checkbox"
-								checked={selectedChannel === '__ALL__'}
-								on:change={() => emitChange({ selectedChannel: '__ALL__' })}
+								checked={selectedCountry === ''}
+								on:change={() => handleSetCountry('')}
 							/>
-							<span>All Saved Channels</span>
+							<span>All Countries</span>
 						</label>
-						{#each myChannels as ch}
+						{#each countryOptions as country}
 							<label class="level-checkbox">
 								<input
 									type="checkbox"
-									checked={selectedChannel === ch.id}
-									on:change={() => emitChange({ selectedChannel: ch.id })}
+									checked={selectedCountry === country}
+									on:change={() => handleSetCountry(country)}
 								/>
-								<span>{ch.name}</span>
+								<span>{country}</span>
 							</label>
 						{/each}
-						<hr style="margin: 0.7em 0;" />
-						<a
-							href="/mychannels"
-							class="edit-my-channels-link"
-							style="display: flex; align-items: center; color: #7950f2; font-weight: 700; text-decoration: none; font-size: 1em; gap: 0.6em; padding: 0.2em 0.1em;"
-						>
-							<svg width="18" height="18" fill="none" stroke="#7950f2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-								<circle cx="9" cy="9" r="7.5" />
-								<path d="M12.5 7.5l-5 5" />
-								<path d="M7.5 7.5l5 5" />
-							</svg>
-							Edit My Channels
-						</a>
+					</div>
+				{/if}
+			</div>
+			{#if myChannels && myChannels.length}
+				<div class="dropdown" bind:this={myChannelsDropdownRef}>
+					<button class="dropdown-btn" aria-expanded={showMyChannelsDropdown} on:click={() => (showMyChannelsDropdown = !showMyChannelsDropdown)} type="button">
+						<User size={18} style="margin-right:7px;vertical-align:-3px;color:#7950f2;" />
+						My Channels
+						<svg width="12" height="9" style="margin-left:7px;" fill="none">
+							<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+						</svg>
+					</button>
+					{#if showMyChannelsDropdown}
+						<div class="dropdown-content">
+							<!-- All My Channels option -->
+							<label class="level-checkbox">
+								<input
+									type="checkbox"
+									checked={selectedChannel === '__ALL__'}
+									on:change={() => emitChange({ selectedChannel: '__ALL__' })}
+								/>
+								<span>All Saved Channels</span>
+							</label>
+							{#each myChannels as ch}
+								<label class="level-checkbox">
+									<input
+										type="checkbox"
+										checked={selectedChannel === ch.id}
+										on:change={() => emitChange({ selectedChannel: ch.id })}
+									/>
+									<span>{ch.name}</span>
+								</label>
+							{/each}
+							<hr style="margin: 0.7em 0;" />
+							<a
+								href="/mychannels"
+								class="edit-my-channels-link"
+								style="display: flex; align-items: center; color: #7950f2; font-weight: 700; text-decoration: none; font-size: 1em; gap: 0.6em; padding: 0.2em 0.1em;"
+							>
+								<svg width="18" height="18" fill="none" stroke="#7950f2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<circle cx="9" cy="9" r="7.5" />
+									<path d="M12.5 7.5l-5 5" />
+									<path d="M7.5 7.5l5 5" />
+								</svg>
+								Edit My Channels
+							</a>
+						</div>
+					{/if}
+				</div>
+			{/if}
+		{:else}
+			<!-- TABLET: More Dropdown for Tags, Country, Channels -->
+			<div class="dropdown" bind:this={moreDropdownRef}>
+				<button class="dropdown-btn" aria-expanded={showMoreDropdown} on:click={() => (showMoreDropdown = !showMoreDropdown)} type="button">
+					<MoreHorizontal size={18} style="margin-right:7px;vertical-align:-3px;color:#888;" />
+					More
+					<svg width="12" height="9" style="margin-left:7px;" fill="none">
+						<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+					</svg>
+				</button>
+				{#if showMoreDropdown}
+					<div class="dropdown-content" style="min-width:260px;max-width:340px;">
+						<!-- Tags -->
+						<div>
+							<div class="dropdown-label" style="font-weight:700; font-size:1.01em;">Tags</div>
+							<div class="levels-list">
+								{#each topTags as tag}
+									<label class="level-checkbox">
+										<input
+											type="checkbox"
+											checked={selectedTags.includes(tag)}
+											on:change={() => handleToggleTag(tag)}
+										/>
+										<span>{toTitleCase(tag)}</span>
+									</label>
+								{/each}
+								<hr style="margin:0.5em 0 0.5em 0;" />
+								{#each allTags as tag}
+									{#if !topTags.includes(tag)}
+										<label class="level-checkbox">
+											<input
+												type="checkbox"
+												checked={selectedTags.includes(tag)}
+												on:change={() => handleToggleTag(tag)}
+											/>
+											<span>{toTitleCase(tag)}</span>
+										</label>
+									{/if}
+								{/each}
+							</div>
+							<button
+								style="margin-top:0.7em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;"
+								on:click={handleClearTags}
+							>
+								Clear all
+							</button>
+						</div>
+						<hr style="margin:1em 0 1em 0;" />
+						<!-- Country -->
+						<div>
+							<div class="dropdown-label" style="font-weight:700; font-size:1.01em;">Country</div>
+							<label class="level-checkbox">
+								<input
+									type="checkbox"
+									checked={selectedCountry === ''}
+									on:change={() => handleSetCountry('')}
+								/>
+								<span>All Countries</span>
+							</label>
+							{#each countryOptions as country}
+								<label class="level-checkbox">
+									<input
+										type="checkbox"
+										checked={selectedCountry === country}
+										on:change={() => handleSetCountry(country)}
+									/>
+									<span>{country}</span>
+								</label>
+							{/each}
+						</div>
+						<hr style="margin:1em 0 1em 0;" />
+						<!-- My Channels -->
+						{#if myChannels && myChannels.length}
+						<div>
+							<div class="dropdown-label" style="font-weight:700; font-size:1.01em;">My Channels</div>
+							<label class="level-checkbox">
+								<input
+									type="checkbox"
+									checked={selectedChannel === '__ALL__'}
+									on:change={() => emitChange({ selectedChannel: '__ALL__' })}
+								/>
+								<span>All Saved Channels</span>
+							</label>
+							{#each myChannels as ch}
+								<label class="level-checkbox">
+									<input
+										type="checkbox"
+										checked={selectedChannel === ch.id}
+										on:change={() => emitChange({ selectedChannel: ch.id })}
+									/>
+									<span>{ch.name}</span>
+								</label>
+							{/each}
+							<a
+								href="/mychannels"
+								class="edit-my-channels-link"
+								style="display: flex; align-items: center; color: #7950f2; font-weight: 700; text-decoration: none; font-size: 1em; gap: 0.6em; padding: 0.2em 0.1em;"
+							>
+								<svg width="18" height="18" fill="none" stroke="#7950f2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<circle cx="9" cy="9" r="7.5" />
+									<path d="M12.5 7.5l-5 5" />
+									<path d="M7.5 7.5l5 5" />
+								</svg>
+								Edit My Channels
+							</a>
+						</div>
+						{/if}
 					</div>
 				{/if}
 			</div>
@@ -398,229 +480,283 @@
 
 
 <style>
-	.controls-bar {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1.2em;
-		max-width: 1600px;
-		margin: 2em auto 2em auto;
-		background: #f7f7fb;
-		padding: 0.7em 1.2em 0.7em 1.2em;
-		border-radius: 18px;
-		border: 1.7px solid #ececec;
-		box-shadow: 0 2px 16px #ececec60;
-		position: relative;
-		overflow-x: visible;
-	}
-	.controls-left {
-		display: flex;
-		align-items: center;
-		gap: 1.2em;
-	}
-	.controls-right {
-		margin-left: auto;
-		display: flex;
-		align-items: center;
-		gap: 1.1em;
-	}
-	.dropdown {
-		position: relative;
-		min-width: 120px;
-	}
-	.dropdown-btn {
-		padding: 0.42em 1.1em;
-		font-size: 1.05em;
-		border-radius: 12px;
-		border: 1.2px solid #ececec;
-		background: #f9f9f9;
-		color: #1d1d1d;
-		font-weight: 600;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		gap: 0.65em;
-		min-width: 110px;
-		transition:
-			border 0.11s,
-			background 0.11s;
-	}
-	.dropdown-btn[aria-expanded='true'],
-	.dropdown-btn[aria-pressed='true'] {
-		background: #f1f5fb;
-		border: 1.2px solid #bbb;
-		color: #1d1d1d;
-	}
-	.hide-watched-btn .switch-slider {
-		width: 36px;
-		height: 20px;
-		background: #e8e8e8;
-		border-radius: 8px;
-		position: relative;
-		display: inline-block;
-		transition: background 0.13s;
-		margin-right: 0.65em;
-		vertical-align: middle;
-	}
-	.hide-watched-btn[aria-pressed='true'] .switch-slider {
-		background: #fd2b23;
-	}
-	.hide-watched-btn .switch-slider::before {
-		content: '';
-		position: absolute;
-		width: 15px;
-		height: 15px;
-		left: 2.2px;
-		top: 2.2px;
-		background: #fff;
-		border-radius: 50%;
-		transition:
-			transform 0.13s,
-			box-shadow 0.13s;
-		box-shadow: 0 1px 2px #0002;
-	}
-	.hide-watched-btn[aria-pressed='true'] .switch-slider::before {
-		transform: translateX(14px);
-		box-shadow: 0 1px 4px #fd2b2333;
-	}
-	.switch-label-text {
-		font-size: 1.05em;
-		font-weight: 600;
-		letter-spacing: 0.03em;
-		font-family: inherit;
-		color: inherit;
-	}
-	.dropdown-content {
-		position: absolute;
-		z-index: 1000;
-		background: #fff;
-		border: 1.3px solid #e8e8e8;
-		border-radius: 8px;
-		box-shadow: 0 2px 18px #eee;
-		min-width: 180px;
-		padding: 0.8em 0.6em;
-		top: 110%;
-		left: 0;
-		font-size: 1em;
-		max-height: 350px;
-		overflow-y: auto;
-	}
-	.levels-list {
-		display: flex;
-		flex-direction: column;
-		gap: 0.6em;
-		margin: 0.3em 0 0.4em 0;
-	}
-	.level-checkbox {
-		display: flex;
-		align-items: center;
-		gap: 0.6em;
-		font-size: 1.03em;
-	}
-	.search-bar-container {
-		display: flex;
-		align-items: center;
-		position: relative;
-		gap: 0.7em;
-	}
-	.search-input {
-		transition:
-			width 0.2s,
-			opacity 0.2s,
-			box-shadow 0.13s,
-			border 0.13s;
-		width: 180px;
-		max-width: 50vw;
-		order: -1;
-		margin-right: 0.3em;
-		opacity: 1;
-		font-size: 1.05em;
-		border-radius: 12px;
-		border: 1.2px solid #ececec;
-		background: #f9f9f9;
-		color: #1d1d1d;
-		font-weight: 500;
-		padding: 0.42em 1.1em;
-		box-shadow: 0 2px 8px #ececec60;
-		outline: none;
-	}
-	.search-input:focus {
-		border: 1.2px solid #bbb;
-		background: #f1f5fb;
-		box-shadow: 0 2px 16px #bbb2;
-	}
-	.search-toggle {
-		z-index: 2;
-		background: none;
-		border: none;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		padding: 0.3em;
-		margin-left: 0;
-		border-radius: 50%;
-		transition: background 0.18s;
-	}
-	.search-toggle:hover,
-	.search-toggle:focus-visible {
-		background: #e5f2fd;
-	}
+/* --- SORTBAR WRAPPER --- */
+.controls-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2em;
+  margin: 2em 9em 2em 9em;
+  padding: 1.1em 2.2em 1.1em 2.2em;
+  background: #f7f8fc;
+  border-radius: 20px;
+  box-shadow: 0 3px 18px #ececec66;
+  border: 1.5px solid #ededfa;
+  position: relative;
+  flex-wrap: wrap;
+}
 
-	.reset-filters-btn {
-		margin-left: 0.6em;
-		font-weight: 800;
-		color: #e93c2f !important;
-		background: none;
-		border: none;
-		font-size: 1em;
-		cursor: pointer;
-		letter-spacing: 0.03em;
-		padding: 0.45em 0.7em;
-		border-radius: 8px;
-		transition: text-decoration 0.11s;
-		text-transform: none;
-	}
-	.reset-filters-btn:hover,
-	.reset-filters-btn:focus-visible {
-		text-decoration: underline;
-		background: none;
-		outline: none;
-	}
+/* --- LEFT BAR: Filter Controls --- */
+.controls-left {
+  display: flex;
+  align-items: center;
+  gap: 1.3em;
+  flex-wrap: wrap;
+}
 
-	/* ACTIVE SORT HIGHLIGHT */
-	.active-sort-option {
-		background: #e5f2fd;
-		font-weight: 700;
-		color: #2e9be6;
-		border-radius: 6px;
-	}
-	.active-sort-option:hover {
-		background: #cbe5fb;
-	}
+/* --- RIGHT BAR: Hide Watched + Search --- */
+.controls-right {
+  display: flex;
+  align-items: center;
+  gap: 1.1em;
+  margin-left: auto;
+}
 
-	@media (max-width: 900px) {
-		.controls-bar {
-			flex-direction: column;
-			align-items: stretch;
-			padding: 0.7em 0.8em;
-		}
-		.controls-left,
-		.controls-right {
-			margin-left: 0;
-			justify-content: flex-start;
-		}
-		.controls-right {
-			justify-content: flex-end;
-			margin-top: 0.7em;
-		}
-	}
-	@media (max-width: 600px) {
-		.controls-bar {
-			max-width: 99vw;
-		}
-		.search-input {
-			width: 110px;
-			font-size: 0.96em;
-		}
-	}
+/* --- DROPDOWNS --- */
+.dropdown {
+  position: relative;
+  min-width: 130px;
+}
+.dropdown-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  padding: 0.47em 1.3em;
+  border: 1.3px solid #e7e7f6;
+  border-radius: 13px;
+  background: #fdfdff;
+  font-size: 1.04em;
+  font-weight: 700;
+  color: #232344;
+  cursor: pointer;
+  transition: border 0.13s, background 0.13s, color 0.13s;
+}
+.dropdown-btn[aria-expanded='true'] {
+  border: 1.3px solid #bbb;
+  background: #f1f5fb;
+  color: #e93c2f;
+}
+.dropdown-content {
+  position: absolute;
+  top: 115%;
+  left: 0;
+  z-index: 101;
+  min-width: 195px;
+  max-width: 320px;
+  background: #fff;
+  border: 1.4px solid #ececec;
+  border-radius: 11px;
+  box-shadow: 0 5px 36px #c9d7e155;
+  padding: 1em 0.7em 1.2em 0.7em;
+  font-size: 1em;
+  animation: fadeInSortbar 0.13s;
+  overflow-y: auto;
+  max-height: 380px;
+}
+@keyframes fadeInSortbar {
+  from { opacity: 0; transform: translateY(10px);}
+  to   { opacity: 1; transform: translateY(0);}
+}
+
+/* --- CHECKBOXES & LISTS --- */
+.levels-list, .dropdown-content .tags-dropdown-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+}
+.level-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.55em;
+  font-size: 1.01em;
+  padding: 0.1em 0.1em;
+  cursor: pointer;
+}
+.level-checkbox input[type="checkbox"] {
+  accent-color: #2e9be6;
+  width: 1.04em; height: 1.04em;
+}
+
+/* --- TAG DROPDOWN EXTRAS --- */
+.tags-dropdown-content {
+  max-height: 320px;
+  overflow-y: auto;
+  padding-bottom: 0.8em;
+}
+.dropdown-label {
+  font-size: 1em;
+  font-weight: 700;
+  margin-bottom: 0.3em;
+  color: #2e9be6;
+}
+
+/* --- RESET BUTTON --- */
+.reset-filters-btn {
+  font-weight: 800;
+  color: #e93c2f;
+  background: none;
+  border: none;
+  font-size: 1.03em;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  padding: 0.48em 1.1em;
+  border-radius: 8px;
+  margin-left: 0.8em;
+  transition: text-decoration 0.1s, color 0.13s, background 0.13s;
+}
+.reset-filters-btn:hover, .reset-filters-btn:focus {
+  text-decoration: underline;
+  background: #fceaea;
+}
+
+/* --- HIDE WATCHED BUTTON (switch) --- */
+.hide-watched-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  border: 1.3px solid #e7e7f6;
+  border-radius: 13px;
+  background: #fdfdff;
+  padding: 0.4em 1.2em;
+  font-size: 1.04em;
+  font-weight: 700;
+  color: #181d27;
+  cursor: pointer;
+  transition: border 0.13s, background 0.13s, color 0.13s;
+}
+.hide-watched-btn[aria-pressed="true"] {
+  background: #fd2b2330;
+  color: #e93c2f;
+  border: 1.3px solid #fd2b23;
+}
+.switch-slider {
+  width: 36px;
+  height: 20px;
+  background: #e8e8e8;
+  border-radius: 8px;
+  position: relative;
+  display: inline-block;
+  transition: background 0.13s;
+  margin-right: 0.5em;
+  vertical-align: middle;
+}
+.hide-watched-btn[aria-pressed="true"] .switch-slider {
+  background: #fd2b23;
+}
+.switch-slider::before {
+  content: '';
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  left: 2.2px;
+  top: 2.2px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.13s, box-shadow 0.13s;
+  box-shadow: 0 1px 2px #0002;
+}
+.hide-watched-btn[aria-pressed="true"] .switch-slider::before {
+  transform: translateX(14px);
+  box-shadow: 0 1px 4px #fd2b2333;
+}
+.switch-label-text {
+  font-size: 1.04em;
+  font-weight: 700;
+  color: inherit;
+}
+
+/* --- SEARCH --- */
+.search-bar-container {
+  display: flex;
+  align-items: center;
+  position: relative;
+  gap: 0.7em;
+}
+.search-input {
+  width: 180px;
+  max-width: 50vw;
+  padding: 0.45em 1em;
+  font-size: 1.04em;
+  border-radius: 11px;
+  border: 1.3px solid #e7e7f6;
+  background: #fdfdff;
+  color: #232344;
+  font-weight: 500;
+  margin-right: 0.3em;
+  box-shadow: 0 1px 8px #ececec60;
+  outline: none;
+  transition: border 0.13s, background 0.13s, box-shadow 0.13s;
+}
+.search-input:focus {
+  border: 1.3px solid #2e9be6;
+  background: #f7faff;
+  box-shadow: 0 2px 14px #cbeafe44;
+}
+.search-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0.3em;
+  border-radius: 50%;
+  transition: background 0.13s;
+}
+.search-toggle:hover, .search-toggle:focus-visible {
+  background: #e5f2fd;
+}
+
+/* --- ACTIVE SORT HIGHLIGHT --- */
+.active-sort-option {
+  background: #e5f2fd;
+  font-weight: 700;
+  color: #2e9be6;
+  border-radius: 7px;
+}
+
+/* --- RESPONSIVE --- */
+@media (max-width: 1200px) {
+  .controls-bar {
+    flex-direction: column;
+    gap: 1.2em;
+    padding: 1em 1.2em;
+  }
+  .controls-left, .controls-right {
+    flex-wrap: wrap;
+    margin-left: 0;
+    gap: 1em;
+  }
+  .controls-right {
+    justify-content: flex-end;
+    margin-top: 0.7em;
+  }
+}
+
+@media (max-width: 900px) {
+  .controls-bar {
+    gap: 1em;
+  }
+}
+
+
+@media (max-width: 700px) {
+  .controls-bar {
+    gap: 0.6em;
+    padding: 0.8em 0.4em;
+    border-radius: 10px;
+  }
+  .dropdown-btn, .hide-watched-btn {
+    font-size: 0.99em;
+    padding: 0.34em 0.7em;
+  }
+  .dropdown-content {
+    min-width: 135px;
+    font-size: 0.99em;
+    padding: 0.5em 0.5em 0.7em 0.5em;
+  }
+  .search-input {
+    width: 98px;
+    font-size: 0.99em;
+  }
+}
 </style>

@@ -5,7 +5,6 @@
 
 	import VideoGrid from '$lib/components/home/VideoGrid.svelte';
 	import SortBar from '$lib/components/home/SortBar.svelte';
-	import SortBarTablet from '$lib/components/home/SortBarTablet.svelte';
 	import FilterChip from '$lib/components/home/FilterChip.svelte';
 	import LoadingSpinner from '$lib/components/home/LoadingSpinner.svelte';
 	import ErrorMessage from '$lib/components/home/ErrorMessage.svelte';
@@ -332,31 +331,9 @@
 </script>
 
 <div class="page-container">
-	{#if mounted && !$isMobile && !$isTablet}
-		<!-- DESKTOP: SortBar only -->
+	{#if mounted && !$isMobile}
 		<div class="sortbar-container">
 			<SortBar
-				{levels}
-				{sortChoices}
-				{countryOptions}
-				{tagOptions}
-				selectedLevels={Array.from($selectedLevels)}
-				sortBy={$sortBy}
-				selectedCountry={$selectedCountry}
-				selectedTags={Array.from($selectedTags)}
-				hideWatched={$hideWatched}
-				searchTerm={$searchTerm}
-				{searchOpen}
-				myChannels={$userChannels}
-				selectedChannel={$selectedChannel}
-				on:change={handleSortBarChange}
-			/>
-		</div>
-	{:else if mounted && $isTablet}
-		<!-- TABLET: SortBarTablet only -->
-		<div class="sortbar-container">
-			<p>TABLE SORTBAR!!!</p>
-			<SortBarTablet
 				{levels}
 				{sortChoices}
 				{countryOptions}
