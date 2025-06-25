@@ -18,7 +18,6 @@
 	let suggestions = [];
 	let playlistTitle = '';
 	let autoplayValue = true;
-	let showSuggestionsPanel = false;
 	let isMobile = false;
 
 	const unsubscribe = autoplay.subscribe((val) => (autoplayValue = val));
@@ -61,7 +60,7 @@
 
 	async function loadTagCloud() {
 		tagCloudLoading = true;
-		const { data, error } = await supabase.rpc('get_popular_tags');
+		const { data } = await supabase.rpc('get_popular_tags');
 		allTags = (data || []).map((t) => t.tag).filter(Boolean);
 		tagCloudLoading = false;
 	}
@@ -177,7 +176,6 @@
 		}
 	}
 
-	// Colorful tag palette!
 	const tagColors = [
 		'#b5e0fa',
 		'#ffdfab',
@@ -267,6 +265,7 @@
 		tagAddError = '';
 	}
 </script>
+
 {#if loading}
 	<div class="player-loading">Loading…</div>
 {:else if !video}
@@ -275,8 +274,7 @@
 	<div class="player-container">
 		<div class="player-main-col">
 			<PlayerVideoBox {video} user={$user} {suggestions} {autoplayValue} {handlePlayNextVideo} />
-			
-			<!-- Main content: Title, tags, tag modal, tag success -->
+
 			<div class="player-content">
 				<div class="player-title-row">
 					<div class="player-title">{video.title}</div>
@@ -286,7 +284,12 @@
 						</div>
 					{/if}
 				</div>
-				
+
+				<!-- Meta row above tags -->
+				<div class="player-meta-row">
+					<PlayerMetaRow {video} {utils} />
+				</div>
+
 				<ChannelTagsBlock
 					{tagArray}
 					{tagColors}
@@ -318,12 +321,6 @@
 				{/if}
 			</div>
 
-			<!-- Meta row is now in its own container -->
-			<div class="player-meta-row">
-				<PlayerMetaRow {video} {utils} />
-			</div>
-
-			<!-- Suggestions (on mobile only) -->
 			{#if isMobile}
 				<div class="mobile-suggestions-block">
 					<SideBar {video} />
@@ -331,7 +328,6 @@
 			{/if}
 		</div>
 
-		<!-- Desktop sidebar (hidden on mobile) -->
 		<aside class="player-sidebar" style:display={isMobile ? 'none' : undefined}>
 			<SideBar {video} />
 		</aside>
@@ -339,21 +335,25 @@
 {/if}
 
 <style>
+
 .player-container {
 	display: grid;
 	grid-template-columns: 1fr 380px;
 	gap: 2.5rem;
 	max-width: 1550px;
 	margin: 0 auto;
+	margin-top: 2rem;
 	height: 100vh;
 	min-height: 100vh;
+	    overflow: hidden;
+    width: 100vw;
 }
 
 .player-main-col {
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
-	padding: 0; /* No padding! */
+	padding: 0;
 }
 
 .player-main-col > :first-child,
@@ -370,7 +370,6 @@
 	display: block;
 }
 
-/* Main content blocks: small margin for nice appearance */
 .player-content,
 .player-meta-row,
 .mobile-suggestions-block {
@@ -406,7 +405,7 @@
 }
 
 .player-sidebar {
-	padding: 1.7rem 2px 1.3rem 2px;
+	padding: 0rem 2px 1.3rem 2px;
 }
 
 .tag-success {
@@ -446,16 +445,22 @@
 		margin-bottom: 0.5em;
 		width: 100%;
 	}
-	.player-title {
-		font-size: 1.18rem;
-		text-align: left;
+.player-title {
+		font-size: 1rem;
 		font-weight: 800;
-		color: #181820;
-		margin-bottom: 0.4em;
-		margin-top: 0.4em;
+		letter-spacing: 0.015em;
+		color: #232346;
+		margin-bottom: 0.29em;
+		margin-top: 0.25em;
 		width: 100%;
+		line-height: 1.18;
+		overflow-wrap: anywhere;
+		text-shadow:
+			0 1.5px 0 #fff3,
+			0 0.5px 0 #fff1;
+		text-transform: none;
+
 	}
-	/* Player video is edge-to-edge */
 	.player-main-col > :first-child,
 	.player-main-col video,
 	.player-main-col iframe,
@@ -470,25 +475,57 @@
 		min-height: 205px;
 		aspect-ratio: 16/9;
 	}
-
-	/* Content blocks: small side margin */
 	.player-content,
 	.player-meta-row,
 	.mobile-suggestions-block {
-		margin-left: 0.7rem;
-		margin-right: 0.7rem;
+		margin-left: 0.55rem;
+		margin-right: 0.55rem;
 	}
-
-	.player-main-col .ChannelTagsBlock {
-		flex-wrap: wrap;
-		justify-content: flex-start;
-		margin-bottom: 0.5rem;
-		gap: 0.35rem;
-	}
-
 	.add-to-channels-wrapper {
 		display: none !important;
 	}
+	/* Meta, tags, tag success: smaller text on mobile */
+	.player-meta-row,
+	.ChannelTagsBlock,
+	.tag-success {
+		font-size: 0.91rem !important;
+	}
+	/* Tags and tag input/buttons smaller */
+	.ChannelTagsBlock .tag,
+	.ChannelTagsBlock button,
+	.ChannelTagsBlock input {
+		font-size: 0.9em !important;
+		padding: 0.18em 0.55em !important;
+	}
+}
+@media (max-width: 800px) {
+  html, body {
+    height: 100vh;
+    overflow: hidden;
+    position: fixed;
+    width: 100vw;
+  }
+  .player-container {
+    height: 100vh;
+    min-height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .player-main-col {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+  }
+  .mobile-suggestions-block {
+    flex: 1 1 0;
+    overflow-y: auto;
+    min-height: 0;
+    max-height: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 </style>

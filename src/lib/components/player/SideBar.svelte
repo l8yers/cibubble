@@ -11,6 +11,7 @@
   let loading = true;
   let playlistTitle = '';
 
+
   function badgeColor(level) {
     switch ((level || '').toLowerCase()) {
       case 'easy': return '#069C56';
@@ -381,4 +382,121 @@
   .sidebar-thumb-wrapper, .sidebar-thumb { width: 35vw; min-width: 50px; max-width: 100px; }
   .sidebar-card-title { font-size: 0.93em; }
 }
+@media (max-width: 800px) {
+  .sidebar-root {
+    font-size: 0.92rem;
+    padding-top: 0.3rem;
+    padding-bottom: 0.4rem;
+  }
+  .sidebar-header {
+    font-size: 0.93em;
+    margin-bottom: 0.09em;
+    gap: 0.12em;
+  }
+  .sidebar-title {
+    font-size: 0.98em;
+    margin-bottom: 0.14em;
+  }
+  .sidebar-toggles,
+  .toggle,
+  .toggle-label {
+    font-size: 0.91em !important;
+    margin-top: 0.04em !important;
+    margin-bottom: 0.04em !important;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  .sidebar-card-list {
+    margin-top: 0.23em;
+    gap: 0.36em;
+    padding-bottom: 0.2em;
+  }
+  .sidebar-card.horizontal-card {
+    min-height: 62px;
+    padding: 0 0.35em 0 0.05em;
+    gap: 0.62em;
+  }
+  .sidebar-card-title {
+    font-size: 0.89em;
+  }
+  .sidebar-card-meta {
+    font-size: 0.88em;
+    margin-top: 0.08em;
+    gap: 0.18em;
+  }
+  .ds-difficulty-badge {
+    width: 20px;
+    height: 20px;
+    font-size: 0.97em;
+  }
+  .meta-link {
+    font-size: 0.88em;
+    padding: 0.08em 0.29em;
+    max-width: 78px;
+  }
+}
+@media (max-width: 800px) {
+  /* Make all sidebar suggestion text smaller on mobile */
+  .sidebar-root,
+  .sidebar-header,
+  .sidebar-title,
+  .sidebar-toggles,
+  .toggle,
+  .toggle-label,
+  .sidebar-card-list,
+  .sidebar-card.horizontal-card,
+  .sidebar-card-title,
+  .sidebar-card-meta,
+  .ds-difficulty-badge,
+  .meta-link {
+    font-size: 0.91rem !important;
+  }
+
+  /* Tighten up spacing above the sidebar and suggestions */
+  .sidebar-root {
+    padding-top: 0.22rem;
+    padding-bottom: 0.18rem;
+  }
+  .sidebar-header {
+    margin-bottom: 0.07em;
+    gap: 0.09em;
+  }
+  .sidebar-title {
+    margin-bottom: 0.11em;
+  }
+  .sidebar-toggles,
+  .toggle {
+    margin-top: 0.01em !important;
+    margin-bottom: 0.02em !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+  .sidebar-card-list {
+    margin-top: 0.18em;
+    gap: 0.28em;
+    padding-bottom: 0.13em;
+  }
+  .sidebar-card.horizontal-card {
+    min-height: 56px;
+    padding: 0 0.25em 0 0.03em;
+    gap: 0.51em;
+  }
+  .sidebar-card-title {
+    font-size: 0.88em;
+  }
+  .sidebar-card-meta {
+    margin-top: 0.04em;
+    gap: 0.13em;
+  }
+  .ds-difficulty-badge {
+    width: 18px;
+    height: 18px;
+    font-size: 0.89em;
+  }
+  .meta-link {
+    padding: 0.05em 0.18em;
+    max-width: 60px;
+  }
+}
+
 </style>
