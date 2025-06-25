@@ -10,7 +10,6 @@
     onClose();
   }
 </script>
-
 {#if open}
   <div class="modal-bg" on:click={onClose}>
     <div class="sort-modal" on:click|stopPropagation>
@@ -18,86 +17,104 @@
         <span>SORT BY</span>
         <button class="close-btn" on:click={onClose} aria-label="Close">×</button>
       </div>
-      <div class="sort-list">
+      <ul class="sort-list">
         {#each sortChoices as opt}
-          <button
-            class="sort-option {opt.value === selectedSort ? 'selected' : ''}"
-            on:click={() => handleSort(opt.value)}
-          >
-            {opt.label}
-          </button>
+          <li>
+            <button
+              class="sort-option {opt.value === selectedSort ? 'selected' : ''}"
+              on:click={() => handleSort(opt.value)}
+            >
+              {opt.label}
+            </button>
+          </li>
         {/each}
-      </div>
+      </ul>
     </div>
   </div>
 {/if}
 
 <style>
   .modal-bg {
-    position: fixed; inset: 0;
+    position: fixed;
+    inset: 0;
     background: #161c23cc;
-    z-index: 1100;
-    display: flex; align-items: center; justify-content: center;
+    z-index: 2000;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
   }
   .sort-modal {
     background: #fff;
     border-radius: 0;
-    padding: 1.2em 1em 1.1em 1em;
-    max-width: 95vw;
-    min-width: 230px;
-    box-shadow: 0 3px 22px #2e9be644;
+    padding: 0 0 1.4em 0;
+    min-width: 100vw;
+    max-width: 100vw;
+    box-shadow: 0 -2px 24px #2225;
+    animation: slideUp 0.22s cubic-bezier(.16,1,.3,1);
     font-family: inherit;
   }
+  @keyframes slideUp { from { transform: translateY(100%);} to { transform: none;} }
   .modal-header {
-    display: flex; justify-content: space-between; align-items: center;
-    font-size: 1.08em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05em;
     font-weight: 800;
+    background: #f7f8fa;
+    border-radius: 0;
+    min-height: 48px;
+    position: relative;
+    margin-bottom: 0.12em;
     letter-spacing: 0.01em;
-    margin-bottom: 1.05em;
-    text-transform: uppercase;
-    color: #23253c;
-    padding-bottom: 0.28em;
-    border-bottom: 1px solid #e8e8f1;
+    color: #181818;
   }
-  .close-btn {
+  .modal-header .close-btn {
+    position: absolute;
+    right: 1.2em;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.4em;
     background: none;
     border: none;
-    font-size: 1.4em;
     color: #2e9be6;
     cursor: pointer;
     border-radius: 0;
-    padding: 0 0.16em;
-    line-height: 1;
-    margin-left: 0.12em;
-    transition: color 0.13s, background 0.13s;
   }
-  .close-btn:hover { color: #e93c2f; background: none; }
   .sort-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5em;
-    margin-top: 0.7em;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    background: #fff;
+    border-radius: 0;
+    font-size: 1em;
+    color: #161c23;
+    font-weight: 700;
+    letter-spacing: 0.01em;
   }
+  .sort-list li {
+    border-bottom: 1px solid #f1f1f3;
+    /* No padding here; handled by button */
+  }
+  .sort-list li:last-child { border-bottom: none; }
   .sort-option {
     width: 100%;
-    min-height: 44px;
-    padding: 0.65em 0.7em;
-    border: none;
-    border-radius: 0;
-    background: #f8faff;
-    color: #181818;
-    font-size: 1.05em;      /* Match menu bar size */
-    font-weight: 700;
     text-align: left;
+    padding: 0.88em 1.1em;
+    border: none;
+    background: #fff;
+    color: #181818;
+    font-size: 1.01em;
+    font-weight: 700;
     cursor: pointer;
     transition: background 0.13s, color 0.13s;
     outline: none;
+    border-radius: 0;
     letter-spacing: 0.01em;
   }
   .sort-option.selected,
   .sort-option:focus,
   .sort-option:hover {
-    background: #e6f1fb;
+    background: #f4f7fa;
     color: #2e9be6;
   }
 </style>
