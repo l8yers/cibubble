@@ -1,11 +1,11 @@
 <script>
   import { user, logout } from '$lib/stores/user.js';
-  import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte';
   import { onMount } from 'svelte';
 
   let dark = false;
   let menuOpen = false;
 
+  // These functions are safe to leave in for future use
   function setDarkMode(enabled) {
     if (enabled) {
       document.body.classList.add('dark-mode');
@@ -76,7 +76,7 @@
       <a class="nav-link" href="/signup">Sign Up</a>
       <a class="nav-link" href="/login">Login</a>
     {/if}
-    <ThemeToggle {dark} {toggleDark} />
+    <!-- ThemeToggle removed -->
   </div>
 
   <!-- Mobile right-side drawer menu -->
@@ -84,9 +84,7 @@
     <div class="drawer-backdrop" on:click={closeMenu}>
       <aside class="mobile-drawer" on:click|stopPropagation>
         <div class="drawer-top-row">
-          <div class="drawer-theme-toggle">
-            <ThemeToggle {dark} {toggleDark} />
-          </div>
+          <!-- ThemeToggle removed from mobile drawer as well -->
           <button class="drawer-close" aria-label="Close menu" on:click={closeMenu}>×</button>
         </div>
         <a class="drawer-item" href="/" on:click={closeMenu}>Watch</a>
@@ -192,8 +190,7 @@
   padding-right: 0.1em;
 }
 .drawer-theme-toggle {
-  display: flex;
-  align-items: center;
+  display: none; /* Now gone */
 }
 
 /* --- Drawer close --- */
