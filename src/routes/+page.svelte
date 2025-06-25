@@ -445,13 +445,19 @@
 			padding-right: 2rem;
 		}
 	}
-	@media (max-width: 600px) {
+	@media (max-width: 700px) {
 		.content-container {
 			max-width: 420px;
+			margin-left: 1vw;
+			margin-right: 1vw;
 		}
 		.chips-row {
 			padding-left: 1rem;
 			padding-right: 1rem;
+		}
+		.page-container {
+			padding-left: 3vw;
+			padding-right: 3vw;
 		}
 	}
 	.center-content {
@@ -493,5 +499,4 @@
 		opacity: 0.66;
 		cursor: not-allowed;
 	}
-	
 </style>
