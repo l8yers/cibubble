@@ -39,8 +39,10 @@
         on:keydown={(e) => e.key === 'Enter' && onTryAdd()}
         disabled={tagAdding}
       />
-      <button class="save-btn" on:click={onTryAdd} disabled={tagAdding}>Add</button>
-      <button class="cancel-btn" on:click={onClose} disabled={tagAdding}>Cancel</button>
+      <div class="modal-btn-row">
+        <button class="save-btn" on:click={onTryAdd} disabled={tagAdding}>Add</button>
+        <button class="cancel-btn" on:click={onClose} disabled={tagAdding}>Cancel</button>
+      </div>
       {#if tagAddError}
         <div class="tag-error">{tagAddError}</div>
       {/if}
@@ -52,7 +54,7 @@
           {#each allTags as tag, i}
             <span
               class="cloud-chip"
-              style="background:{tagColors[i % tagColors.length]};color:{tagTextColors[i % tagTextColors.length]};"
+              style="background:{tagColors[i % tagColors.length]};color:#fff;"
               on:click={() => onSelectCloudTag(tag)}
             >{tag}</span>
           {/each}
@@ -64,8 +66,10 @@
       <div class="confirm-text">
         Are you sure you want to add the tag: <span class="confirm-tag">{newTag.trim().toLowerCase()}</span>?
       </div>
-      <button class="save-btn" on:click={onHandleAdd} disabled={tagAdding}>Confirm</button>
-      <button class="cancel-btn" on:click={onEdit} disabled={tagAdding}>Edit</button>
+      <div class="modal-btn-row">
+        <button class="save-btn" on:click={onHandleAdd} disabled={tagAdding}>Confirm</button>
+        <button class="cancel-btn" on:click={onEdit} disabled={tagAdding}>Edit</button>
+      </div>
     {/if}
   </div>
 {/if}
@@ -93,6 +97,7 @@
   align-items: center;
   border: 2px solid #dbeaff;
 }
+
 .modal-title {
   font-size: 1.16em;
   font-weight: 700;
@@ -100,6 +105,7 @@
   color: #334;
   letter-spacing: 0.03em;
 }
+
 .tag-input {
   width: 98%;
   font-size: 1em;
@@ -107,7 +113,7 @@
   border-radius: 8px;
   border: 1.5px solid #d3e0ef;
   background: #f7fafd;
-  margin-bottom: 0.5em;
+  margin-bottom: 0.35em;
   margin-top: 0.1em;
   transition: border 0.15s;
 }
@@ -115,9 +121,17 @@
   border-color: #7ebeff;
   outline: none;
 }
+
+.modal-btn-row {
+  display: flex;
+  gap: 0.7em;
+  margin-top: 0.7em;
+  margin-bottom: 0.1em;
+  width: 100%;
+  justify-content: flex-start;
+}
+
 .save-btn, .cancel-btn {
-  margin-top: 0.9em;
-  margin-right: 0.6em;
   font-size: 1em;
   border-radius: 7px;
   background: #f5f8fc;
@@ -125,6 +139,8 @@
   cursor: pointer;
   padding: 0.37em 1.25em;
   transition: background 0.14s, border 0.14s;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 .save-btn:disabled, .cancel-btn:disabled {
   opacity: 0.5;
@@ -143,6 +159,7 @@
   margin-top: 0.5em;
   font-size: 0.97em;
 }
+
 .tag-cloud-label {
   margin-top: 0.7em;
   color: #888;
@@ -153,28 +170,37 @@
 .tag-cloud {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45em;
+  gap: 0.38em;
   margin-top: 0.15em;
   margin-bottom: 0.2em;
   min-height: 2.1em;
 }
 .cloud-chip {
-  display: inline-block;
-  padding: 0.19em 1em;
-  border-radius: 1.2em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 30px;
   font-size: 1em;
-  font-weight: 500;
-  box-shadow: 0 1px 5px #ebebeb60;
-  cursor: pointer;
-  margin-bottom: 0.15em;
-  border: 1px solid #f0f0f0;
+  font-weight: 700;
+  padding: 0 1em;
+  border-radius: 8px;
+  color: #fff;
+  letter-spacing: 0.01em;
+  background: #5f5fbb;
+  box-shadow: 0 1px 6px #0001;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px #0002;
   transition: box-shadow 0.13s, background 0.14s;
+  border: none;
+  cursor: pointer;
+  margin-right: 0.10em;
+  margin-bottom: 0.09em;
 }
 .cloud-chip:hover {
-  filter: brightness(1.17);
+  filter: brightness(1.15);
   box-shadow: 0 2px 10px #b5e0fa60;
-  background: #f2f9ff;
-  border-color: #aac6ff;
+  background: #31318d;
 }
 .cloud-loading, .cloud-empty {
   font-size: 0.99em;
@@ -191,4 +217,26 @@
   letter-spacing: 0.03em;
   font-size: 1.1em;
 }
+
+@media (max-width: 600px) {
+  .modal-content {
+    min-width: 90vw;
+    padding: 1.2em 0.5em 0.7em 0.5em;
+  }
+  .tag-input {
+    font-size: 0.97em;
+    padding: 0.33em 0.7em;
+  }
+  .modal-title {
+    font-size: 1em;
+    margin-bottom: 1em;
+  }
+  .cloud-chip {
+    font-size: 0.96em;
+    height: 25px;
+    padding: 0 0.65em;
+    border-radius: 7px;
+  }
+}
+
 </style>

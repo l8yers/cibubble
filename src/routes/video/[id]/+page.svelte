@@ -409,6 +409,7 @@
 		min-height: 0;
 		max-height: 100%;
 		-webkit-overflow-scrolling: touch;
+		  margin-top: 1.25em; /* <-- add this line for nice white space */
 	}
 }
 
