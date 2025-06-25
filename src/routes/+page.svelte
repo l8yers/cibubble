@@ -54,7 +54,7 @@
 		return () => window.removeEventListener('resize', check);
 	});
 
-	const PAGE_SIZE = 50;
+	const PAGE_SIZE = 36;
 	const videos = writable([]);
 	const loading = writable(false);
 	const errorMsg = writable('');
@@ -265,7 +265,7 @@
 		selectedTags.set(filters.tags.size ? filters.tags : new Set());
 		selectedCountry.set(filters.country || '');
 		selectedChannel.set(filters.channel || '');
-		sortBy.set(filters.sort || 'latest');
+		sortBy.set(filters.sort || 'new');
 		searchTerm.set(filters.search || '');
 
 		resetAndFetch();
@@ -283,7 +283,7 @@
 		selectedTags.set(filters.tags.size ? filters.tags : new Set());
 		selectedCountry.set(filters.country || '');
 		selectedChannel.set(filters.channel || '');
-		sortBy.set(filters.sort || 'latest');
+		sortBy.set(filters.sort || 'new');
 		searchTerm.set(filters.search || '');
 
 		resetAndFetch();

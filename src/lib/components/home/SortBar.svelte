@@ -6,7 +6,7 @@
 	export let sortChoices = [];
 	export let countryOptions = [];
 	export let selectedLevels = [];
-	export let sortBy = 'latest';
+	export let sortBy = 'new';
 	export let selectedCountry = '';
 	export let selectedTags = [];
 	export let hideWatched = false;
@@ -105,7 +105,7 @@
 	}
 
 	$: filtersChanged =
-		sortBy !== 'latest' ||
+		sortBy !== 'new' ||
 		selectedCountry !== '' ||
 		selectedTags.length > 0 ||
 		selectedLevels.length !== levels.length ||
@@ -115,7 +115,7 @@
 	function handleResetFilters() {
 		emitChange({
 			selectedLevels: levels.map((l) => l.value),
-			sortBy: 'latest',
+			sortBy: 'new',
 			selectedCountry: '',
 			selectedTags: [],
 			hideWatched: false,

@@ -8,7 +8,7 @@ export function filtersToQuery({
   country = '',
   channel = '',
   playlist = '',
-  sort = 'latest',
+  sort = 'new',
   search = ''
 } = {}) {
   const params = new URLSearchParams();
@@ -57,7 +57,7 @@ export function queryToFilters(qs = '') {
     country: params.get('country') || '',
     channel: params.get('channel') || '',
     playlist: params.get('playlist') || '',
-    sort: params.get('sort') || 'latest',
+    sort: params.get('sort') || 'new',
     search: params.get('search') || ''
   };
 }
@@ -78,7 +78,7 @@ export function isDefaultFilters(filters) {
     !filters.country &&
     !filters.channel &&
     !filters.playlist &&
-    (!filters.sort || filters.sort === 'latest') &&
+    (!filters.sort || filters.sort === 'new') && // <-- FIXED
     !filters.search
   );
 }
@@ -106,6 +106,6 @@ export function applyFiltersFromQueryString(qs) {
   selectedCountry.set(filters.country || '');
   selectedChannel.set(filters.channel || '');
   selectedPlaylist.set(filters.playlist || '');
-  sortBy.set(filters.sort || 'latest');
+  sortBy.set(filters.sort || 'new');
   searchTerm.set(filters.search || '');
 }
