@@ -441,7 +441,8 @@
 		width: 100%;
 	}
 	.sortbar-container {
-		margin-bottom: 0.5em;
+		max-width: 1700px;
+		margin: 0 auto;
 	}
 	.content-container {
 		max-width: 1700px;
