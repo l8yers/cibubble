@@ -9,7 +9,6 @@
   import ProgressDailyTotals from '$lib/components/progress/ProgressDailyTotals.svelte';
   import ProgressManualEntry from '$lib/components/progress/ProgressManualEntry.svelte';
 
-  // Track window width for mobile/desktop UI logic
   import { writable } from 'svelte/store';
   export const windowWidth = writable(typeof window !== 'undefined' ? window.innerWidth : 1200);
 
@@ -72,7 +71,6 @@
     return mins > 0 ? `${mins} min` : `${seconds} sec`;
   }
 
-  // --- Main data loading ---
   $: if ($user) {
     fetchAllUserData($user.id);
   }
@@ -81,7 +79,6 @@
     email = $user.email;
     newEmail = email;
 
-    // Fetch user's videos
     let { data: videos } = await supabase
       .from('videos')
       .select('*')
@@ -89,14 +86,12 @@
       .order('created', { ascending: false });
     myVideos = videos || [];
 
-    // --- Total watch time ---
     let { data: allSessions } = await supabase
       .from('watch_sessions')
       .select('seconds')
       .eq('user_id', userId);
     watchTime = (allSessions ?? []).reduce((acc, s) => acc + (s.seconds || 0), 0);
 
-    // --- Today's watch time ---
     const today = new Date().toISOString().slice(0, 10);
     let { data: todaySessions } = await supabase
       .from('watch_sessions')
@@ -105,16 +100,13 @@
       .eq('date', today);
     todayWatchTime = (todaySessions ?? []).reduce((acc, s) => acc + (s.seconds || 0), 0);
 
-    // --- Recent activity and streak ---
     await fetchRecentActivity(userId);
 
-    // --- Watched videos (recent, ordered by inserted_at) ---
     let { data: watchedSessions } = await supabase
       .from('watch_sessions')
       .select('video_id, date, inserted_at')
       .eq('user_id', userId);
 
-    // For each video, store the most recent inserted_at
     const videoMap = {};
     for (const ws of watchedSessions ?? []) {
       if (!videoMap[ws.video_id] || ws.inserted_at > videoMap[ws.video_id].inserted_at) {
@@ -137,7 +129,6 @@
       watchedVideos = [];
     }
 
-    // --- Daily totals breakdown ---
     let { data: allSessionsForDaily, error } = await supabase
       .from('watch_sessions')
       .select('date,seconds')
@@ -191,7 +182,6 @@
     }
   }
 
-  // Account settings
   async function updateEmail() {
     message = '';
     if (!newEmail || newEmail === email) {
@@ -283,7 +273,6 @@
         <ProgressManualEntry onAdded={fetchAllUserData} />
       {/if}
 
-      <!-- History: desktop vs mobile -->
       {#if $windowWidth > 600}
         <ProgressHistory {watchedVideos} {utils} />
       {:else}
@@ -310,126 +299,155 @@
 {/if}
 
 <style>
+ .profile-main {
+  max-width: 1700px;
+  margin: 2.2rem auto 0 auto;
+  padding: 2rem 3vw 2.3rem 3vw;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #ececec;
+}
+
+.profile-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.6em;
+  gap: 2em;
+}
+
+.section-title {
+  color: #181818;
+  font-size: 1.25rem;
+  font-weight: bold;
+  letter-spacing: 0.3px;
+}
+
+.settings-link {
+  color: #2562e9;
+  font-size: 1.06em;
+  text-decoration: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.16s;
+}
+.settings-link:hover,
+.settings-link:focus {
+  color: #e93c2f;
+  text-decoration: underline;
+}
+
+.video-link {
+  color: #2562e9;
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.progress-controls-row {
+  display: flex;
+  justify-content: center;       /* Center buttons */
+  gap: 1.8em;                    /* Bigger gap for spacing */
+  margin: 2em 0 2.5em 0;         /* More vertical margin */
+  flex-wrap: wrap;
+}
+
+/* CIBUBBLE button style */
+.cibubble-btn {
+  flex: 0 1 180px;               /* Smaller base width */
+  max-width: 220px;              /* Smaller max width */
+  padding: 0.65em 1.5em;         /* Smaller padding */
+  font-size: 0.9em;              /* Slightly smaller font */
+  font-weight: 700;
+  background: #2562e9;
+  color: #fff;
+  border: none;
+  border-radius: 11px;
+  box-shadow: 0 2px 9px #ececec66;
+  cursor: pointer;
+  transition: background 0.16s, color 0.16s, box-shadow 0.16s;
+  letter-spacing: 0.03em;
+  outline: none;
+  margin: 0;                    /* Remove margin to rely on gap */
+}
+
+.cibubble-btn:hover,
+.cibubble-btn:focus {
+  background: #e93c2f;
+  color: #fff;
+  box-shadow: 0 3px 12px #e93c2f33;
+}
+
+/* Mobile tweaks */
+@media (max-width: 600px) {
   .profile-main {
-    max-width: 1700px;
-    margin: 2.2rem auto 0 auto;
-    padding: 2rem 3vw 2.3rem 3vw;
-    background: #fff;
-    border-radius: 14px;
-    border: 1px solid #ececec;
+    padding: 1.1rem 0.6rem 1.3rem 0.6rem;
+    border-radius: 0;
+    margin: 0;
   }
+@media (max-width: 600px) {
   .profile-header-row {
-    display: flex;
-    justify-content: space-between;
+    flex-direction: row; /* Keep row layout */
+    justify-content: space-between; /* Spread out title and link */
     align-items: center;
-    margin-bottom: 1.6em;
-    gap: 2em;
+    margin-bottom: 1em;
+    gap: 0.7em; /* optional, for some horizontal spacing */
   }
-  .section-title {
-    color: #181818;
-    font-size: 1.25rem;
-    font-weight: bold;
-    letter-spacing: 0.3px;
-  }
-  .settings-link {
-    color: #2562e9;
-    font-size: 1.06em;
-    text-decoration: none;
-    font-weight: 500;
-    cursor: pointer;
-    transition: color 0.16s;
-  }
-  .settings-link:hover,
-  .settings-link:focus {
-    color: #e93c2f;
-    text-decoration: underline;
-  }
-  .video-link {
-    color: #2562e9;
-    text-decoration: underline;
-    font-weight: 500;
-  }
+}
   .progress-controls-row {
+    flex-direction: column;
+    gap: 1em;
+  }
+  .cibubble-btn {
+    width: 100%;
+    flex: none;
+    margin: 0;
+    font-size: 1em;
+    padding: 1em 0.7em;
+  }
+  .history-link-row {
+    margin-top: 0.8em;
+    margin-bottom: 0.6em;
     display: flex;
     justify-content: flex-start;
-    gap: 1.4em;
-    margin-bottom: 1.5em;
-    flex-wrap: wrap;
+    width: 100%;
   }
-  /* CIBUBBLE button style */
-  .cibubble-btn {
-    display: inline-block;
-    padding: 0.83em 2.3em;
-    font-size: 0.8em;
-    font-weight: 700;
-    background: #2562e9;
-    color: #fff;
+  .history-link-mobile {
+    color: #2562e9;
+    font-size: 1.05em;
+    text-decoration: underline;
+    font-weight: 500;
+    padding: 0.17em 0.18em;
+    background: none;
     border: none;
-    border-radius: 11px;
-    box-shadow: 0 2px 9px #ececec66;
-    cursor: pointer;
-    margin-right: 1em;
-    margin-bottom: 0.4em;
-    transition: background 0.16s, color 0.16s, box-shadow 0.16s;
-    letter-spacing: 0.03em;
-    outline: none;
+    box-shadow: none;
+    border-radius: 0;
+    margin: 0;
+    transition: color 0.15s;
+    display: inline;
   }
-  .cibubble-btn:hover,
-  .cibubble-btn:focus {
-    background: #e93c2f;
-    color: #fff;
-    box-shadow: 0 3px 12px #e93c2f22;
+  .history-link-mobile:focus,
+  .history-link-mobile:hover {
+    color: #e93c2f;
+    background: none;
+    text-decoration: underline;
   }
-  /* Mobile tweaks */
-  @media (max-width: 600px) {
-    .profile-main {
-      padding: 1.1rem 0.6rem 1.3rem 0.6rem;
-      border-radius: 0;
-      margin: 0;
-    }
-    .profile-header-row {
-      flex-direction: column;
-      gap: 0.7em;
-      align-items: flex-start;
-      margin-bottom: 1em;
-    }
-    .progress-controls-row {
-      flex-direction: column;
-      gap: 1em;
-    }
-    .cibubble-btn {
-      width: 100%;
-      margin-right: 0;
-      margin-bottom: 0.8em;
-      font-size: 1em;
-      padding: 1em 0.7em;
-    }
-    .history-link-row {
-      margin-top: 0.8em;
-      margin-bottom: 0.6em;
-      display: flex;
-      justify-content: flex-start;
-      width: 100%;
-    }
-    .history-link-mobile {
-      color: #2562e9;
-      font-size: 1.05em;
-      text-decoration: underline;
-      font-weight: 500;
-      padding: 0.17em 0.18em;
-      background: none;
-      border: none;
-      box-shadow: none;
-      border-radius: 0;
-      margin: 0;
-      transition: color 0.15s;
-      display: inline;
-    }
-    .history-link-mobile:focus,
-    .history-link-mobile:hover {
-      color: #e93c2f;
-      background: none;
-      text-decoration: underline;
-    }
+}
+@media (max-width: 600px) {
+  .progress-controls-row {
+    flex-direction: column;
+    align-items: center;
+    gap: 1em;
+    margin: 2em 0 2.5em 0;
+    padding: 0 1rem;
   }
+
+  .cibubble-btn {
+    width: 100%;
+    max-width: 600px;
+    padding: 1em 0;
+    font-size: 1em;
+    text-align: center;
+    margin: 0;
+  }
+}
 </style>

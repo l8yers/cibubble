@@ -3,6 +3,7 @@
 	import { writable, get } from 'svelte/store';
 	import { page } from '$app/stores';
 
+	import VideoWatchTracker from '$lib/components/VideoWatchTracker.svelte';
 	import VideoGrid from '$lib/components/home/VideoGrid.svelte';
 	import SortBar from '$lib/components/home/SortBar.svelte';
 	import FilterChip from '$lib/components/home/FilterChip.svelte';

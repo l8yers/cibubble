@@ -63,8 +63,8 @@
   display: flex;
   flex-direction: column;
   border: 1px solid #ececec;
-  width: 275px;
-  min-width: 260px;
+  width: 300px;
+  min-width: 300px;
   max-width: 330px;
   margin: 0;
   transition: box-shadow 0.13s;
