@@ -30,7 +30,7 @@
   let activityDays = [];
   let streak = 0;
   let showTotalTooltip = false;
-    let showTodayTooltip = false;
+  let showTodayTooltip = false;
   let showSettings = false;
   let dailyTotals = [];
   let manualTotals = [];
@@ -258,18 +258,18 @@
     </div>
 
     {#if !showSettings}
-<ProgressStats
-  {watchTime}
-  {todayWatchTime}
-  {streak}
-  {showTotalTooltip}
-  setShowTotalTooltip={(val) => (showTotalTooltip = val)}
-  {showTodayTooltip}
-  setShowTodayTooltip={(val) => (showTodayTooltip = val)}
-  {formatWatchTime}
-  {formatFullTime}
-  {formatMinutesOnly}
-/>
+      <ProgressStats
+        {watchTime}
+        {todayWatchTime}
+        {streak}
+        {showTotalTooltip}
+        setShowTotalTooltip={(val) => (showTotalTooltip = val)}
+        {showTodayTooltip}
+        setShowTodayTooltip={(val) => (showTodayTooltip = val)}
+        {formatWatchTime}
+        {formatFullTime}
+        {formatMinutesOnly}
+      />
 
       <div class="progress-controls-row">
         <button
@@ -310,10 +310,11 @@
       {#if $windowWidth > 600}
         <ProgressHistory {watchedVideos} {utils} />
       {:else}
-        <div class="history-link-row">
-          <a class="history-link-mobile" href="/history">
-            View full watch history
-          </a>
+        <!-- Hide old text link on mobile, show big button -->
+        <div class="history-link-row-mobile">
+          <button class="history-button-mobile" on:click={() => window.location.href = '/history'}>
+            View Full Watch History
+          </button>
         </div>
       {/if}
     {:else}
@@ -432,6 +433,7 @@
     font-weight: 700;
     line-height: 1;
   }
+  /* Mobile tweaks */
   @media (max-width: 600px) {
     .profile-main {
       padding: 1.1rem 0.6rem 1.3rem 0.6rem;
@@ -445,46 +447,48 @@
       margin-bottom: 1em;
       gap: 0.7em;
     }
-  .progress-controls-row {
-    flex-direction: row;       /* side by side */
-    gap: 1em;
-    justify-content: center;   /* center them horizontally */
-  }
-  .cibubble-btn {
-    flex: 1 1 48%;             /* each button takes about half width */
-    max-width: none;           /* override any max-width */
-    padding: 1em 0;            /* consistent vertical padding */
-    font-size: 1em;
-    margin: 0;
-    box-sizing: border-box;
-    text-align: center;
-  }
-    .history-link-row {
-      margin-top: 0.8em;
-      margin-bottom: 0.6em;
-      display: flex;
-      justify-content: flex-start;
-      width: 100%;
+    .progress-controls-row {
+      flex-direction: row;       /* side by side */
+      gap: 1em;
+      justify-content: center;   /* center horizontally */
     }
-    .history-link-mobile {
-      color: #2562e9;
-      font-size: 1.05em;
-      text-decoration: underline;
-      font-weight: 500;
-      padding: 0.17em 0.18em;
-      background: none;
-      border: none;
-      box-shadow: none;
-      border-radius: 0;
+    .cibubble-btn {
+      flex: 1 1 48%;             /* half width buttons */
+      max-width: none;
+      padding: 1em 0;
+      font-size: 1em;
       margin: 0;
-      transition: color 0.15s;
-      display: inline;
+      box-sizing: border-box;
+      text-align: center;
     }
-    .history-link-mobile:focus,
-    .history-link-mobile:hover {
-      color: #e93c2f;
-      background: none;
-      text-decoration: underline;
+    .history-link-row {
+      display: none; /* hide old text link on mobile */
+    }
+    .history-link-row-mobile {
+      display: flex;
+      justify-content: center;
+      margin-top: 1em;
+      margin-bottom: 1em;
+    }
+    .history-button-mobile {
+      background: #2562e9;
+      color: white;
+      font-size: 1.1em;
+      font-weight: 700;
+      padding: 1em 2em;
+      border: none;
+      border-radius: 11px;
+      cursor: pointer;
+      box-shadow: 0 2px 9px #2562e933;
+      transition: background 0.2s ease;
+      width: 90%;
+      max-width: 400px;
+    }
+    .history-button-mobile:hover,
+    .history-button-mobile:focus {
+      background: #e93c2f;
+      outline: none;
+      box-shadow: 0 3px 12px #e93c2f55;
     }
   }
 </style>
