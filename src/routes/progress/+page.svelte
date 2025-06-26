@@ -335,7 +335,7 @@
 <style>
   .profile-main {
     max-width: 1700px;
-    margin: 2.2rem auto 0 auto;
+    margin: 2.2rem auto 2.2rem auto;
     padding: 2rem 3vw 2.3rem 3vw;
     background: #fff;
     border-radius: 14px;
@@ -445,17 +445,20 @@
       margin-bottom: 1em;
       gap: 0.7em;
     }
-    .progress-controls-row {
-      flex-direction: column;
-      gap: 1em;
-    }
-    .cibubble-btn {
-      width: 100%;
-      flex: none;
-      margin: 0;
-      font-size: 1em;
-      padding: 1em 0.7em;
-    }
+  .progress-controls-row {
+    flex-direction: row;       /* side by side */
+    gap: 1em;
+    justify-content: center;   /* center them horizontally */
+  }
+  .cibubble-btn {
+    flex: 1 1 48%;             /* each button takes about half width */
+    max-width: none;           /* override any max-width */
+    padding: 1em 0;            /* consistent vertical padding */
+    font-size: 1em;
+    margin: 0;
+    box-sizing: border-box;
+    text-align: center;
+  }
     .history-link-row {
       margin-top: 0.8em;
       margin-bottom: 0.6em;
