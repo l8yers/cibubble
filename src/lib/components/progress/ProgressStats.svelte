@@ -5,7 +5,9 @@
   export let todayWatchTime = 0;
   export let streak = 0;
   export let showTotalTooltip = false;
+  export let showTodayTooltip = false;
   export let setShowTotalTooltip;
+  export let setShowTodayTooltip;
   export let formatWatchTime;
   export let formatFullTime;
   export let formatMinutesOnly;
@@ -35,6 +37,7 @@
       </span>
     </div>
   </div>
+
   <div class="stat-box stat-today">
     <CalendarCheck
       size={48}
@@ -43,9 +46,22 @@
     />
     <div class="stat-label">Today's Watch Time</div>
     <div class="stat-value">
-      {formatMinutesOnly(todayWatchTime)}
+      <span
+        class="tooltip-parent"
+        on:mouseenter={() => setShowTodayTooltip(true)}
+        on:mouseleave={() => setShowTodayTooltip(false)}
+        tabindex="0"
+        on:focus={() => setShowTodayTooltip(true)}
+        on:blur={() => setShowTodayTooltip(false)}
+      >
+        {formatWatchTime(todayWatchTime)}
+        {#if showTodayTooltip}
+          <span class="custom-tooltip">{formatFullTime(todayWatchTime)}</span>
+        {/if}
+      </span>
     </div>
   </div>
+
   <div class="stat-box stat-streak">
     <Award
       size={48}
