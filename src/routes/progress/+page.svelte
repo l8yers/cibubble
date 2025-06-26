@@ -172,6 +172,13 @@
         .map(([date, { totalSeconds, source }]) => ({ date, totalSeconds, source }))
         .sort((a, b) => b.date.localeCompare(a.date));
     }
+
+    // Calculate streak by counting consecutive days from the newest dailyTotals
+    streak = 0;
+    for (let i = 0; i < dailyTotals.length; i++) {
+      if (dailyTotals[i].totalSeconds > 0) streak++;
+      else break;
+    }
   }
 
   async function fetchRecentActivity(userId) {
@@ -199,12 +206,6 @@
       date,
       mins: Math.round((map[date] || 0) / 60)
     }));
-
-    streak = 0;
-    for (let i = activityDays.length - 1; i >= 0; i--) {
-      if (activityDays[i].mins > 0) streak++;
-      else break;
-    }
   }
 
   async function updateEmail() {
@@ -446,14 +447,15 @@
       align-items: center;
       margin-bottom: 1em;
       gap: 0.7em;
+      font-size: 0.9rem;
     }
     .progress-controls-row {
-      flex-direction: row;       /* side by side */
+      flex-direction: row;
       gap: 1em;
-      justify-content: center;   /* center horizontally */
+      justify-content: center;
     }
     .cibubble-btn {
-      flex: 1 1 48%;             /* half width buttons */
+      flex: 1 1 48%;
       max-width: none;
       padding: 1em 0;
       font-size: 1em;
@@ -462,7 +464,7 @@
       text-align: center;
     }
     .history-link-row {
-      display: none; /* hide old text link on mobile */
+      display: none;
     }
     .history-link-row-mobile {
       display: flex;
