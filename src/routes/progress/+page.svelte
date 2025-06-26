@@ -33,15 +33,20 @@
   let showSettings = false;
   let dailyTotals = [];
   let dailyOpen = false;
-  let manualOpen = false;
+  let showManualModal = false;
 
   function openDailyOnly() {
     dailyOpen = !dailyOpen;
-    if (dailyOpen) manualOpen = false;
+    if (dailyOpen) showManualModal = false;
   }
-  function openManualOnly() {
-    manualOpen = !manualOpen;
-    if (manualOpen) dailyOpen = false;
+
+  function openManualModal() {
+    showManualModal = true;
+    dailyOpen = false;
+  }
+
+  function closeManualModal() {
+    showManualModal = false;
   }
 
   // --- Format functions ---
@@ -70,6 +75,35 @@
     const mins = Math.round(seconds / 60);
     return mins > 0 ? `${mins} min` : `${seconds} sec`;
   }
+
+  // New helper to calculate streak from dailyTotals
+  function calculateStreakFromDailyTotals(dailyTotals) {
+    if (!dailyTotals.length) return 0;
+
+    // Sort descending by date (most recent first)
+    const sortedTotals = [...dailyTotals].sort((a, b) => b.date.localeCompare(a.date));
+
+    let streakCount = 0;
+    let lastDate = new Date(sortedTotals[0].date);
+
+    for (const day of sortedTotals) {
+      const currentDate = new Date(day.date);
+      const diffDays = (lastDate - currentDate) / (1000 * 60 * 60 * 24);
+
+      if (diffDays > 1) break;  // gap found, streak ends
+
+      if ((day.totalSeconds ?? 0) > 0) {
+        streakCount++;
+        lastDate = currentDate;
+      } else {
+        break;  // no activity, stop counting streak
+      }
+    }
+    return streakCount;
+  }
+
+  // Reactive streak update whenever dailyTotals changes
+  $: streak = calculateStreakFromDailyTotals(dailyTotals);
 
   $: if ($user) {
     fetchAllUserData($user.id);
@@ -100,6 +134,7 @@
       .eq('date', today);
     todayWatchTime = (todaySessions ?? []).reduce((acc, s) => acc + (s.seconds || 0), 0);
 
+    // Old fetchRecentActivity still loads activityDays if you want to keep it for something else
     await fetchRecentActivity(userId);
 
     let { data: watchedSessions } = await supabase
@@ -175,11 +210,7 @@
       mins: Math.round((map[date] || 0) / 60)
     }));
 
-    streak = 0;
-    for (let i = activityDays.length - 1; i >= 0; i--) {
-      if (activityDays[i].mins > 0) streak++;
-      else break;
-    }
+    // Remove old streak calc here, streak now handled by dailyTotals + helper
   }
 
   async function updateEmail() {
@@ -253,13 +284,13 @@
         >
           {dailyOpen ? 'Hide Daily Breakdown' : 'Show Daily Breakdown'}
         </button>
+
         <button
           class="cibubble-btn"
-          aria-expanded={manualOpen}
-          on:click={openManualOnly}
+          on:click={openManualModal}
           type="button"
         >
-          {manualOpen ? 'Hide Manual Time Entry' : 'Add Time From Outside the Platform'}
+          Add Time From Outside the Platform
         </button>
       </div>
 
@@ -269,8 +300,14 @@
           {formatMinutesOnly}
         />
       {/if}
-      {#if manualOpen}
-        <ProgressManualEntry onAdded={fetchAllUserData} />
+
+      {#if showManualModal}
+        <div class="modal-backdrop" on:click={closeManualModal}>
+          <div class="modal-content" on:click|stopPropagation>
+            <button class="close-button" on:click={closeManualModal} aria-label="Close modal">×</button>
+            <ProgressManualEntry onAdded={() => { fetchAllUserData($user.id); closeManualModal(); }} />
+          </div>
+        </div>
       {/if}
 
       {#if $windowWidth > 600}
@@ -299,155 +336,155 @@
 {/if}
 
 <style>
- .profile-main {
-  max-width: 1700px;
-  margin: 2.2rem auto 0 auto;
-  padding: 2rem 3vw 2.3rem 3vw;
-  background: #fff;
-  border-radius: 14px;
-  border: 1px solid #ececec;
-}
-
-.profile-header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.6em;
-  gap: 2em;
-}
-
-.section-title {
-  color: #181818;
-  font-size: 1.25rem;
-  font-weight: bold;
-  letter-spacing: 0.3px;
-}
-
-.settings-link {
-  color: #2562e9;
-  font-size: 1.06em;
-  text-decoration: none;
-  font-weight: 500;
-  cursor: pointer;
-  transition: color 0.16s;
-}
-.settings-link:hover,
-.settings-link:focus {
-  color: #e93c2f;
-  text-decoration: underline;
-}
-
-.video-link {
-  color: #2562e9;
-  text-decoration: underline;
-  font-weight: 500;
-}
-
-.progress-controls-row {
-  display: flex;
-  justify-content: center;       /* Center buttons */
-  gap: 1.8em;                    /* Bigger gap for spacing */
-  margin: 2em 0 2.5em 0;         /* More vertical margin */
-  flex-wrap: wrap;
-}
-
-/* CIBUBBLE button style */
-.cibubble-btn {
-  flex: 0 1 180px;               /* Smaller base width */
-  max-width: 220px;              /* Smaller max width */
-  padding: 0.65em 1.5em;         /* Smaller padding */
-  font-size: 0.9em;              /* Slightly smaller font */
-  font-weight: 700;
-  background: #2562e9;
-  color: #fff;
-  border: none;
-  border-radius: 11px;
-  box-shadow: 0 2px 9px #ececec66;
-  cursor: pointer;
-  transition: background 0.16s, color 0.16s, box-shadow 0.16s;
-  letter-spacing: 0.03em;
-  outline: none;
-  margin: 0;                    /* Remove margin to rely on gap */
-}
-
-.cibubble-btn:hover,
-.cibubble-btn:focus {
-  background: #e93c2f;
-  color: #fff;
-  box-shadow: 0 3px 12px #e93c2f33;
-}
-
-/* Mobile tweaks */
-@media (max-width: 600px) {
   .profile-main {
-    padding: 1.1rem 0.6rem 1.3rem 0.6rem;
-    border-radius: 0;
-    margin: 0;
+    max-width: 1700px;
+    margin: 2.2rem auto 0 auto;
+    padding: 2rem 3vw 2.3rem 3vw;
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid #ececec;
   }
-@media (max-width: 600px) {
   .profile-header-row {
-    flex-direction: row; /* Keep row layout */
-    justify-content: space-between; /* Spread out title and link */
-    align-items: center;
-    margin-bottom: 1em;
-    gap: 0.7em; /* optional, for some horizontal spacing */
-  }
-}
-  .progress-controls-row {
-    flex-direction: column;
-    gap: 1em;
-  }
-  .cibubble-btn {
-    width: 100%;
-    flex: none;
-    margin: 0;
-    font-size: 1em;
-    padding: 1em 0.7em;
-  }
-  .history-link-row {
-    margin-top: 0.8em;
-    margin-bottom: 0.6em;
     display: flex;
-    justify-content: flex-start;
-    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.6em;
+    gap: 2em;
   }
-  .history-link-mobile {
+  .section-title {
+    color: #181818;
+    font-size: 1.25rem;
+    font-weight: bold;
+    letter-spacing: 0.3px;
+  }
+  .settings-link {
     color: #2562e9;
-    font-size: 1.05em;
+    font-size: 1.06em;
+    text-decoration: none;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.16s;
+  }
+  .settings-link:hover,
+  .settings-link:focus {
+    color: #e93c2f;
+    text-decoration: underline;
+  }
+  .video-link {
+    color: #2562e9;
     text-decoration: underline;
     font-weight: 500;
-    padding: 0.17em 0.18em;
+  }
+  .progress-controls-row {
+    display: flex;
+    justify-content: center;
+    gap: 1.8em;
+    margin: 2em 0 2.5em 0;
+    flex-wrap: wrap;
+  }
+  .cibubble-btn {
+    flex: 0 1 180px;
+    max-width: 220px;
+    padding: 0.65em 1.5em;
+    font-size: 0.9em;
+    font-weight: 700;
+    background: #2562e9;
+    color: #fff;
+    border: none;
+    border-radius: 11px;
+    box-shadow: 0 2px 9px #ececec66;
+    cursor: pointer;
+    transition: background 0.16s, color 0.16s, box-shadow 0.16s;
+    letter-spacing: 0.03em;
+    outline: none;
+    margin: 0;
+  }
+  .cibubble-btn:hover,
+  .cibubble-btn:focus {
+    background: #e93c2f;
+    color: #fff;
+    box-shadow: 0 3px 12px #e93c2f33;
+  }
+  .modal-backdrop {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  .modal-content {
+    background: white;
+    border-radius: 14px;
+    padding: 2rem;
+    max-width: 480px;
+    width: 90%;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    position: relative;
+  }
+  .close-button {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    font-size: 1.6rem;
     background: none;
     border: none;
-    box-shadow: none;
-    border-radius: 0;
-    margin: 0;
-    transition: color 0.15s;
-    display: inline;
+    cursor: pointer;
+    color: #333;
+    font-weight: 700;
+    line-height: 1;
   }
-  .history-link-mobile:focus,
-  .history-link-mobile:hover {
-    color: #e93c2f;
-    background: none;
-    text-decoration: underline;
+  @media (max-width: 600px) {
+    .profile-main {
+      padding: 1.1rem 0.6rem 1.3rem 0.6rem;
+      border-radius: 0;
+      margin: 0;
+    }
+    .profile-header-row {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1em;
+      gap: 0.7em;
+    }
+    .progress-controls-row {
+      flex-direction: column;
+      gap: 1em;
+    }
+    .cibubble-btn {
+      width: 100%;
+      flex: none;
+      margin: 0;
+      font-size: 1em;
+      padding: 1em 0.7em;
+    }
+    .history-link-row {
+      margin-top: 0.8em;
+      margin-bottom: 0.6em;
+      display: flex;
+      justify-content: flex-start;
+      width: 100%;
+    }
+    .history-link-mobile {
+      color: #2562e9;
+      font-size: 1.05em;
+      text-decoration: underline;
+      font-weight: 500;
+      padding: 0.17em 0.18em;
+      background: none;
+      border: none;
+      box-shadow: none;
+      border-radius: 0;
+      margin: 0;
+      transition: color 0.15s;
+      display: inline;
+    }
+    .history-link-mobile:focus,
+    .history-link-mobile:hover {
+      color: #e93c2f;
+      background: none;
+      text-decoration: underline;
+    }
   }
-}
-@media (max-width: 600px) {
-  .progress-controls-row {
-    flex-direction: column;
-    align-items: center;
-    gap: 1em;
-    margin: 2em 0 2.5em 0;
-    padding: 0 1rem;
-  }
-
-  .cibubble-btn {
-    width: 100%;
-    max-width: 600px;
-    padding: 1em 0;
-    font-size: 1em;
-    text-align: center;
-    margin: 0;
-  }
-}
 </style>
