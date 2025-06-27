@@ -57,6 +57,7 @@ export async function logout() {
 export async function signup(email, password) {
   authError.set('');
   const { error, data } = await supabase.auth.signUp({ email, password });
+  console.log("SIGNUP RESPONSE:", { error, data }); // Debug output
   if (error) authError.set(mapAuthError(error));
   await loadUser();
   return { error, data };

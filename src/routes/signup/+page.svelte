@@ -1,19 +1,34 @@
 <script>
   import { signup, authError } from '$lib/stores/user.js';
   import { goto } from '$app/navigation';
+  import { onDestroy } from 'svelte';
 
   let email = '';
   let password = '';
   let message = '';
+  let pending = false;
+
+  // Subscribe to the authError store
+  let unsubscribe;
+  $: errorMsg = $authError;
+
+  // Clear message when user changes input
+  $: if (email || password) {
+    if (message && !pending) message = '';
+  }
 
   async function handleSignup() {
-    const { error } = await signup(email, password);
+    pending = true;
+    message = '';
+    const { error, data } = await signup(email, password);
+    console.log("Signup result:", { error, data });
     if (!error) {
       message = 'Signup successful! Check your email to confirm.';
       setTimeout(() => goto('/login'), 1200);
     } else {
-      message = $authError;
+      message = $authError || (error && error.message) || "Unknown error";
     }
+    pending = false;
   }
 </script>
 
@@ -59,14 +74,39 @@ button:hover { background: #b8271b; }
   font-size: 1.04rem;
   min-height: 1.5em;
 }
+.error {
+  color: #c90000;
+  min-height: 1.5em;
+  font-size: 1.04rem;
+  margin-top: 0.8em;
+}
 </style>
 
 <div class="auth-container">
   <h2>Sign Up</h2>
-  <input type="email" bind:value={email} placeholder="Email" autocomplete="email" />
-  <input type="password" bind:value={password} placeholder="Password" autocomplete="new-password" />
-  <button on:click={handleSignup}>Sign Up</button>
-  <div class="message">{message}</div>
+  <input
+    type="email"
+    bind:value={email}
+    placeholder="Email"
+    autocomplete="email"
+    required
+  />
+  <input
+    type="password"
+    bind:value={password}
+    placeholder="Password"
+    autocomplete="new-password"
+    required
+  />
+  <button on:click={handleSignup} disabled={pending}>
+    {pending ? 'Signing Up…' : 'Sign Up'}
+  </button>
+  {#if message}
+    <div class="message">{message}</div>
+  {/if}
+  {#if errorMsg && !message}
+    <div class="error">{errorMsg}</div>
+  {/if}
   <div style="margin-top:1em; color:#888;">
     Already have an account?
     <a href="/login" style="color:#e93c2f;">Log In</a>
