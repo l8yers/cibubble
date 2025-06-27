@@ -429,7 +429,7 @@
   onMount(refresh);
 </script>
 
-<!-- === DEBUG PANEL ALWAYS AT TOP ===
+=== DEBUG PANEL ALWAYS AT TOP ===
 <div style="background:#ffeccc;padding:1em 2em;margin:2em auto 1.2em auto;max-width:700px;font-size:0.95em;border-radius:13px;border:1px solid #ddd;">
   <b>DEBUG PANEL</b><br>
   userStore: {JSON.stringify(userStore)}<br>
@@ -440,7 +440,7 @@
   <b>ALWAYS-ON DEBUG</b><br>
   <small>I should always be visible if Svelte is working.<br>
   If you see this, the file is loading and Svelte is mounting.</small>
-</div> -->
+</div>
 
 <!-- === ACCESS CONTROL === -->
 {#if !isReady}
