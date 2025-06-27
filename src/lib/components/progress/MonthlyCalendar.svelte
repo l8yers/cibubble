@@ -5,7 +5,7 @@
   export let month = (new Date().getMonth() + 1);
   export let year = (new Date().getFullYear());
 
-  // Defensive defaulting:
+  // Defensive defaults:
   dailyTotals = dailyTotals || [];
   manualEntries = manualEntries || [];
   formatMinutesOnly = formatMinutesOnly || (s => `${Math.round(s/60)}m`);
@@ -49,7 +49,7 @@
   }
 </script>
 
-<div class="calendar-wrap">
+<div class="cibubble-card calendar-wrap">
   <div class="calendar-header">
     <button on:click={() => changeMonth(-1)} aria-label="Previous Month">&lt;</button>
     <span>{monthName(month, year)}</span>
@@ -84,85 +84,105 @@
 </div>
 
 <style>
-.calendar-wrap {
+/* CIBUBBLE dreamy card style */
+.cibubble-card {
   background: #fff;
-  border-radius: 14px;
-  box-shadow: 0 2px 8px #ececec55;
-  padding: 1.6em 1.2em 2em 1.2em;
-  max-width: 410px;
+  border-radius: 17px;
+  box-shadow: 0 4px 20px #2562e93a, 0 2px 4px #ececec42;
+  padding: 2.1em 1.8em 2.2em 1.8em;
   margin: 2em auto;
-  border: 1px solid #ececec;
+  max-width: 430px;
+  border: 1.3px solid #e3eafc;
+  transition: box-shadow 0.18s;
 }
+
+.cibubble-card:focus-within,
+.cibubble-card:hover {
+  box-shadow: 0 8px 30px #2562e955, 0 2px 4px #ececec33;
+}
+
+/* Calendar stuff */
 .calendar-header {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.18em;
+  font-size: 1.19em;
   font-weight: bold;
-  margin-bottom: 1.3em;
-  gap: 1.2em;
+  margin-bottom: 1.5em;
+  gap: 1.5em;
+  letter-spacing: 0.01em;
 }
 .calendar-header button {
-  background: #f7f3ee;
+  background: #f5f7fc;
   border: none;
-  border-radius: 7px;
-  font-size: 1.15em;
-  padding: 0.14em 0.7em;
-  color: #6f5b3e;
+  border-radius: 8px;
+  font-size: 1.13em;
+  padding: 0.22em 0.8em;
+  color: #2562e9;
+  font-weight: bold;
   cursor: pointer;
-  transition: background 0.14s;
+  transition: background 0.14s, color 0.14s;
+  outline: none;
+  box-shadow: 0 1px 3px #e3eafc44;
 }
-.calendar-header button:hover { background: #f3e7cc; }
+.calendar-header button:hover,
+.calendar-header button:focus { background: #e3eafc; color: #e93c2f; }
+
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 0.29em;
+  margin-bottom: 0.2em;
 }
 .calendar-label {
   text-align: center;
-  color: #bcb6ad;
+  color: #b3bde1;
   font-size: 1em;
   font-weight: 600;
   margin-bottom: 0.18em;
+  letter-spacing: 0.04em;
+  user-select: none;
 }
 .calendar-cell {
-  background: #f6f4ef;
-  border-radius: 7px;
-  min-height: 42px;
+  background: #f5f7fc;
+  border-radius: 8px;
+  min-height: 44px;
   text-align: center;
-  font-size: 1.05em;
-  color: #aaa;
+  font-size: 1.07em;
+  color: #2562e977;
   position: relative;
-  box-shadow: 0 1px 2px #eee6cc88;
+  box-shadow: 0 1.5px 3.5px #e3eafc44;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  transition: box-shadow 0.13s, background 0.13s;
+  transition: box-shadow 0.13s, background 0.13s, color 0.15s;
+  user-select: none;
 }
 .calendar-cell.active {
-  background: #FF9100;
+  background: #2562e9;
   color: #fff;
-  font-weight: 700;
-  box-shadow: 0 2px 8px #ff910055;
+  font-weight: 800;
+  box-shadow: 0 3px 11px #2562e94b;
 }
 .calendar-cell.active .mins {
-  font-size: 0.93em;
-  display: block;
-  color: #fff8;
-  margin-top: 0.04em;
+  color: #fffbe8;
+  font-size: 0.96em;
+  font-weight: 600;
+  margin-top: 0.09em;
+  letter-spacing: 0.01em;
 }
 .calendar-cell.empty {
   background: transparent;
   box-shadow: none;
   pointer-events: none;
 }
-.date { display: block; }
-.mins { display: block; font-size: 0.82em; margin-top: 0.1em; }
+.date { display: block; font-size: 1.03em; }
+.mins { display: block; font-size: 0.84em; margin-top: 0.1em; opacity: 0.88; }
 
 @media (max-width: 600px) {
-  .calendar-wrap { padding: 0.8em 0.2em 1em 0.2em; max-width: 99vw; border-radius: 0; }
+  .cibubble-card { padding: 1.2em 0.12em 1.4em 0.12em; max-width: 99vw; border-radius: 0; }
   .calendar-grid { gap: 0.11em; }
-  .calendar-header { font-size: 0.98em; margin-bottom: 0.8em; }
+  .calendar-header { font-size: 1em; margin-bottom: 1em; }
 }
 </style>
