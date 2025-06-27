@@ -6,7 +6,6 @@
   import AdminCsvUploadBar from '$lib/components/admin/AdminCsvUploadBar.svelte';
   import AdminSearchBar from '$lib/components/admin/AdminSearchBar.svelte';
   import AdminChannelTable from '$lib/components/admin/AdminChannelTable.svelte';
-  import AdminAddChannel from '$lib/components/admin/AdminAddChannel.svelte';
   import { stripAccent, normalizeTags, parseCsv } from '$lib/utils/adminUtils.js';
 
   // === ADMIN ACCESS CONTROL ===
@@ -472,9 +471,69 @@ onMount(async () => {
       {#if currentTab === 'upload'}
 
 {#if isReady && adminFlag}
-  <section>
-    <AdminAddChannel />
-  </section>
+<section>
+  <h3>Single Channel Add</h3>
+  <input type="text" bind:value={singleChannelUrl} placeholder="Paste YouTube channel link here…" style="width:100%;max-width:480px;">
+  <button on:click={fetchSingleChannel} disabled={singleChannelLoading}>Fetch Channel</button>
+
+  {#if singleChannelError}
+    <div style="color:#e93c2f;margin-top:0.7em;">{singleChannelError}</div>
+  {/if}
+
+  {#if fetchedChannel}
+    <div style="margin:1em 0 0.4em 0;">
+      <b>{fetchedChannel.title}</b><br>
+      <img src={fetchedChannel.thumbnail} alt="Channel thumbnail" style="height:40px;margin-top:6px;">
+    </div>
+
+    <div style="margin:0.5em 0;">
+      <label>Tags:</label>
+      {#each tags as t}
+        <span style="background:#eee;padding:0.25em 0.6em;border-radius:12px;margin-right:0.5em;">
+          {t}
+          <span style="color:#c11;cursor:pointer;margin-left:0.4em;" on:click={() => removeTag(t)}>×</span>
+        </span>
+      {/each}
+      <input
+        type="text"
+        placeholder="Add tag"
+        bind:value={tagInput}
+        on:keydown={(e) => e.key==='Enter' && (addTag(),e.preventDefault())}
+        style="margin-top:0.6em;">
+      <button type="button" on:click={addTag} style="margin-left:0.4em;">Add Tag</button>
+    </div>
+
+    <div style="margin:0.7em 0;">
+      <label>
+        Level:
+        <select bind:value={channelLevel}>
+          {#each levels as l}
+            <option value={l.value}>{l.label}</option>
+          {/each}
+        </select>
+      </label>
+      <label style="margin-left:1.5em;">
+        Country:
+        <select bind:value={channelCountry}>
+          <option value="">Set Country</option>
+          {#each countryOptions as c}
+            <option value={c}>{c}</option>
+          {/each}
+        </select>
+      </label>
+    </div>
+
+    <button on:click={submitChannel} disabled={addChannelLoading}>Add Channel</button>
+
+    {#if addChannelError}
+      <div style="color:#e93c2f;margin-top:0.6em;">{addChannelError}</div>
+    {/if}
+
+    {#if addChannelSuccess}
+      <div style="color:#25841c;margin-top:0.6em;">{addChannelSuccess}</div>
+    {/if}
+  {/if}
+</section>
 {/if}
 
 
