@@ -186,6 +186,7 @@ onMount(async () => {
         addChannelError = '❌ No response or error received. Check network and backend logs.';
       }
     }
+    console.log("submitChannel userId (at submit time):", userId);
   }
 
   // --- Bulk Upload, Table, Refresh, etc ---
