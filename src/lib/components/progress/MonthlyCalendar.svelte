@@ -65,15 +65,18 @@
     {#each getGridData(year, month, buildTotalsMap(dailyTotals, manualEntries)) as day}
       {#if day}
         {#key formatDate(day)}
-          <div
-            class="calendar-cell {buildTotalsMap(dailyTotals, manualEntries)[formatDate(day)] ? 'active' : ''}"
-            title={buildTotalsMap(dailyTotals, manualEntries)[formatDate(day)] ? formatMinutesOnly(buildTotalsMap(dailyTotals, manualEntries)[formatDate(day)]) : ''}
-          >
-            <span class="date">{day.getDate()}</span>
-            {#if buildTotalsMap(dailyTotals, manualEntries)[formatDate(day)]}
+          {#if buildTotalsMap(dailyTotals, manualEntries)[formatDate(day)]}
+            <!-- RED SQUARE, WHITE TEXT -->
+            <div class="calendar-cell active" title={formatMinutesOnly(buildTotalsMap(dailyTotals, manualEntries)[formatDate(day)])}>
+              <span class="date">{day.getDate()}</span>
               <span class="mins">{formatMinutesOnly(buildTotalsMap(dailyTotals, manualEntries)[formatDate(day)])}</span>
-            {/if}
-          </div>
+            </div>
+          {:else}
+            <!-- PLAIN, BLACK TEXT -->
+            <div class="calendar-cell">
+              <span class="date plain">{day.getDate()}</span>
+            </div>
+          {/if}
         {/key}
       {:else}
         <div class="calendar-cell empty"></div>
@@ -135,20 +138,19 @@
   user-select: none;
 }
 .calendar-cell {
-  background: #ffb3ac;  /* pale logo red, visible on white */
+  background: transparent;
   border-radius: 9px;
   min-height: 46px;
   height: 46px;
   width: 46px;
   text-align: center;
   font-size: 1.07em;
-  color: #fff;
+  color: #111;
   position: relative;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  transition: background 0.13s, color 0.14s;
   user-select: none;
   margin: 0 auto;
   border: none;
@@ -159,36 +161,28 @@
   color: #fff;
   font-weight: 900;
 }
-.calendar-cell .date { 
+.calendar-cell.active .date,
+.calendar-cell.active .mins {
+  color: #fff;
+}
+.calendar-cell .date {
   display: block;
   font-size: 1.12em;
-  color: #fff;
   font-weight: 900;
   line-height: 1.12em;
 }
-.calendar-cell:not(.active) .date {
-  color: #fff;
-  opacity: 0.98;
+.calendar-cell .date.plain {
+  color: #222;
   font-weight: 700;
+  opacity: 1;
 }
-.calendar-cell.active .date {
-  color: #fff;
-}
-.calendar-cell.active .mins {
-  color: #fff;
-  font-size: 0.65em;
-  font-weight: 600;
-  margin-top: 0.04em;
-  letter-spacing: 0.01em;
-  opacity: 0.85;
-}
-.calendar-cell .mins { 
+.calendar-cell .mins {
   display: block;
   font-size: 0.58em;
   margin-top: -1.5px;
   color: #fff;
   font-weight: 500;
-  opacity: 0.72;
+  opacity: 0.78;
   line-height: 1.08em;
 }
 .calendar-cell.empty {
