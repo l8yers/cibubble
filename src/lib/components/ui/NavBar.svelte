@@ -56,8 +56,6 @@
       <a class="nav-link" href="/signup">Sign Up</a>
       <a class="nav-link" href="/login">Login</a>
     {/if}
-    <a class="nav-link" href="/privacy">Privacy</a>
-    <a class="nav-link" href="/terms">Terms</a>
   </div>
 
   <!-- Mobile right-side drawer menu -->
@@ -75,8 +73,6 @@
           <a class="drawer-item" href="/signup" on:click={closeMenu}>Sign Up</a>
           <a class="drawer-item" href="/login" on:click={closeMenu}>Login</a>
         {/if}
-        <a class="drawer-item" href="/privacy" on:click={closeMenu}>Privacy</a>
-        <a class="drawer-item" href="/terms" on:click={closeMenu}>Terms</a>
       </aside>
     </div>
   {/if}

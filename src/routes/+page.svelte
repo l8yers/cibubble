@@ -18,6 +18,7 @@
 	import { filtersToQuery, queryToFilters } from '$lib/utils/filters.js';
 	import { updateUrlFromFilters } from '$lib/utils/url.js';
 
+
 	import {
 		selectedChannel,
 		selectedLevels,
@@ -330,6 +331,7 @@
 		search: $searchTerm
 	});
 </script>
+
 
 <div class="page-container">
 	{#if mounted && !$isMobile}
