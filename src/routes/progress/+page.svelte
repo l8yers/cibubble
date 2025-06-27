@@ -8,8 +8,7 @@
   import ProgressSettings from '$lib/components/progress/ProgressSettings.svelte';
   import ProgressDailyTotals from '$lib/components/progress/ProgressDailyTotals.svelte';
   import ProgressManualEntry from '$lib/components/progress/ProgressManualEntry.svelte';
-  // import MonthlyCalendar from '$lib/components/progress/MonthlyCalendar.svelte';
-
+  import MonthlyCalendar from '$lib/components/progress/MonthlyCalendar.svelte';
 
   import { writable } from 'svelte/store';
   export const windowWidth = writable(typeof window !== 'undefined' ? window.innerWidth : 1200);
@@ -18,6 +17,7 @@
     const updateWidth = () => windowWidth.set(window.innerWidth);
     window.addEventListener('resize', updateWidth);
     updateWidth();
+    loadUser();
     return () => window.removeEventListener('resize', updateWidth);
   });
 
@@ -53,7 +53,6 @@
     showManualModal = false;
   }
 
-  // --- Format functions ---
   function formatWatchTime(seconds) {
     if (!seconds) return '0 min';
     const mins = Math.round(seconds / 60);
@@ -80,8 +79,10 @@
     return mins > 0 ? `${mins} min` : `${seconds} sec`;
   }
 
-  $: if ($user) {
+  let lastFetchedUserId = null;
+  $: if ($user && $user.id && $user.id !== lastFetchedUserId) {
     fetchAllUserData($user.id);
+    lastFetchedUserId = $user.id;
   }
 
   async function fetchAllUserData(userId) {
@@ -116,7 +117,6 @@
       .select('video_id, date, inserted_at, seconds, source')
       .eq('user_id', userId);
 
-    // Build videoMap for watchedVideos list (optional)
     const videoMap = {};
     for (const ws of watchedSessions ?? []) {
       if (!videoMap[ws.video_id] || ws.inserted_at > videoMap[ws.video_id].inserted_at) {
@@ -139,7 +139,6 @@
       watchedVideos = [];
     }
 
-    // Separate dailyTotals and manualTotals by checking video_id presence
     let { data: allSessionsForDaily, error } = await supabase
       .from('watch_sessions')
       .select('date, seconds, source, video_id')
@@ -239,13 +238,11 @@
       newPassword = '';
     }
   }
-
-  onMount(() => {
-    loadUser();
-  });
 </script>
 
-{#if !$user}
+{#if $user === undefined}
+  <div style="text-align:center; margin:3em;">Loading...</div>
+{:else if !$user}
   <div class="profile-main" style="text-align:center;">
     <div style="margin:2em 0;">
       Not logged in.<br /><a href="/login" class="video-link">Login here</a>
@@ -293,11 +290,16 @@
         </button>
       </div>
 
-<!-- <MonthlyCalendar {dailyTotals} {manualEntries} {formatMinutesOnly} /> -->
+      <MonthlyCalendar
+        dailyTotals={dailyTotals || []}
+        manualEntries={manualTotals || []}
+        formatMinutesOnly={formatMinutesOnly}
+      />
+
       {#if dailyOpen}
         <ProgressDailyTotals
-          dailyTotals={dailyTotals}
-          manualEntries={manualTotals}
+          dailyTotals={dailyTotals || []}
+          manualEntries={manualTotals || []}
           {formatMinutesOnly}
         />
       {/if}
@@ -314,7 +316,6 @@
       {#if $windowWidth > 600}
         <ProgressHistory {watchedVideos} {utils} />
       {:else}
-        <!-- Hide old text link on mobile, show big button -->
         <div class="history-link-row-mobile">
           <button class="history-button-mobile" on:click={() => window.location.href = '/history'}>
             View Full Watch History
@@ -336,6 +337,7 @@
     {/if}
   </div>
 {/if}
+
 
 <style>
   .profile-main {

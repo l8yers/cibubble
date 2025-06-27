@@ -1,11 +1,15 @@
 <script>
-  export let dailyTotals = []; // [{ date: 'YYYY-MM-DD', totalSeconds }]
+  export let dailyTotals = [];
   export let manualEntries = [];
   export let formatMinutesOnly = s => `${Math.round(s/60)}m`;
-  export let month = (new Date().getMonth() + 1); // 1-indexed
+  export let month = (new Date().getMonth() + 1);
   export let year = (new Date().getFullYear());
 
-  // Lookup map (handles manualEntries if present)
+  // Defensive defaulting:
+  dailyTotals = dailyTotals || [];
+  manualEntries = manualEntries || [];
+  formatMinutesOnly = formatMinutesOnly || (s => `${Math.round(s/60)}m`);
+
   function buildTotalsMap(dailyTotals, manualEntries) {
     const map = {};
     for (const d of dailyTotals) map[d.date] = d.totalSeconds;
@@ -13,7 +17,6 @@
     return map;
   }
 
-  // Given month/year, return array of Date objects for every day in the month
   function getDaysInMonth(year, month) {
     const days = [];
     for (let i = 1; i <= new Date(year, month, 0).getDate(); i++) {
@@ -22,7 +25,6 @@
     return days;
   }
 
-  // Adjust month/year when navigating
   function changeMonth(dir) {
     let m = month + dir;
     let y = year;
@@ -31,7 +33,6 @@
     month = m; year = y;
   }
 
-  // Utility
   function formatDate(date) {
     return date.toISOString().split('T')[0];
   }
@@ -39,13 +40,10 @@
     return new Date(y, m - 1).toLocaleString('default', {month:'long', year:'numeric'});
   }
 
-  // Get all info for the grid in a function (avoids reactive pitfalls)
   function getGridData(year, month, totalsByDate) {
     const days = getDaysInMonth(year, month);
-    // Svelte's getDay(): 0=Sunday, 1=Monday, ..., 6=Saturday
-    // Dreaming Spanish/Google Calendar: week starts Monday
-    let firstDay = days[0].getDay();
-    if (firstDay === 0) firstDay = 7; // Sunday -> last column
+    let firstDay = days[0]?.getDay() ?? 1;
+    if (firstDay === 0) firstDay = 7;
     const blanks = Array(firstDay - 1).fill(null);
     return blanks.concat(days);
   }
