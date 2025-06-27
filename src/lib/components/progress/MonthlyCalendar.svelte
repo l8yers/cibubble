@@ -86,9 +86,9 @@
 .cibubble-card.calendar-wrap {
   background: #fff;
   border-radius: 13px;
-  padding: 1.5em 0.8em 1.6em 0.8em;
+  padding: 1.6em 1em 1.7em 1em;
   margin: 1.5em auto 2em auto;
-  max-width: 395px;
+  max-width: 445px;
   border: 1.2px solid #ffe0dd;
   box-shadow: none;
 }
@@ -97,10 +97,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.07em;
+  font-size: 1.12em;
   font-weight: bold;
-  margin-bottom: 1em;
-  gap: 1.1em;
+  margin-bottom: 1.2em;
+  gap: 1.2em;
   letter-spacing: 0.01em;
 }
 .calendar-header button {
@@ -108,9 +108,9 @@
   border: none;
   border-radius: 7px;
   font-size: 1em;
-  padding: 0.17em 0.75em;
-  color: #ff6456;
-  font-weight: 600;
+  padding: 0.21em 0.89em;
+  color: #FF2D21;
+  font-weight: 700;
   cursor: pointer;
   transition: background 0.14s, color 0.14s;
   outline: none;
@@ -121,28 +121,28 @@
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 0.45em;
+  gap: 0.75em;
   margin-bottom: 0.1em;
-  padding: 0.18em 0.1em 0.12em 0.1em;
+  padding: 0.21em 0.1em 0.18em 0.1em;
 }
 .calendar-label {
   text-align: center;
   color: #ffb3ac;
-  font-size: 0.93em;
+  font-size: 1em;
   font-weight: 600;
   margin-bottom: 0.09em;
   letter-spacing: 0.04em;
   user-select: none;
 }
 .calendar-cell {
-  background: #ffe0dd;  /* Softest light red */
-  border-radius: 7px;
-  min-height: 36px;
-  height: 36px;
-  width: 36px;
+  background: #ffb3ac;  /* pale logo red, visible on white */
+  border-radius: 9px;
+  min-height: 46px;
+  height: 46px;
+  width: 46px;
   text-align: center;
-  font-size: 1em;
-  color: #222;
+  font-size: 1.07em;
+  color: #fff;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -155,43 +155,51 @@
   padding: 0.5em 0 0.12em 0;
 }
 .calendar-cell.active {
-  background: #ffb3ac;
-  color: #000;
-  font-weight: 800;
+  background: #FF2D21;
+  color: #fff;
+  font-weight: 900;
+}
+.calendar-cell .date { 
+  display: block;
+  font-size: 1.12em;
+  color: #fff;
+  font-weight: 900;
+  line-height: 1.12em;
+}
+.calendar-cell:not(.active) .date {
+  color: #fff;
+  opacity: 0.98;
+  font-weight: 700;
+}
+.calendar-cell.active .date {
+  color: #fff;
 }
 .calendar-cell.active .mins {
-  color: #7d292a;
-  font-size: 0.56em;
-  font-weight: 500;
-  margin-top: 0.05em;
+  color: #fff;
+  font-size: 0.65em;
+  font-weight: 600;
+  margin-top: 0.04em;
   letter-spacing: 0.01em;
-  line-height: 1.02em;
+  opacity: 0.85;
+}
+.calendar-cell .mins { 
+  display: block;
+  font-size: 0.58em;
+  margin-top: -1.5px;
+  color: #fff;
+  font-weight: 500;
+  opacity: 0.72;
+  line-height: 1.08em;
 }
 .calendar-cell.empty {
   background: transparent;
   pointer-events: none;
 }
-.date { 
-  display: block;
-  font-size: 1.03em;
-  color: #111;
-  font-weight: 700;
-  line-height: 1.13em;
-}
-.mins { 
-  display: block;
-  font-size: 0.56em;
-  margin-top: -1.5px;
-  color: #7d292a;
-  font-weight: 500;
-  opacity: 0.69;
-  line-height: 1.09em;
-}
 
-@media (max-width: 500px) {
+@media (max-width: 550px) {
   .cibubble-card.calendar-wrap { max-width: 99vw; border-radius: 0; }
-  .calendar-header { font-size: 0.97em; margin-bottom: 0.6em; }
-  .calendar-grid { gap: 0.17em; }
-  .calendar-cell { min-height: 26px; height: 26px; width: 26px; font-size: 0.96em; }
+  .calendar-header { font-size: 1em; margin-bottom: 0.9em; }
+  .calendar-grid { gap: 0.28em; }
+  .calendar-cell { min-height: 30px; height: 30px; width: 30px; font-size: 0.97em; }
 }
 </style>
