@@ -8,6 +8,8 @@
   import ProgressSettings from '$lib/components/progress/ProgressSettings.svelte';
   import ProgressDailyTotals from '$lib/components/progress/ProgressDailyTotals.svelte';
   import ProgressManualEntry from '$lib/components/progress/ProgressManualEntry.svelte';
+  import MonthlyCalendar from '$lib/components/progress/MonthlyCalendar.svelte';
+
 
   import { writable } from 'svelte/store';
   export const windowWidth = writable(typeof window !== 'undefined' ? window.innerWidth : 1200);
@@ -290,6 +292,8 @@
           Add Time From Outside the Platform
         </button>
       </div>
+
+      <MonthlyCalendar {dailyTotals} {formatMinutesOnly} />
 
       {#if dailyOpen}
         <ProgressDailyTotals
