@@ -2,9 +2,6 @@
   import { user } from '$lib/stores/user.js';
   import { get } from 'svelte/store';
 
-  // Use a test user if no user is logged in (for debug)
-  const TEST_UUID = '11111111-2222-3333-4444-555555555555';
-
   let form = {
     date: new Date().toISOString().slice(0,10),
     hours: "",
@@ -14,6 +11,7 @@
   let error = "";
   let submitting = false;
   let success = "";
+  let debugUserId = "";
 
   function resetForm() {
     form = {
@@ -25,27 +23,34 @@
     error = "";
     submitting = false;
     success = "";
+    debugUserId = "";
   }
 
   async function submitManualEntry() {
     error = "";
     success = "";
-    if (!form.date || ((!form.hours || +form.hours === 0) && (!form.minutes || +form.minutes === 0))) {
-      error = "Please enter a date and at least some time.";
+    submitting = true;
+
+    // Get the current logged-in user
+    const currentUser = get(user);
+    if (!currentUser) {
+      error = "You must be logged in!";
+      submitting = false;
       return;
     }
-    submitting = true;
+    const userId = currentUser.id;
+    debugUserId = userId;
+
+    // Check basic form
+    if (!form.date || ((!form.hours || +form.hours === 0) && (!form.minutes || +form.minutes === 0))) {
+      error = "Please enter a date and at least some time.";
+      submitting = false;
+      return;
+    }
+
     const seconds = (+form.hours || 0) * 3600 + (+form.minutes || 0) * 60;
-    const currentUser = get(user);
-    const userId = currentUser?.id || TEST_UUID;
 
-    console.log("Submitting manual entry:", {
-      date: form.date,
-      seconds,
-      comment: form.comment,
-      user_id: userId
-    });
-
+    // Upload to your API endpoint (update if you use a different endpoint)
     const res = await fetch('/api/addManualSession', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -56,7 +61,14 @@
         user_id: userId
       })
     });
-    const data = await res.json();
+    let data;
+    try {
+      data = await res.json();
+    } catch (e) {
+      error = "Server did not respond with JSON";
+      submitting = false;
+      return;
+    }
 
     if (!res.ok || data.error) {
       error = data?.error || "Failed to add session.";
@@ -65,7 +77,6 @@
     }
     resetForm();
     success = "Session added!";
-    // Optionally call onAdded if passed
     if (typeof $$props.onAdded === "function") $$props.onAdded();
   }
 </script>
@@ -85,6 +96,9 @@
   </label>
   {#if error}<div class="form-error">{error}</div>{/if}
   {#if success}<div class="form-success">{success}</div>{/if}
+  {#if debugUserId}
+    <div class="debug">User ID: <span style="font-family:monospace;">{debugUserId}</span></div>
+  {/if}
   <div class="manual-btn-row">
     <button type="submit" disabled={submitting}>Add Time</button>
     <button type="button" on:click={resetForm}>Cancel</button>
@@ -165,5 +179,13 @@
 .form-success {
   color: #26890d;
   margin-bottom: 1em;
+}
+.debug {
+  margin: 0.7em 0 0.3em 0;
+  font-size: 0.95em;
+  color: #b3a100;
+  background: #fff8d1;
+  padding: 0.4em 1em;
+  border-radius: 7px;
 }
 </style>
