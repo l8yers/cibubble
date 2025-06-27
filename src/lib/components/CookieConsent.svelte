@@ -39,9 +39,10 @@
   border-top: 3px solid #e93c2f;
   text-align: left;
   ">
-  <span>
-    Test: This is now a normal banner!
-  </span>
+<span>
+  CIBUBBLE uses local storage for login and site preferences. By using the site, you agree to this.
+  <a href="/privacy" target="_blank" rel="noopener" style="color:#e93c2f;text-decoration:underline;margin-left:0.7em;font-size:1em;">Learn more</a>.
+</span>
   <button on:click={acceptCookies} style="background:#e93c2f;color:#fff;border:none;padding:0.5em 1.5em;border-radius:9px;font-size:1em;font-weight:700;cursor:pointer;margin-left:1.7em;">OK</button>
 </div>
 
