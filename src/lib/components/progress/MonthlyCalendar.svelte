@@ -1,47 +1,61 @@
 <script>
   export let dailyTotals = []; // [{ date: 'YYYY-MM-DD', totalSeconds }]
-  export let manualEntries = []; // optional, can be []
+  export let manualEntries = [];
   export let formatMinutesOnly = s => `${Math.round(s/60)}m`;
-  export let month = (new Date().getMonth() + 1);
+  export let month = (new Date().getMonth() + 1); // 1-indexed
   export let year = (new Date().getFullYear());
 
-  // Build map for fast lookup
-  let totalsByDate = {};
-  for (const d of dailyTotals) totalsByDate[d.date] = d.totalSeconds;
-  for (const m of manualEntries) totalsByDate[m.date] = m.totalSeconds;
+  // Lookup map (handles manualEntries if present)
+  function buildTotalsMap(dailyTotals, manualEntries) {
+    const map = {};
+    for (const d of dailyTotals) map[d.date] = d.totalSeconds;
+    if (manualEntries) for (const m of manualEntries) map[m.date] = m.totalSeconds;
+    return map;
+  }
 
-  function getDaysInMonth(month, year) {
-    let days = [];
-    let date = new Date(year, month - 1, 1);
-    while (date.getMonth() === month - 1) {
-      days.push(new Date(date));
-      date.setDate(date.getDate() + 1);
+  // Given month/year, return array of Date objects for every day in the month
+  function getDaysInMonth(year, month) {
+    const days = [];
+    for (let i = 1; i <= new Date(year, month, 0).getDate(); i++) {
+      days.push(new Date(year, month - 1, i));
     }
     return days;
   }
 
+  // Adjust month/year when navigating
   function changeMonth(dir) {
-    let m = month + dir, y = year;
+    let m = month + dir;
+    let y = year;
     if (m < 1) { m = 12; y--; }
     if (m > 12) { m = 1; y++; }
     month = m; year = y;
   }
 
-  function formatDate(d) { return d.toISOString().split("T")[0]; }
-  function monthName(m, y) { return new Date(y, m - 1).toLocaleString('default', {month:'long', year:'numeric'}); }
+  // Utility
+  function formatDate(date) {
+    return date.toISOString().split('T')[0];
+  }
+  function monthName(m, y) {
+    return new Date(y, m - 1).toLocaleString('default', {month:'long', year:'numeric'});
+  }
 
-  // Calendar grid: align to Mon-Sun (Monday start)
-  $: days = getDaysInMonth(month, year);
-  $: firstDayOfWeek = (days[0]?.getDay() || 7) - 1; // 0=Mon, 6=Sun
-  $: gridDays = Array(firstDayOfWeek).fill(null).concat(days);
-
+  // Get all info for the grid in a function (avoids reactive pitfalls)
+  function getGridData(year, month, totalsByDate) {
+    const days = getDaysInMonth(year, month);
+    // Svelte's getDay(): 0=Sunday, 1=Monday, ..., 6=Saturday
+    // Dreaming Spanish/Google Calendar: week starts Monday
+    let firstDay = days[0].getDay();
+    if (firstDay === 0) firstDay = 7; // Sunday -> last column
+    const blanks = Array(firstDay - 1).fill(null);
+    return blanks.concat(days);
+  }
 </script>
 
 <div class="calendar-wrap">
   <div class="calendar-header">
-    <button on:click={() => changeMonth(-1)}>&lt;</button>
+    <button on:click={() => changeMonth(-1)} aria-label="Previous Month">&lt;</button>
     <span>{monthName(month, year)}</span>
-    <button on:click={() => changeMonth(1)}>&gt;</button>
+    <button on:click={() => changeMonth(1)} aria-label="Next Month">&gt;</button>
   </div>
   <div class="calendar-grid">
     <div class="calendar-label">M</div>
@@ -51,16 +65,19 @@
     <div class="calendar-label">F</div>
     <div class="calendar-label">S</div>
     <div class="calendar-label">S</div>
-    {#each gridDays as day, i}
+    {#each getGridData(year, month, buildTotalsMap(dailyTotals, manualEntries)) as day}
       {#if day}
-        <div class="calendar-cell {totalsByDate[formatDate(day)] ? 'active' : ''}"
-             title={totalsByDate[formatDate(day)] ? formatMinutesOnly(totalsByDate[formatDate(day)]) : ''}
-        >
-          <span class="date">{day.getDate()}</span>
-          {#if totalsByDate[formatDate(day)]}
-            <span class="mins">{formatMinutesOnly(totalsByDate[formatDate(day)])}</span>
-          {/if}
-        </div>
+        {#key formatDate(day)}
+          <div
+            class="calendar-cell {buildTotalsMap(dailyTotals, manualEntries)[formatDate(day)] ? 'active' : ''}"
+            title={buildTotalsMap(dailyTotals, manualEntries)[formatDate(day)] ? formatMinutesOnly(buildTotalsMap(dailyTotals, manualEntries)[formatDate(day)]) : ''}
+          >
+            <span class="date">{day.getDate()}</span>
+            {#if buildTotalsMap(dailyTotals, manualEntries)[formatDate(day)]}
+              <span class="mins">{formatMinutesOnly(buildTotalsMap(dailyTotals, manualEntries)[formatDate(day)])}</span>
+            {/if}
+          </div>
+        {/key}
       {:else}
         <div class="calendar-cell empty"></div>
       {/if}
