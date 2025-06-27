@@ -6,7 +6,6 @@
   import ProgressStats from '$lib/components/progress/ProgressStats.svelte';
   import ProgressHistory from '$lib/components/progress/ProgressHistory.svelte';
   import ProgressSettings from '$lib/components/progress/ProgressSettings.svelte';
-  import ProgressDailyTotals from '$lib/components/progress/ProgressDailyTotals.svelte';
   import ProgressManualEntry from '$lib/components/progress/ProgressManualEntry.svelte';
   import MonthlyCalendar from '$lib/components/progress/MonthlyCalendar.svelte';
 
@@ -272,14 +271,6 @@
       />
 
       <div class="progress-controls-row">
-        <button
-          class="cibubble-btn"
-          aria-expanded={dailyOpen}
-          on:click={openDailyOnly}
-          type="button"
-        >
-          {dailyOpen ? 'Hide Daily Breakdown' : 'Show Daily Breakdown'}
-        </button>
 
         <button
           class="cibubble-btn"
