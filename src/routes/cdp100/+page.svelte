@@ -68,31 +68,36 @@
   let uploadSuccesses = [];
 
   // --- ADMIN ACCESS CHECK ---
-  onMount(async () => {
-    userStore = $user;
-    if (!$user) {
-      isReady = true;
-      adminFlag = false;
-      userId = '';
-      return;
-    }
-    userId = $user.id;
-    // Get is_admin from profiles
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', userId)
-      .single();
+onMount(async () => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const { session } = sessionData;
 
-    if (error) {
-      fetchErr = error.message || 'Profile fetch failed';
-      isReady = true;
-      adminFlag = false;
-      return;
-    }
-    adminFlag = !!data?.is_admin;
+  if (!session?.user) {
     isReady = true;
-  });
+    adminFlag = false;
+    userId = '';
+    return;
+  }
+
+  userStore = session.user;
+  userId = session.user.id;
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    fetchErr = error.message || 'Profile fetch failed';
+    isReady = true;
+    adminFlag = false;
+    return;
+  }
+
+  adminFlag = !!data?.is_admin;
+  isReady = true;
+});
 
   // --- CHANNEL ADD/FETCH LOGIC ---
   async function fetchSingleChannel() {
