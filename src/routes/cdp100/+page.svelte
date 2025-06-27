@@ -429,7 +429,7 @@
   onMount(refresh);
 </script>
 
-<!-- === DEBUG PANEL ALWAYS AT TOP === -->
+<!-- === DEBUG PANEL ALWAYS AT TOP ===
 <div style="background:#ffeccc;padding:1em 2em;margin:2em auto 1.2em auto;max-width:700px;font-size:0.95em;border-radius:13px;border:1px solid #ddd;">
   <b>DEBUG PANEL</b><br>
   userStore: {JSON.stringify(userStore)}<br>
@@ -440,7 +440,7 @@
   <b>ALWAYS-ON DEBUG</b><br>
   <small>I should always be visible if Svelte is working.<br>
   If you see this, the file is loading and Svelte is mounting.</small>
-</div>
+</div> -->
 
 <!-- === ACCESS CONTROL === -->
 {#if !isReady}
@@ -466,50 +466,7 @@
       {#if currentTab === 'upload'}
         <section>
           <h3>Single Channel Add</h3>
-          <input type="text" bind:value={singleChannelUrl} placeholder="Paste YouTube channel link here…" style="width:100%;max-width:480px;">
-          <button on:click={fetchSingleChannel} disabled={singleChannelLoading}>Fetch Channel</button>
-          {#if singleChannelError}
-            <div style="color:#e93c2f;margin-top:0.7em;">{singleChannelError}</div>
-          {/if}
-          {#if fetchedChannel}
-            <div style="margin:1em 0 0.4em 0;">
-              <b>{fetchedChannel.title}</b><br>
-              <img src={fetchedChannel.thumbnail} alt="Channel thumbnail" style="height:40px;margin-top:6px;">
-            </div>
-            <div style="margin:0.5em 0;">
-              <label>Tags:</label>
-              {#each tags as t}
-                <span style="background:#eee;padding:0.25em 0.6em;border-radius:12px;margin-right:0.5em;">
-                  {t}
-                  <span style="color:#c11;cursor:pointer;margin-left:0.4em;" on:click={() => removeTag(t)}>×</span>
-                </span>
-              {/each}
-              <input type="text" placeholder="Add tag" bind:value={tagInput} on:keydown={(e) => e.key==='Enter' && (addTag(),e.preventDefault())} style="margin-top:0.6em;">
-              <button type="button" on:click={addTag} style="margin-left:0.4em;">Add Tag</button>
-            </div>
-            <div style="margin:0.7em 0;">
-              <label>
-                Level:
-                <select bind:value={channelLevel}>
-                  {#each levels as l}
-                    <option value={l.value}>{l.label}</option>
-                  {/each}
-                </select>
-              </label>
-              <label style="margin-left:1.5em;">
-                Country:
-                <select bind:value={channelCountry}>
-                  <option value="">Set Country</option>
-                  {#each countryOptions as c}
-                    <option value={c}>{c}</option>
-                  {/each}
-                </select>
-              </label>
-            </div>
-            <button on:click={submitChannel} disabled={addChannelLoading}>Add Channel</button>
-            {#if addChannelError}<div style="color:#e93c2f;margin-top:0.6em;">{addChannelError}</div>{/if}
-            {#if addChannelSuccess}<div style="color:#25841c;margin-top:0.6em;">{addChannelSuccess}</div>{/if}
-          {/if}
+      <AdminAddChannel />
         </section>
         <hr style="margin:2em 0;">
         <section>
