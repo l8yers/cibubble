@@ -179,7 +179,7 @@
 .calendar-cell .mins {
   display: block;
   font-size: 0.58em;
-  margin-top: -1.5px;
+  margin-top: 5px;
   color: #fff;
   font-weight: 500;
   opacity: 0.78;
