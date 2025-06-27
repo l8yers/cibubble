@@ -293,8 +293,7 @@
         </button>
       </div>
 
-      <MonthlyCalendar {dailyTotals} {formatMinutesOnly} />
-
+<MonthlyCalendar {dailyTotals} {manualEntries} {formatMinutesOnly} />
       {#if dailyOpen}
         <ProgressDailyTotals
           dailyTotals={dailyTotals}

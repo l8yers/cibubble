@@ -1,10 +1,15 @@
 <script>
   export let dailyTotals = []; // [{ date: 'YYYY-MM-DD', totalSeconds }]
-  export let month = (new Date().getMonth() + 1); // 1-12 (default: current month)
+  export let manualEntries = []; // optional, can be []
+  export let formatMinutesOnly = s => `${Math.round(s/60)}m`;
+  export let month = (new Date().getMonth() + 1);
   export let year = (new Date().getFullYear());
-  export let formatMinutesOnly = secs => `${Math.round(secs/60)} min`;
 
-  // Utility: get all days in a month
+  // Build map for fast lookup
+  let totalsByDate = {};
+  for (const d of dailyTotals) totalsByDate[d.date] = d.totalSeconds;
+  for (const m of manualEntries) totalsByDate[m.date] = m.totalSeconds;
+
   function getDaysInMonth(month, year) {
     let days = [];
     let date = new Date(year, month - 1, 1);
@@ -15,163 +20,134 @@
     return days;
   }
 
-  // Map dates for quick lookup
-  let totalsByDate = {};
-  for (const d of dailyTotals) {
-    totalsByDate[d.date] = d.totalSeconds;
+  function changeMonth(dir) {
+    let m = month + dir, y = year;
+    if (m < 1) { m = 12; y--; }
+    if (m > 12) { m = 1; y++; }
+    month = m; year = y;
   }
 
-  // Helper: format as YYYY-MM-DD
-  function formatDate(d) {
-    return d.toISOString().split('T')[0];
-  }
+  function formatDate(d) { return d.toISOString().split("T")[0]; }
+  function monthName(m, y) { return new Date(y, m - 1).toLocaleString('default', {month:'long', year:'numeric'}); }
 
-  // Weekday headers
-  const weekdays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  // Calendar grid: align to Mon-Sun (Monday start)
+  $: days = getDaysInMonth(month, year);
+  $: firstDayOfWeek = (days[0]?.getDay() || 7) - 1; // 0=Mon, 6=Sun
+  $: gridDays = Array(firstDayOfWeek).fill(null).concat(days);
 
-  // Previous/Next month nav (simple, optional)
-  function changeMonth(offset) {
-    let newMonth = month + offset;
-    let newYear = year;
-    if (newMonth < 1) {
-      newMonth = 12;
-      newYear--;
-    }
-    if (newMonth > 12) {
-      newMonth = 1;
-      newYear++;
-    }
-    month = newMonth;
-    year = newYear;
-  }
 </script>
 
-<div class="calendar-card">
+<div class="calendar-wrap">
   <div class="calendar-header">
-    <button class="month-nav" on:click={() => changeMonth(-1)}>&lt;</button>
-    <span>{new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
-    <button class="month-nav" on:click={() => changeMonth(1)}>&gt;</button>
+    <button on:click={() => changeMonth(-1)}>&lt;</button>
+    <span>{monthName(month, year)}</span>
+    <button on:click={() => changeMonth(1)}>&gt;</button>
   </div>
   <div class="calendar-grid">
-    {#each weekdays as day}
-      <div class="calendar-weekday">{day}</div>
+    <div class="calendar-label">M</div>
+    <div class="calendar-label">T</div>
+    <div class="calendar-label">W</div>
+    <div class="calendar-label">T</div>
+    <div class="calendar-label">F</div>
+    <div class="calendar-label">S</div>
+    <div class="calendar-label">S</div>
+    {#each gridDays as day, i}
+      {#if day}
+        <div class="calendar-cell {totalsByDate[formatDate(day)] ? 'active' : ''}"
+             title={totalsByDate[formatDate(day)] ? formatMinutesOnly(totalsByDate[formatDate(day)]) : ''}
+        >
+          <span class="date">{day.getDate()}</span>
+          {#if totalsByDate[formatDate(day)]}
+            <span class="mins">{formatMinutesOnly(totalsByDate[formatDate(day)])}</span>
+          {/if}
+        </div>
+      {:else}
+        <div class="calendar-cell empty"></div>
+      {/if}
     {/each}
-    {#each Array(new Date(year, month - 1, 1).getDay() || 7 - 1) as _, i}
-      <!-- Padding for first day (Monday start) -->
-      <div class="calendar-day empty"></div>
-    {/each}
-{#each getDaysInMonth(month, year) as day}
-  <div class="calendar-day {totalsByDate[formatDate(day)] ? 'active' : ''}"
-       title={totalsByDate[formatDate(day)] ? `${formatMinutesOnly(totalsByDate[formatDate(day)])}` : 'No activity'}>
-    <span class="day-number">{day.getDate()}</span>
-    {#if totalsByDate[formatDate(day)]}
-      <span class="minutes">{Math.round(totalsByDate[formatDate(day)] / 60)}m</span>
-    {/if}
-  </div>
-{/each}
-
   </div>
 </div>
 
 <style>
-.calendar-card {
+.calendar-wrap {
   background: #fff;
-  border-radius: 18px;
-  box-shadow: 0 2px 10px #ececec44;
-  padding: 2em 2.4em 2.2em 2.4em;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px #ececec55;
+  padding: 1.6em 1.2em 2em 1.2em;
+  max-width: 410px;
   margin: 2em auto;
-  max-width: 550px;
-  width: 100%;
   border: 1px solid #ececec;
 }
-
 .calendar-header {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.3em;
-  font-weight: 700;
-  margin-bottom: 1.5em;
+  font-size: 1.18em;
+  font-weight: bold;
+  margin-bottom: 1.3em;
   gap: 1.2em;
 }
-
-.month-nav {
-  background: #f6f7fb;
+.calendar-header button {
+  background: #f7f3ee;
   border: none;
-  border-radius: 8px;
+  border-radius: 7px;
   font-size: 1.15em;
-  padding: 0.23em 0.7em;
-  color: #45457a;
+  padding: 0.14em 0.7em;
+  color: #6f5b3e;
   cursor: pointer;
   transition: background 0.14s;
 }
-.month-nav:hover {
-  background: #e3e3f1;
-}
-
+.calendar-header button:hover { background: #f3e7cc; }
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 0.5em;
+  gap: 0.29em;
 }
-
-.calendar-weekday {
-  color: #8b8bb8;
+.calendar-label {
+  text-align: center;
+  color: #bcb6ad;
   font-size: 1em;
-  text-align: center;
   font-weight: 600;
-  margin-bottom: 0.2em;
+  margin-bottom: 0.18em;
 }
-
-.calendar-day {
-  background: #f9fafd;
-  border-radius: 9px;
-  min-height: 44px;
-  padding: 0.3em 0 0.18em 0;
+.calendar-cell {
+  background: #f6f4ef;
+  border-radius: 7px;
+  min-height: 42px;
   text-align: center;
-  font-size: 1.13em;
+  font-size: 1.05em;
   color: #aaa;
   position: relative;
-  cursor: default;
-  box-shadow: 0 1px 3px #f6f6f8a8;
+  box-shadow: 0 1px 2px #eee6cc88;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
   transition: box-shadow 0.13s, background 0.13s;
-  user-select: none;
 }
-.calendar-day.active {
-  background: #ff5454;
+.calendar-cell.active {
+  background: #FF9100;
   color: #fff;
   font-weight: 700;
-  box-shadow: 0 2px 8px #ff54545c;
-  cursor: pointer;
+  box-shadow: 0 2px 8px #ff910055;
 }
-.calendar-day.active .minutes {
-  font-size: 0.82em;
+.calendar-cell.active .mins {
+  font-size: 0.93em;
   display: block;
-  margin-top: 0.1em;
-  color: #fff7;
+  color: #fff8;
+  margin-top: 0.04em;
 }
-.calendar-day.empty {
+.calendar-cell.empty {
   background: transparent;
   box-shadow: none;
   pointer-events: none;
 }
+.date { display: block; }
+.mins { display: block; font-size: 0.82em; margin-top: 0.1em; }
 
-.day-number {
-  display: block;
-}
-
-@media (max-width: 700px) {
-  .calendar-card {
-    padding: 0.9em 0.2em 1em 0.2em;
-    max-width: 99vw;
-    border-radius: 0;
-  }
-  .calendar-grid {
-    gap: 0.17em;
-  }
-  .calendar-header {
-    font-size: 1em;
-    margin-bottom: 1em;
-  }
+@media (max-width: 600px) {
+  .calendar-wrap { padding: 0.8em 0.2em 1em 0.2em; max-width: 99vw; border-radius: 0; }
+  .calendar-grid { gap: 0.11em; }
+  .calendar-header { font-size: 0.98em; margin-bottom: 0.8em; }
 }
 </style>
