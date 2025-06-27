@@ -1,8 +1,25 @@
 import { writable } from 'svelte/store';
 import { supabase } from '$lib/supabaseClient';
+import { goto } from '$app/navigation';
 
 export const user = writable(null);
 export const authError = writable('');
+
+// Helper: map Supabase errors to user-friendly text
+function mapAuthError(error) {
+  if (!error) return '';
+  if (error.message?.includes('Invalid login credentials')) {
+    return 'Email or password is incorrect.';
+  }
+  if (error.message?.includes('User already registered')) {
+    return 'That email is already registered.';
+  }
+  if (error.message?.includes('Password should be at least')) {
+    return 'Password is too short.';
+  }
+  // Add more mappings as needed
+  return error.message || 'Authentication error.';
+}
 
 // Load user from Supabase (on mount and after auth changes)
 export async function loadUser() {
@@ -18,22 +35,29 @@ export async function loadUser() {
 export async function login(email, password) {
   authError.set('');
   const { error, data } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) authError.set(error.message);
+  if (error) authError.set(mapAuthError(error));
   await loadUser();
   return { error, data };
 }
 
-// Logout
+// Logout: Clear user, localStorage/sessionStorage except theme, and redirect
 export async function logout() {
   await supabase.auth.signOut();
   user.set(null);
+  // Keep theme only
+  const keepTheme = localStorage.getItem('theme');
+  localStorage.clear();
+  if (keepTheme) localStorage.setItem('theme', keepTheme);
+  sessionStorage.clear();
+  // Redirect to homepage after logout
+  goto('/');
 }
 
 // Signup
 export async function signup(email, password) {
   authError.set('');
   const { error, data } = await supabase.auth.signUp({ email, password });
-  if (error) authError.set(error.message);
+  if (error) authError.set(mapAuthError(error));
   await loadUser();
   return { error, data };
 }
@@ -42,7 +66,7 @@ export async function signup(email, password) {
 export async function updateEmail(newEmail) {
   authError.set('');
   const { error, data } = await supabase.auth.updateUser({ email: newEmail });
-  if (error) authError.set(error.message);
+  if (error) authError.set(mapAuthError(error));
   await loadUser();
   return { error, data };
 }
@@ -51,7 +75,7 @@ export async function updateEmail(newEmail) {
 export async function updatePassword(newPassword) {
   authError.set('');
   const { error, data } = await supabase.auth.updateUser({ password: newPassword });
-  if (error) authError.set(error.message);
+  if (error) authError.set(mapAuthError(error));
   await loadUser();
   return { error, data };
 }

@@ -2,42 +2,29 @@
   import { user, logout } from '$lib/stores/user.js';
   import { onMount } from 'svelte';
 
-  let dark = false;
   let menuOpen = false;
 
-  // These functions are safe to leave in for future use
-  function setDarkMode(enabled) {
-    if (enabled) {
-      document.body.classList.add('dark-mode');
-      localStorage.setItem('theme', 'dark');
-      if (!document.getElementById('dark-css')) {
-        const link = document.createElement('link');
-        link.id = 'dark-css';
-        link.rel = 'stylesheet';
-        link.href = '/dark.css';
-        document.head.appendChild(link);
-      }
-    } else {
-      document.body.classList.remove('dark-mode');
-      localStorage.setItem('theme', 'light');
-      const link = document.getElementById('dark-css');
-      if (link) link.remove();
-    }
+  function handleMenu(e) {
+    e.stopPropagation();
+    menuOpen = !menuOpen;
   }
-  function toggleDark() {
-    dark = !dark;
-    setDarkMode(dark);
+
+  function closeMenu() {
+    menuOpen = false;
   }
+
+  function handleLogout() {
+    logout();
+    closeMenu();
+  }
+
   onMount(() => {
-    dark = localStorage.getItem('theme') === 'dark' || document.body.classList.contains('dark-mode');
-    setDarkMode(dark);
     const handler = () => {
       if (window.innerWidth > 720) menuOpen = false;
     };
     window.addEventListener('resize', handler);
-    // Click outside closes menu
     const closeOnOutside = (e) => {
-      if (menuOpen && !e.target.closest('.mobile-dropdown') && !e.target.closest('.menu-toggle')) {
+      if (menuOpen && !e.target.closest('.mobile-drawer') && !e.target.closest('.menu-toggle')) {
         menuOpen = false;
       }
     };
@@ -47,21 +34,14 @@
       document.removeEventListener('click', closeOnOutside);
     };
   });
-
-  function handleMenu(e) {
-    e.stopPropagation();
-    menuOpen = !menuOpen;
-  }
-  function closeMenu() { menuOpen = false; }
-  function handleLogout() { logout(); closeMenu(); }
 </script>
 
-<nav class="header">
-  <a href="/" aria-label="CIBUBBLE Home">
+<nav class="header" role="navigation" aria-label="Main Navigation">
+  <a href="/" aria-label="CIBUBBLE Home" class="logo-link">
     <img src="/logo.png" alt="CIBUBBLE logo" class="logo-img" />
   </a>
   <button class="menu-toggle" aria-label="Open menu" on:click={handleMenu}>
-    <svg class="menu-icon" fill="none" viewBox="0 0 24 24" stroke-width="2">
+    <svg class="menu-icon" fill="none" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true">
       <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16"/>
     </svg>
   </button>
@@ -71,12 +51,13 @@
     <a class="nav-link" href="/">Watch</a>
     {#if $user}
       <a class="nav-link" href="/progress">Progress</a>
-      <button class="logout-btn" on:click={logout}>Logout</button>
+      <button class="logout-btn" on:click={logout} aria-label="Log out">Logout</button>
     {:else}
       <a class="nav-link" href="/signup">Sign Up</a>
       <a class="nav-link" href="/login">Login</a>
     {/if}
-    <!-- ThemeToggle removed -->
+    <a class="nav-link" href="/privacy">Privacy</a>
+    <a class="nav-link" href="/terms">Terms</a>
   </div>
 
   <!-- Mobile right-side drawer menu -->
@@ -84,20 +65,18 @@
     <div class="drawer-backdrop" on:click={closeMenu}>
       <aside class="mobile-drawer" on:click|stopPropagation>
         <div class="drawer-top-row">
-          <!-- ThemeToggle removed from mobile drawer as well -->
           <button class="drawer-close" aria-label="Close menu" on:click={closeMenu}>×</button>
         </div>
         <a class="drawer-item" href="/" on:click={closeMenu}>Watch</a>
         {#if $user}
           <a class="drawer-item" href="/progress" on:click={closeMenu}>Progress</a>
-          <button class="drawer-item" on:click={handleLogout}>Logout</button>
+          <button class="drawer-item" on:click={handleLogout} aria-label="Log out">Logout</button>
         {:else}
           <a class="drawer-item" href="/signup" on:click={closeMenu}>Sign Up</a>
           <a class="drawer-item" href="/login" on:click={closeMenu}>Login</a>
         {/if}
-        <div class="drawer-theme-row" style="display: none;">
-          <!-- Hidden: theme toggle is now at the top row -->
-        </div>
+        <a class="drawer-item" href="/privacy" on:click={closeMenu}>Privacy</a>
+        <a class="drawer-item" href="/terms" on:click={closeMenu}>Terms</a>
       </aside>
     </div>
   {/if}
@@ -116,6 +95,7 @@
   min-height: 55px;
 }
 .logo-img { height: 3em; width: auto; }
+.logo-link { display: flex; align-items: center; }
 .nav-links {
   display: flex;
   gap: 1.6em;
@@ -128,10 +108,11 @@
   padding: 0.2em 0.6em;
   border-radius: 7px;
   text-decoration: none;
-  transition: background 0.18s, color 0.18s;
   background: none;
   border: none;
   cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+  font-family: inherit;
 }
 .nav-link:hover, .logout-btn:hover { background: #f7f7f7; color: #e93c2f; }
 .logout-btn { font-family: inherit; }
@@ -173,27 +154,19 @@
   padding: 1.05em 0.9em 1em 1em;
   position: relative;
   animation: drawerSlideIn .19s cubic-bezier(.37,1.24,.34,.97);
-  border-radius: 0;
   box-sizing: border-box;
 }
 @keyframes drawerSlideIn {
   from { transform: translateX(60px); opacity: 0.73; }
   to { transform: translateX(0); opacity: 1; }
 }
-
-/* --- Drawer top row --- */
 .drawer-top-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   margin-bottom: 0.4em;
   padding-right: 0.1em;
 }
-.drawer-theme-toggle {
-  display: none; /* Now gone */
-}
-
-/* --- Drawer close --- */
 .drawer-close {
   background: none;
   border: none;
@@ -201,15 +174,11 @@
   color: #2e9be6;
   cursor: pointer;
   margin-bottom: 0.15em;
-  margin-right: 0;
   line-height: 1;
   padding: 0;
   transition: color 0.12s;
-  border-radius: 0;
 }
 .drawer-close:hover { color: #e93c2f; }
-
-/* --- Drawer items --- */
 .drawer-item {
   margin: 0.16em 0 0.32em 0;
   font-size: 1.09em;
@@ -232,11 +201,6 @@
   outline: none;
 }
 
-/* Hide bottom theme row */
-.drawer-theme-row {
-  display: none;
-}
-
 /* Dark mode for drawer */
 body.dark-mode .mobile-drawer {
   background: #161c23;
@@ -257,7 +221,7 @@ body.dark-mode .drawer-close {
   .header {
     position: sticky;
     top: 0;
-    z-index: 2100; /* Higher than drawer, lower than modal overlay */
+    z-index: 2100;
     background: #fff;
     padding: 0.2em 2vw;
     min-height: 44px;
@@ -269,24 +233,7 @@ body.dark-mode .drawer-close {
     max-height: 40px !important;
   }
 }
-
-/* Responsive rules */
-@media (max-width: 720px) {
-  .header {
-  padding: 0.2em 2vw;
-}
-
-  .nav-links { display: none; }
-  .menu-toggle { display: block; }
-  .header { min-height: 44px; }
-  .mobile-drawer { min-height: calc(100vh - 0px); }
-  .logo-img {
-    height: 2.15em !important;
-    max-height: 40px !important;
-  }
-}
 @media (min-width: 721px) {
   .drawer-backdrop, .mobile-drawer { display: none !important; }
 }
-
 </style>
