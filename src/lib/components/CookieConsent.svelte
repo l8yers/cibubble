@@ -25,22 +25,24 @@
   right: 0;
   bottom: 0;
   width: 100vw;
-  height: 90px;
-  background: #e93c2f;
+  height: auto;
+  background: #222;
   color: #fff;
-  z-index: 1000000;
-  font-size: 2em;
+  z-index: 99999;
+  font-size: 1.1em;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
-  border-top: 5px solid yellow;
-  box-shadow: 0 0 30px #000;
-  text-align: center;
+  justify-content: space-between;
+  padding: 1.1em 2em;
+  box-shadow: 0 -2px 12px #0006;
+  border-top: 3px solid #e93c2f;
+  text-align: left;
   ">
-  <div>
-    🚨 BANNER TEST: Bottom Banner! 🚨
-  </div>
-  <button on:click={acceptCookies} style="font-size:1em;padding:1em 2em;margin-top:2em;">OK</button>
+  <span>
+    Test: This is now a normal banner!
+  </span>
+  <button on:click={acceptCookies} style="background:#e93c2f;color:#fff;border:none;padding:0.5em 1.5em;border-radius:9px;font-size:1em;font-weight:700;cursor:pointer;margin-left:1.7em;">OK</button>
 </div>
+
 {/if}
