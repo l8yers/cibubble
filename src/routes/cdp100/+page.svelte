@@ -512,9 +512,12 @@
             {#if addChannelSuccess}<div style="color:#25841c;margin-top:0.6em;">{addChannelSuccess}</div>{/if}
           {/if}
         </section>
-        <section>
-          <AdminAddChannel />
-        </section>
+ {#if adminFlag}
+  <section>
+    <AdminAddChannel />
+  </section>
+{/if}
+
 
 
         <hr style="margin:2em 0;">
