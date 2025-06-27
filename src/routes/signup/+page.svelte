@@ -1,33 +1,31 @@
 <script>
-  import { signup, authError } from '$lib/stores/user.js';
+  import { supabase } from '$lib/supabaseClient';
   import { goto } from '$app/navigation';
-  import { onDestroy } from 'svelte';
 
   let email = '';
   let password = '';
   let message = '';
+  let errorMsg = '';
   let pending = false;
 
-  // Subscribe to the authError store
-  let unsubscribe;
-  $: errorMsg = $authError;
-
-  // Clear message when user changes input
-  $: if (email || password) {
-    if (message && !pending) message = '';
-  }
-
   async function handleSignup() {
-    pending = true;
     message = '';
-    const { error, data } = await signup(email, password);
-    console.log("Signup result:", { error, data });
-    if (!error) {
-      message = 'Signup successful! Check your email to confirm.';
-      setTimeout(() => goto('/login'), 1200);
-    } else {
-      message = $authError || (error && error.message) || "Unknown error";
+    errorMsg = '';
+    pending = true;
+
+    // Call Supabase signUp directly (no custom logic)
+    const { data, error } = await supabase.auth.signUp({ email, password });
+
+    console.log('SIGNUP RESULT:', { data, error });
+
+    if (error) {
+      errorMsg = error.message || 'Signup failed.';
+      pending = false;
+      return;
     }
+
+    message = 'Signup successful! Please check your email to confirm your account.';
+    setTimeout(() => goto('/login'), 1500);
     pending = false;
   }
 </script>
@@ -104,7 +102,7 @@ button:hover { background: #b8271b; }
   {#if message}
     <div class="message">{message}</div>
   {/if}
-  {#if errorMsg && !message}
+  {#if errorMsg}
     <div class="error">{errorMsg}</div>
   {/if}
   <div style="margin-top:1em; color:#888;">
