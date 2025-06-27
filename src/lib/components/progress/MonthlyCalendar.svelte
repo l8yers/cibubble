@@ -5,7 +5,6 @@
   export let month = (new Date().getMonth() + 1);
   export let year = (new Date().getFullYear());
 
-  // Defensive defaults
   dailyTotals = dailyTotals || [];
   manualEntries = manualEntries || [];
   formatMinutesOnly = formatMinutesOnly || (s => `${Math.round(s/60)}m`);
@@ -87,21 +86,21 @@
 .cibubble-card.calendar-wrap {
   background: #fff;
   border-radius: 13px;
-  box-shadow: 0 3px 14px #2562e922, 0 1px 2px #ececec42;
-  padding: 1.2em 0.5em 1.2em 0.5em;
-  margin: 1.2em auto 1.7em auto;
-  max-width: 325px;
+  padding: 1.5em 0.8em 1.6em 0.8em;
+  margin: 1.5em auto 2em auto;
+  max-width: 395px;
   border: 1.2px solid #e3eafc;
+  box-shadow: none; /* No drop shadow */
 }
 
 .calendar-header {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1em;
+  font-size: 1.07em;
   font-weight: bold;
-  margin-bottom: 0.8em;
-  gap: 1em;
+  margin-bottom: 1em;
+  gap: 1.1em;
   letter-spacing: 0.01em;
 }
 .calendar-header button {
@@ -109,13 +108,12 @@
   border: none;
   border-radius: 7px;
   font-size: 1em;
-  padding: 0.14em 0.65em;
-  color: #5a7ec7;
+  padding: 0.17em 0.75em;
+  color: #7ba8ef;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.14s, color 0.14s;
   outline: none;
-  box-shadow: 0 1px 3px #e3eafc44;
 }
 .calendar-header button:hover,
 .calendar-header button:focus { background: #e3eafc; color: #e93c2f; }
@@ -123,76 +121,74 @@
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 0.13em;
+  gap: 0.19em;
   margin-bottom: 0.1em;
 }
 .calendar-label {
   text-align: center;
   color: #b3bde1;
-  font-size: 0.89em;
+  font-size: 0.93em;
   font-weight: 600;
-  margin-bottom: 0.05em;
+  margin-bottom: 0.09em;
   letter-spacing: 0.04em;
   user-select: none;
 }
 .calendar-cell {
-  background: #b7cffc;  /* Super light blue */
+  background: #e9f0fc;
   border-radius: 7px;
-  min-height: 29px;
-  height: 29px;
-  width: 29px;
+  min-height: 36px;
+  height: 36px;
+  width: 36px;
   text-align: center;
   font-size: 1em;
   color: #222;
   position: relative;
-  box-shadow: 0 0.5px 2px #b7cffc33;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  transition: box-shadow 0.13s, background 0.13s, color 0.14s;
+  transition: background 0.13s, color 0.14s;
   user-select: none;
   margin: 0 auto;
+  border: none;
 }
 .calendar-cell.active {
-  background: #97b8f7;
+  background: #b7cffc;
   color: #000;
   font-weight: 800;
-  box-shadow: 0 2px 7px #b7cffc77;
 }
 .calendar-cell.active .mins {
-  color: #333c;
-  font-size: 0.65em;
+  color: #34495e85;
+  font-size: 0.72em;
   font-weight: 500;
-  margin-top: 0.03em;
+  margin-top: 0.01em;
   letter-spacing: 0.01em;
 }
 .calendar-cell.empty {
   background: transparent;
-  box-shadow: none;
   pointer-events: none;
 }
 .date { 
   display: block;
-  font-size: 0.98em;
+  font-size: 1.04em;
   color: #111;
   font-weight: 700;
-  line-height: 1.13em;
+  line-height: 1.15em;
 }
 .mins { 
   display: block;
-  font-size: 0.66em;
-  margin-top: -2px;
+  font-size: 0.72em;
+  margin-top: -1.5px;
   color: #3a3a3a99;
   font-weight: 500;
-  opacity: 0.82;
-  line-height: 1.03em;
+  opacity: 0.79;
+  line-height: 1.09em;
 }
 
 @media (max-width: 500px) {
   .cibubble-card.calendar-wrap { max-width: 99vw; border-radius: 0; }
   .calendar-header { font-size: 0.97em; margin-bottom: 0.6em; }
-  .calendar-grid { gap: 0.09em; }
-  .calendar-cell { min-height: 23px; height: 23px; width: 23px; font-size: 0.95em; }
+  .calendar-grid { gap: 0.07em; }
+  .calendar-cell { min-height: 26px; height: 26px; width: 26px; font-size: 0.96em; }
 }
 </style>
