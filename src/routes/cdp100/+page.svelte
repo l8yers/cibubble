@@ -6,6 +6,7 @@
   import AdminCsvUploadBar from '$lib/components/admin/AdminCsvUploadBar.svelte';
   import AdminSearchBar from '$lib/components/admin/AdminSearchBar.svelte';
   import AdminChannelTable from '$lib/components/admin/AdminChannelTable.svelte';
+  import AdminAddChannel from '$lib/components/admin/AdminAddChannel.svelte';
   import { stripAccent, normalizeTags, parseCsv } from '$lib/utils/adminUtils.js';
 
   // === ADMIN ACCESS CONTROL ===
@@ -511,6 +512,11 @@
             {#if addChannelSuccess}<div style="color:#25841c;margin-top:0.6em;">{addChannelSuccess}</div>{/if}
           {/if}
         </section>
+        <section>
+          <AdminAddChannel />
+        </section>
+
+
         <hr style="margin:2em 0;">
         <section>
           <h3>Bulk Upload CSV</h3>
