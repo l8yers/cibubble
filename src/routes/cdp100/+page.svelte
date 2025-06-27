@@ -432,6 +432,7 @@ onMount(async () => {
 
   // Do initial load
   onMount(refresh);
+  console.log("submitChannel userId:", userId);
 </script>
 
 === DEBUG PANEL ALWAYS AT TOP ===
