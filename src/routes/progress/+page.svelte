@@ -270,16 +270,16 @@
         {formatMinutesOnly}
       />
 
-      <div class="progress-controls-row">
-
-        <button
-          class="cibubble-btn"
-          on:click={openManualModal}
-          type="button"
-        >
-          Add Time From Outside the Platform
-        </button>
-      </div>
+<div class="progress-controls-row" style="justify-content: flex-end; gap: 0;">
+  <a
+    class="add-outside-link"
+    on:click={openManualModal}
+    tabindex="0"
+    role="button"
+  >
+    + Add time outside the platform
+  </a>
+</div>
 
       <MonthlyCalendar
         dailyTotals={dailyTotals || []}
@@ -430,6 +430,36 @@
     font-weight: 700;
     line-height: 1;
   }
+  .add-outside-link {
+  color: #e93c2f;
+  font-size: 1.08em;
+  font-weight: 600;
+  text-decoration: none;
+  padding: 0.2em 0.1em;
+  margin-right: 0.3em;
+  cursor: pointer;
+  background: none;
+  border: none;
+  outline: none;
+  transition: color 0.14s;
+  display: inline-block;
+}
+.add-outside-link:hover,
+.add-outside-link:focus {
+  color: #b31212;
+  text-decoration: underline;
+}
+@media (max-width: 600px) {
+  .progress-controls-row {
+    justify-content: flex-end;
+    gap: 0.2em;
+    margin-bottom: 1.4em;
+  }
+  .add-outside-link {
+    font-size: 1em;
+    margin-right: 0.12em;
+  }
+}
   /* Mobile tweaks */
   @media (max-width: 600px) {
     .profile-main {
