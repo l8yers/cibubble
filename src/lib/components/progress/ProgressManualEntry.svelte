@@ -56,7 +56,7 @@
       user_id: userId,
       seconds,
       date: form.date,
-      comment: form.comment
+      source: form.comment
     }]);
 
     if (insertError) {
