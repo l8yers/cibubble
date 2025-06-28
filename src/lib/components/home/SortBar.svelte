@@ -1,7 +1,7 @@
 <script>
 	import { createEventDispatcher, onMount } from 'svelte';
 	import { isTablet } from '$lib/stores/screen.js';
-	import { ArrowDownUp, BarChart3, Search, Earth, Tag, User, MoreHorizontal } from 'lucide-svelte';
+	import { ArrowDownUp, BarChart3, Search, X, Earth, Tag, User, MoreHorizontal } from 'lucide-svelte';
 	import { user } from '$lib/stores/user.js';
 
 	export let levels = [];
@@ -541,26 +541,30 @@
 				<span class="switch-label-text">Hide watched</span>
 			</button>
 		{/if}
-		<div class="search-bar-container">
-			{#if searchOpen}
-				<input
-					type="text"
-					class="search-input"
-					placeholder="Search videos…"
-					value={searchTerm}
-					on:input={(e) => handleSearchInput(e.target.value)}
-					autofocus
-				/>
-			{/if}
-			<button
-				class="search-toggle"
-				title="Search"
-				on:click={handleToggleSearch}
-				aria-label="Search"
-			>
-				<Search size={22} style="color:currentColor;" />
-			</button>
-		</div>
+<div class="search-bar-container">
+	{#if searchOpen}
+		<input
+			type="text"
+			class="search-input"
+			placeholder="Search videos…"
+			value={searchTerm}
+			on:input={(e) => handleSearchInput(e.target.value)}
+			autofocus
+		/>
+	{/if}
+	<button
+		class="search-toggle"
+		title={searchOpen ? "Close search" : "Search"}
+		on:click={handleToggleSearch}
+		aria-label={searchOpen ? "Close search" : "Search"}
+	>
+		{#if searchOpen}
+			<X size={22} style="color:currentColor;" />
+		{:else}
+			<Search size={22} style="color:currentColor;" />
+		{/if}
+	</button>
+</div>
 	</div>
 </div>
 
