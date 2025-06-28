@@ -1,105 +1,94 @@
 <script>
-  import { onMount } from 'svelte';
-  import { supabase } from '$lib/supabaseClient.js';
-  import { getTagsForChannel } from '$lib/api/tags.js';
+  import AdminTagManager from '$lib/components/admin/AdminTagManager.svelte'; // stub if needed
 
-  let loading = true;
-  let error = '';
-  let channels = [];
-  let search = '';
-  let filtered = [];
+  export let filteredChannels = [];
+  export let currentPage = 1;
+  export let totalPages = 1;
+  export let refreshing = false;
+  export let countryOptions = [];
+  export let levels = [];
+  export let settingCountry = {};
+  export let settingLevel = {};
+  export let deleting = {};
 
-  async function fetchChannels() {
-    loading = true;
-    error = '';
-    channels = [];
-    try {
-      let { data, error: fetchErr } = await supabase
-        .from('channels')
-        .select('*');
-        // .order('created_at', { ascending: false }); // removed
-
-      if (fetchErr) throw fetchErr;
-
-      channels = await Promise.all(
-        (data || []).map(async (chan) => ({
-          ...chan,
-          _tags: await getTagsForChannel(chan.id).catch(() => []),
-        }))
-      );
-    } catch (err) {
-      error = err.message || 'Failed to fetch channels';
-      channels = [];
-    } finally {
-      loading = false;
-      filter();
-    }
-  }
-
-  function filter() {
-    const s = search.trim().toLowerCase();
-    filtered = !s
-      ? channels
-      : channels.filter(chan =>
-          (chan.name || '').toLowerCase().includes(s) ||
-          (chan.country || '').toLowerCase().includes(s) ||
-          (chan._tags || []).some(t => (t.name || '').toLowerCase().includes(s))
-        );
-  }
-
-  onMount(fetchChannels);
+  export let setChannelCountry;
+  export let setChannelLevel;
+  export let deleteChannel;
+  export let goToPage;
 </script>
 
-<div style="background:#fffaee;padding:1em 2em;margin:2em auto 1.2em auto;max-width:700px;font-size:0.97em;border-radius:13px;border:1px solid #ddd;">
-  <b>CHANNELS FETCH DEBUG</b><br>
-  loading: {String(loading)}<br>
-  error: {error}<br>
-  channels: {channels.length}<br>
-  filtered: {filtered.length}<br>
-  <small>This is a minimal admin test panel. If you see rows below, your Supabase fetch works.</small>
-</div>
-
-{#if loading}
-  <div style="margin:2em 0;">Loading channels…</div>
-{:else if error}
-  <div style="color:#e93c2f;margin:2em 0;">❌ {error}</div>
-{:else}
-  <div>
-    <input
-      type="text"
-      placeholder="Search channels…"
-      bind:value={search}
-      on:input={filter}
-      style="margin:0 0 1em 0;padding:0.3em 1.1em;width:260px;border-radius:8px;border:1px solid #ccc;"
-    />
-    <table border="1" style="margin-top:1em;width:100%;max-width:900px;">
-      <thead>
+<div class="admin-section">
+  <table class="admin-table admin-table-compact">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Country</th>
+        <th>Tags</th>
+        <th>Level</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {#each filteredChannels as chan}
         <tr>
-          <th>ID</th>
-          <th>Name</th>
-          <th>Country</th>
-          <th>Level</th>
-          <th>Tags</th>
+          <td>{chan.name}</td>
+          <td>
+            <select bind:value={chan._country}>
+              <option value="">No Country</option>
+              {#each countryOptions as country}
+                <option value={country}>{country}</option>
+              {/each}
+            </select>
+            {#if chan.country !== chan._country}
+              <button on:click={() => setChannelCountry(chan.id, chan._country)} disabled={settingCountry[chan.id]}>
+                {settingCountry[chan.id] ? 'Saving…' : 'Save'}
+              </button>
+            {/if}
+          </td>
+          <td>
+            <AdminTagManager channelId={chan.id} currentTags={chan._tags} />
+          </td>
+          <td>
+            <select bind:value={chan._newLevel}>
+              <option value="">
+                {levels.find(l => l.value === chan.level)?.label || '-- Not Set --'}
+              </option>
+              {#each levels as l}
+                <option value={l.value}>{l.label}</option>
+              {/each}
+            </select>
+            <button
+              on:click={() => setChannelLevel(chan.id, chan._newLevel)}
+              disabled={!chan._newLevel || settingLevel[chan.id]}>
+              {settingLevel[chan.id] ? 'Saving…' : 'Set'}
+            </button>
+          </td>
+          <td>
+            <button style="color:#c11;" on:click={() => deleteChannel(chan.id)} disabled={!!deleting[chan.id]}>
+              {deleting[chan.id] ? '…' : 'Delete'}
+            </button>
+          </td>
         </tr>
-      </thead>
-      <tbody>
-        {#each filtered as chan}
-          <tr>
-            <td>{chan.id}</td>
-            <td>{chan.name}</td>
-            <td>{chan.country}</td>
-            <td>{chan.level || '--'}</td>
-            <td>{chan._tags && chan._tags.length
-              ? chan._tags.map(t => t.name).join(', ')
-              : '--'}</td>
-          </tr>
-        {/each}
-        {#if !filtered.length}
-          <tr>
-            <td colspan="5" style="color:#aaa;">No channels found.</td>
-          </tr>
-        {/if}
-      </tbody>
-    </table>
+      {/each}
+      {#if !filteredChannels.length}
+        <tr>
+          <td colspan="5" style="color:#aaa;">No channels found.</td>
+        </tr>
+      {/if}
+    </tbody>
+  </table>
+
+  <!-- PAGINATION -->
+  <div style="margin:1em 0;text-align:center;">
+    {#if totalPages > 1}
+      {#each Array(totalPages) as _, i}
+        <button on:click={() => goToPage(i+1)} disabled={currentPage === i+1}>
+          {i+1}
+        </button>
+      {/each}
+    {/if}
+    {#if refreshing}
+      <span style="margin-left:1em;">Refreshing…</span>
+    {/if}
   </div>
-{/if}
+</div>
