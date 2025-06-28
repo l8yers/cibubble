@@ -53,8 +53,7 @@
       <a class="nav-link" href="/progress">Progress</a>
       <button class="logout-btn" on:click={logout} aria-label="Log out">Logout</button>
     {:else}
-      <a class="nav-link" href="/signup">Sign Up</a>
-      <a class="nav-link" href="/login">Login</a>
+      <a class="nav-link" href="/login">Log In / Sign Up</a>
     {/if}
   </div>
 
@@ -70,8 +69,7 @@
           <a class="drawer-item" href="/progress" on:click={closeMenu}>Progress</a>
           <button class="drawer-item" on:click={handleLogout} aria-label="Log out">Logout</button>
         {:else}
-          <a class="drawer-item" href="/signup" on:click={closeMenu}>Sign Up</a>
-          <a class="drawer-item" href="/login" on:click={closeMenu}>Login</a>
+          <a class="drawer-item" href="/login" on:click={closeMenu}>Log In / Sign Up</a>
         {/if}
       </aside>
     </div>

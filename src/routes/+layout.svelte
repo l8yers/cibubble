@@ -3,7 +3,7 @@
 	import { loadUser, user } from '$lib/stores/user.js';
 	import { loadWatchedVideos } from '$lib/stores/videos.js';
 	import NavBar from '$lib/components/ui/NavBar.svelte';
-	import CookieConsent from '$lib/components/CookieConsent.svelte';
+	// import CookieConsent from '$lib/components/CookieConsent.svelte';
 
 
 	onMount(() => {
@@ -18,4 +18,4 @@
 
 <NavBar />
 <slot />
-<CookieConsent />
+<!-- <CookieConsent /> -->
