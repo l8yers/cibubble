@@ -2,7 +2,6 @@
 	import { createEventDispatcher, onMount } from 'svelte';
 	import { isTablet } from '$lib/stores/screen.js';
 	import { ArrowDownUp, BarChart3, Search, Earth, Tag, User, MoreHorizontal } from 'lucide-svelte';
-
 	import { user } from '$lib/stores/user.js';
 
 	export let levels = [];
@@ -153,114 +152,21 @@
 		'random facts'
 	];
 	const allTags = [
-		'ai voice',
-		'animated stories',
-		'animation',
-		'animals',
-		'art',
-		'argentina',
-		'bags',
-		'baseball',
-		'business',
-		'canary islands',
-		'challenges',
-		"children's history",
-		"children's science",
-		"children's stories",
-		'colombia',
-		'comedy',
-		'comedy jokes test rain',
-		'cooking',
-		'cost of living',
-		'country life',
-		'creepy',
-		'critiques',
-		'current events',
-		'cuba',
-		'culture',
-		'debates',
-		'dubbed show',
-		'education',
-		'el salvador',
-		'equatorial guinea',
-		'facts',
-		'fashion',
-		'finance',
-		'fitness',
-		'food reviews',
-		'for learners',
-		'france',
-		'gardening',
-		'geography',
-		'gravy',
-		'guatemala',
-		'health',
-		'heart',
-		'history',
-		"how it's made",
-		'human mind',
-		'iceland',
-		'interviews',
-		'italy',
-		'jam',
-		'jam toast',
-		'journalist',
-		"kid's show",
-		'kids show',
-		'kpop',
-		'language learning',
-		'latin america',
-		'law',
-		'level',
-		'life',
-		'life in iceland',
-		'life in japan',
-		'life in korea',
-		'lifestyle',
-		'lifestyle in japan',
-		'main',
-		'manufacturing',
-		'mexico',
-		'mindfullness',
-		'montessori',
-		'motivation',
-		'music',
-		'nasa',
-		'nature',
-		'news',
-		'not native speaker',
-		'panama',
-		'paraguay',
-		'peru',
-		'personal development',
-		'philosophy',
-		'playlists',
-		'politics',
-		'pop culture',
-		'positive affirmations',
-		'psychology',
-		'pyschology',
-		'puerto rico',
-		'random facts',
-		're sales',
-		'relationships',
-		'religion',
-		'science',
-		'shorts',
-		'sobriety',
-		'spain',
-		'sports',
-		'storytelling',
-		'street interviews',
-		'tarot',
-		'tech',
-		'test',
-		'travel',
-		'true crime',
-		'uruguay',
-		'various',
-		'videogames',
-		'weather'
+		'ai voice', 'animated stories', 'animation', 'animals', 'art', 'argentina', 'bags', 'baseball',
+		'business', 'canary islands', 'challenges', "children's history", "children's science",
+		"children's stories", 'colombia', 'comedy', 'comedy jokes test rain', 'cooking', 'cost of living',
+		'country life', 'creepy', 'critiques', 'current events', 'cuba', 'culture', 'debates',
+		'dubbed show', 'education', 'el salvador', 'equatorial guinea', 'facts', 'fashion', 'finance',
+		'fitness', 'food reviews', 'for learners', 'france', 'gardening', 'geography', 'gravy', 'guatemala',
+		'health', 'heart', 'history', "how it's made", 'human mind', 'iceland', 'interviews', 'italy', 'jam',
+		'jam toast', 'journalist', "kid's show", 'kids show', 'kpop', 'language learning', 'latin america',
+		'law', 'level', 'life', 'life in iceland', 'life in japan', 'life in korea', 'lifestyle',
+		'lifestyle in japan', 'main', 'manufacturing', 'mexico', 'mindfullness', 'montessori', 'motivation',
+		'music', 'nasa', 'nature', 'news', 'not native speaker', 'panama', 'paraguay', 'peru',
+		'personal development', 'philosophy', 'playlists', 'politics', 'pop culture', 'positive affirmations',
+		'psychology', 'pyschology', 'puerto rico', 'random facts', 're sales', 'relationships', 'religion',
+		'science', 'shorts', 'sobriety', 'spain', 'sports', 'storytelling', 'street interviews', 'tarot',
+		'tech', 'test', 'travel', 'true crime', 'uruguay', 'various', 'videogames', 'weather'
 	].sort((a, b) => a.localeCompare(b));
 </script>
 
@@ -624,7 +530,7 @@
 	</div>
 
 	<div class="controls-right">
-		{#if $user}
+		{#if $user && !searchOpen}
 			<button
 				class="dropdown-btn hide-watched-btn"
 				type="button"
@@ -659,306 +565,308 @@
 </div>
 
 <style>
-	/* --- SORTBAR WRAPPER --- */
+/* --- SORTBAR WRAPPER --- */
+.controls-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 2em;
+	margin: 2em 2em 2em 2em;
+	padding: 1.1em 2.2em 1.1em 2.2em;
+	background: #f7f8fc;
+	border-radius: 20px;
+	box-shadow: 0 3px 18px #ececec66;
+	border: 1.5px solid #ededfa;
+	position: relative;
+	flex-wrap: wrap;
+}
+
+/* --- LEFT BAR: Filter Controls --- */
+.controls-left {
+	display: flex;
+	align-items: center;
+	gap: 1.3em;
+	flex-wrap: wrap;
+}
+
+/* --- RIGHT BAR: Hide Watched + Search --- */
+.controls-right {
+	display: flex;
+	align-items: center;
+	gap: 1.1em;
+	margin-left: auto;
+}
+
+/* --- DROPDOWNS --- */
+.dropdown {
+	position: relative;
+	min-width: 130px;
+}
+.dropdown-btn {
+	display: flex;
+	align-items: center;
+	gap: 0.7em;
+	padding: 0.47em 1.3em;
+	border: 1.3px solid #e7e7f6;
+	border-radius: 13px;
+	background: #fdfdff;
+	font-size: 1.04em;
+	font-weight: 700;
+	color: #232344;
+	cursor: pointer;
+	transition:
+		border 0.13s,
+		background 0.13s,
+		color 0.13s;
+}
+.dropdown-btn[aria-expanded='true'] {
+	border: 1.3px solid #bbb;
+	background: #f1f5fb;
+	color: #e93c2f;
+}
+.dropdown-content {
+	position: absolute;
+	top: 115%;
+	left: 0;
+	z-index: 101;
+	min-width: 195px;
+	max-width: 320px;
+	background: #fff;
+	border: 1.4px solid #ececec;
+	border-radius: 11px;
+	box-shadow: 0 5px 36px #c9d7e155;
+	padding: 1em 0.7em 1.2em 0.7em;
+	font-size: 1em;
+	animation: fadeInSortbar 0.13s;
+	overflow-y: auto;
+	max-height: 380px;
+}
+@keyframes fadeInSortbar {
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+/* --- CHECKBOXES & LISTS --- */
+.levels-list,
+.dropdown-content .tags-dropdown-content {
+	display: flex;
+	flex-direction: column;
+	gap: 0.6em;
+}
+.level-checkbox {
+	display: flex;
+	align-items: center;
+	gap: 0.55em;
+	font-size: 1.01em;
+	padding: 0.1em 0.1em;
+	cursor: pointer;
+}
+.level-checkbox input[type='checkbox'] {
+	accent-color: #2e9be6;
+	width: 1.04em;
+	height: 1.04em;
+}
+
+/* --- TAG DROPDOWN EXTRAS --- */
+.tags-dropdown-content {
+	max-height: 320px;
+	overflow-y: auto;
+	padding-bottom: 0.8em;
+}
+.dropdown-label {
+	font-size: 1em;
+	font-weight: 700;
+	margin-bottom: 0.3em;
+	color: #2e9be6;
+}
+
+/* --- RESET BUTTON --- */
+.reset-filters-btn {
+	font-weight: 800;
+	color: #e93c2f;
+	background: none;
+	border: none;
+	font-size: 1.03em;
+	cursor: pointer;
+	letter-spacing: 0.03em;
+	padding: 0.48em 1.1em;
+	border-radius: 8px;
+	margin-left: 0.8em;
+	transition:
+		text-decoration 0.1s,
+		color 0.13s,
+		background 0.13s;
+}
+.reset-filters-btn:hover,
+.reset-filters-btn:focus {
+	text-decoration: underline;
+	background: #fceaea;
+}
+
+/* --- HIDE WATCHED BUTTON (switch) --- */
+.hide-watched-btn {
+	display: flex;
+	align-items: center;
+	gap: 0.7em;
+	border: 1.3px solid #e7e7f6;
+	border-radius: 13px;
+	background: #fdfdff;
+	padding: 0.4em 1.2em;
+	font-size: 1.04em;
+	font-weight: 700;
+	color: #181d27;
+	cursor: pointer;
+	transition:
+		border 0.13s,
+		background 0.13s,
+		color 0.13s;
+}
+/* Remove red text on active */
+.hide-watched-btn[aria-pressed='true'] {
+	background: #fdfdff;
+	/* No color: #e93c2f; */
+	border: 1.3px solid #e7e7f6;
+}
+.switch-slider {
+	width: 36px;
+	height: 20px;
+	background: #e8e8e8;
+	border-radius: 8px;
+	position: relative;
+	display: inline-block;
+	transition: background 0.13s;
+	margin-right: 0.5em;
+	vertical-align: middle;
+}
+.hide-watched-btn[aria-pressed='true'] .switch-slider {
+	background: #fd2b23;
+}
+.switch-slider::before {
+	content: '';
+	position: absolute;
+	width: 15px;
+	height: 15px;
+	left: 2.2px;
+	top: 2.2px;
+	background: #fff;
+	border-radius: 50%;
+	transition:
+		transform 0.13s,
+		box-shadow 0.13s;
+	box-shadow: 0 1px 2px #0002;
+}
+.hide-watched-btn[aria-pressed='true'] .switch-slider::before {
+	transform: translateX(14px);
+	box-shadow: 0 1px 4px #fd2b2333;
+}
+.switch-label-text {
+	font-size: 1.04em;
+	font-weight: 700;
+	color: inherit;
+}
+
+/* --- SEARCH --- */
+.search-bar-container {
+	display: flex;
+	align-items: center;
+	position: relative;
+	gap: 0.7em;
+}
+.search-input {
+	width: 210px;
+	max-width: 50vw;
+	padding: 0.45em 1em;
+	font-size: 1.04em;
+	border-radius: 11px;
+	border: 1.3px solid #e7e7f6;
+	background: #fdfdff;
+	color: #232344;
+	font-weight: 500;
+	margin-right: 0.3em;
+	box-shadow: 0 1px 8px #ececec60;
+	outline: none;
+	transition:
+		border 0.13s,
+		background 0.13s,
+		box-shadow 0.13s;
+}
+.search-input:focus {
+	border: 1.3px solid #2e9be6;
+	background: #f7faff;
+	box-shadow: 0 2px 14px #cbeafe44;
+}
+.search-toggle {
+	background: none;
+	border: none;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	padding: 0.3em;
+	border-radius: 50%;
+	transition: background 0.13s;
+}
+.search-toggle:hover,
+.search-toggle:focus-visible {
+	background: #e5f2fd;
+}
+
+/* --- ACTIVE SORT HIGHLIGHT --- */
+.active-sort-option {
+	background: #e5f2fd;
+	font-weight: 700;
+	color: #2e9be6;
+	border-radius: 7px;
+}
+
+/* --- RESPONSIVE --- */
+@media (max-width: 1200px) {
 	.controls-bar {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 2em;
-		margin: 2em 2em 2em 2em;
-		padding: 1.1em 2.2em 1.1em 2.2em;
-		background: #f7f8fc;
-		border-radius: 20px;
-		box-shadow: 0 3px 18px #ececec66;
-		border: 1.5px solid #ededfa;
-		position: relative;
-		flex-wrap: wrap;
+		flex-direction: column;
+		gap: 1.2em;
+		padding: 1em 1.2em;
 	}
-
-	/* --- LEFT BAR: Filter Controls --- */
-	.controls-left {
-		display: flex;
-		align-items: center;
-		gap: 1.3em;
-		flex-wrap: wrap;
-	}
-
-	/* --- RIGHT BAR: Hide Watched + Search --- */
+	.controls-left,
 	.controls-right {
-		display: flex;
-		align-items: center;
-		gap: 1.1em;
-		margin-left: auto;
+		flex-wrap: wrap;
+		margin-left: 0;
+		gap: 1em;
 	}
-
-	/* --- DROPDOWNS --- */
-	.dropdown {
-		position: relative;
-		min-width: 130px;
+	.controls-right {
+		justify-content: flex-end;
+		margin-top: 0.7em;
 	}
-	.dropdown-btn {
-		display: flex;
-		align-items: center;
-		gap: 0.7em;
-		padding: 0.47em 1.3em;
-		border: 1.3px solid #e7e7f6;
-		border-radius: 13px;
-		background: #fdfdff;
-		font-size: 1.04em;
-		font-weight: 700;
-		color: #232344;
-		cursor: pointer;
-		transition:
-			border 0.13s,
-			background 0.13s,
-			color 0.13s;
+}
+@media (max-width: 900px) {
+	.controls-bar {
+		gap: 1em;
 	}
-	.dropdown-btn[aria-expanded='true'] {
-		border: 1.3px solid #bbb;
-		background: #f1f5fb;
-		color: #e93c2f;
+}
+@media (max-width: 700px) {
+	.controls-bar {
+		gap: 0.6em;
+		padding: 0.8em 0.4em;
+		border-radius: 10px;
+	}
+	.dropdown-btn,
+	.hide-watched-btn {
+		font-size: 0.99em;
+		padding: 0.34em 0.7em;
 	}
 	.dropdown-content {
-		position: absolute;
-		top: 115%;
-		left: 0;
-		z-index: 101;
-		min-width: 195px;
-		max-width: 320px;
-		background: #fff;
-		border: 1.4px solid #ececec;
-		border-radius: 11px;
-		box-shadow: 0 5px 36px #c9d7e155;
-		padding: 1em 0.7em 1.2em 0.7em;
-		font-size: 1em;
-		animation: fadeInSortbar 0.13s;
-		overflow-y: auto;
-		max-height: 380px;
-	}
-	@keyframes fadeInSortbar {
-		from {
-			opacity: 0;
-			transform: translateY(10px);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
-	}
-
-	/* --- CHECKBOXES & LISTS --- */
-	.levels-list,
-	.dropdown-content .tags-dropdown-content {
-		display: flex;
-		flex-direction: column;
-		gap: 0.6em;
-	}
-	.level-checkbox {
-		display: flex;
-		align-items: center;
-		gap: 0.55em;
-		font-size: 1.01em;
-		padding: 0.1em 0.1em;
-		cursor: pointer;
-	}
-	.level-checkbox input[type='checkbox'] {
-		accent-color: #2e9be6;
-		width: 1.04em;
-		height: 1.04em;
-	}
-
-	/* --- TAG DROPDOWN EXTRAS --- */
-	.tags-dropdown-content {
-		max-height: 320px;
-		overflow-y: auto;
-		padding-bottom: 0.8em;
-	}
-	.dropdown-label {
-		font-size: 1em;
-		font-weight: 700;
-		margin-bottom: 0.3em;
-		color: #2e9be6;
-	}
-
-	/* --- RESET BUTTON --- */
-	.reset-filters-btn {
-		font-weight: 800;
-		color: #e93c2f;
-		background: none;
-		border: none;
-		font-size: 1.03em;
-		cursor: pointer;
-		letter-spacing: 0.03em;
-		padding: 0.48em 1.1em;
-		border-radius: 8px;
-		margin-left: 0.8em;
-		transition:
-			text-decoration 0.1s,
-			color 0.13s,
-			background 0.13s;
-	}
-	.reset-filters-btn:hover,
-	.reset-filters-btn:focus {
-		text-decoration: underline;
-		background: #fceaea;
-	}
-
-	/* --- HIDE WATCHED BUTTON (switch) --- */
-	.hide-watched-btn {
-		display: flex;
-		align-items: center;
-		gap: 0.7em;
-		border: 1.3px solid #e7e7f6;
-		border-radius: 13px;
-		background: #fdfdff;
-		padding: 0.4em 1.2em;
-		font-size: 1.04em;
-		font-weight: 700;
-		color: #181d27;
-		cursor: pointer;
-		transition:
-			border 0.13s,
-			background 0.13s,
-			color 0.13s;
-	}
-	.hide-watched-btn[aria-pressed='true'] {
-		background: #fdfdff;
-		color: #e93c2f;
-		border: 1.3px solid #e7e7f6;
-	}
-	.switch-slider {
-		width: 36px;
-		height: 20px;
-		background: #e8e8e8;
-		border-radius: 8px;
-		position: relative;
-		display: inline-block;
-		transition: background 0.13s;
-		margin-right: 0.5em;
-		vertical-align: middle;
-	}
-	.hide-watched-btn[aria-pressed='true'] .switch-slider {
-		background: #fd2b23;
-	}
-	.switch-slider::before {
-		content: '';
-		position: absolute;
-		width: 15px;
-		height: 15px;
-		left: 2.2px;
-		top: 2.2px;
-		background: #fff;
-		border-radius: 50%;
-		transition:
-			transform 0.13s,
-			box-shadow 0.13s;
-		box-shadow: 0 1px 2px #0002;
-	}
-	.hide-watched-btn[aria-pressed='true'] .switch-slider::before {
-		transform: translateX(14px);
-		box-shadow: 0 1px 4px #fd2b2333;
-	}
-	.switch-label-text {
-		font-size: 1.04em;
-		font-weight: 700;
-		color: inherit;
-	}
-
-	/* --- SEARCH --- */
-	.search-bar-container {
-		display: flex;
-		align-items: center;
-		position: relative;
-		gap: 0.7em;
+		min-width: 135px;
+		font-size: 0.99em;
+		padding: 0.5em 0.5em 0.7em 0.5em;
 	}
 	.search-input {
-		width: 180px;
-		max-width: 50vw;
-		padding: 0.45em 1em;
-		font-size: 1.04em;
-		border-radius: 11px;
-		border: 1.3px solid #e7e7f6;
-		background: #fdfdff;
-		color: #232344;
-		font-weight: 500;
-		margin-right: 0.3em;
-		box-shadow: 0 1px 8px #ececec60;
-		outline: none;
-		transition:
-			border 0.13s,
-			background 0.13s,
-			box-shadow 0.13s;
+		width: 98px;
+		font-size: 0.99em;
 	}
-	.search-input:focus {
-		border: 1.3px solid #2e9be6;
-		background: #f7faff;
-		box-shadow: 0 2px 14px #cbeafe44;
-	}
-	.search-toggle {
-		background: none;
-		border: none;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		padding: 0.3em;
-		border-radius: 50%;
-		transition: background 0.13s;
-	}
-	.search-toggle:hover,
-	.search-toggle:focus-visible {
-		background: #e5f2fd;
-	}
+}
 
-	/* --- ACTIVE SORT HIGHLIGHT --- */
-	.active-sort-option {
-		background: #e5f2fd;
-		font-weight: 700;
-		color: #2e9be6;
-		border-radius: 7px;
-	}
-
-	/* --- RESPONSIVE --- */
-	@media (max-width: 1200px) {
-		.controls-bar {
-			flex-direction: column;
-			gap: 1.2em;
-			padding: 1em 1.2em;
-		}
-		.controls-left,
-		.controls-right {
-			flex-wrap: wrap;
-			margin-left: 0;
-			gap: 1em;
-		}
-		.controls-right {
-			justify-content: flex-end;
-			margin-top: 0.7em;
-		}
-	}
-	@media (max-width: 900px) {
-		.controls-bar {
-			gap: 1em;
-		}
-	}
-	@media (max-width: 700px) {
-		.controls-bar {
-			gap: 0.6em;
-			padding: 0.8em 0.4em;
-			border-radius: 10px;
-		}
-		.dropdown-btn,
-		.hide-watched-btn {
-			font-size: 0.99em;
-			padding: 0.34em 0.7em;
-		}
-		.dropdown-content {
-			min-width: 135px;
-			font-size: 0.99em;
-			padding: 0.5em 0.5em 0.7em 0.5em;
-		}
-		.search-input {
-			width: 98px;
-			font-size: 0.99em;
-		}
-	}
 </style>
