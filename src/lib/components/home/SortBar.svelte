@@ -858,7 +858,6 @@
 		gap: 0.25em;
 		padding: 0.21em 0.03em;
 		margin: 0.3em 0.02em 0.5em 0.02em;
-		border-radius: 8px;
 	}
 }
 </style>
