@@ -226,18 +226,19 @@ export async function POST({ request }) {
     }
 
     // --- Upsert channel (tags as comma string) ---
-    const channelObj = {
-      id: channel.id,
-      name: channel.name,
-      thumbnail: channel.thumbnail || '',
-      description: channel.description || '',
-      tags: tagArr.join(','),  // for channels table as a text field
-      country: normCountry
-    };
-    const { error: channelError } = await supabase.from('channels').upsert([channelObj]);
-    if (channelError) {
-      return json({ error: 'Failed to upsert channel.' }, { status: 500 });
-    }
+   const channelObj = {
+  id: channel.id,
+  name: channel.name,
+  thumbnail: channel.thumbnail || '',
+  description: channel.description || '',
+  tags: tagArr.join(','),  // for channels table as a text field
+  country: normCountry,
+  level: level || null     // <-- NEW: set level!
+};
+const { error: channelError } = await supabase.from('channels').upsert([channelObj]);
+if (channelError) {
+  return json({ error: 'Failed to upsert channel.' }, { status: 500 });
+}
 
     // Upsert playlists
     const playlists = await getPlaylists(channel.id);
