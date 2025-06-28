@@ -1,6 +1,5 @@
 <script>
 	import { createEventDispatcher, onMount } from 'svelte';
-	import { isTablet } from '$lib/stores/screen.js';
 	import { ArrowDownUp, BarChart3, Search, X, Earth, Tag, User, MoreHorizontal } from 'lucide-svelte';
 	import { user } from '$lib/stores/user.js';
 
@@ -33,6 +32,24 @@
 		countryDropdownRef,
 		myChannelsDropdownRef,
 		moreDropdownRef;
+
+	// "Tablet" logic, if you want to collapse more controls at certain width
+	let isTablet = false;
+	let isSmallMobile = false;
+
+	function updateSize() {
+		isTablet = window.innerWidth < 1200;
+		isSmallMobile = window.innerWidth < 650; // Collapse Levels as well!
+	}
+	onMount(() => {
+		updateSize();
+		window.addEventListener('resize', updateSize);
+		document.addEventListener('click', handleDocumentClick);
+		return () => {
+			window.removeEventListener('resize', updateSize);
+			document.removeEventListener('click', handleDocumentClick);
+		};
+	});
 
 	function emitChange(data = {}) {
 		dispatch('change', {
@@ -99,13 +116,12 @@
 		});
 	}
 
-	// Dropdown close on outside click
 	function handleDocumentClick(event) {
 		if (showSortDropdown && sortDropdownRef && !sortDropdownRef.contains(event.target))
 			showSortDropdown = false;
 		if (showLevelDropdown && levelsDropdownRef && !levelsDropdownRef.contains(event.target))
 			showLevelDropdown = false;
-		if (!$isTablet) {
+		if (!isTablet && !isSmallMobile) {
 			if (showTagDropdown && tagDropdownRef && !tagDropdownRef.contains(event.target))
 				showTagDropdown = false;
 			if (showCountryDropdown && countryDropdownRef && !countryDropdownRef.contains(event.target))
@@ -117,15 +133,11 @@
 			)
 				showMyChannelsDropdown = false;
 		}
-		if ($isTablet) {
+		if (isTablet || isSmallMobile) {
 			if (showMoreDropdown && moreDropdownRef && !moreDropdownRef.contains(event.target))
 				showMoreDropdown = false;
 		}
 	}
-	onMount(() => {
-		document.addEventListener('click', handleDocumentClick);
-		return () => document.removeEventListener('click', handleDocumentClick);
-	});
 
 	function toTitleCase(str) {
 		return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1));
@@ -152,27 +164,13 @@
 		'random facts'
 	];
 	const allTags = [
-		'ai voice', 'animated stories', 'animation', 'animals', 'art', 'argentina', 'bags', 'baseball',
-		'business', 'canary islands', 'challenges', "children's history", "children's science",
-		"children's stories", 'colombia', 'comedy', 'comedy jokes test rain', 'cooking', 'cost of living',
-		'country life', 'creepy', 'critiques', 'current events', 'cuba', 'culture', 'debates',
-		'dubbed show', 'education', 'el salvador', 'equatorial guinea', 'facts', 'fashion', 'finance',
-		'fitness', 'food reviews', 'for learners', 'france', 'gardening', 'geography', 'gravy', 'guatemala',
-		'health', 'heart', 'history', "how it's made", 'human mind', 'iceland', 'interviews', 'italy', 'jam',
-		'jam toast', 'journalist', "kid's show", 'kids show', 'kpop', 'language learning', 'latin america',
-		'law', 'level', 'life', 'life in iceland', 'life in japan', 'life in korea', 'lifestyle',
-		'lifestyle in japan', 'main', 'manufacturing', 'mexico', 'mindfullness', 'montessori', 'motivation',
-		'music', 'nasa', 'nature', 'news', 'not native speaker', 'panama', 'paraguay', 'peru',
-		'personal development', 'philosophy', 'playlists', 'politics', 'pop culture', 'positive affirmations',
-		'psychology', 'pyschology', 'puerto rico', 'random facts', 're sales', 'relationships', 'religion',
-		'science', 'shorts', 'sobriety', 'spain', 'sports', 'storytelling', 'street interviews', 'tarot',
-		'tech', 'test', 'travel', 'true crime', 'uruguay', 'various', 'videogames', 'weather'
+		'ai voice','animated stories','animation','animals','art','argentina','bags','baseball','business','canary islands','challenges',"children's history","children's science","children's stories",'colombia','comedy','comedy jokes test rain','cooking','cost of living','country life','creepy','critiques','current events','cuba','culture','debates','dubbed show','education','el salvador','equatorial guinea','facts','fashion','finance','fitness','food reviews','for learners','france','gardening','geography','gravy','guatemala','health','heart','history',"how it's made",'human mind','iceland','interviews','italy','jam','jam toast','journalist',"kid's show",'kids show','kpop','language learning','latin america','law','level','life','life in iceland','life in japan','life in korea','lifestyle','lifestyle in japan','main','manufacturing','mexico','mindfullness','montessori','motivation','music','nasa','nature','news','not native speaker','panama','paraguay','peru','personal development','philosophy','playlists','politics','pop culture','positive affirmations','psychology','pyschology','puerto rico','random facts','re sales','relationships','religion','science','shorts','sobriety','spain','sports','storytelling','street interviews','tarot','tech','test','travel','true crime','uruguay','various','videogames','weather'
 	].sort((a, b) => a.localeCompare(b));
 </script>
 
 <div class="controls-bar">
 	<div class="controls-left">
-		<!-- Sort Dropdown -->
+		<!-- Sort Dropdown (always visible) -->
 		<div class="dropdown" bind:this={sortDropdownRef}>
 			<button
 				class="dropdown-btn"
@@ -201,46 +199,48 @@
 			{/if}
 		</div>
 
-		<!-- Levels Dropdown -->
-		<div class="dropdown" bind:this={levelsDropdownRef}>
-			<button
-				class="dropdown-btn"
-				aria-expanded={showLevelDropdown}
-				on:click={() => (showLevelDropdown = !showLevelDropdown)}
-				type="button"
-			>
-				<BarChart3 size={18} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
-				Levels
-				<svg width="12" height="9" style="margin-left:7px;" fill="none">
-					<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
-				</svg>
-			</button>
-			{#if showLevelDropdown}
-				<div class="dropdown-content">
-					<div class="levels-list">
-						{#each levels as lvl}
-							<label class="level-checkbox">
-								<input
-									type="checkbox"
-									checked={selectedLevels.includes(lvl.value)}
-									on:change={() => handleToggleLevel(lvl.value)}
-								/>
-								<span>{lvl.label}</span>
-							</label>
-						{/each}
+		<!-- Levels Dropdown (only show outside small mobile) -->
+		{#if !isSmallMobile}
+			<div class="dropdown" bind:this={levelsDropdownRef}>
+				<button
+					class="dropdown-btn"
+					aria-expanded={showLevelDropdown}
+					on:click={() => (showLevelDropdown = !showLevelDropdown)}
+					type="button"
+				>
+					<BarChart3 size={18} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
+					Levels
+					<svg width="12" height="9" style="margin-left:7px;" fill="none">
+						<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+					</svg>
+				</button>
+				{#if showLevelDropdown}
+					<div class="dropdown-content">
+						<div class="levels-list">
+							{#each levels as lvl}
+								<label class="level-checkbox">
+									<input
+										type="checkbox"
+										checked={selectedLevels.includes(lvl.value)}
+										on:change={() => handleToggleLevel(lvl.value)}
+									/>
+									<span>{lvl.label}</span>
+								</label>
+							{/each}
+						</div>
+						<button
+							style="margin-top:0.5em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;"
+							on:click={handleToggleAllLevels}
+						>
+							Toggle all
+						</button>
 					</div>
-					<button
-						style="margin-top:0.5em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;"
-						on:click={handleToggleAllLevels}
-					>
-						Toggle all
-					</button>
-				</div>
-			{/if}
-		</div>
+				{/if}
+			</div>
+		{/if}
 
-		{#if !$isTablet}
-			<!-- Individual Dropdowns on Desktop -->
+		<!-- Individual Dropdowns or More Dropdown -->
+		{#if !isTablet && !isSmallMobile}
 			<div class="dropdown" bind:this={tagDropdownRef}>
 				<button
 					class="dropdown-btn"
@@ -256,7 +256,7 @@
 				</button>
 				{#if showTagDropdown}
 					<div class="dropdown-content tags-dropdown-content">
-						<!-- TOP TAGS -->
+						<!-- ... Tags Content ... -->
 						<div style="margin-bottom:0.7em;">
 							<div class="dropdown-label" style="font-weight:700; font-size:1.01em;">Top Tags</div>
 							{#each topTags as tag}
@@ -271,7 +271,6 @@
 							{/each}
 						</div>
 						<hr style="margin:0.5em 0 0.5em 0;" />
-						<!-- ALL OTHER TAGS -->
 						<div>
 							<div class="dropdown-label" style="font-weight:700; font-size:1.01em;">All Tags</div>
 							{#each allTags as tag}
@@ -348,7 +347,6 @@
 					</button>
 					{#if showMyChannelsDropdown}
 						<div class="dropdown-content">
-							<!-- All My Channels option -->
 							<label class="level-checkbox">
 								<input
 									type="checkbox"
@@ -393,7 +391,7 @@
 				</div>
 			{/if}
 		{:else}
-			<!-- TABLET: More Dropdown for Tags, Country, Channels -->
+			<!-- More Dropdown: at tablet/small, includes Tags, Country, Channels, and (at mobile) Levels -->
 			<div class="dropdown" bind:this={moreDropdownRef}>
 				<button
 					class="dropdown-btn"
@@ -412,6 +410,30 @@
 				</button>
 				{#if showMoreDropdown}
 					<div class="dropdown-content" style="min-width:260px;max-width:340px;">
+						{#if isSmallMobile}
+							<div>
+								<div class="dropdown-label" style="font-weight:700; font-size:1.01em;">Levels</div>
+								<div class="levels-list">
+									{#each levels as lvl}
+										<label class="level-checkbox">
+											<input
+												type="checkbox"
+												checked={selectedLevels.includes(lvl.value)}
+												on:change={() => handleToggleLevel(lvl.value)}
+											/>
+											<span>{lvl.label}</span>
+										</label>
+									{/each}
+								</div>
+								<button
+									style="margin-top:0.5em;font-size:0.96em;color:#d54b18;background:none;border:none;cursor:pointer;"
+									on:click={handleToggleAllLevels}
+								>
+									Toggle all
+								</button>
+							</div>
+							<hr style="margin:0.7em 0;" />
+						{/if}
 						<!-- Tags -->
 						<div>
 							<div class="dropdown-label" style="font-weight:700; font-size:1.01em;">Tags</div>
@@ -521,14 +543,12 @@
 				{/if}
 			</div>
 		{/if}
-
 		{#if filtersChanged}
 			<button class="reset-filters-btn" type="button" on:click={handleResetFilters}>
 				reset filters
 			</button>
 		{/if}
 	</div>
-
 	<div class="controls-right">
 		{#if $user && !searchOpen}
 			<button
@@ -541,30 +561,30 @@
 				<span class="switch-label-text">Hide watched</span>
 			</button>
 		{/if}
-<div class="search-bar-container">
-	{#if searchOpen}
-		<input
-			type="text"
-			class="search-input"
-			placeholder="Search videos…"
-			value={searchTerm}
-			on:input={(e) => handleSearchInput(e.target.value)}
-			autofocus
-		/>
-	{/if}
-	<button
-		class="search-toggle"
-		title={searchOpen ? "Close search" : "Search"}
-		on:click={handleToggleSearch}
-		aria-label={searchOpen ? "Close search" : "Search"}
-	>
-		{#if searchOpen}
-			<X size={22} style="color:currentColor;" />
-		{:else}
-			<Search size={22} style="color:currentColor;" />
-		{/if}
-	</button>
-</div>
+		<div class="search-bar-container">
+			{#if searchOpen}
+				<input
+					type="text"
+					class="search-input"
+					placeholder="Search videos…"
+					value={searchTerm}
+					on:input={(e) => handleSearchInput(e.target.value)}
+					autofocus
+				/>
+			{/if}
+			<button
+				class="search-toggle"
+				title={searchOpen ? "Close search" : "Search"}
+				on:click={handleToggleSearch}
+				aria-label={searchOpen ? "Close search" : "Search"}
+			>
+				{#if searchOpen}
+					<X size={22} style="color:currentColor;" />
+				{:else}
+					<Search size={22} style="color:currentColor;" />
+				{/if}
+			</button>
+		</div>
 	</div>
 </div>
 
@@ -574,47 +594,46 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 2em;
+	gap: 1em;
 	margin: 2em 2em 2em 2em;
-	padding: 1.1em 2.2em 1.1em 2.2em;
-	background: #f7f8fc;
-	border-radius: 20px;
-	box-shadow: 0 3px 18px #ececec66;
-	border: 1.5px solid #ededfa;
+	padding: 0.5em 1.2em 0.5em 1.2em;
+	background: #fafbfc;
+	border-radius: 11px;
+	box-shadow: 0 1.5px 8px #e0e0e040;
+	border: 1px solid #e0e3ea;
 	position: relative;
-	flex-wrap: wrap;
 }
 
 /* --- LEFT BAR: Filter Controls --- */
 .controls-left {
 	display: flex;
 	align-items: center;
-	gap: 1.3em;
-	flex-wrap: wrap;
+	gap: 1em;
+	/* NO flex-wrap! */
 }
 
 /* --- RIGHT BAR: Hide Watched + Search --- */
 .controls-right {
 	display: flex;
 	align-items: center;
-	gap: 1.1em;
+	gap: 0.7em;
 	margin-left: auto;
 }
 
 /* --- DROPDOWNS --- */
 .dropdown {
 	position: relative;
-	min-width: 130px;
+	min-width: 110px;
 }
 .dropdown-btn {
 	display: flex;
 	align-items: center;
-	gap: 0.7em;
-	padding: 0.47em 1.3em;
+	gap: 0.5em;
+	padding: 0.38em 1em;
 	border: 1.3px solid #e7e7f6;
 	border-radius: 13px;
 	background: #fdfdff;
-	font-size: 1.04em;
+	font-size: 1.02em;
 	font-weight: 700;
 	color: #232344;
 	cursor: pointer;
@@ -633,14 +652,14 @@
 	top: 115%;
 	left: 0;
 	z-index: 101;
-	min-width: 195px;
+	min-width: 170px;
 	max-width: 320px;
 	background: #fff;
 	border: 1.4px solid #ececec;
 	border-radius: 11px;
 	box-shadow: 0 5px 36px #c9d7e155;
 	padding: 1em 0.7em 1.2em 0.7em;
-	font-size: 1em;
+	font-size: 0.98em;
 	animation: fadeInSortbar 0.13s;
 	overflow-y: auto;
 	max-height: 380px;
@@ -666,28 +685,15 @@
 .level-checkbox {
 	display: flex;
 	align-items: center;
-	gap: 0.55em;
-	font-size: 1.01em;
-	padding: 0.1em 0.1em;
+	gap: 0.45em;
+	font-size: 1em;
+	padding: 0.05em 0.05em;
 	cursor: pointer;
 }
 .level-checkbox input[type='checkbox'] {
 	accent-color: #2e9be6;
-	width: 1.04em;
-	height: 1.04em;
-}
-
-/* --- TAG DROPDOWN EXTRAS --- */
-.tags-dropdown-content {
-	max-height: 320px;
-	overflow-y: auto;
-	padding-bottom: 0.8em;
-}
-.dropdown-label {
-	font-size: 1em;
-	font-weight: 700;
-	margin-bottom: 0.3em;
-	color: #2e9be6;
+	width: 1.02em;
+	height: 1.02em;
 }
 
 /* --- RESET BUTTON --- */
@@ -696,12 +702,12 @@
 	color: #e93c2f;
 	background: none;
 	border: none;
-	font-size: 1.03em;
+	font-size: 1em;
 	cursor: pointer;
-	letter-spacing: 0.03em;
-	padding: 0.48em 1.1em;
+	letter-spacing: 0.02em;
+	padding: 0.35em 0.9em;
 	border-radius: 8px;
-	margin-left: 0.8em;
+	margin-left: 0.7em;
 	transition:
 		text-decoration 0.1s,
 		color 0.13s,
@@ -721,8 +727,8 @@
 	border: 1.3px solid #e7e7f6;
 	border-radius: 13px;
 	background: #fdfdff;
-	padding: 0.4em 1.2em;
-	font-size: 1.04em;
+	padding: 0.4em 1em;
+	font-size: 1em;
 	font-weight: 700;
 	color: #181d27;
 	cursor: pointer;
@@ -731,10 +737,8 @@
 		background 0.13s,
 		color 0.13s;
 }
-/* Remove red text on active */
 .hide-watched-btn[aria-pressed='true'] {
 	background: #fdfdff;
-	/* No color: #e93c2f; */
 	border: 1.3px solid #e7e7f6;
 }
 .switch-slider {
@@ -770,7 +774,7 @@
 	box-shadow: 0 1px 4px #fd2b2333;
 }
 .switch-label-text {
-	font-size: 1.04em;
+	font-size: 1em;
 	font-weight: 700;
 	color: inherit;
 }
@@ -780,19 +784,19 @@
 	display: flex;
 	align-items: center;
 	position: relative;
-	gap: 0.7em;
+	gap: 0.6em;
 }
 .search-input {
-	width: 210px;
+	width: 200px;
 	max-width: 50vw;
-	padding: 0.45em 1em;
-	font-size: 1.04em;
+	padding: 0.36em 0.7em;
+	font-size: 1em;
 	border-radius: 11px;
 	border: 1.3px solid #e7e7f6;
 	background: #fdfdff;
 	color: #232344;
 	font-weight: 500;
-	margin-right: 0.3em;
+	margin-right: 0.2em;
 	box-shadow: 0 1px 8px #ececec60;
 	outline: none;
 	transition:
@@ -811,7 +815,7 @@
 	cursor: pointer;
 	display: flex;
 	align-items: center;
-	padding: 0.3em;
+	padding: 0.15em;
 	border-radius: 50%;
 	transition: background 0.13s;
 }
@@ -828,49 +832,33 @@
 	border-radius: 7px;
 }
 
-/* --- RESPONSIVE --- */
-@media (max-width: 1200px) {
-	.controls-bar {
-		flex-direction: column;
-		gap: 1.2em;
-		padding: 1em 1.2em;
-	}
-	.controls-left,
-	.controls-right {
-		flex-wrap: wrap;
-		margin-left: 0;
-		gap: 1em;
-	}
-	.controls-right {
-		justify-content: flex-end;
-		margin-top: 0.7em;
-	}
-}
+/* --- RESPONSIVE SQUEEZE --- */
 @media (max-width: 900px) {
 	.controls-bar {
-		gap: 1em;
-	}
-}
-@media (max-width: 700px) {
-	.controls-bar {
 		gap: 0.6em;
-		padding: 0.8em 0.4em;
-		border-radius: 10px;
+		padding: 0.7em 0.7em;
 	}
 	.dropdown-btn,
 	.hide-watched-btn {
-		font-size: 0.99em;
-		padding: 0.34em 0.7em;
+		font-size: 0.96em;
+		padding: 0.18em 0.33em;
 	}
 	.dropdown-content {
-		min-width: 135px;
-		font-size: 0.99em;
-		padding: 0.5em 0.5em 0.7em 0.5em;
+		min-width: 98px;
+		font-size: 0.97em;
+		padding: 0.4em 0.3em 0.4em 0.3em;
 	}
 	.search-input {
 		width: 98px;
-		font-size: 0.99em;
+		font-size: 0.97em;
 	}
 }
-
+@media (max-width: 650px) {
+	.controls-bar {
+		gap: 0.25em;
+		padding: 0.21em 0.03em;
+		margin: 0.3em 0.02em 0.5em 0.02em;
+		border-radius: 8px;
+	}
+}
 </style>
