@@ -8,7 +8,7 @@
   import ManualEntryList from '$lib/components/progress/ManualEntryList.svelte';
   import ManualEntryEditForm from '$lib/components/progress/ManualEntryEditForm.svelte';
   import ProgressSettings from '$lib/components/progress/ProgressSettings.svelte';
-  import { Timer, CalendarCheck, Award } from 'lucide-svelte';
+  import { Timer, CalendarCheck, Award, ExternalLink } from 'lucide-svelte';
   import { writable } from 'svelte/store';
 
   export const windowWidth = writable(typeof window !== 'undefined' ? window.innerWidth : 1200);
@@ -238,14 +238,13 @@
   </div>
 {:else}
   <div class="progress-layout">
-    <!-- STATS CARD (best version with tooltips, vivid colors, icons) -->
+    <!-- STATS CARD (labels under numbers and colored) -->
     <div class="card stats-card">
       <div class="stats-heading">Statistics</div>
       <div class="stats-boxes-row">
         <div class="stat-box stat-time">
           <Timer size={44} class="stat-icon" style="stroke: var(--icon-color);" />
-          <div class="stat-label">Total Watch Time</div>
-          <div class="stat-value">
+          <div class="stat-value" style="margin-bottom: 0.45em;">
             <span
               class="tooltip-parent"
               on:mouseenter={() => showTotalTooltip = true}
@@ -260,11 +259,11 @@
               {/if}
             </span>
           </div>
+          <div class="stat-label stat-label-time">Total Watch Time</div>
         </div>
         <div class="stat-box stat-today">
           <CalendarCheck size={44} class="stat-icon" style="stroke: var(--icon-color);" />
-          <div class="stat-label">Today's Watch Time</div>
-          <div class="stat-value">
+          <div class="stat-value" style="margin-bottom: 0.45em;">
             <span
               class="tooltip-parent"
               on:mouseenter={() => showTodayTooltip = true}
@@ -279,11 +278,12 @@
               {/if}
             </span>
           </div>
+          <div class="stat-label stat-label-today">Today's Watch Time</div>
         </div>
         <div class="stat-box stat-practiced">
           <Award size={44} class="stat-icon" style="stroke: var(--icon-color);" />
-          <div class="stat-label">Days You Practiced</div>
-          <div class="stat-value">{daysPracticed}</div>
+          <div class="stat-value" style="margin-bottom: 0.45em;">{daysPracticed}</div>
+          <div class="stat-label stat-label-practiced">Days You Practiced</div>
         </div>
       </div>
     </div>
@@ -292,17 +292,17 @@
       <div class="card outside-card">
         <div class="outside-title">Outside hours</div>
         <div class="outside-box">
-          <svg viewBox="0 0 40 40" width="44" height="44" style="margin-bottom:0.6em;">
-            <g stroke="#31b0e9" stroke-width="2" fill="none">
-              <ellipse cx="20" cy="18" rx="12" ry="9"/>
-              <path d="M12 31c2-3 8-3 10 0M8 21c-1 5 1 9 4 11"/>
-              <circle cx="17" cy="18" r="1.5" fill="#31b0e9"/>
-              <circle cx="23" cy="18" r="1.5" fill="#31b0e9"/>
-              <path d="M17 24c1.5 1.5 4.5 1.5 6 0"/>
-            </g>
-          </svg>
+          <ExternalLink size={44} style="margin-bottom:0.6em; color:#31b0e9;" />
           <div class="outside-number">{formatHours(outsideTime)}</div>
-          <div class="outside-label">hours outside the platform</div>
+          <div class="outside-label outside-label-lower">hours outside the platform</div>
+        </div>
+        <div class="outside-links-row">
+          <a class="outside-link" on:click|preventDefault={openManualModal} href="#">
+            + Add time outside the platform
+          </a>
+          <a class="outside-link" on:click|preventDefault={() => showManualTab = true} href="#">
+            View time outside the platform
+          </a>
         </div>
       </div>
       <div class="card activity-card">
@@ -325,11 +325,6 @@
           />
         </div>
       </div>
-    </div>
-    <!-- CONTROLS -->
-    <div class="calendar-actions">
-      <button class="add-outside-link" on:click={openManualModal}>+ Add time outside the platform</button>
-      <button class="show-manual-link" on:click={() => showManualTab = true}>Show time outside the platform</button>
     </div>
   </div>
   {#if showManualModal}
@@ -388,6 +383,7 @@
 {/if}
 
 <style>
+
 .progress-layout {
   max-width: 1150px;
   margin: 2.5em auto 1.6em auto;
@@ -451,7 +447,7 @@
   background: linear-gradient(120deg, #fff6e4 70%, #fef9f1 100%);
 }
 .stat-icon {
-  margin-bottom: 0.9em;
+  margin-bottom: 1.2em;
   color: var(--icon-color);
   stroke-width: 2.5;
 }
@@ -460,13 +456,13 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.13em;
-  margin-bottom: 0.72em;
+  margin-top: 0.65em;
+  margin-bottom: 0;
   user-select: none;
-  color: #8282ac;
 }
-.stat-time .stat-label     { color: #e93c2f; }
-.stat-today .stat-label    { color: #31b361; }
-.stat-practiced .stat-label { color: #f4a000; }
+.stat-label-time { color: #e93c2f; }
+.stat-label-today { color: #31b361; }
+.stat-label-practiced { color: #f4a000; }
 .stat-value {
   font-size: 2.1em;
   color: #181d27;
@@ -477,6 +473,7 @@
   gap: 0.18em;
   line-height: 1.11;
   user-select: text;
+  margin-bottom: 0.2em;
 }
 .tooltip-parent {
   position: relative;
@@ -519,7 +516,7 @@
   padding: 1.5em 1em 2em 1em;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-start;
   border-radius: 22px;
   box-shadow: 0 6px 32px 0 #f2f2f2;
@@ -530,17 +527,21 @@
   margin-bottom: 1.0em;
   color: #191a22;
   letter-spacing: 0.01em;
+  text-align: left;
+  width: 100%;
+  padding-left: 0.3em;
 }
 .outside-box {
   background: #e7f5fb;
   border-radius: 13px;
   width: 100%;
-  padding: 1.4em 0.5em 1.7em 0.5em;
+  padding: 1.4em 0.5em 1.1em 0.5em;
   text-align: center;
   margin-bottom: 0.3em;
   display: flex;
   flex-direction: column;
   align-items: center;
+  position: relative;
 }
 .outside-number {
   font-size: 2.0em;
@@ -550,9 +551,50 @@
 }
 .outside-label {
   font-size: 1.08em;
-  color: #41a2b7;
   margin-top: 0.2em;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.09em;
+  margin-bottom: 0.7em;
+  font-weight: 700;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 0.18em;
+  justify-content: center;
+  /* default blue, but will be overridden by the new class */
+}
+.outside-label-lower {
+  text-transform: none;
+  color: #31b0e9;
+  font-size: 1.08em;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+}
+.outside-links-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.28em;
+  margin-top: 0.7em;
+  margin-left: 0.15em;
+}
+.outside-link {
+  color: #e93c2f;
+  font-weight: 700;
+  font-size: 1em;
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.09em 0.08em;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.13s;
+  display: block;
+}
+.outside-link:hover,
+.outside-link:focus {
+  color: #fd6c6c;
+  background: #fff3f1;
+  outline: none;
 }
 
 .activity-card {
@@ -603,28 +645,6 @@
   width: 100%;
 }
 
-.calendar-actions {
-  display: flex;
-  gap: 1em;
-  margin: 1.6em 0 0.2em 0;
-  padding-left: 0.25em;
-}
-.add-outside-link, .show-manual-link {
-  background: #fff4f2;
-  color: #e93c2f;
-  font-weight: 700;
-  border: none;
-  border-radius: 8px;
-  font-size: 1.05em;
-  padding: 0.63em 1.4em;
-  cursor: pointer;
-  box-shadow: 0 1px 5px #e93c2f13;
-  transition: background 0.13s, color 0.13s;
-}
-.add-outside-link:hover, .show-manual-link:hover {
-  background: #e93c2f;
-  color: #fff;
-}
 .modal-backdrop {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
