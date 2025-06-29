@@ -3,7 +3,7 @@
 
   export let watchTime = 0;
   export let todayWatchTime = 0;
-  export let streak = 0;
+  export let daysPracticed = 0;
   export let showTotalTooltip = false;
   export let showTodayTooltip = false;
   export let setShowTotalTooltip;
@@ -62,18 +62,20 @@
     </div>
   </div>
 
-  <div class="stat-box stat-streak">
+  <div class="stat-box stat-practiced">
     <Award
       size={48}
-      class="stat-icon streak-icon"
+      class="stat-icon practiced-icon"
       style="stroke: var(--icon-color); fill: none; margin-bottom: 0.8em;"
     />
-    <div class="stat-label">Streak</div>
+    <div class="stat-label">Days You Practiced</div>
     <div class="stat-value">
-      {streak} day{streak === 1 ? '' : 's'}
+      {daysPracticed}
     </div>
   </div>
 </div>
+
+
 
 <style>
   .stats-boxes-row {
@@ -113,7 +115,7 @@
     --icon-color: #31b361;
     background: linear-gradient(120deg, #eaffe9 70%, #f5fff5 100%);
   }
-  .stat-streak {
+  .stat-practiced {
     --icon-color: #f4a000;
     background: linear-gradient(120deg, #fff6e4 70%, #fef9f1 100%);
   }
@@ -127,9 +129,9 @@
     user-select: none;
     color: #8282ac;
   }
-  .stat-time .stat-label   { color: #e93c2f; }
-  .stat-today .stat-label  { color: #31b361; }
-  .stat-streak .stat-label { color: #f4a000; }
+  .stat-time .stat-label     { color: #e93c2f; }
+  .stat-today .stat-label    { color: #31b361; }
+  .stat-practiced .stat-label { color: #f4a000; }
 
   .stat-value {
     font-size: 2.5em;

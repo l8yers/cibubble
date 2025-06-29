@@ -1,81 +1,38 @@
 <script>
-  import { user } from '$lib/stores/user.js';
-  import { supabase } from '$lib/supabaseClient';
-  import { get } from 'svelte/store';
-
-  const SENTINEL_DATE = '1975-01-01';
-
+  export let entry = {};
+  export let SENTINEL_DATE = '1975-01-01';
+  export let onSubmit;
+  export let onCancel;
   let form = {
-    date: new Date().toISOString().slice(0,10),
-    hours: "",
-    minutes: "",
-    comment: ""
+    date: entry.date === SENTINEL_DATE ? "" : entry.date,
+    hours: entry.totalSeconds ? Math.floor(entry.totalSeconds / 3600) : "",
+    minutes: entry.totalSeconds ? Math.round((entry.totalSeconds % 3600) / 60) : "",
+    comment: entry.source || ""
   };
-  let useNoDate = false;
+  let useNoDate = entry.date === SENTINEL_DATE;
   let error = "";
   let submitting = false;
-  let success = "";
-  let debugUserId = "";
 
-  function resetForm() {
-    form = {
-      date: new Date().toISOString().slice(0,10),
-      hours: "",
-      minutes: "",
-      comment: ""
-    };
-    useNoDate = false;
-    error = "";
-    submitting = false;
-    success = "";
-    debugUserId = "";
-  }
-
-  async function submitManualEntry() {
-    error = "";
-    success = "";
-    submitting = true;
-
-    const currentUser = get(user);
-    if (!currentUser) {
-      error = "You must be logged in!";
-      submitting = false;
-      return;
-    }
-    const userId = currentUser.id;
-    debugUserId = userId;
-
-    // Validation
+  function handleSubmit(e) {
+    e.preventDefault();
     if ((!useNoDate && !form.date) || ((!form.hours || +form.hours === 0) && (!form.minutes || +form.minutes === 0))) {
       error = "Please enter a date (or select 'No date') and at least some time.";
-      submitting = false;
       return;
     }
-
+    error = "";
+    submitting = true;
     const seconds = (+form.hours || 0) * 3600 + (+form.minutes || 0) * 60;
-    const insertDate = useNoDate ? SENTINEL_DATE : form.date;
-
-    // Insert directly into Supabase from client (not via API endpoint)
-    const { error: insertError } = await supabase.from('watch_sessions').insert([{
-      user_id: userId,
-      seconds,
-      date: insertDate,
+    onSubmit({
+      ...entry,
+      date: useNoDate ? SENTINEL_DATE : form.date,
+      totalSeconds: seconds,
       source: form.comment
-    }]);
-
-    if (insertError) {
-      error = insertError.message || "Failed to add session.";
-      submitting = false;
-      return;
-    }
-    resetForm();
-    success = "Session added!";
-    if (typeof $$props.onAdded === "function") $$props.onAdded();
+    });
     submitting = false;
   }
 </script>
 
-<form class="manual-time-form" on:submit|preventDefault={submitManualEntry}>
+<form class="manual-edit-form" on:submit={handleSubmit}>
   <label>Date
     <input type="date" bind:value={form.date} required={!useNoDate} disabled={useNoDate}>
   </label>
@@ -93,18 +50,14 @@
     <textarea rows="2" bind:value={form.comment} placeholder="E.g. Dreaming Spanish, podcast…"></textarea>
   </label>
   {#if error}<div class="form-error">{error}</div>{/if}
-  {#if success}<div class="form-success">{success}</div>{/if}
-  {#if debugUserId}
-    <div class="debug">User ID: <span style="font-family:monospace;">{debugUserId}</span></div>
-  {/if}
   <div class="manual-btn-row">
-    <button type="submit" disabled={submitting}>Add Time</button>
-    <button type="button" on:click={resetForm}>Cancel</button>
+    <button type="submit" disabled={submitting}>Save</button>
+    <button type="button" on:click={onCancel}>Cancel</button>
   </div>
 </form>
 
 <style>
-.manual-time-form {
+.manual-edit-form {
   background: #fff;
   border-radius: 14px;
   padding: 1.4em 1.8em 1.2em 1.8em;
@@ -112,7 +65,7 @@
   box-shadow: 0 1px 4px #e2e2e733;
   max-width: 440px;
 }
-.manual-time-form label {
+.manual-edit-form label {
   display: block;
   margin-bottom: 0.7em;
   font-size: 1em;
@@ -128,9 +81,9 @@
   gap: 0.5em;
   user-select: none;
 }
-.manual-time-form input[type="date"],
-.manual-time-form input[type="number"],
-.manual-time-form textarea {
+.manual-edit-form input[type="date"],
+.manual-edit-form input[type="number"],
+.manual-edit-form textarea {
   width: 100%;
   margin-top: 0.4em;
   font-size: 1em;
@@ -141,7 +94,7 @@
   margin-bottom: 0.7em;
   color: #181818;
 }
-.manual-time-form textarea {
+.manual-edit-form textarea {
   min-height: 32px;
   max-height: 80px;
   resize: vertical;
@@ -151,7 +104,7 @@
   display: flex;
   gap: 0.7em;
 }
-.manual-time-form button[type="submit"] {
+.manual-edit-form button[type="submit"] {
   background: #e93c2f;
   color: #fff;
   border: none;
@@ -162,10 +115,10 @@
   cursor: pointer;
   transition: background 0.18s;
 }
-.manual-time-form button[type="submit"]:hover {
+.manual-edit-form button[type="submit"]:hover {
   background: #b8271b;
 }
-.manual-time-form button[type="button"] {
+.manual-edit-form button[type="button"] {
   background: #f6f6f6;
   color: #7a7a7a;
   border: none;
@@ -176,24 +129,12 @@
   cursor: pointer;
   transition: background 0.15s, color 0.14s;
 }
-.manual-time-form button[type="button"]:hover {
+.manual-edit-form button[type="button"]:hover {
   background: #eaeaea;
   color: #e93c2f;
 }
 .form-error {
   color: #d12f19;
   margin-bottom: 1em;
-}
-.form-success {
-  color: #26890d;
-  margin-bottom: 1em;
-}
-.debug {
-  margin: 0.7em 0 0.3em 0;
-  font-size: 0.95em;
-  color: #b3a100;
-  background: #fff8d1;
-  padding: 0.4em 1em;
-  border-radius: 7px;
 }
 </style>

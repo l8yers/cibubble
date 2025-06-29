@@ -3,20 +3,16 @@
   import { user, loadUser } from '$lib/stores/user.js';
   import { supabase } from '$lib/supabaseClient.js';
   import ProgressStats from '$lib/components/progress/ProgressStats.svelte';
-  import ProgressSettings from '$lib/components/progress/ProgressSettings.svelte';
   import ProgressManualEntry from '$lib/components/progress/ProgressManualEntry.svelte';
   import MonthlyCalendar from '$lib/components/progress/MonthlyCalendar.svelte';
+  import ManualEntryList from '$lib/components/progress/ManualEntryList.svelte';
+  import ManualEntryEditForm from '$lib/components/progress/ManualEntryEditForm.svelte';
+  import ProgressSettings from '$lib/components/progress/ProgressSettings.svelte';
+  import { Timer, CalendarCheck, Award } from 'lucide-svelte';
   import { writable } from 'svelte/store';
 
   export const windowWidth = writable(typeof window !== 'undefined' ? window.innerWidth : 1200);
-
-  onMount(() => {
-    const updateWidth = () => windowWidth.set(window.innerWidth);
-    window.addEventListener('resize', updateWidth);
-    updateWidth();
-    loadUser();
-    return () => window.removeEventListener('resize', updateWidth);
-  });
+  const SENTINEL_DATE = '1975-01-01';
 
   let email = '';
   let newEmail = '';
@@ -24,20 +20,20 @@
   let message = '';
   let watchTime = 0;
   let todayWatchTime = 0;
-  let streak = 0;
-  let showTotalTooltip = false;
-  let showTodayTooltip = false;
+  let daysPracticed = 0;
+  let outsideTime = 0;
+  let weeksInARow = 0;
+  let daysThisMonth = 0;
+
   let showSettings = false;
   let dailyTotals = [];
   let manualTotals = [];
   let showManualModal = false;
+  let showManualTab = false;
+  let editEntry = null;
 
-  function openManualModal() {
-    showManualModal = true;
-  }
-  function closeManualModal() {
-    showManualModal = false;
-  }
+  let showTotalTooltip = false;
+  let showTodayTooltip = false;
 
   function formatWatchTime(seconds) {
     if (!seconds) return '0 min';
@@ -63,6 +59,42 @@
     if (!seconds) return '0 min';
     const mins = Math.round(seconds / 60);
     return mins > 0 ? `${mins} min` : `${seconds} sec`;
+  }
+  function formatHours(seconds) {
+    if (!seconds) return "0 hrs";
+    return Math.round(seconds / 3600) + " hrs";
+  }
+
+  function openManualModal() { showManualModal = true; }
+  function closeManualModal() { showManualModal = false; }
+
+  async function updateEmail() {
+    message = '';
+    if (!newEmail || newEmail === email) {
+      message = 'Please enter a new email address.';
+      return;
+    }
+    const { error: updateError } = await supabase.auth.updateUser({ email: newEmail });
+    if (updateError) {
+      message = updateError.message || 'Failed to update email.';
+      return;
+    }
+    message = 'Email updated. Please check your inbox for a confirmation email.';
+    email = newEmail;
+  }
+  async function updatePassword() {
+    message = '';
+    if (!newPassword) {
+      message = 'Please enter a new password.';
+      return;
+    }
+    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+    if (updateError) {
+      message = updateError.message || 'Failed to update password.';
+      return;
+    }
+    message = 'Password updated.';
+    newPassword = '';
   }
 
   let lastFetchedUserId = null;
@@ -97,9 +129,11 @@
     if (error) {
       dailyTotals = [];
       manualTotals = [];
+      outsideTime = 0;
     } else {
       const dailyMap = {};
       const manualMap = {};
+      let outsideSeconds = 0;
       (allSessionsForDaily ?? []).forEach(({ date, seconds, video_id, source }) => {
         if (!date) return;
         if (video_id) {
@@ -110,6 +144,7 @@
           if (source && !manualMap[date].source.includes(source)) {
             manualMap[date].source += (manualMap[date].source ? ', ' : '') + source;
           }
+          outsideSeconds += seconds || 0;
         }
       });
       dailyTotals = Object.entries(dailyMap)
@@ -118,154 +153,477 @@
       manualTotals = Object.entries(manualMap)
         .map(([date, { totalSeconds, source }]) => ({ date, totalSeconds, source }))
         .sort((a, b) => b.date.localeCompare(a.date));
+      outsideTime = outsideSeconds;
     }
-    // Streak logic unchanged
-    streak = 0;
-    for (let i = 0; i < dailyTotals.length; i++) {
-      if (dailyTotals[i].totalSeconds > 0) streak++;
-      else break;
+    daysPracticed = dailyTotals.filter(dt => dt.totalSeconds > 0).length;
+
+    // Calculate days this month
+    const now = new Date();
+    const month = now.getMonth();
+    const year = now.getFullYear();
+    daysThisMonth = dailyTotals.filter(dt => {
+      const d = new Date(dt.date);
+      return d.getFullYear() === year && d.getMonth() === month && dt.totalSeconds > 0;
+    }).length;
+
+    // Calculate weeks in a row (basic version)
+    let weekSet = new Set();
+    dailyTotals.forEach(dt => {
+      if (dt.totalSeconds > 0) {
+        const d = new Date(dt.date);
+        const week = getISOWeekNumber(d);
+        weekSet.add(`${d.getFullYear()}-${week}`);
+      }
+    });
+    let count = 0;
+    let current = new Date();
+    while (true) {
+      const weekKey = `${current.getFullYear()}-${getISOWeekNumber(current)}`;
+      if (weekSet.has(weekKey)) {
+        count++;
+        current.setDate(current.getDate() - 7);
+      } else {
+        break;
+      }
     }
+    weeksInARow = count;
+  }
+
+  function getISOWeekNumber(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+  }
+
+  async function deleteManualEntry({ date, source }) {
+    const currentUser = $user;
+    if (!currentUser) return;
+    await supabase.from('watch_sessions')
+      .delete()
+      .eq('user_id', currentUser.id)
+      .eq('date', date)
+      .eq('source', source || null);
+    await fetchAllUserData(currentUser.id);
+  }
+
+  async function updateManualEntry(updated) {
+    const currentUser = $user;
+    if (!currentUser) return;
+    await supabase.from('watch_sessions')
+      .delete()
+      .eq('user_id', currentUser.id)
+      .eq('date', editEntry.date)
+      .eq('source', editEntry.source || null);
+    await supabase.from('watch_sessions')
+      .insert([{
+        user_id: currentUser.id,
+        date: updated.date,
+        seconds: updated.totalSeconds,
+        source: updated.source
+      }]);
+    editEntry = null;
+    await fetchAllUserData(currentUser.id);
   }
 </script>
 
 {#if $user === undefined}
   <div style="text-align:center; margin:3em;">Loading...</div>
-{:else if !$user}
+{:else if (!$user)}
   <div class="profile-main" style="text-align:center;">
     <div style="margin:2em 0;">
       Not logged in.<br /><a href="/login" class="video-link">Login here</a>
     </div>
   </div>
 {:else}
-  <div class="profile-main">
-    <div class="profile-header-row">
-      <div class="section-title">Progress</div>
-      {#if !showSettings}
-        <a class="settings-link" on:click={() => (showSettings = true)} tabindex="0">Settings</a>
-      {/if}
-    </div>
-
-    {#if !showSettings}
-      <ProgressStats
-        {watchTime}
-        {todayWatchTime}
-        {streak}
-        {showTotalTooltip}
-        setShowTotalTooltip={(val) => (showTotalTooltip = val)}
-        {showTodayTooltip}
-        setShowTodayTooltip={(val) => (showTodayTooltip = val)}
-        {formatWatchTime}
-        {formatFullTime}
-        {formatMinutesOnly}
-      />
-
-      <div class="progress-controls-row" style="justify-content: flex-end; gap: 0;">
-        <a
-          class="add-outside-link"
-          on:click={openManualModal}
-          tabindex="0"
-          role="button"
-        >
-          + Add time outside the platform
-        </a>
-      </div>
-
-      <MonthlyCalendar
-        dailyTotals={dailyTotals || []}
-        manualEntries={manualTotals || []}
-        formatMinutesOnly={formatMinutesOnly}
-      />
-
-      {#if showManualModal}
-        <div class="modal-backdrop" on:click={closeManualModal}>
-          <div class="modal-content" on:click|stopPropagation>
-            <button class="close-button" on:click={closeManualModal} aria-label="Close modal">×</button>
-            <ProgressManualEntry onAdded={() => { fetchAllUserData($user.id); closeManualModal(); }} />
+  <div class="progress-layout">
+    <!-- STATS CARD (best version with tooltips, vivid colors, icons) -->
+    <div class="card stats-card">
+      <div class="stats-heading">Statistics</div>
+      <div class="stats-boxes-row">
+        <div class="stat-box stat-time">
+          <Timer size={44} class="stat-icon" style="stroke: var(--icon-color);" />
+          <div class="stat-label">Total Watch Time</div>
+          <div class="stat-value">
+            <span
+              class="tooltip-parent"
+              on:mouseenter={() => showTotalTooltip = true}
+              on:mouseleave={() => showTotalTooltip = false}
+              tabindex="0"
+              on:focus={() => showTotalTooltip = true}
+              on:blur={() => showTotalTooltip = false}
+            >
+              {formatWatchTime(watchTime)}
+              {#if showTotalTooltip}
+                <span class="custom-tooltip">{formatFullTime(watchTime)}</span>
+              {/if}
+            </span>
           </div>
         </div>
-      {/if}
-
-    {:else}
-      <ProgressSettings
-        {email}
-        {newEmail}
-        setNewEmail={(v) => (newEmail = v)}
-        {newPassword}
-        setNewPassword={(v) => (newPassword = v)}
-        {message}
-        {updateEmail}
-        {updatePassword}
-        back={() => (showSettings = false)}
-      />
-    {/if}
+        <div class="stat-box stat-today">
+          <CalendarCheck size={44} class="stat-icon" style="stroke: var(--icon-color);" />
+          <div class="stat-label">Today's Watch Time</div>
+          <div class="stat-value">
+            <span
+              class="tooltip-parent"
+              on:mouseenter={() => showTodayTooltip = true}
+              on:mouseleave={() => showTodayTooltip = false}
+              tabindex="0"
+              on:focus={() => showTodayTooltip = true}
+              on:blur={() => showTodayTooltip = false}
+            >
+              {formatWatchTime(todayWatchTime)}
+              {#if showTodayTooltip}
+                <span class="custom-tooltip">{formatFullTime(todayWatchTime)}</span>
+              {/if}
+            </span>
+          </div>
+        </div>
+        <div class="stat-box stat-practiced">
+          <Award size={44} class="stat-icon" style="stroke: var(--icon-color);" />
+          <div class="stat-label">Days You Practiced</div>
+          <div class="stat-value">{daysPracticed}</div>
+        </div>
+      </div>
+    </div>
+    <!-- OUTSIDE HOURS & YOUR ACTIVITY row -->
+    <div class="progress-row">
+      <div class="card outside-card">
+        <div class="outside-title">Outside hours</div>
+        <div class="outside-box">
+          <svg viewBox="0 0 40 40" width="44" height="44" style="margin-bottom:0.6em;">
+            <g stroke="#31b0e9" stroke-width="2" fill="none">
+              <ellipse cx="20" cy="18" rx="12" ry="9"/>
+              <path d="M12 31c2-3 8-3 10 0M8 21c-1 5 1 9 4 11"/>
+              <circle cx="17" cy="18" r="1.5" fill="#31b0e9"/>
+              <circle cx="23" cy="18" r="1.5" fill="#31b0e9"/>
+              <path d="M17 24c1.5 1.5 4.5 1.5 6 0"/>
+            </g>
+          </svg>
+          <div class="outside-number">{formatHours(outsideTime)}</div>
+          <div class="outside-label">hours outside the platform</div>
+        </div>
+      </div>
+      <div class="card activity-card">
+        <div class="activity-title">Your activity</div>
+        <div class="activity-list">
+          <div class="activity-row">
+            <span class="activity-label">Weeks in a row</span>
+            <span class="activity-number">{weeksInARow}</span>
+          </div>
+          <div class="activity-row">
+            <span class="activity-label">Days this month</span>
+            <span class="activity-number">{daysThisMonth}</span>
+          </div>
+        </div>
+        <div class="calendar-section">
+          <MonthlyCalendar
+            dailyTotals={dailyTotals || []}
+            manualEntries={manualTotals || []}
+            formatMinutesOnly={formatMinutesOnly}
+          />
+        </div>
+      </div>
+    </div>
+    <!-- CONTROLS -->
+    <div class="calendar-actions">
+      <button class="add-outside-link" on:click={openManualModal}>+ Add time outside the platform</button>
+      <button class="show-manual-link" on:click={() => showManualTab = true}>Show time outside the platform</button>
+    </div>
   </div>
+  {#if showManualModal}
+    <div class="modal-backdrop" on:click={closeManualModal}>
+      <div class="modal-content" on:click|stopPropagation>
+        <button class="close-button" on:click={closeManualModal} aria-label="Close modal">×</button>
+        <ProgressManualEntry onAdded={() => { fetchAllUserData($user.id); closeManualModal(); }} />
+      </div>
+    </div>
+  {/if}
+  {#if showManualTab}
+    <div class="modal-backdrop" on:click={() => showManualTab = false}>
+      <div class="modal-content" on:click|stopPropagation>
+        <button class="close-button" on:click={() => showManualTab = false} aria-label="Close modal">×</button>
+        <ManualEntryList
+          manualEntries={manualTotals || []}
+          formatMinutesOnly={formatWatchTime}
+          SENTINEL_DATE={SENTINEL_DATE}
+          on:back={() => showManualTab = false}
+          on:edit={(e) => editEntry = e.detail.entry}
+          on:delete={(e) => deleteManualEntry(e.detail.entry)}
+        />
+        {#if editEntry}
+          <div class="modal-backdrop" on:click={() => editEntry = null}>
+            <div class="modal-content" on:click|stopPropagation>
+              <button class="close-button" on:click={() => editEntry = null} aria-label="Close modal">×</button>
+              <ManualEntryEditForm
+                entry={editEntry}
+                SENTINEL_DATE={SENTINEL_DATE}
+                on:submit={(e) => updateManualEntry(e.detail)}
+                on:cancel={() => editEntry = null}
+              />
+            </div>
+          </div>
+        {/if}
+      </div>
+    </div>
+  {/if}
+  {#if showSettings}
+    <div class="modal-backdrop" on:click={() => showSettings = false}>
+      <div class="modal-content" on:click|stopPropagation>
+        <ProgressSettings
+          {email}
+          {newEmail}
+          setNewEmail={(v) => (newEmail = v)}
+          {newPassword}
+          setNewPassword={(v) => (newPassword = v)}
+          {message}
+          {updateEmail}
+          {updatePassword}
+          back={() => (showSettings = false)}
+        />
+      </div>
+    </div>
+  {/if}
 {/if}
 
 <style>
-.profile-main {
-  max-width: 1700px;
-  margin: 2.2rem auto 2.2rem auto;
-  padding: 2rem 3vw 2.3rem 3vw;
-  background: #fff;
-  border-radius: 14px;
-  border: 1px solid #ececec;
+.progress-layout {
+  max-width: 1150px;
+  margin: 2.5em auto 1.6em auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2.2em;
 }
-.profile-header-row {
+
+/* --- STATS CARD --- */
+.stats-card {
+  margin-bottom: 0.7em;
+  background: #fff;
+  border-radius: 22px;
+  box-shadow: 0 6px 32px 0 #f2f2f2;
+  padding: 2.2em 2em 2.2em 2em;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.stats-heading {
+  font-size: 1.47em;
+  font-weight: 600;
+  margin-bottom: 1.3em;
+  color: #191a22;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+.stats-boxes-row {
+  display: flex;
+  gap: 1.3em;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: flex-start;
+  width: 100%;
+}
+.stat-box {
+  border-radius: 16px;
+  padding: 1.7em 1.2em 1.8em 1.2em;
+  min-width: 190px;
+  flex: 1 1 190px;
+  height: 190px;
+  box-shadow: 0 1px 10px #ededed55;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: box-shadow 0.12s;
+  cursor: default;
+}
+.stat-time {
+  --icon-color: #e93c2f;
+  background: linear-gradient(120deg, #ffeaea 70%, #fff6f0 100%);
+}
+.stat-today {
+  --icon-color: #31b361;
+  background: linear-gradient(120deg, #eaffe9 70%, #f5fff5 100%);
+}
+.stat-practiced {
+  --icon-color: #f4a000;
+  background: linear-gradient(120deg, #fff6e4 70%, #fef9f1 100%);
+}
+.stat-icon {
+  margin-bottom: 0.9em;
+  color: var(--icon-color);
+  stroke-width: 2.5;
+}
+.stat-label {
+  font-size: 1em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  margin-bottom: 0.72em;
+  user-select: none;
+  color: #8282ac;
+}
+.stat-time .stat-label     { color: #e93c2f; }
+.stat-today .stat-label    { color: #31b361; }
+.stat-practiced .stat-label { color: #f4a000; }
+.stat-value {
+  font-size: 2.1em;
+  color: #181d27;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  display: flex;
+  align-items: center;
+  gap: 0.18em;
+  line-height: 1.11;
+  user-select: text;
+}
+.tooltip-parent {
+  position: relative;
+  cursor: pointer;
+  outline: none;
+}
+.tooltip-parent:focus {
+  box-shadow: 0 0 0 2px #e93c2f55;
+}
+.custom-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: 120%;
+  transform: translateX(-50%);
+  background: #232323;
+  color: #fff;
+  font-size: 1.01rem;
+  font-weight: 500;
+  padding: 0.53em 1.1em;
+  border-radius: 12px;
+  white-space: nowrap;
+  z-index: 10;
+  pointer-events: none;
+  opacity: 1;
+  animation: fadeIn 0.17s;
+}
+
+/* --- OUTSIDE HOURS & ACTIVITY ROW --- */
+.progress-row {
+  display: flex;
+  gap: 2em;
+  width: 100%;
+  justify-content: stretch;
+}
+.outside-card {
+  flex: 1 1 32%;
+  min-width: 240px;
+  max-width: 340px;
+  background: #fff;
+  padding: 1.5em 1em 2em 1em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  border-radius: 22px;
+  box-shadow: 0 6px 32px 0 #f2f2f2;
+}
+.outside-title {
+  font-size: 1.15em;
+  font-weight: 600;
+  margin-bottom: 1.0em;
+  color: #191a22;
+  letter-spacing: 0.01em;
+}
+.outside-box {
+  background: #e7f5fb;
+  border-radius: 13px;
+  width: 100%;
+  padding: 1.4em 0.5em 1.7em 0.5em;
+  text-align: center;
+  margin-bottom: 0.3em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.outside-number {
+  font-size: 2.0em;
+  font-weight: 800;
+  color: #31b0e9;
+  margin-bottom: 0.14em;
+}
+.outside-label {
+  font-size: 1.08em;
+  color: #41a2b7;
+  margin-top: 0.2em;
+  letter-spacing: 0.01em;
+}
+
+.activity-card {
+  flex: 2 1 66%;
+  min-width: 300px;
+  background: #fff;
+  padding: 1.6em 2em 2.2em 2em;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  border-radius: 22px;
+  box-shadow: 0 6px 32px 0 #f2f2f2;
+}
+.activity-title {
+  font-size: 1.20em;
+  font-weight: 700;
+  color: #181d27;
+  margin-bottom: 1.2em;
+  letter-spacing: 0.01em;
+}
+.activity-list {
+  width: 100%;
+  margin-bottom: 2.2em;
+}
+.activity-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.6em;
-  gap: 2em;
-}
-.section-title {
-  color: #181818;
-  font-size: 1.25rem;
-  font-weight: bold;
-  letter-spacing: 0.3px;
-}
-.settings-link {
-  color: #2562e9;
-  font-size: 1.06em;
-  text-decoration: none;
+  font-size: 1.13em;
+  padding: 0.55em 0;
+  border-bottom: 1px solid #f0f0f0;
   font-weight: 500;
-  cursor: pointer;
-  transition: color 0.16s;
 }
-.settings-link:hover,
-.settings-link:focus {
+.activity-row:last-child {
+  border-bottom: none;
+}
+.activity-label {
+  color: #444e69;
+}
+.activity-number {
+  font-weight: 700;
   color: #e93c2f;
-  text-decoration: underline;
+  font-size: 1.13em;
 }
-.video-link {
-  color: #2562e9;
-  text-decoration: underline;
-  font-weight: 500;
+.calendar-section {
+  margin-top: 1.3em;
+  width: 100%;
 }
-.progress-controls-row {
+
+.calendar-actions {
   display: flex;
-  justify-content: flex-end;
-  gap: 0;
-  margin: 2em 0 2.5em 0;
-  flex-wrap: wrap;
+  gap: 1em;
+  margin: 1.6em 0 0.2em 0;
+  padding-left: 0.25em;
 }
-.add-outside-link {
+.add-outside-link, .show-manual-link {
+  background: #fff4f2;
   color: #e93c2f;
-  font-size: 1.08em;
-  font-weight: 600;
-  text-decoration: none;
-  padding: 0.2em 0.1em;
-  margin-right: 0.3em;
-  cursor: pointer;
-  background: none;
+  font-weight: 700;
   border: none;
-  outline: none;
-  transition: color 0.14s;
-  display: inline-block;
+  border-radius: 8px;
+  font-size: 1.05em;
+  padding: 0.63em 1.4em;
+  cursor: pointer;
+  box-shadow: 0 1px 5px #e93c2f13;
+  transition: background 0.13s, color 0.13s;
 }
-.add-outside-link:hover,
-.add-outside-link:focus {
-  color: #b31212;
-  text-decoration: underline;
+.add-outside-link:hover, .show-manual-link:hover {
+  background: #e93c2f;
+  color: #fff;
 }
 .modal-backdrop {
   position: fixed;
@@ -297,31 +655,30 @@
   font-weight: 700;
   line-height: 1;
 }
-
-/* Mobile tweaks */
-@media (max-width: 600px) {
-  .profile-main {
-    padding: 1.1rem 0.6rem 1.3rem 0.6rem;
-    border-radius: 0;
-    margin: 0;
+@media (max-width: 900px) {
+  .progress-row {
+    flex-direction: column;
+    gap: 1em;
   }
-  .profile-header-row {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1em;
+  .activity-card, .outside-card {
+    min-width: 0;
+    width: 100%;
+    max-width: none;
+    border-radius: 13px;
+    padding: 1em 0.7em 1.2em 0.7em;
+  }
+  .stats-boxes-row {
+    flex-direction: column;
     gap: 0.7em;
-    font-size: 0.9rem;
   }
-  .progress-controls-row {
-    justify-content: flex-end;
-    gap: 0.2em;
-    margin-bottom: 1.4em;
-  }
-  .add-outside-link {
-    font-size: 1em;
-    margin-right: 0.12em;
+  .stat-box {
+    height: auto;
+    min-width: 0;
+    padding: 1.2em 0.7em 1.1em 0.7em;
   }
 }
-
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px);}
+  to   { opacity: 1; transform: translateX(-50%) translateY(0);}
+}
 </style>
