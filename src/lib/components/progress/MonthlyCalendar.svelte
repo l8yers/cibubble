@@ -89,10 +89,10 @@
 .cibubble-card.calendar-wrap {
   background: #fff;
   border-radius: 13px;
-  padding: 1.6em 1em 1.7em 1em;
-  margin: 1.5em auto 2em auto;
+  padding: 0.2em 2em 1.7em 2em;
+  margin: 0.1em 2em 0.1em auto;
   max-width: 445px;
-  border: 1.2px solid #ffe0dd;
+
   box-shadow: none;
 }
 

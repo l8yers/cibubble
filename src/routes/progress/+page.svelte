@@ -2,13 +2,12 @@
   import { onMount } from 'svelte';
   import { user, loadUser } from '$lib/stores/user.js';
   import { supabase } from '$lib/supabaseClient.js';
-  import ProgressStats from '$lib/components/progress/ProgressStats.svelte';
   import ProgressManualEntry from '$lib/components/progress/ProgressManualEntry.svelte';
   import MonthlyCalendar from '$lib/components/progress/MonthlyCalendar.svelte';
   import ManualEntryList from '$lib/components/progress/ManualEntryList.svelte';
   import ManualEntryEditForm from '$lib/components/progress/ManualEntryEditForm.svelte';
   import ProgressSettings from '$lib/components/progress/ProgressSettings.svelte';
-  import { Timer, CalendarCheck, Award, ExternalLink } from 'lucide-svelte';
+  import { Timer, CalendarCheck, Award, ExternalLink, Settings } from 'lucide-svelte';
   import { writable } from 'svelte/store';
 
   export const windowWidth = writable(typeof window !== 'undefined' ? window.innerWidth : 1200);
@@ -32,6 +31,7 @@
   let showManualTab = false;
   let editEntry = null;
 
+  // Tooltip state
   let showTotalTooltip = false;
   let showTodayTooltip = false;
 
@@ -238,61 +238,70 @@
   </div>
 {:else}
   <div class="progress-layout">
-    <!-- STATS CARD (labels under numbers and colored) -->
+    <!-- STATS CARD -->
     <div class="card stats-card">
-      <div class="stats-heading">Statistics</div>
+      <div class="stats-heading-row">
+        <div class="card-heading">Statistics</div>
+        <button class="settings-link" on:click={() => showSettings = true} aria-label="Settings">
+          <Settings size={20} />
+        </button>
+      </div>
       <div class="stats-boxes-row">
         <div class="stat-box stat-time">
-          <Timer size={44} class="stat-icon" style="stroke: var(--icon-color);" />
-          <div class="stat-value" style="margin-bottom: 0.45em;">
-            <span
-              class="tooltip-parent"
-              on:mouseenter={() => showTotalTooltip = true}
-              on:mouseleave={() => showTotalTooltip = false}
-              tabindex="0"
-              on:focus={() => showTotalTooltip = true}
-              on:blur={() => showTotalTooltip = false}
-            >
-              {formatWatchTime(watchTime)}
-              {#if showTotalTooltip}
-                <span class="custom-tooltip">{formatFullTime(watchTime)}</span>
-              {/if}
-            </span>
+          <div class="stat-inner-box">
+            <Timer size={40} style="margin-bottom:0.5em; color:#e93c2f;" />
+            <div class="stat-number stat-time-color">
+              <span class="tooltip-parent"
+                tabindex="0"
+                on:mouseenter={() => showTotalTooltip = true}
+                on:mouseleave={() => showTotalTooltip = false}
+                on:focus={() => showTotalTooltip = true}
+                on:blur={() => showTotalTooltip = false}
+              >
+                {formatWatchTime(watchTime)}
+                {#if showTotalTooltip}
+                  <span class="custom-tooltip stat-time-tooltip">{formatFullTime(watchTime)}</span>
+                {/if}
+              </span>
+            </div>
+            <div class="stat-label stat-time-color">Total Watch Time</div>
           </div>
-          <div class="stat-label stat-label-time">Total Watch Time</div>
         </div>
         <div class="stat-box stat-today">
-          <CalendarCheck size={44} class="stat-icon" style="stroke: var(--icon-color);" />
-          <div class="stat-value" style="margin-bottom: 0.45em;">
-            <span
-              class="tooltip-parent"
-              on:mouseenter={() => showTodayTooltip = true}
-              on:mouseleave={() => showTodayTooltip = false}
-              tabindex="0"
-              on:focus={() => showTodayTooltip = true}
-              on:blur={() => showTodayTooltip = false}
-            >
-              {formatWatchTime(todayWatchTime)}
-              {#if showTodayTooltip}
-                <span class="custom-tooltip">{formatFullTime(todayWatchTime)}</span>
-              {/if}
-            </span>
+          <div class="stat-inner-box">
+            <CalendarCheck size={40} style="margin-bottom:0.5em; color:#31b361;" />
+            <div class="stat-number stat-today-color">
+              <span class="tooltip-parent"
+                tabindex="0"
+                on:mouseenter={() => showTodayTooltip = true}
+                on:mouseleave={() => showTodayTooltip = false}
+                on:focus={() => showTodayTooltip = true}
+                on:blur={() => showTodayTooltip = false}
+              >
+                {formatWatchTime(todayWatchTime)}
+                {#if showTodayTooltip}
+                  <span class="custom-tooltip stat-today-tooltip">{formatFullTime(todayWatchTime)}</span>
+                {/if}
+              </span>
+            </div>
+            <div class="stat-label stat-today-color">Today's Watch Time</div>
           </div>
-          <div class="stat-label stat-label-today">Today's Watch Time</div>
         </div>
         <div class="stat-box stat-practiced">
-          <Award size={44} class="stat-icon" style="stroke: var(--icon-color);" />
-          <div class="stat-value" style="margin-bottom: 0.45em;">{daysPracticed}</div>
-          <div class="stat-label stat-label-practiced">Days You Practiced</div>
+          <div class="stat-inner-box">
+            <Award size={40} style="margin-bottom:0.5em; color:#f4a000;" />
+            <div class="stat-number stat-practiced-color">{daysPracticed}</div>
+            <div class="stat-label stat-practiced-color">Days You Practiced</div>
+          </div>
         </div>
       </div>
     </div>
-    <!-- OUTSIDE HOURS & YOUR ACTIVITY row -->
+    <!-- OUTSIDE HOURS & ACTIVITY ROW -->
     <div class="progress-row">
       <div class="card outside-card">
-        <div class="outside-title">Outside hours</div>
+        <div class="card-heading">Outside Hours</div>
         <div class="outside-box">
-          <ExternalLink size={44} style="margin-bottom:0.6em; color:#31b0e9;" />
+          <ExternalLink size={40} style="margin-bottom:0.5em; color:#31b0e9;" />
           <div class="outside-number">{formatHours(outsideTime)}</div>
           <div class="outside-label outside-label-lower">hours outside the platform</div>
         </div>
@@ -306,27 +315,31 @@
         </div>
       </div>
       <div class="card activity-card">
-        <div class="activity-title">Your activity</div>
-        <div class="activity-list">
-          <div class="activity-row">
-            <span class="activity-label">Weeks in a row</span>
-            <span class="activity-number">{weeksInARow}</span>
+        <div class="card-heading">Your Activity</div>
+        <div class="activity-2col align-top">
+          <div class="activity-list">
+            <div class="activity-row">
+              <span class="activity-label">Weeks in a row</span>
+              <span class="activity-number">{weeksInARow}</span>
+            </div>
+            <div class="activity-row">
+              <span class="activity-label">Days this month</span>
+              <span class="activity-number">{daysThisMonth}</span>
+            </div>
           </div>
-          <div class="activity-row">
-            <span class="activity-label">Days this month</span>
-            <span class="activity-number">{daysThisMonth}</span>
+          <div class="calendar-section">
+            <MonthlyCalendar
+              dailyTotals={dailyTotals || []}
+              manualEntries={manualTotals || []}
+              formatMinutesOnly={formatMinutesOnly}
+              class="no-border-calendar"
+            />
           </div>
-        </div>
-        <div class="calendar-section">
-          <MonthlyCalendar
-            dailyTotals={dailyTotals || []}
-            manualEntries={manualTotals || []}
-            formatMinutesOnly={formatMinutesOnly}
-          />
         </div>
       </div>
     </div>
   </div>
+  <!-- MODALS (unchanged) -->
   {#if showManualModal}
     <div class="modal-backdrop" on:click={closeManualModal}>
       <div class="modal-content" on:click|stopPropagation>
@@ -383,7 +396,7 @@
 {/if}
 
 <style>
-
+/* ---- LAYOUT ---- */
 .progress-layout {
   max-width: 1150px;
   margin: 2.5em auto 1.6em auto;
@@ -391,25 +404,53 @@
   flex-direction: column;
   gap: 2.2em;
 }
-
-/* --- STATS CARD --- */
-.stats-card {
-  margin-bottom: 0.7em;
+.card {
   background: #fff;
-  border-radius: 22px;
-  box-shadow: 0 6px 32px 0 #f2f2f2;
-  padding: 2.2em 2em 2.2em 2em;
+  border-radius: 18px;
+  box-shadow: 0 4px 24px 0 #ededed55;
+  padding: 2.1em 2em 2.1em 2em;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  margin-bottom: 0;
+  position: relative;
+  min-width: 0;
+  box-sizing: border-box;
 }
-.stats-heading {
-  font-size: 1.47em;
-  font-weight: 600;
-  margin-bottom: 1.3em;
-  color: #191a22;
+.card-heading {
+  font-size: 1.13em;
+  font-weight: 800;
+  color: #181d27;
   letter-spacing: 0.02em;
+  margin-bottom: 1.0em;
+  text-align: left;
   text-transform: none;
+  line-height: 1.15;
+}
+.stats-heading-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+}
+.settings-link {
+  background: none;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  transition: color 0.18s;
+  display: flex;
+  align-items: center;
+  margin-left: 0.9em;
+  padding: 0.13em 0.2em;
+  border-radius: 8px;
+  font-size: 1em;
+}
+.settings-link:hover,
+.settings-link:focus {
+  color: #e93c2f;
+  background: #fff6f6;
+  outline: none;
 }
 .stats-boxes-row {
   display: flex;
@@ -418,67 +459,55 @@
   align-items: stretch;
   justify-content: flex-start;
   width: 100%;
+  margin: 0;
 }
 .stat-box {
-  border-radius: 16px;
-  padding: 1.7em 1.2em 1.8em 1.2em;
-  min-width: 190px;
-  flex: 1 1 190px;
-  height: 190px;
+  flex: 1 1 220px;
+  min-width: 200px;
+  max-width: 340px;
+  background: #fff;
+  border-radius: 13px;
   box-shadow: 0 1px 10px #ededed55;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 0;
+  margin-bottom: 0;
+  position: relative;
+}
+.stat-inner-box {
+  background: linear-gradient(120deg, #f7f8fc 70%, #f5faff 100%);
+  border-radius: 13px;
+  width: 100%;
+  padding: 1.4em 0.5em 1.1em 0.5em;
+  text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  position: relative;
-  transition: box-shadow 0.12s;
-  cursor: default;
 }
-.stat-time {
-  --icon-color: #e93c2f;
+.stat-time .stat-inner-box {
   background: linear-gradient(120deg, #ffeaea 70%, #fff6f0 100%);
 }
-.stat-today {
-  --icon-color: #31b361;
+.stat-today .stat-inner-box {
   background: linear-gradient(120deg, #eaffe9 70%, #f5fff5 100%);
 }
-.stat-practiced {
-  --icon-color: #f4a000;
+.stat-practiced .stat-inner-box {
   background: linear-gradient(120deg, #fff6e4 70%, #fef9f1 100%);
 }
-.stat-icon {
-  margin-bottom: 1.2em;
-  color: var(--icon-color);
-  stroke-width: 2.5;
-}
-.stat-label {
-  font-size: 1em;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.13em;
-  margin-top: 0.65em;
-  margin-bottom: 0;
-  user-select: none;
-}
-.stat-label-time { color: #e93c2f; }
-.stat-label-today { color: #31b361; }
-.stat-label-practiced { color: #f4a000; }
-.stat-value {
-  font-size: 2.1em;
-  color: #181d27;
+.stat-number, .stat-label, .custom-tooltip {
+  font-family: inherit;
   font-weight: 900;
-  letter-spacing: 0.01em;
-  display: flex;
-  align-items: center;
-  gap: 0.18em;
-  line-height: 1.11;
-  user-select: text;
-  margin-bottom: 0.2em;
 }
+.stat-time-color { color: #e93c2f; }
+.stat-today-color { color: #31b361; }
+.stat-practiced-color { color: #f4a000; }
 .tooltip-parent {
   position: relative;
   cursor: pointer;
   outline: none;
+  display: inline-block;
 }
 .tooltip-parent:focus {
   box-shadow: 0 0 0 2px #e93c2f55;
@@ -500,37 +529,44 @@
   opacity: 1;
   animation: fadeIn 0.17s;
 }
+.stat-time-tooltip { background: #e93c2f; }
+.stat-today-tooltip { background: #31b361; }
+.stat-practiced-tooltip { background: #f4a000; }
+.stat-number {
+  font-size: 2.2em;
+  letter-spacing: 0.01em;
+  margin-bottom: 0.14em;
+  font-weight: 900;
+  text-align: center;
+}
+.stat-label {
+  font-size: 1.03em;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-top: 0.2em;
+  text-align: center;
+}
 
-/* --- OUTSIDE HOURS & ACTIVITY ROW --- */
+/* OUTSIDE HOURS & ACTIVITY ROW FLEX RATIOS */
 .progress-row {
   display: flex;
-  gap: 2em;
+  gap: 1.3em;
   width: 100%;
   justify-content: stretch;
 }
 .outside-card {
-  flex: 1 1 32%;
-  min-width: 240px;
-  max-width: 340px;
-  background: #fff;
-  padding: 1.5em 1em 2em 1em;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-start;
-  border-radius: 22px;
-  box-shadow: 0 6px 32px 0 #f2f2f2;
+  flex: 1 1 0%;
+  min-width: 220px;
+  max-width: 400px;
 }
-.outside-title {
-  font-size: 1.15em;
-  font-weight: 600;
-  margin-bottom: 1.0em;
-  color: #191a22;
-  letter-spacing: 0.01em;
-  text-align: left;
-  width: 100%;
-  padding-left: 0.3em;
+.activity-card {
+  flex: 2 1 0%;
+  min-width: 320px;
+  max-width: 100%;
 }
+
+/* OUTSIDE HOURS */
 .outside-box {
   background: #e7f5fb;
   border-radius: 13px;
@@ -560,7 +596,6 @@
   align-items: center;
   gap: 0.18em;
   justify-content: center;
-  /* default blue, but will be overridden by the new class */
 }
 .outside-label-lower {
   text-transform: none;
@@ -597,35 +632,37 @@
   outline: none;
 }
 
-.activity-card {
-  flex: 2 1 66%;
-  min-width: 300px;
-  background: #fff;
-  padding: 1.6em 2em 2.2em 2em;
+/* ACTIVITY CARD: TWO COLUMNS, ALIGNED TOP */
+.activity-2col {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  gap: 2.4em;
+  width: 100%;
   align-items: flex-start;
-  justify-content: flex-start;
-  border-radius: 22px;
-  box-shadow: 0 6px 32px 0 #f2f2f2;
-}
-.activity-title {
-  font-size: 1.20em;
-  font-weight: 700;
-  color: #181d27;
-  margin-bottom: 1.2em;
-  letter-spacing: 0.01em;
 }
 .activity-list {
+  width: 170px;
+  margin-bottom: 0;
+  margin-top: 0.7em;
+}
+.calendar-section {
+  margin-top: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 340px;
   width: 100%;
-  margin-bottom: 2.2em;
+  display: flex;
+  align-items: flex-start;
+}
+.align-top {
+  align-items: flex-start;
 }
 .activity-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 1.13em;
-  padding: 0.55em 0;
+  font-size: 1.1em;
+  padding: 0.42em 0;
   border-bottom: 1px solid #f0f0f0;
   font-weight: 500;
 }
@@ -640,65 +677,69 @@
   color: #e93c2f;
   font-size: 1.13em;
 }
-.calendar-section {
-  margin-top: 1.3em;
-  width: 100%;
+
+/* Remove calendar border (override) */
+:global(.no-border-calendar) {
+  border: none !important;
+  box-shadow: none !important;
+}
+:global(.no-border-calendar .calendar-container),
+:global(.no-border-calendar .calendar) {
+  border: none !important;
+  box-shadow: none !important;
 }
 
-.modal-backdrop {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-.modal-content {
-  background: white;
-  border-radius: 14px;
-  padding: 2rem;
-  max-width: 480px;
-  width: 90%;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-  position: relative;
-}
-.close-button {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  font-size: 1.6rem;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #333;
-  font-weight: 700;
-  line-height: 1;
-}
-@media (max-width: 900px) {
+/* Responsive */
+@media (max-width: 1050px) {
+  .stats-boxes-row,
   .progress-row {
     flex-direction: column;
     gap: 1em;
   }
-  .activity-card, .outside-card {
+  .stat-box,
+  .outside-card,
+  .activity-card {
     min-width: 0;
     width: 100%;
     max-width: none;
     border-radius: 13px;
-    padding: 1em 0.7em 1.2em 0.7em;
+    padding: 0;
   }
-  .stats-boxes-row {
+  .stat-inner-box,
+  .outside-box {
+    border-radius: 11px;
+    padding: 1em 0.7em 1em 0.7em;
+  }
+  .activity-2col {
     flex-direction: column;
-    gap: 0.7em;
+    gap: 1em;
   }
-  .stat-box {
-    height: auto;
-    min-width: 0;
-    padding: 1.2em 0.7em 1.1em 0.7em;
+  .activity-list {
+    width: 100%;
+    margin-bottom: 1.2em;
+    margin-top: 0.7em;
+  }
+}
+@media (max-width: 700px) {
+  .card {
+    padding: 1.3em 0.7em 1.3em 0.7em;
+    border-radius: 10px;
+  }
+  .stat-box,
+  .outside-card,
+  .activity-card {
+    border-radius: 10px;
+    margin-bottom: 0.9em;
+  }
+  .stat-inner-box,
+  .outside-box {
+    border-radius: 7px;
+    padding: 1em 0.5em 1em 0.5em;
   }
 }
 @keyframes fadeIn {
   from { opacity: 0; transform: translateX(-50%) translateY(8px);}
   to   { opacity: 1; transform: translateX(-50%) translateY(0);}
 }
+
 </style>
