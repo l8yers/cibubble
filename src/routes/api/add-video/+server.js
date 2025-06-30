@@ -190,6 +190,18 @@ async function getAllUploads(uploadsPlaylistId) {
   return videos.map((v) => ({ ...v, playlist_id: null }));
 }
 
+// PATCH: Wait for channel after upsert, to avoid FK race condition
+async function waitForChannel(channelId, maxTries = 10) {
+  let tries = 0;
+  while (tries < maxTries) {
+    const { data } = await supabase.from('channels').select('id').eq('id', channelId);
+    if (data && data.length) return true;
+    await new Promise(r => setTimeout(r, 200));
+    tries++;
+  }
+  return false;
+}
+
 // --- API Route ---
 export async function POST({ request }) {
   try {
@@ -215,7 +227,6 @@ export async function POST({ request }) {
       }
     }
 
-    // 1. GATHER EVERYTHING FROM YOUTUBE FIRST
     const channel = await getChannelInfo(channelId);
     if (!channel) {
       return json({ error: 'Could not fetch channel info.' }, { status: 404 });
@@ -226,10 +237,35 @@ export async function POST({ request }) {
       }, { status: 400 });
     }
 
-    // Fetch playlists (from YouTube)
-    const playlists = await getPlaylists(channel.id);
+    // --- Upsert channel (tags as comma string) ---
+    const channelObj = {
+      id: channel.id,
+      name: channel.name,
+      thumbnail: channel.thumbnail || '',
+      description: channel.description || '',
+      tags: tagArr.join(','),  // for channels table as a text field
+      country: normCountry
+    };
+    const { error: channelError } = await supabase.from('channels').upsert([channelObj]);
+    if (channelError) {
+      return json({ error: 'Failed to upsert channel.' }, { status: 500 });
+    }
+    // PATCH: Wait until the channel is actually available to satisfy FK for videos
+    const found = await waitForChannel(channel.id);
+    if (!found) {
+      return json({ error: 'Channel upserted, but not visible after wait.' }, { status: 500 });
+    }
 
-    // Fetch ALL videos for those playlists (from YouTube)
+    // Upsert playlists
+    const playlists = await getPlaylists(channel.id);
+    if (playlists.length > 0) {
+      const { error: playlistError } = await supabase.from('playlists').upsert(playlists);
+      if (playlistError) {
+        return json({ error: 'Failed to upsert playlists.' }, { status: 500 });
+      }
+    }
+
+    // Gather all videos
     let playlistVideos = [];
     for (const pl of playlists) {
       const vids = await getPlaylistVideos(pl.id);
@@ -256,39 +292,14 @@ export async function POST({ request }) {
       }
     }
 
-    // 2. NOW UPSERT INTO THE DB
-
-    // --- Upsert channel (tags as comma string) ---
-    const channelObj = {
-      id: channel.id,
-      name: channel.name,
-      thumbnail: channel.thumbnail || '',
-      description: channel.description || '',
-      tags: tagArr.join(','),  // for channels table as a text field
-      country: normCountry,
-      level: level || null
-    };
-    const { error: channelError } = await supabase.from('channels').upsert([channelObj]);
-    if (channelError) {
-      return json({ error: 'Failed to upsert channel.' }, { status: 500 });
-    }
-
-    // Upsert playlists
-    if (playlists.length > 0) {
-      const { error: playlistError } = await supabase.from('playlists').upsert(playlists);
-      if (playlistError) {
-        return json({ error: 'Failed to upsert playlists.' }, { status: 500 });
-      }
-    }
-
     // Insert videos with tags as a JS array (for Supabase Postgres text[])
     if (allVideos.length > 0) {
       const videosToUpsert = allVideos.map((v) => ({
         id: v.id,
         playlist_id: v.playlist_id || null,
-        channel_id: v.channel_id || channel.id,
+        channel_id: v.channel_id || null,
         title: v.title || '',
-        channel_name: v.channel_name || channel.name,
+        channel_name: v.channel_name || '',
         thumbnail: v.thumbnail || '',
         length: v.length || null,
         published: v.published || null,
