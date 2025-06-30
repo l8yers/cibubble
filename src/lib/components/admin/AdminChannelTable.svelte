@@ -1,5 +1,5 @@
 <script>
-  import AdminTagManager from '$lib/components/admin/AdminTagManager.svelte'; // stub if needed
+  import AdminTagManager from '$lib/components/admin/AdminTagManager.svelte';
 
   export let filteredChannels = [];
   export let currentPage = 1;
@@ -10,7 +10,6 @@
   export let settingCountry = {};
   export let settingLevel = {};
   export let deleting = {};
-
   export let setChannelCountry;
   export let setChannelLevel;
   export let deleteChannel;
@@ -79,16 +78,79 @@
   </table>
 
   <!-- PAGINATION -->
-  <div style="margin:1em 0;text-align:center;">
-    {#if totalPages > 1}
-      {#each Array(totalPages) as _, i}
-        <button on:click={() => goToPage(i+1)} disabled={currentPage === i+1}>
-          {i+1}
-        </button>
-      {/each}
-    {/if}
+  <div class="pagination">
+    <button on:click={() => goToPage(1)} disabled={currentPage===1}>&laquo; First</button>
+    <button on:click={() => goToPage(currentPage-1)} disabled={currentPage===1}>&lsaquo; Prev</button>
+    {#each Array(totalPages) as _, i (i)}
+      {#if Math.abs(currentPage - (i + 1)) <= 2 || i === 0 || i === totalPages - 1}
+        {#if currentPage === i + 1}
+          <span class="current">{i + 1}</span>
+        {:else}
+          <button on:click={() => goToPage(i + 1)}>{i + 1}</button>
+        {/if}
+      {:else if Math.abs(currentPage - (i + 1)) === 3}
+        <span>…</span>
+      {/if}
+    {/each}
+    <button on:click={() => goToPage(currentPage+1)} disabled={currentPage===totalPages}>Next &rsaquo;</button>
+    <button on:click={() => goToPage(totalPages)} disabled={currentPage===totalPages}>Last &raquo;</button>
     {#if refreshing}
       <span style="margin-left:1em;">Refreshing…</span>
     {/if}
   </div>
 </div>
+
+<style>
+.admin-section {
+  width: 100%;
+}
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.2em;
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 3px 16px 0 #0002;
+}
+.admin-table th, .admin-table td {
+  padding: 0.45em 0.9em;
+  text-align: left;
+  border-bottom: 1px solid #f0f2fa;
+}
+.admin-table th {
+  background: #f7fafd;
+  font-weight: 600;
+}
+.admin-table-compact th, .admin-table-compact td {
+  font-size: 1.08em;
+}
+.pagination {
+  display: flex;
+  gap: 0.15em;
+  align-items: center;
+  justify-content: center;
+  margin: 1.1em 0 0.8em 0;
+}
+.pagination button {
+  background: #eee;
+  border: none;
+  border-radius: 7px;
+  padding: 0.22em 0.8em;
+  cursor: pointer;
+  font-size: 1.05em;
+  min-width: 2.2em;
+  transition: background 0.14s;
+}
+.pagination button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.pagination .current {
+  font-weight: bold;
+  background: #e93c2f;
+  color: #fff;
+  border-radius: 8px;
+  padding: 0.23em 0.9em;
+}
+</style>

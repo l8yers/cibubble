@@ -56,8 +56,10 @@
   let settingPlaylistLevel = {};
   let search = '';
   let currentPage = 1;
-  const channelsPerPage = 12;
+  let channelsPerPage = 12;
   let totalPages = 1;
+  let sortBy = 'az';
+  let perPageOptions = [10, 25, 50, 100];
   let filteredChannels = [];
   let csvInput;
   let csvFile = null;
@@ -95,6 +97,7 @@
 
     adminFlag = !!data?.is_admin;
     isReady = true;
+    await refresh();
   });
 
   // --- CHANNEL ADD/FETCH LOGIC ---
@@ -189,27 +192,6 @@
   }
 
   // --- Bulk Upload, Table, Refresh, etc ---
-  $: {
-    let s = stripAccent(search.trim().toLowerCase());
-    let filtered = !s
-      ? allChannels
-      : allChannels.filter(chan =>
-        stripAccent(chan.name || '').toLowerCase().includes(s)
-        || stripAccent(chan.country || '').toLowerCase().includes(s)
-        || (chan._tags || []).some(t => stripAccent(t.name || '').toLowerCase().includes(s))
-      );
-    totalPages = Math.max(1, Math.ceil(filtered.length / channelsPerPage));
-    if (currentPage > totalPages) currentPage = totalPages;
-    filteredChannels = filtered.slice((currentPage - 1) * channelsPerPage, currentPage * channelsPerPage);
-  }
-  function onSearchInput(e) {
-    search = e.target.value;
-    currentPage = 1;
-  }
-  function goToPage(p) {
-    if (p < 1 || p > totalPages) return;
-    currentPage = p;
-  }
   function handleCsvFile(e) {
     csvFile = e.target.files[0];
   }
@@ -310,7 +292,7 @@
             _country: chan.country || '',
             _tags,
             _newLevel: '',
-            _mainLevel: chan.level || '' // uses level from channel
+            _mainLevel: chan.level || ''
           };
         })
       );
@@ -351,9 +333,44 @@
     await refresh();
     deleting = { ...deleting, [id]: false };
   }
-  // (Playlist logic can be plugged in below)
-  // --- Playlists omitted for brevity ---
-  // (You can restore the playlist toggle/set/delete logic from earlier as needed)
+
+  // --- FILTER, SORT, PAGINATE CHANNELS ---
+  $: {
+    let s = stripAccent(search.trim().toLowerCase());
+    let filtered = !s
+      ? allChannels
+      : allChannels.filter(chan =>
+        stripAccent(chan.name || '').toLowerCase().includes(s)
+        || stripAccent(chan.country || '').toLowerCase().includes(s)
+        || (chan._tags || []).some(t => stripAccent(t.name || '').toLowerCase().includes(s))
+      );
+    // Sort
+    filtered = filtered.slice();
+    if (sortBy === 'az') filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    if (sortBy === 'za') filtered.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
+    // Pagination
+    totalPages = Math.max(1, Math.ceil(filtered.length / channelsPerPage));
+    if (currentPage > totalPages) currentPage = totalPages;
+    const start = (currentPage - 1) * channelsPerPage;
+    const end = start + channelsPerPage;
+    filteredChannels = filtered.slice(start, end);
+  }
+  function onSearchInput(e) {
+    search = e.target.value;
+    currentPage = 1;
+  }
+  function goToPage(p) {
+    if (p < 1 || p > totalPages) return;
+    currentPage = p;
+  }
+  function handleSortChange(e) {
+    sortBy = e.target.value;
+    currentPage = 1;
+  }
+  function handlePerPageChange(e) {
+    channelsPerPage = +e.target.value;
+    currentPage = 1;
+  }
 </script>
 
 <!-- === DEBUG PANEL ALWAYS AT TOP === -->
@@ -393,17 +410,14 @@
           <h3>Single Channel Add</h3>
           <input type="text" bind:value={singleChannelUrl} placeholder="Paste YouTube channel link here…" style="width:100%;max-width:480px;">
           <button on:click={fetchSingleChannel} disabled={singleChannelLoading}>Fetch Channel</button>
-
           {#if singleChannelError}
             <div style="color:#e93c2f;margin-top:0.7em;">{singleChannelError}</div>
           {/if}
-
           {#if fetchedChannel}
             <div style="margin:1em 0 0.4em 0;">
               <b>{fetchedChannel.title}</b><br>
               <img src={fetchedChannel.thumbnail} alt="Channel thumbnail" style="height:40px;margin-top:6px;">
             </div>
-
             <div style="margin:0.5em 0;">
               <label>Tags:</label>
               {#each tags as t}
@@ -420,7 +434,6 @@
                 style="margin-top:0.6em;">
               <button type="button" on:click={addTag} style="margin-left:0.4em;">Add Tag</button>
             </div>
-
             <div style="margin:0.7em 0;">
               <label>
                 Level:
@@ -440,13 +453,10 @@
                 </select>
               </label>
             </div>
-
             <button on:click={submitChannel} disabled={addChannelLoading}>Add Channel</button>
-
             {#if addChannelError}
               <div style="color:#e93c2f;margin-top:0.6em;">{addChannelError}</div>
             {/if}
-
             {#if addChannelSuccess}
               <div style="color:#25841c;margin-top:0.6em;">{addChannelSuccess}</div>
             {/if}
@@ -472,7 +482,27 @@
           {/if}
         </section>
       {:else if currentTab === 'channels'}
-        <AdminSearchBar bind:value={search} on:input={onSearchInput} />
+        <!-- Navigation controls above the table -->
+        <div class="channels-header-row">
+          <input type="text" placeholder="Search channels…" value={search} on:input={onSearchInput} style="padding:0.5em 1em; border-radius:9px; border:1px solid #ddd; width:240px;"/>
+          <div class="sort-bar">
+            <label>
+              Sort:
+              <select bind:value={sortBy} on:change={handleSortChange}>
+                <option value="az">A–Z</option>
+                <option value="za">Z–A</option>
+              </select>
+            </label>
+            <label style="margin-left:1.2em;">
+              Per page:
+              <select bind:value={channelsPerPage} on:change={handlePerPageChange}>
+                {#each perPageOptions as opt}
+                  <option value={opt}>{opt}</option>
+                {/each}
+              </select>
+            </label>
+          </div>
+        </div>
         <AdminChannelTable
           {filteredChannels}
           {currentPage}
@@ -483,13 +513,12 @@
           {settingCountry}
           {settingLevel}
           {deleting}
-          on:setChannelLevel={setChannelLevel}
-          on:setChannelCountry={setChannelCountry}
-          on:deleteChannel={deleteChannel}
-          on:goToPage={goToPage}
+          setChannelCountry={setChannelCountry}
+          setChannelLevel={setChannelLevel}
+          deleteChannel={deleteChannel}
+          goToPage={goToPage}
         />
       {/if}
-
       <hr style="margin:3em 0 2em 0;">
       <div>
         <button on:click={refresh} disabled={refreshing}>Manual Refresh</button>
@@ -554,5 +583,17 @@
     border-bottom: 2px solid #e93c2f;
     box-shadow: 0 2px 6px #e3e8ee20;
     font-weight: 900;
+  }
+  .channels-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 1.2em;
+  }
+  .sort-bar label {
+    font-size: 1em;
+    font-weight: 500;
+    margin-right: 0.6em;
   }
 </style>

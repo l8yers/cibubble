@@ -264,7 +264,7 @@
                 {/if}
               </span>
             </div>
-            <div class="stat-label stat-time-color">Total Watch Time</div>
+            <div class="stat-label stat-time-color">Total input time</div>
           </div>
         </div>
         <div class="stat-box stat-today">
@@ -284,14 +284,14 @@
                 {/if}
               </span>
             </div>
-            <div class="stat-label stat-today-color">Today's Watch Time</div>
+            <div class="stat-label stat-today-color">Todays watch time</div>
           </div>
         </div>
         <div class="stat-box stat-practiced">
           <div class="stat-inner-box">
             <Award size={40} style="margin-bottom:0.5em; color:#f4a000;" />
             <div class="stat-number stat-practiced-color">{daysPracticed}</div>
-            <div class="stat-label stat-practiced-color">Days You Practiced</div>
+            <div class="stat-label stat-practiced-color">Days you practiced</div>
           </div>
         </div>
       </div>
