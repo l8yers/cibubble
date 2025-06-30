@@ -1,124 +1,150 @@
 <script>
+  import { COUNTRY_OPTIONS, TAG_OPTIONS } from '$lib/utils/constants';
   import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
-  let url = '';
-  let channelPreview = null;
-  let error = '';
-  let loading = false;
 
+  let url = '';
+  let loading = false;
+  let error = '';
+  let success = false;
+
+  let channelPreview = null;
+
+  // Confirm form inputs
   let level = '';
   let country = '';
-  let tags = '';
+  let selectedTags = [];
 
-  async function fetchChannel() {
-    error = '';
+  async function fetchChannelDetails() {
     loading = true;
+    error = '';
+    success = false;
     channelPreview = null;
 
-    const res = await fetch('/api/fetch-youtube-details', {
-      method: 'POST',
-      body: JSON.stringify({ url }),
-    });
+    try {
+      const res = await fetch('/api/fetch-youtube-details', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
 
-    const data = await res.json();
-    if (res.ok) {
+      const data = await res.json();
+      if (!res.ok) {
+        error = data.error || 'Failed to fetch channel.';
+        return;
+      }
+
       channelPreview = data.channel;
-    } else {
-      error = data.error || 'Error fetching channel.';
+    } catch (err) {
+      error = err.message || 'Fetch error';
+    } finally {
+      loading = false;
     }
-    loading = false;
   }
 
   async function submitChannel() {
+    error = '';
+    success = false;
+
     if (!level || !channelPreview?.id) {
-      error = 'Level is required and channel must be loaded.';
+      error = 'Level and channel data required.';
       return;
     }
 
-    const payload = {
-      id: channelPreview.id,
-      name: channelPreview.title,
-      thumbnail: channelPreview.thumbnail,
-      level,
-      country,
-      tags,
-    };
+    try {
+      const payload = {
+        id: channelPreview.id,
+        name: channelPreview.title,
+        thumbnail: channelPreview.thumbnail,
+        level,
+        country,
+        tags: selectedTags.join(', ')
+      };
 
-    const res = await fetch('/api/insert-channel', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+      const res = await fetch('/api/insert-channel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
 
-    const data = await res.json();
-    if (res.ok) {
-      alert('Channel added!');
-      // Optionally reset form
+      const data = await res.json();
+      if (!res.ok) {
+        error = data.error || 'Insert failed';
+        return;
+      }
+
+      success = true;
       url = '';
       channelPreview = null;
       level = '';
       country = '';
-      tags = '';
-    } else {
-      error = data.error || 'Error inserting channel.';
+      selectedTags = [];
+    } catch (err) {
+      error = err.message || 'Insert error';
     }
   }
 </script>
 
-<h1>Add Channel</h1>
+<h1>Add YouTube Channel</h1>
 
-<input bind:value={url} placeholder="YouTube URL or @handle" class="input" />
-<button on:click={fetchChannel} disabled={loading}>Fetch Channel</button>
-
-{#if loading}
-  <p>Loading...</p>
-{/if}
+<div>
+  <label>YouTube Channel URL or @handle:</label>
+  <input bind:value={url} placeholder="@somehandle or full URL" />
+  <button on:click={fetchChannelDetails} disabled={loading}>
+    {loading ? 'Loading...' : 'Fetch'}
+  </button>
+</div>
 
 {#if error}
-  <p style="color:red">{error}</p>
+  <p style="color: red;">{error}</p>
+{/if}
+
+{#if success}
+  <p style="color: green;">Channel inserted!</p>
 {/if}
 
 {#if channelPreview}
-  <div class="preview">
-    <img src={channelPreview.thumbnail} alt="Thumbnail" />
-    <h2>{channelPreview.title}</h2>
+  <hr />
+  <h2>Confirm Channel Info</h2>
+  <p><strong>{channelPreview.title}</strong></p>
+  <img src={channelPreview.thumbnail} alt="Thumbnail" width="120" height="120" />
 
-    <label>
-      Level (required)
-      <input bind:value={level} placeholder="e.g. A2" />
-    </label>
+  <form on:submit|preventDefault={submitChannel}>
+    <div>
+      <label>Level (required):</label>
+      <div>
+        {#each ['easy', 'intermediate', 'advanced'] as lvl}
+          <label>
+            <input
+              type="radio"
+              bind:group={level}
+              value={lvl}
+              required
+            />
+            {lvl}
+          </label>
+        {/each}
+      </div>
+    </div>
 
-    <label>
-      Country
-      <input bind:value={country} placeholder="e.g. Spain" />
-    </label>
+    <div>
+      <label>Country:</label>
+      <select bind:value={country}>
+        <option value="">-- Select a country --</option>
+        {#each COUNTRY_OPTIONS as c}
+          <option value={c}>{c}</option>
+        {/each}
+      </select>
+    </div>
 
-    <label>
-      Tags (comma-separated)
-      <input bind:value={tags} placeholder="e.g. grammar,kids,story" />
-    </label>
+    <div>
+      <label>Tags:</label>
+      <select multiple bind:value={selectedTags}>
+        {#each TAG_OPTIONS as tag}
+          <option value={tag}>{tag}</option>
+        {/each}
+      </select>
+    </div>
 
-    <button on:click={submitChannel}>Submit Channel</button>
-  </div>
+    <button type="submit">Submit Channel</button>
+  </form>
 {/if}
-
-<style>
-  .input {
-    padding: 0.5rem;
-    margin-bottom: 0.5rem;
-    width: 100%;
-  }
-
-  .preview {
-    border: 1px solid #ccc;
-    padding: 1rem;
-    margin-top: 1rem;
-    border-radius: 0.5rem;
-  }
-
-  input {
-    display: block;
-    margin: 0.5rem 0 1rem;
-    width: 100%;
-    padding: 0.4rem;
-  }
-</style>
