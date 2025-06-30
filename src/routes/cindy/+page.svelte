@@ -1,5 +1,5 @@
 <script>
-  import { COUNTRY_OPTIONS, TAG_OPTIONS } from '$lib/utils/constants';
+  import { COUNTRY_OPTIONS, TAG_OPTIONS } from '$lib/constants';
   import { onMount } from 'svelte';
 
   let url = '';
