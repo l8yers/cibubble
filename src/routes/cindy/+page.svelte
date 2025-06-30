@@ -1,21 +1,18 @@
 <script>
-  import { onMount } from 'svelte';
   import { COUNTRY_OPTIONS, TAG_OPTIONS } from '$lib/constants';
 
   let url = '';
-  let channel = null;
-  let level = '';
-  let country = '';
-  let tagInput = '';
-  let tags = [];
-
+  let fetchedChannel = null;
+  let selectedLevel = '';
+  let selectedCountry = '';
+  let selectedTags = [];
+  let customTag = '';
   let loading = false;
   let error = '';
-  let success = false;
 
   async function fetchChannel() {
     error = '';
-    success = false;
+    fetchedChannel = null;
     loading = true;
     try {
       const res = await fetch('/api/fetch-youtube-details', {
@@ -23,138 +20,192 @@
         body: JSON.stringify({ url }),
         headers: { 'Content-Type': 'application/json' }
       });
-
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Unknown error');
-      channel = data.channel;
+      if (!res.ok) throw new Error(data.error || 'Error fetching channel');
+      fetchedChannel = data.channel;
     } catch (err) {
-      error = err.message;
-    } finally {
-      loading = false;
-    }
-  }
-
-  async function submitChannel() {
-    error = '';
-    success = false;
-    loading = true;
-    try {
-      const res = await fetch('/api/insert-channel', {
-        method: 'POST',
-        body: JSON.stringify({
-          id: channel.id,
-          name: channel.title,
-          thumbnail: channel.thumbnail,
-          level,
-          country: country || null,
-          tags: tags.length ? tags.join(',') : null
-        }),
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Insert failed');
-      success = true;
-      channel = null;
-      url = '';
-      level = '';
-      country = '';
-      tags = [];
-    } catch (err) {
-      error = err.message;
+      error = err.message || 'Unknown error';
     } finally {
       loading = false;
     }
   }
 
   function toggleTag(tag) {
-    if (tags.includes(tag)) {
-      tags = tags.filter(t => t !== tag);
+    if (selectedTags.includes(tag)) {
+      selectedTags = selectedTags.filter(t => t !== tag);
     } else {
-      tags = [...tags, tag];
+      selectedTags = [...selectedTags, tag];
     }
   }
 
   function addCustomTag() {
-    const t = tagInput.trim();
-    if (t && !tags.includes(t)) {
-      tags = [...tags, t];
+    const tag = customTag.trim();
+    if (tag && !selectedTags.includes(tag)) {
+      selectedTags = [...selectedTags, tag];
     }
-    tagInput = '';
+    customTag = '';
+  }
+
+  async function submitChannel() {
+    error = '';
+    if (!fetchedChannel || !selectedLevel) {
+      error = 'Channel and level are required.';
+      return;
+    }
+    loading = true;
+    try {
+      const res = await fetch('/api/submit-channel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: fetchedChannel.id,
+          name: fetchedChannel.title,
+          thumbnail: fetchedChannel.thumbnail,
+          level: selectedLevel,
+          country: selectedCountry || null,
+          tags: selectedTags.join(',')
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error submitting channel');
+      // Success! Reset everything
+      url = '';
+      fetchedChannel = null;
+      selectedLevel = '';
+      selectedCountry = '';
+      selectedTags = [];
+      customTag = '';
+      alert('Channel added!');
+    } catch (err) {
+      error = err.message || 'Unknown error';
+    } finally {
+      loading = false;
+    }
   }
 </script>
+
 <style>
-  .admin-container {
-    max-width: 600px;
-    margin: 5rem auto;
-    padding: 2rem;
-    background: var(--background, #ffffff);
-    color: var(--text-color, #000000);
-    border-radius: 10px;
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+  main {
+    max-width: 500px;
+    margin: 4rem auto;
+    background: #fafafa;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    padding: 2rem 2.5rem;
+    font-family: system-ui, sans-serif;
   }
-
-  :global(body.dark) .admin-container {
-    --background: #1e1e1e;
-    --text-color: #f0f0f0;
-    box-shadow: 0 0 15px rgba(255, 255, 255, 0.05);
+  h2 {
+    margin-top: 0;
+    margin-bottom: 1.2rem;
+    font-size: 1.6rem;
+    text-align: center;
   }
-
   label {
     font-weight: bold;
-    margin-top: 1rem;
+    margin-top: 1.5rem;
     display: block;
   }
-
-  input, select, button {
+  input, select {
     width: 100%;
     padding: 0.5rem;
-    margin-top: 0.3rem;
-    margin-bottom: 1rem;
     font-size: 1rem;
-    background: #fff;
-    color: #000;
+    margin-bottom: 1rem;
+    box-sizing: border-box;
   }
-
-  :global(body.dark) input,
-  :global(body.dark) select,
-  :global(body.dark) button {
-    background: #333;
-    color: #fff;
-    border: 1px solid #666;
-  }
-
-  .tags-grid {
+  .tag-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
+    gap: 0.4rem;
+    margin-bottom: 0.7rem;
   }
-
-  .tag {
-    padding: 0.4rem 0.8rem;
-    border-radius: 20px;
+  .tag-list button {
+    padding: 0.35rem 1rem;
+    border-radius: 15px;
+    border: 1px solid #bbb;
+    background: #eee;
+    color: #222;
     cursor: pointer;
-    background: #ddd;
-    color: #000;
+    font-size: 1rem;
   }
-
-  .tag.selected {
-    background: #ff3e00;
-    color: white;
+  .tag-list button.selected {
+    background: #2784d9;
+    color: #fff;
+    border-color: #2784d9;
   }
-
   .channel-preview {
     display: flex;
     align-items: center;
     gap: 1rem;
-    margin: 1rem 0;
+    margin: 1.5rem 0;
+    border-bottom: 1px solid #eaeaea;
+    padding-bottom: 1rem;
   }
-
   .channel-preview img {
     border-radius: 4px;
+    background: #eee;
   }
-
-  .error { color: red; }
-  .success { color: green; }
+  .error { color: #e03e2d; margin: 0.5rem 0 0.5rem 0; }
+  .radio-row label { display: inline-block; margin-right: 1.2rem; }
 </style>
+
+<main>
+  <h2>Add YouTube Channel</h2>
+  {#if error}
+    <div class="error">{error}</div>
+  {/if}
+
+  {#if !fetchedChannel}
+    <label>Channel URL or @handle</label>
+    <input bind:value={url} placeholder="Paste YouTube channel URL or @handle" />
+    <button on:click={fetchChannel} disabled={loading || !url.trim()}>
+      {loading ? 'Loading...' : 'Fetch'}
+    </button>
+  {/if}
+
+  {#if fetchedChannel}
+    <div class="channel-preview">
+      <img src={fetchedChannel.thumbnail} alt="Thumbnail" width="64" height="64" />
+      <div>
+        <div><strong>{fetchedChannel.title}</strong></div>
+        <div style="font-size: 0.92rem; color: #666;">{fetchedChannel.id}</div>
+      </div>
+    </div>
+
+    <label>Level <span style="color: #e03e2d">*</span></label>
+    <div class="radio-row">
+      <label><input type="radio" bind:group={selectedLevel} value="easy" /> Easy</label>
+      <label><input type="radio" bind:group={selectedLevel} value="intermediate" /> Intermediate</label>
+      <label><input type="radio" bind:group={selectedLevel} value="advanced" /> Advanced</label>
+    </div>
+
+    <label>Country</label>
+    <select bind:value={selectedCountry}>
+      <option value="">None</option>
+      {#each COUNTRY_OPTIONS as c}
+        <option value={typeof c === 'string' ? c : c.value}>{typeof c === 'string' ? c : (c.label || c.value)}</option>
+      {/each}
+    </select>
+
+    <label>Tags</label>
+    <div class="tag-list">
+      {#each TAG_OPTIONS as tag}
+        <button
+          type="button"
+          class:selected={selectedTags.includes(typeof tag === 'string' ? tag : tag.value)}
+          on:click={() => toggleTag(typeof tag === 'string' ? tag : tag.value)}
+        >
+          {typeof tag === 'string' ? tag : (tag.label || tag.value)}
+        </button>
+      {/each}
+    </div>
+    <input
+      placeholder="Type custom tag and press Enter"
+      bind:value={customTag}
+      on:keydown={(e) => e.key === 'Enter' && addCustomTag()}
+    />
+
+    <button on:click={submitChannel} disabled={!selectedLevel || loading}>
+      {loading ? 'Saving...' : 'Submit Channel'}
+    </button>
+  {/if}
+</main>
