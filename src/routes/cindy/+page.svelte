@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { COUNTRY_OPTIONS, TAG_OPTIONS } from '$lib/utils/constants';
+  import { COUNTRY_OPTIONS, TAG_OPTIONS } from '$lib/constants';
 
   let url = '';
   let channel = null;
