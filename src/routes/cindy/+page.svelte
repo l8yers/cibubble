@@ -28,6 +28,7 @@
   let addChannelLoading = false;
   let addChannelError = '';
   let addChannelSuccess = '';
+  let addChannelDebugLog = []; // <-- DEBUG LOG ARRAY
 
   // --- Admin tools (bulk upload, channels, playlists, etc) ---
   const countryOptions = [
@@ -66,6 +67,9 @@
   let bulkUploading = false;
   let uploadFailures = [];
   let uploadSuccesses = [];
+
+  // Bulk upload debug log/results
+  let bulkUploadResults = []; // <-- Array of { row, status, error, debugLog }
 
   // --- ADMIN ACCESS CHECK ---
   onMount(async () => {
@@ -111,6 +115,7 @@
     tagInput = '';
     channelLevel = '';
     channelCountry = '';
+    addChannelDebugLog = [];
     try {
       const res = await fetch('/api/fetch-youtube-details', {
         method: 'POST',
@@ -140,6 +145,7 @@
   async function submitChannel() {
     addChannelError = '';
     addChannelSuccess = '';
+    addChannelDebugLog = [];
     try {
       if (!fetchedChannel) throw new Error('No channel details loaded');
       if (!channelLevel) throw new Error('Select a difficulty level.');
@@ -165,6 +171,7 @@
         console.error('submitChannel: Invalid JSON:', text);
         return;
       }
+      addChannelDebugLog = json.debugLog || [];
       if (json.error) {
         addChannelError = `❌ ${json.error}`;
         console.warn('submitChannel: API error', json.error);
@@ -219,6 +226,7 @@
     bulkUploading = true;
     uploadFailures = [];
     uploadSuccesses = [];
+    bulkUploadResults = [];
     message = '';
 
     const reader = new FileReader();
@@ -237,6 +245,13 @@
       for (let [i, row] of csvRows.entries()) {
         if (!row.url || !row.url.startsWith('http')) {
           uploadFailures.push({ row, error: "Missing or invalid YouTube link", rownum: i + 2 });
+          bulkUploadResults.push({
+            rownum: i + 2,
+            url: row.url,
+            status: 'fail',
+            error: "Missing or invalid YouTube link",
+            debugLog: []
+          });
           continue;
         }
         try {
@@ -252,6 +267,13 @@
             })
           });
           const json = await res.json();
+          bulkUploadResults.push({
+            rownum: i + 2,
+            url: row.url,
+            status: json.error ? 'fail' : 'success',
+            error: json.error || '',
+            debugLog: json.debugLog || []
+          });
           if (json.error) {
             uploadFailures.push({ row, error: json.error, rownum: i + 2 });
           } else {
@@ -260,6 +282,13 @@
           }
         } catch (err) {
           uploadFailures.push({ row, error: err.message, rownum: i + 2 });
+          bulkUploadResults.push({
+            rownum: i + 2,
+            url: row.url,
+            status: 'fail',
+            error: err.message,
+            debugLog: []
+          });
         }
       }
 
@@ -460,6 +489,12 @@
             {#if addChannelSuccess}
               <div style="color:#25841c;margin-top:0.6em;">{addChannelSuccess}</div>
             {/if}
+            {#if addChannelDebugLog.length}
+              <details style="margin-top:0.8em;">
+                <summary style="cursor:pointer;">Debug log (single upload)</summary>
+                <pre style="font-size:0.92em;background:#fafafa;border-radius:7px;padding:0.7em 1em;">{addChannelDebugLog.join('\n')}</pre>
+              </details>
+            {/if}
           {/if}
         </section>
         <hr style="margin:2em 0;">
@@ -479,6 +514,31 @@
                 {/each}
               </ul>
             </div>
+          {/if}
+
+          {#if bulkUploadResults.length}
+            <hr style="margin:1.4em 0;">
+            <h4>Upload Results</h4>
+            <ul style="margin-bottom:2em;">
+              {#each bulkUploadResults as r}
+                <li style="margin-bottom:1.4em;">
+                  <span>
+                    <b>Row {r.rownum}:</b> {r.url}
+                    {#if r.status === 'success'}
+                      <span style="color:#25841c;"> — Success</span>
+                    {:else}
+                      <span style="color:#e93c2f;"> — Error: {r.error}</span>
+                    {/if}
+                  </span>
+                  {#if r.debugLog && r.debugLog.length}
+                    <details style="margin-top:0.25em;">
+                      <summary style="cursor:pointer;">Debug log</summary>
+                      <pre style="font-size:0.93em;background:#fafafa;border-radius:7px;padding:0.7em 1em;">{r.debugLog.join('\n')}</pre>
+                    </details>
+                  {/if}
+                </li>
+              {/each}
+            </ul>
           {/if}
         </section>
       {:else if currentTab === 'channels'}
