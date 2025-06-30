@@ -97,10 +97,10 @@ function prepareVideoForDB(v, durations, playlistId, channel, tagsArray) {
 export async function POST() {
   const report = [];
   try {
-    // Get all channels (with extra fields)
+    // Get all channels (with last_synced_at!)
     const { data: channels, error: chanErr } = await supabase
       .from('channels')
-      .select('id, name, level, country, tags');
+      .select('id, name, level, country, tags, last_synced_at');
     if (chanErr) return new Response(JSON.stringify({ error: chanErr.message }), { status: 500 });
 
     for (const channel of channels) {
@@ -116,38 +116,30 @@ export async function POST() {
         playlistsUpdated: 0,
       };
       try {
-        // Prepare tags as array
         let tagsArray = [];
         if (channel.tags && typeof channel.tags === 'string') {
           tagsArray = channel.tags.split(',').map(s => s.trim()).filter(Boolean);
         }
-
-        // Count videos for this channel
-        const { count } = await supabase
-          .from('videos')
-          .select('id', { count: 'exact', head: true })
-          .eq('channel_id', channel.id);
 
         // Always fetch playlists
         const playlists = await getPlaylists(channel.id);
         if (playlists?.length) {
           const { error: plErr } = await supabase.from('playlists').upsert(playlists);
           if (plErr) throw new Error('Failed to upsert playlists: ' + plErr.message);
-          if (count === 0) channelReport.playlistsAdded = playlists.length;
+          if (!channel.last_synced_at) channelReport.playlistsAdded = playlists.length;
           else channelReport.playlistsUpdated = playlists.length;
         }
 
         // Fetch videos from all playlists
         let allVideosRaw = [];
         for (const pl of playlists) {
-          if (count === 0) {
-            // No videos: fetch all
+          if (!channel.last_synced_at) {
+            // Never synced: fetch all
             const vids = await getPlaylistVideos(pl.id);
             allVideosRaw.push(...vids.map(v => ({ ...v, playlistId: pl.id })));
           } else {
-            // Has videos: fetch last 24h
-            const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-            const vids = await getPlaylistVideos(pl.id, since);
+            // Synced before: fetch only new since last sync
+            const vids = await getPlaylistVideos(pl.id, channel.last_synced_at);
             allVideosRaw.push(...vids.map(v => ({ ...v, playlistId: pl.id })));
           }
         }
@@ -161,7 +153,6 @@ export async function POST() {
             videosToInsert.push(v);
           }
         }
-        // Fetch durations for all new videos
         const videoIds = videosToInsert.map(v => v.contentDetails.videoId).filter(Boolean);
         let durations = {};
         if (videoIds.length) durations = await fetchVideoDurations(videoIds);
@@ -177,6 +168,11 @@ export async function POST() {
           if (insertError) throw new Error(insertError.message);
           channelReport.added = dbVideos.length;
         }
+
+        // Update last_synced_at for this channel
+        await supabase.from('channels')
+          .update({ last_synced_at: new Date().toISOString() })
+          .eq('id', channel.id);
 
         // Always report total video count at end
         const { count: total } = await supabase
