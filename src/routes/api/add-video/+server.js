@@ -190,18 +190,6 @@ async function getAllUploads(uploadsPlaylistId) {
   return videos.map((v) => ({ ...v, playlist_id: null }));
 }
 
-// PATCH: Wait for channel after upsert, to avoid FK race condition
-async function waitForChannel(channelId, maxTries = 10) {
-  let tries = 0;
-  while (tries < maxTries) {
-    const { data } = await supabase.from('channels').select('id').eq('id', channelId);
-    if (data && data.length) return true;
-    await new Promise(r => setTimeout(r, 200));
-    tries++;
-  }
-  return false;
-}
-
 // --- API Route ---
 export async function POST({ request }) {
   try {
@@ -244,16 +232,12 @@ export async function POST({ request }) {
       thumbnail: channel.thumbnail || '',
       description: channel.description || '',
       tags: tagArr.join(','),  // for channels table as a text field
-      country: normCountry
+      country: normCountry,
+      level: level || 'notyet' // <--- ADDED HERE
     };
     const { error: channelError } = await supabase.from('channels').upsert([channelObj]);
     if (channelError) {
       return json({ error: 'Failed to upsert channel.' }, { status: 500 });
-    }
-    // PATCH: Wait until the channel is actually available to satisfy FK for videos
-    const found = await waitForChannel(channel.id);
-    if (!found) {
-      return json({ error: 'Channel upserted, but not visible after wait.' }, { status: 500 });
     }
 
     // Upsert playlists
@@ -264,6 +248,9 @@ export async function POST({ request }) {
         return json({ error: 'Failed to upsert playlists.' }, { status: 500 });
       }
     }
+
+    // --- THIS IS THE KEY BIT ---
+    await new Promise(r => setTimeout(r, 500)); // Wait for DB commit
 
     // Gather all videos
     let playlistVideos = [];
