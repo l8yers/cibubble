@@ -1,6 +1,5 @@
 <script>
   import { COUNTRY_OPTIONS, TAG_OPTIONS } from '$lib/constants';
-  import { onMount } from 'svelte';
 
   let url = '';
   let loading = false;
@@ -8,11 +7,13 @@
   let success = false;
 
   let channelPreview = null;
-
-  // Confirm form inputs
   let level = '';
   let country = '';
   let selectedTags = [];
+
+  // For video sync
+  let syncing = false;
+  let syncResult = null;
 
   async function fetchChannelDetails() {
     loading = true;
@@ -82,6 +83,21 @@
       error = err.message || 'Insert error';
     }
   }
+
+  // === VIDEO SYNC LOGIC ===
+  async function syncVideos() {
+    syncing = true;
+    syncResult = null;
+    try {
+      const res = await fetch('/api/sync-videos', { method: 'POST' });
+      const data = await res.json();
+      syncResult = data;
+    } catch (err) {
+      syncResult = { error: err.message || 'Unknown sync error' };
+    } finally {
+      syncing = false;
+    }
+  }
 </script>
 
 <div class="container">
@@ -149,6 +165,16 @@
       <button type="submit">Submit Channel</button>
     </form>
   {/if}
+
+  <!-- VIDEO SYNC SECTION -->
+  <div class="sync-section">
+    <button on:click={syncVideos} disabled={syncing}>
+      {syncing ? 'Syncing...' : 'Sync Videos for All Channels'}
+    </button>
+    {#if syncResult}
+      <pre>{JSON.stringify(syncResult, null, 2)}</pre>
+    {/if}
+  </div>
 </div>
 
 <style>
@@ -197,5 +223,24 @@
     margin: 2rem 0 1.2rem 0;
     border: none;
     border-top: 1px solid #eee;
+  }
+  .sync-section {
+    margin-top: 2.5rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid #eaeaea;
+    text-align: center;
+  }
+  .sync-section button {
+    margin-bottom: 1rem;
+  }
+  .sync-section pre {
+    text-align: left;
+    max-height: 400px;
+    overflow: auto;
+    font-size: 0.95em;
+    background: #f6f6f6;
+    padding: 1rem;
+    border-radius: 7px;
+    border: 1px solid #ececec;
   }
 </style>
