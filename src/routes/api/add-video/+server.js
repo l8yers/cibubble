@@ -194,7 +194,6 @@ async function getAllUploads(uploadsPlaylistId) {
 export async function POST({ request }) {
   try {
     if (!YOUTUBE_API_KEY) {
-      console.log('Missing YouTube API key');
       return json({ error: 'Missing YouTube API key' }, { status: 500 });
     }
 
@@ -205,7 +204,6 @@ export async function POST({ request }) {
 
     const extracted = extractChannelIdOrHandle(url);
     if (!extracted) {
-      console.log('Invalid YouTube channel link:', url);
       return json({ error: 'Invalid YouTube channel link.' }, { status: 400 });
     }
 
@@ -213,18 +211,15 @@ export async function POST({ request }) {
     if (!channelId && extracted.handle) {
       channelId = await getChannelIdFromHandle(extracted.handle);
       if (!channelId) {
-        console.log('Channel not found for handle:', extracted.handle);
         return json({ error: 'Channel not found (handle could not be resolved).' }, { status: 404 });
       }
     }
 
     const channel = await getChannelInfo(channelId);
     if (!channel) {
-      console.log('Could not fetch channel info for:', channelId);
       return json({ error: 'Could not fetch channel info.' }, { status: 404 });
     }
     if (!channel.name || !channel.name.trim()) {
-      console.log('Channel missing name:', channel);
       return json({
         error: `Channel "${channelId}" is missing a name. This can happen if the YouTube API did not return info, the channel is deleted/private, or your API quota is exceeded.`,
       }, { status: 400 });
@@ -237,12 +232,10 @@ export async function POST({ request }) {
       thumbnail: channel.thumbnail || '',
       description: channel.description || '',
       tags: tagArr.join(','),  // for channels table as a text field
-      country: normCountry,
-      level: level || 'notyet' // <--- ADDED HERE
+      country: normCountry
     };
     const { error: channelError } = await supabase.from('channels').upsert([channelObj]);
     if (channelError) {
-      console.log('Failed to upsert channel:', channelError);
       return json({ error: 'Failed to upsert channel.' }, { status: 500 });
     }
 
@@ -251,26 +244,7 @@ export async function POST({ request }) {
     if (playlists.length > 0) {
       const { error: playlistError } = await supabase.from('playlists').upsert(playlists);
       if (playlistError) {
-        console.log('Failed to upsert playlists:', playlistError);
         return json({ error: 'Failed to upsert playlists.' }, { status: 500 });
-      }
-    }
-
-    // --- THIS IS THE KEY BIT ---
-    await new Promise(r => setTimeout(r, 500)); // Wait for DB commit
-
-    // --- Re-query channels and playlists before video insert ---
-    const { data: channelRows } = await supabase.from('channels').select('id').eq('id', channel.id);
-    if (!channelRows || !channelRows.length) {
-      console.log('Channel still not found after insert');
-      return json({ error: 'Channel still not found after insert.' }, { status: 500 });
-    }
-    if (playlists.length > 0) {
-      const playlistIds = playlists.map(p => p.id);
-      const { data: playlistRows } = await supabase.from('playlists').select('id').in('id', playlistIds);
-      if (!playlistRows || playlistRows.length !== playlists.length) {
-        console.log('Playlists not found after insert');
-        return json({ error: 'Playlists not found after insert.' }, { status: 500 });
       }
     }
 
@@ -301,9 +275,6 @@ export async function POST({ request }) {
       }
     }
 
-    // Log videos prepared for upsert
-    console.log('Prepared to upsert videos:', JSON.stringify(allVideos, null, 2));
-
     // Insert videos with tags as a JS array (for Supabase Postgres text[])
     if (allVideos.length > 0) {
       const videosToUpsert = allVideos.map((v) => ({
@@ -323,14 +294,10 @@ export async function POST({ request }) {
         added_by: added_by || null
       }));
 
-      const { error: videoError, data: videoData } = await supabase.from('videos').upsert(videosToUpsert);
+      const { error: videoError } = await supabase.from('videos').upsert(videosToUpsert);
       if (videoError) {
-        console.log('Video upsert error:', videoError);
         return json({ error: 'Failed to upsert videos: ' + videoError.message }, { status: 500 });
       }
-      console.log('Video upsert data:', videoData);
-    } else {
-      console.log('No videos to upsert');
     }
 
     return json({
@@ -340,8 +307,6 @@ export async function POST({ request }) {
       videos_added: allVideos.length,
     });
   } catch (err) {
-    console.log('Unknown error:', err);
     return json({ error: (err && err.message) || String(err) || 'Unknown error' }, { status: 500 });
   }
 }
-
