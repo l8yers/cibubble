@@ -83,15 +83,21 @@
     tagInput = '';
   }
 </script>
-
 <style>
   .admin-container {
     max-width: 600px;
     margin: 5rem auto;
     padding: 2rem;
-    background: #1e1e1e;
+    background: var(--background, #ffffff);
+    color: var(--text-color, #000000);
     border-radius: 10px;
-    box-shadow: 0 0 15px rgba(0,0,0,0.4);
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+  }
+
+  :global(body.dark) .admin-container {
+    --background: #1e1e1e;
+    --text-color: #f0f0f0;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.05);
   }
 
   label {
@@ -106,6 +112,16 @@
     margin-top: 0.3rem;
     margin-bottom: 1rem;
     font-size: 1rem;
+    background: #fff;
+    color: #000;
+  }
+
+  :global(body.dark) input,
+  :global(body.dark) select,
+  :global(body.dark) button {
+    background: #333;
+    color: #fff;
+    border: 1px solid #666;
   }
 
   .tags-grid {
@@ -119,8 +135,8 @@
     padding: 0.4rem 0.8rem;
     border-radius: 20px;
     cursor: pointer;
-    background: #333;
-    color: white;
+    background: #ddd;
+    color: #000;
   }
 
   .tag.selected {
@@ -142,67 +158,3 @@
   .error { color: red; }
   .success { color: green; }
 </style>
-
-<div class="admin-container">
-  <h2>Add YouTube Channel</h2>
-
-  {#if error}<p class="error">{error}</p>{/if}
-  {#if success}<p class="success">✅ Channel added!</p>{/if}
-
-  {#if !channel}
-    <label>YouTube URL or @handle</label>
-    <input bind:value={url} placeholder="https://youtube.com/@..." />
-    <button on:click={fetchChannel} disabled={loading}>
-      {loading ? 'Loading...' : 'Fetch Channel'}
-    </button>
-  {/if}
-
-  {#if channel}
-    <div class="channel-preview">
-      <img src={channel.thumbnail} alt="thumbnail" width="80" height="80" />
-      <div><strong>{channel.title}</strong><br /><code>{channel.id}</code></div>
-    </div>
-
-    <label>Level *</label>
-    <div>
-      <label><input type="radio" bind:group={level} value="easy" /> Easy</label><br />
-      <label><input type="radio" bind:group={level} value="intermediate" /> Intermediate</label><br />
-      <label><input type="radio" bind:group={level} value="advanced" /> Advanced</label>
-    </div>
-
-    <label>Country</label>
-    <select bind:value={country}>
-      <option value="">-- None --</option>
-      {#each COUNTRY_OPTIONS as opt}
-        <option value={opt}>{opt}</option>
-      {/each}
-    </select>
-
-    <label>Tags</label>
-    <input bind:value={tagInput} placeholder="Type and press Enter" on:keydown={(e) => e.key === 'Enter' && addCustomTag()} />
-    <div class="tags-grid">
-      {#each TAG_OPTIONS as tag}
-        <div
-          class:tag
-          class:selected={tags.includes(tag)}
-          on:click={() => toggleTag(tag)}
-        >
-          {tag}
-        </div>
-      {/each}
-      {#each tags.filter(t => !TAG_OPTIONS.includes(t)) as custom}
-        <div
-          class:tag
-          class:selected
-          on:click={() => toggleTag(custom)}
-        >
-          {custom}
-        </div>
-      {/each}
-    </div>
-
-    <button on:click={submitChannel} disabled={!level || loading}>
-      {loading ? 'Saving...' : 'Submit Channel'}
-    </button>
-  {/if}
-</div>
