@@ -1,10 +1,14 @@
 import { json } from '@sveltejs/kit';
 import { createClient } from '@supabase/supabase-js';
 
+// Only use VITE_ variables! No fallbacks!
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
 const YOUTUBE_API_KEY = process.env.VITE_YOUTUBE_API_KEY;
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// --- Helpers ---
 
 function normalizeTags(raw) {
   if (!raw) return [];
@@ -18,17 +22,20 @@ function normalizeTags(raw) {
     .filter(Boolean)
   )];
 }
+
 function normalizeCountry(raw) {
   if (!raw || typeof raw !== 'string') return null;
   const val = raw.trim().toLowerCase();
   return val === '' ? null : val;
 }
+
 function parseDuration(iso) {
   if (!iso || typeof iso !== 'string') return 0;
   const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
   if (!m) return 0;
   return (parseInt(m[1] || 0) * 3600) + (parseInt(m[2] || 0) * 60) + (parseInt(m[3] || 0));
 }
+
 async function fetchVideoDurations(videoIds) {
   let results = [];
   for (let i = 0; i < videoIds.length; i += 50) {
@@ -52,11 +59,12 @@ async function fetchVideoDurations(videoIds) {
         );
       }
     } catch (err) {
-      results.push({ id: '[error]', length: 0 });
+      // Just skip batch on error
     }
   }
   return results.reduce((acc, v) => ({ ...acc, [v.id]: v.length }), {});
 }
+
 function extractChannelIdOrHandle(url) {
   const channelIdMatch = url.match(/youtube\.com\/channel\/([a-zA-Z0-9_-]+)/);
   if (channelIdMatch) return { id: channelIdMatch[1], type: 'id' };
@@ -64,17 +72,20 @@ function extractChannelIdOrHandle(url) {
   if (handleMatch) return { handle: handleMatch[1], type: 'handle' };
   return null;
 }
-async function getChannelIdFromHandle(handle, debugLog) {
+
+async function getChannelIdFromHandle(handle) {
   const handleOnly = handle.startsWith('@') ? handle.slice(1) : handle;
   try {
     let url = `https://www.googleapis.com/youtube/v3/channels?part=id,snippet,contentDetails&forHandle=${encodeURIComponent(handleOnly)}&key=${YOUTUBE_API_KEY}`;
     let res = await fetch(url);
     let data = await res.json();
     if (data.items && data.items.length > 0) return data.items[0].id;
+
     url = `https://www.googleapis.com/youtube/v3/channels?part=id,snippet,contentDetails&forUsername=${encodeURIComponent(handleOnly)}&key=${YOUTUBE_API_KEY}`;
     res = await fetch(url);
     data = await res.json();
     if (data.items && data.items.length > 0) return data.items[0].id;
+
     url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(handleOnly)}&key=${YOUTUBE_API_KEY}`;
     res = await fetch(url);
     data = await res.json();
@@ -83,18 +94,16 @@ async function getChannelIdFromHandle(handle, debugLog) {
       return channelId;
     }
   } catch (err) {
-    debugLog.push(`[getChannelIdFromHandle] Failed for handle "${handle}": ${err.message}`);
+    // Ignore errors
   }
   return null;
 }
-async function getChannelInfo(channelId, debugLog) {
+
+async function getChannelInfo(channelId) {
   const url = `https://www.googleapis.com/youtube/v3/channels?part=snippet,contentDetails&id=${channelId}&key=${YOUTUBE_API_KEY}`;
   try {
     const res = await fetch(url);
     const data = await res.json();
-    if (data.error?.code === 403 || data.error?.code === 429) {
-      throw new Error(`[getChannelInfo] API quota exceeded! code ${data.error.code}`);
-    }
     if (!data.items || data.items.length === 0) return null;
     const c = data.items[0];
     return {
@@ -105,11 +114,11 @@ async function getChannelInfo(channelId, debugLog) {
       uploadsPlaylistId: c.contentDetails?.relatedPlaylists?.uploads,
     };
   } catch (err) {
-    debugLog.push('[getChannelInfo] Fetch error: ' + err.message);
-    throw err;
+    return null;
   }
 }
-async function getPlaylists(channelId, debugLog) {
+
+async function getPlaylists(channelId) {
   let playlists = [];
   let nextPage = '';
   try {
@@ -117,15 +126,11 @@ async function getPlaylists(channelId, debugLog) {
       const url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet&channelId=${channelId}&maxResults=50&pageToken=${nextPage}&key=${YOUTUBE_API_KEY}`;
       const res = await fetch(url);
       const data = await res.json();
-      if (data.error?.code === 403 || data.error?.code === 429) {
-        throw new Error(`[getPlaylists] API quota exceeded! code ${data.error.code}`);
-      }
       if (data.items) playlists.push(...data.items);
       nextPage = data.nextPageToken || '';
     } while (nextPage);
   } catch (err) {
-    debugLog.push(`[getPlaylists] Channel ${channelId} error: ${err.message}`);
-    throw err;
+    // ignore
   }
   return playlists.map((pl) => ({
     id: pl.id,
@@ -135,6 +140,7 @@ async function getPlaylists(channelId, debugLog) {
     description: pl.snippet.description,
   }));
 }
+
 function isGoodVideo(v, durations) {
   const title = v.snippet?.title?.toLowerCase() ?? '';
   if (!title) return false;
@@ -144,7 +150,8 @@ function isGoodVideo(v, durations) {
   if (durations[vid] < 180) return false;
   return true;
 }
-async function getPlaylistVideos(playlistId, debugLog) {
+
+async function getPlaylistVideos(playlistId) {
   let videos = [];
   let nextPage = '';
   try {
@@ -152,16 +159,10 @@ async function getPlaylistVideos(playlistId, debugLog) {
       const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${playlistId}&maxResults=50&pageToken=${nextPage}&key=${YOUTUBE_API_KEY}`;
       const res = await fetch(url);
       const data = await res.json();
-      if (data.error?.code === 403 || data.error?.code === 429) {
-        throw new Error(`[getPlaylistVideos] API quota exceeded! code ${data.error.code}`);
-      }
       if (data.items) videos.push(...data.items);
       nextPage = data.nextPageToken || '';
     } while (nextPage);
-  } catch (err) {
-    debugLog.push(`[getPlaylistVideos] Playlist ${playlistId} error: ${err.message}`);
-    throw err;
-  }
+  } catch (err) {}
   const videoIds = videos.map((v) => v.contentDetails.videoId).filter(Boolean);
   let durations = {};
   if (videoIds.length) {
@@ -183,147 +184,106 @@ async function getPlaylistVideos(playlistId, debugLog) {
       playlist_position: v.snippet.position ?? null,
     }));
 }
-async function getAllUploads(uploadsPlaylistId, debugLog) {
-  return await getPlaylistVideos(uploadsPlaylistId, debugLog);
+
+async function getAllUploads(uploadsPlaylistId) {
+  const videos = await getPlaylistVideos(uploadsPlaylistId);
+  return videos.map((v) => ({ ...v, playlist_id: null }));
 }
 
+// --- API Route ---
 export async function POST({ request }) {
-  const debugLog = [];
-  let channelNameForDebug = 'Unknown';
   try {
-    try {
-      if (!YOUTUBE_API_KEY) {
-        debugLog.push('Missing YouTube API key');
-        return json({ error: 'Missing YouTube API key', debugLog }, { status: 500 });
-      }
-      const { url, tags, level, added_by, country } = await request.json();
-      debugLog.push(`Processing: ${url}`);
+    if (!YOUTUBE_API_KEY) {
+      return json({ error: 'Missing YouTube API key' }, { status: 500 });
+    }
 
-      const tagArr = normalizeTags(tags);
-      const normCountry = normalizeCountry(country);
+    const { url, tags, level, added_by, country } = await request.json();
 
-      const extracted = extractChannelIdOrHandle(url);
-      if (!extracted) {
-        debugLog.push('Could not extract channel ID/handle');
-        return json({ error: 'Invalid YouTube channel link.', debugLog }, { status: 400 });
-      }
+    const tagArr = normalizeTags(tags);
+    const normCountry = normalizeCountry(country);
 
-      let channelId = extracted.id;
-      if (!channelId && extracted.handle) {
-        channelId = await getChannelIdFromHandle(extracted.handle, debugLog);
-        if (!channelId) {
-          debugLog.push(`Could not resolve handle: ${extracted.handle}`);
-          return json({ error: 'Channel not found (handle could not be resolved).', debugLog }, { status: 404 });
-        }
-      }
+    const extracted = extractChannelIdOrHandle(url);
+    if (!extracted) {
+      return json({ error: 'Invalid YouTube channel link.' }, { status: 400 });
+    }
 
-      debugLog.push(`Processing channel: ${channelId} (${url})`);
+    let channelId = extracted.id;
+    if (!channelId && extracted.handle) {
+      channelId = await getChannelIdFromHandle(extracted.handle);
+      if (!channelId) {
+        return json({ error: 'Channel not found (handle could not be resolved).' }, { status: 404 });
+      }
+    }
 
-      let channel;
-      try {
-        channel = await getChannelInfo(channelId, debugLog);
-      } catch (err) {
-        if (err.message && err.message.includes('quota')) {
-          debugLog.push('YouTube API quota exceeded while fetching channel info.');
-          return json({ error: `YouTube API quota exceeded while fetching channel info for: ${channelId}`, channelId, debugLog }, { status: 503 });
-        }
-        debugLog.push('Could not fetch channel info: ' + err.message);
-        return json({ error: `Could not fetch channel info: ${err.message}`, channelId, debugLog }, { status: 404 });
-      }
+    // 1. GATHER EVERYTHING FROM YOUTUBE FIRST
+    const channel = await getChannelInfo(channelId);
+    if (!channel) {
+      return json({ error: 'Could not fetch channel info.' }, { status: 404 });
+    }
+    if (!channel.name || !channel.name.trim()) {
+      return json({
+        error: `Channel "${channelId}" is missing a name. This can happen if the YouTube API did not return info, the channel is deleted/private, or your API quota is exceeded.`,
+      }, { status: 400 });
+    }
 
-      if (!channel) {
-        debugLog.push('Could not fetch channel info (empty object).');
-        return json({ error: 'Could not fetch channel info.', channelId, debugLog }, { status: 404 });
-      }
-      channelNameForDebug = channel.name;
-      if (!channel.name || !channel.name.trim()) {
-        debugLog.push('Channel missing name.');
-        return json({
-          error: `Channel "${channelId}" is missing a name.`,
-          channelId,
-          debugLog
-        }, { status: 400 });
-      }
+    // Fetch playlists (from YouTube)
+    const playlists = await getPlaylists(channel.id);
 
-      // Upsert channel
-      const channelObj = {
-        id: channel.id,
-        name: channel.name,
-        thumbnail: channel.thumbnail || '',
-        description: channel.description || '',
-        tags: tagArr.join(','),
-        country: normCountry,
-        level: level || null
-      };
-      debugLog.push(`Upserting channel: "${channel.name}" (${channel.id})`);
-      const { error: channelError } = await supabase.from('channels').upsert([channelObj]);
-      if (channelError) {
-        debugLog.push(`[FAIL] Channel upsert error for "${channel.name}": ${channelError.message}`);
-        return json({ error: `Failed to upsert channel "${channel.name}"`, channelId, debugLog }, { status: 500 });
-      }
+    // Fetch ALL videos for those playlists (from YouTube)
+    let playlistVideos = [];
+    for (const pl of playlists) {
+      const vids = await getPlaylistVideos(pl.id);
+      playlistVideos.push(...vids);
+    }
+    let uploadsVideos = [];
+    if (channel.uploadsPlaylistId) {
+      uploadsVideos = await getAllUploads(channel.uploadsPlaylistId);
+    }
 
-      // Upsert playlists
-      let playlists = [];
-      try {
-        playlists = await getPlaylists(channel.id, debugLog);
-        debugLog.push(`Fetched ${playlists.length} playlists for channel "${channel.name}"`);
-      } catch (err) {
-        if (err.message && err.message.includes('quota')) {
-          debugLog.push('YouTube API quota exceeded while fetching playlists.');
-          return json({ error: `YouTube API quota exceeded while fetching playlists for: ${channel.name}`, channelId, debugLog }, { status: 503 });
-        }
-        debugLog.push(`Failed to fetch playlists for channel "${channel.name}": ${err.message}`);
-        return json({ error: `Failed to fetch playlists for channel "${channel.name}": ${err.message}`, channelId, debugLog }, { status: 500 });
+    // De-duplicate videos by ID
+    const seen = new Set();
+    const allVideos = [];
+    for (const v of playlistVideos) {
+      if (!seen.has(v.id)) {
+        allVideos.push(v);
+        seen.add(v.id);
       }
-      if (playlists.length > 0) {
-        const { error: playlistError } = await supabase.from('playlists').upsert(playlists);
-        if (playlistError) {
-          debugLog.push(`[FAIL] Playlists upsert error for "${channel.name}": ${playlistError.message}`);
-          return json({ error: `Failed to upsert playlists for "${channel.name}"`, channelId, debugLog }, { status: 500 });
-        }
+    }
+    for (const v of uploadsVideos) {
+      if (!seen.has(v.id)) {
+        allVideos.push(v);
+        seen.add(v.id);
       }
+    }
 
-      // Gather all videos
-      const allVideoObjs = {};
-      // All uploads
-      if (channel.uploadsPlaylistId) {
-        try {
-          const uploadVids = await getAllUploads(channel.uploadsPlaylistId, debugLog);
-          for (const v of uploadVids) {
-            allVideoObjs[v.id] = v;
-          }
-          debugLog.push(`Fetched ${uploadVids.length} upload videos for "${channel.name}"`);
-        } catch (err) {
-          if (err.message && err.message.includes('quota')) {
-            debugLog.push('YouTube API quota exceeded while fetching uploads.');
-            return json({ error: `YouTube API quota exceeded while fetching uploads for: ${channel.name}`, channelId, debugLog }, { status: 503 });
-          }
-          debugLog.push(`Failed to fetch upload videos for channel "${channel.name}": ${err.message}`);
-          return json({ error: `Failed to fetch upload videos for channel "${channel.name}": ${err.message}`, channelId, debugLog }, { status: 500 });
-        }
-      }
-      // All playlist videos
-      let totalPlaylistVideos = 0;
-      for (const pl of playlists) {
-        try {
-          const vids = await getPlaylistVideos(pl.id, debugLog);
-          for (const v of vids) {
-            allVideoObjs[v.id] = v;
-          }
-          totalPlaylistVideos += vids.length;
-        } catch (err) {
-          if (err.message && err.message.includes('quota')) {
-            debugLog.push(`YouTube API quota exceeded while fetching playlist videos for: ${channel.name} / playlist ${pl.title}`);
-            return json({ error: `YouTube API quota exceeded while fetching playlist videos for: ${channel.name} / playlist ${pl.title}`, channelId, playlist: pl.title, debugLog }, { status: 503 });
-          }
-          debugLog.push(`Failed to fetch playlist videos for channel "${channel.name}" (playlist "${pl.title}"): ${err.message}`);
-          return json({ error: `Failed to fetch playlist videos for channel "${channel.name}" (playlist "${pl.title}"): ${err.message}`, channelId, playlist: pl.title, debugLog }, { status: 500 });
-        }
-      }
-      debugLog.push(`Fetched ${totalPlaylistVideos} videos from all playlists for "${channel.name}"`);
+    // 2. NOW UPSERT INTO THE DB
 
-      // Upsert all videos
-      let videosToUpsert = Object.values(allVideoObjs).map((v) => ({
+    // --- Upsert channel (tags as comma string) ---
+    const channelObj = {
+      id: channel.id,
+      name: channel.name,
+      thumbnail: channel.thumbnail || '',
+      description: channel.description || '',
+      tags: tagArr.join(','),  // for channels table as a text field
+      country: normCountry,
+      level: level || null
+    };
+    const { error: channelError } = await supabase.from('channels').upsert([channelObj]);
+    if (channelError) {
+      return json({ error: 'Failed to upsert channel.' }, { status: 500 });
+    }
+
+    // Upsert playlists
+    if (playlists.length > 0) {
+      const { error: playlistError } = await supabase.from('playlists').upsert(playlists);
+      if (playlistError) {
+        return json({ error: 'Failed to upsert playlists.' }, { status: 500 });
+      }
+    }
+
+    // Insert videos with tags as a JS array (for Supabase Postgres text[])
+    if (allVideos.length > 0) {
+      const videosToUpsert = allVideos.map((v) => ({
         id: v.id,
         playlist_id: v.playlist_id || null,
         channel_id: v.channel_id || channel.id,
@@ -334,52 +294,25 @@ export async function POST({ request }) {
         published: v.published || null,
         created: v.created || null,
         playlist_position: v.playlist_position || null,
-        level: level || 'notyet',
+        level: level || v.level || 'notyet',
         country: normCountry,
-        tags: tagArr,
+        tags: tagArr, // ARRAY! for text[]
         added_by: added_by || null
       }));
 
-      debugLog.push(`videosToUpsert length: ${videosToUpsert.length}`);
-      debugLog.push(`First video (if any): ${videosToUpsert.length > 0 ? JSON.stringify(videosToUpsert[0], null, 2) : 'NONE'}`);
-
-      try {
-        if (videosToUpsert.length > 0) {
-          debugLog.push(`About to upsert ${videosToUpsert.length} videos`);
-          const { error: videoError, data: videoInsertResult } = await supabase.from('videos').upsert(videosToUpsert);
-          if (videoError) {
-            debugLog.push(`[FAIL] Videos upsert error: ${videoError.message}`);
-            return json({ error: `Failed to upsert videos: ${videoError.message}`, debugLog }, { status: 500 });
-          }
-          debugLog.push(`Videos upserted OK!`);
-        } else {
-          debugLog.push('No videos found to upsert');
-        }
-      } catch (err) {
-        debugLog.push(`[UNCAUGHT] Error in video upsert: ${err.message}`);
-        return json({ error: `Exception during video upsert: ${err.message}`, debugLog }, { status: 500 });
+      const { error: videoError } = await supabase.from('videos').upsert(videosToUpsert);
+      if (videoError) {
+        return json({ error: 'Failed to upsert videos: ' + videoError.message }, { status: 500 });
       }
-
-      return json({
-        success: true,
-        channel,
-        playlists_count: playlists.length,
-        videos_added: videosToUpsert.length,
-        debugLog
-      });
-    } catch (err) {
-      debugLog.push('[FAIL][INNER UNCAUGHT] ' + channelNameForDebug + ' ' + (err.message || err));
-      return json({
-        error: (err && err.message) || String(err) || 'Unknown error',
-        channel: channelNameForDebug,
-        debugLog
-      }, { status: 500 });
     }
-  } catch (err) {
-    debugLog.push('[FAIL][OUTER UNCAUGHT] ' + (err.message || err));
+
     return json({
-      error: '[FAIL][OUTER UNCAUGHT] ' + (err && err.message ? err.message : err),
-      debugLog
-    }, { status: 500 });
+      success: true,
+      channel,
+      playlists_count: playlists.length,
+      videos_added: allVideos.length,
+    });
+  } catch (err) {
+    return json({ error: (err && err.message) || String(err) || 'Unknown error' }, { status: 500 });
   }
 }
