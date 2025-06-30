@@ -84,67 +84,118 @@
   }
 </script>
 
-<h1>Add YouTube Channel</h1>
+<div class="container">
+  <h1>Add YouTube Channel</h1>
 
-<div>
-  <label>YouTube Channel URL or @handle:</label>
-  <input bind:value={url} placeholder="@somehandle or full URL" />
-  <button on:click={fetchChannelDetails} disabled={loading}>
-    {loading ? 'Loading...' : 'Fetch'}
-  </button>
+  <div>
+    <label>YouTube Channel URL or @handle:</label>
+    <input bind:value={url} placeholder="@somehandle or full URL" />
+    <button on:click={fetchChannelDetails} disabled={loading}>
+      {loading ? 'Loading...' : 'Fetch'}
+    </button>
+  </div>
+
+  {#if error}
+    <p style="color: red;">{error}</p>
+  {/if}
+
+  {#if success}
+    <p style="color: green;">Channel inserted!</p>
+  {/if}
+
+  {#if channelPreview}
+    <hr />
+    <h2>Confirm Channel Info</h2>
+    <p><strong>{channelPreview.title}</strong></p>
+    <img src={channelPreview.thumbnail} alt="Thumbnail" width="120" height="120" />
+
+    <form on:submit|preventDefault={submitChannel}>
+      <div>
+        <label>Level (required):</label>
+        <div>
+          {#each ['easy', 'intermediate', 'advanced'] as lvl}
+            <label>
+              <input
+                type="radio"
+                bind:group={level}
+                value={lvl}
+                required
+              />
+              {lvl}
+            </label>
+          {/each}
+        </div>
+      </div>
+
+      <div>
+        <label>Country:</label>
+        <select bind:value={country}>
+          <option value="">None</option>
+          {#each COUNTRY_OPTIONS as c}
+            <option value={c}>{c}</option>
+          {/each}
+        </select>
+      </div>
+
+      <div>
+        <label>Tags:</label>
+        <select multiple bind:value={selectedTags}>
+          {#each TAG_OPTIONS as tag}
+            <option value={tag}>{tag}</option>
+          {/each}
+        </select>
+      </div>
+
+      <button type="submit">Submit Channel</button>
+    </form>
+  {/if}
 </div>
 
-{#if error}
-  <p style="color: red;">{error}</p>
-{/if}
-
-{#if success}
-  <p style="color: green;">Channel inserted!</p>
-{/if}
-
-{#if channelPreview}
-  <hr />
-  <h2>Confirm Channel Info</h2>
-  <p><strong>{channelPreview.title}</strong></p>
-  <img src={channelPreview.thumbnail} alt="Thumbnail" width="120" height="120" />
-
-  <form on:submit|preventDefault={submitChannel}>
-    <div>
-      <label>Level (required):</label>
-      <div>
-        {#each ['easy', 'intermediate', 'advanced'] as lvl}
-          <label>
-            <input
-              type="radio"
-              bind:group={level}
-              value={lvl}
-              required
-            />
-            {lvl}
-          </label>
-        {/each}
-      </div>
-    </div>
-
-    <div>
-      <label>Country:</label>
-      <select bind:value={country}>
-        <option value="">-- Select a country --</option>
-        {#each COUNTRY_OPTIONS as c}
-          <option value={c}>{c}</option>
-        {/each}
-      </select>
-    </div>
-
-    <div>
-      <label>Tags:</label>
-      <select multiple bind:value={selectedTags}>
-        {#each TAG_OPTIONS as tag}
-          <option value={tag}>{tag}</option>
-        {/each}
-      </select>
-    </div>
-
-    <button type="submit">Submit Channel</button>
-  </form>
-{/if}
+<style>
+  .container {
+    max-width: 500px;
+    margin: 4rem auto;
+    padding: 2rem 2.5rem;
+    border-radius: 10px;
+    background: #fafafa;
+    border: 1px solid #eee;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.07);
+  }
+  h1 {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+  label {
+    font-weight: bold;
+    margin-top: 1rem;
+    display: block;
+  }
+  input, select, button {
+    width: 100%;
+    padding: 0.5rem;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    box-sizing: border-box;
+  }
+  button {
+    cursor: pointer;
+    font-weight: bold;
+    background: #0074d9;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    transition: background 0.2s;
+  }
+  button:disabled {
+    background: #aaa;
+    cursor: not-allowed;
+  }
+  form {
+    margin-top: 1.5rem;
+  }
+  hr {
+    margin: 2rem 0 1.2rem 0;
+    border: none;
+    border-top: 1px solid #eee;
+  }
+</style>
