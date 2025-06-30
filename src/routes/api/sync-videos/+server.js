@@ -4,7 +4,6 @@ const YOUTUBE_API_KEY = process.env.VITE_YOUTUBE_API_KEY;
 
 // --- YouTube API Helpers ---
 
-// Fetch all playlists for a channel
 async function getPlaylists(channelId) {
   let playlists = [];
   let nextPageToken = '';
@@ -26,7 +25,6 @@ async function getPlaylists(channelId) {
   }));
 }
 
-// Fetch videos from a playlist (optionally after a certain date)
 async function getPlaylistVideos(playlistId, publishedAfter = null) {
   let videos = [];
   let nextPageToken = '';
@@ -45,7 +43,6 @@ async function getPlaylistVideos(playlistId, publishedAfter = null) {
   });
 }
 
-// Fetch video durations by batch (50 per API call)
 async function fetchVideoDurations(videoIds) {
   let results = [];
   for (let i = 0; i < videoIds.length; i += 50) {
@@ -64,7 +61,6 @@ async function fetchVideoDurations(videoIds) {
       }
     } catch {}
   }
-  // Returns: { videoId: seconds }
   function parseDuration(iso) {
     if (!iso || typeof iso !== 'string') return 0;
     const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
@@ -76,13 +72,12 @@ async function fetchVideoDurations(videoIds) {
   return map;
 }
 
-// Filter/process videos for upsert
-function prepareVideoForDB(v, durations, playlistId, channelId) {
+function prepareVideoForDB(v, durations, playlistId, channel, tagsArray) {
   const vid = v.contentDetails.videoId;
   return {
     id: vid,
     playlist_id: playlistId,
-    channel_id: channelId,
+    channel_id: channel.id,
     title: v.snippet.title,
     channel_name: v.snippet.channelTitle,
     thumbnail: v.snippet.thumbnails?.high?.url || v.snippet.thumbnails?.default?.url || '',
@@ -90,9 +85,9 @@ function prepareVideoForDB(v, durations, playlistId, channelId) {
     published: v.snippet.publishedAt,
     created: new Date().toISOString(),
     playlist_position: v.snippet.position ?? null,
-    level: 'notyet',
-    country: null,
-    tags: [],
+    level: channel.level || 'notyet',
+    country: channel.country || null,
+    tags: tagsArray,
     added_by: null,
   };
 }
@@ -102,8 +97,10 @@ function prepareVideoForDB(v, durations, playlistId, channelId) {
 export async function POST() {
   const report = [];
   try {
-    // Get all channels
-    const { data: channels, error: chanErr } = await supabase.from('channels').select('id, name');
+    // Get all channels (with extra fields)
+    const { data: channels, error: chanErr } = await supabase
+      .from('channels')
+      .select('id, name, level, country, tags');
     if (chanErr) return new Response(JSON.stringify({ error: chanErr.message }), { status: 500 });
 
     for (const channel of channels) {
@@ -119,6 +116,12 @@ export async function POST() {
         playlistsUpdated: 0,
       };
       try {
+        // Prepare tags as array
+        let tagsArray = [];
+        if (channel.tags && typeof channel.tags === 'string') {
+          tagsArray = channel.tags.split(',').map(s => s.trim()).filter(Boolean);
+        }
+
         // Count videos for this channel
         const { count } = await supabase
           .from('videos')
@@ -148,7 +151,7 @@ export async function POST() {
             allVideosRaw.push(...vids.map(v => ({ ...v, playlistId: pl.id })));
           }
         }
-        // Remove any duplicates by videoId
+        // Remove duplicates
         const seen = new Set();
         const videosToInsert = [];
         for (const v of allVideosRaw) {
@@ -163,9 +166,9 @@ export async function POST() {
         let durations = {};
         if (videoIds.length) durations = await fetchVideoDurations(videoIds);
 
-        // Final videos list for DB
+        // Build video records for DB
         const dbVideos = videosToInsert
-          .map(v => prepareVideoForDB(v, durations, v.playlistId, channel.id))
+          .map(v => prepareVideoForDB(v, durations, v.playlistId, channel, tagsArray))
           .filter(v => v.length === null || v.length >= 180); // Filter out very short vids
 
         // Upsert into DB
