@@ -769,44 +769,62 @@ body,
 /* MOBILE OPTIMIZATION */
 @media (max-width: 600px) {
   .progress-layout {
-    margin: 1.1em 0.2em 0.7em 0.2em;
-    gap: 1.2em;
+    margin: 1.6em 0.6em 1.4em 0.6em; /* up from 1.1/0.2/0.7/0.2 */
+    gap: 1.5em; /* was 1.2em */
     padding: 0;
   }
   .card, .outside-card, .activity-card {
-    padding: 0.7em 0.2em 1.2em 0.2em;
+    padding: 1.1em 0.6em 1.5em 0.6em; /* more padding all around */
     border-radius: 13px;
+    box-shadow: 0 3px 16px 0 #e9eaee55;
+    margin-bottom: 0.7em; /* a bit more space between cards */
   }
   .stats-heading-row {
-    margin-bottom: 0.3em;
+    margin-bottom: 0.6em;
   }
   .card-heading {
-    font-size: 1em;
+    font-size: 1.04em;
   }
-  .stat-inner-box,
+  .stat-inner-box {
+    border-radius: 11px;
+    padding: 1.5em 0.3em 1.4em 0.3em; /* more padding in stat cards */
+  }
+  .stat-number {
+    font-size: 1.43em;
+    margin-top: 0.38em;
+    margin-bottom: 0.15em;
+  }
+  .stat-label {
+    font-size: 1em;
+    margin-top: 0.21em;
+  }
+  .stat-inner-box svg {
+    width: 33px;
+    height: 33px;
+    margin-bottom: 0.23em;
+  }
   .outside-box {
     border-radius: 10px;
-    padding: 1.1em 0.2em 0.9em 0.2em;
+    padding: 1.2em 0.5em 1.2em 0.5em;
   }
-  .stat-inner-box svg,
-  .outside-box svg {
-    width: 25px;
-    height: 25px;
-    margin-bottom: 0.09em;
-  }
-  .stat-number,
   .outside-number {
-    font-size: 1.1em;
-    margin-top: 0.06em;
-    margin-bottom: 0.01em;
+    font-size: 1.15em;
+    margin-top: 0.32em;
+    margin-bottom: 0.11em;
   }
-  .stat-label,
-  .outside-label,
-  .outside-label-lower {
-    font-size: 0.93em;
-    margin-top: 0.03em;
+  .outside-label {
+    font-size: 0.99em;
+  }
+  .calendar-section {
+    margin-top: 0.35em;
+    max-width: 100%;
+  }
+  .activity-list {
+    margin-bottom: 0.38em;
+    margin-top: 0.32em;
   }
 }
+
 
 /* TOOLTIP */
 .tooltip-parent {
