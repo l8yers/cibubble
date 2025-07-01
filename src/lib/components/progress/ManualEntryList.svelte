@@ -9,11 +9,11 @@
   $: sorted = manualEntries.slice().sort((a, b) => b.date.localeCompare(a.date));
 
   function editEntry(entry) {
-    dispatch('edit', { entry });
+    dispatch('edit', entry); // <--- send the raw entry object!
   }
   function deleteEntry(entry) {
     if (window.confirm('Are you sure you want to delete this entry? This cannot be undone.')) {
-      dispatch('delete', { entry });
+      dispatch('delete', entry); // <--- send the raw entry object!
     }
   }
 </script>
@@ -53,6 +53,7 @@
 </div>
 
 <style>
+/* (Unchanged styles) */
 .manual-list-panel {
   background: #fff;
   border-radius: 14px;

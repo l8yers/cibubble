@@ -1,8 +1,10 @@
 <script>
+  import { createEventDispatcher } from 'svelte';
   export let entry = {};
   export let SENTINEL_DATE = '1975-01-01';
-  export let onSubmit;
   export let onCancel;
+  const dispatch = createEventDispatcher();
+
   let form = {
     date: entry.date === SENTINEL_DATE ? "" : entry.date,
     hours: entry.totalSeconds ? Math.floor(entry.totalSeconds / 3600) : "",
@@ -22,7 +24,8 @@
     error = "";
     submitting = true;
     const seconds = (+form.hours || 0) * 3600 + (+form.minutes || 0) * 60;
-    onSubmit({
+    // Dispatch a Svelte event!
+    dispatch('submit', {
       ...entry,
       date: useNoDate ? SENTINEL_DATE : form.date,
       totalSeconds: seconds,
@@ -57,6 +60,7 @@
 </form>
 
 <style>
+/* (Unchanged styles) */
 .manual-edit-form {
   background: #fff;
   border-radius: 14px;
