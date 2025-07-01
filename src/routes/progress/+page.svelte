@@ -224,6 +224,7 @@
 		await fetchAllUserData($user.id);
 	}
 </script>
+
 {#if $user === undefined}
 	<div style="text-align:center; margin:3em;">Loading...</div>
 {:else if !$user}
@@ -339,67 +340,58 @@
 			</div>
 		</div>
 	</div>
-
-	<!-- MODALS etc, unchanged -->
-	{#if showManualModal}
-		<div class="modal-backdrop" on:click={closeManualModal}>
-			<div class="modal-content" on:click|stopPropagation>
-				<ProgressManualEntry ... onCancel={closeManualModal} />
-			</div>
-		</div>
-	{/if}
-	{#if showManualTab}
-		<div
-			class="modal-backdrop"
-			on:click={() => {
-				showManualTab = false;
-				editEntry = null;
-			}}
-		>
-			<div class="modal-content" on:click|stopPropagation>
-				{#if !editEntry}
-					<ManualEntryList
-						manualEntries={manualTotals || []}
-						formatMinutesOnly={formatWatchTime}
-						{SENTINEL_DATE}
-						on:cancel={() => {
-							showManualTab = false;
-							editEntry = null;
-						}}
-						on:edit={(e) => (editEntry = e.detail)}
-						on:delete={(e) => deleteManualEntry(e.detail)}
-					/>
-				{:else}
-					<ManualEntryEditForm
-						entry={editEntry}
-						on:submit={(e) => updateManualEntry(e.detail)}
-						on:cancel={() => (editEntry = null)}
-					/>
-				{/if}
-			</div>
-		</div>
-	{/if}
-	{#if showSettings}
-		<div class="modal-backdrop" on:click={() => (showSettings = false)}>
-			<div class="modal-content" on:click|stopPropagation>
-				<ProgressSettings
-					{email}
-					{newEmail}
-					setNewEmail={(v) => (newEmail = v)}
-					{newPassword}
-					setNewPassword={(v) => (newPassword = v)}
-					{message}
-					{updateEmail}
-					{updatePassword}
-					back={() => (showSettings = false)}
-				/>
-			</div>
-		</div>
-	{/if}
 {/if}
 
-<!-- CSS: as you posted previously, unchanged for layout, colors now use icon style above -->
+<!-- ===== MODALS: moved out of layout, overlaying the viewport ===== -->
 
+{#if showManualModal}
+  <div class="modal-backdrop" on:click={closeManualModal}>
+    <div class="modal-content" on:click|stopPropagation>
+      <ProgressManualEntry onCancel={closeManualModal} />
+    </div>
+  </div>
+{/if}
+
+{#if showManualTab}
+  <div class="modal-backdrop" on:click={() => { showManualTab = false; editEntry = null; }}>
+    <div class="modal-content" on:click|stopPropagation>
+      {#if !editEntry}
+        <ManualEntryList
+          manualEntries={manualTotals || []}
+          formatMinutesOnly={formatWatchTime}
+          {SENTINEL_DATE}
+          on:cancel={() => { showManualTab = false; editEntry = null; }}
+          on:edit={(e) => (editEntry = e.detail)}
+          on:delete={(e) => deleteManualEntry(e.detail)}
+        />
+      {:else}
+        <ManualEntryEditForm
+          entry={editEntry}
+          on:submit={(e) => updateManualEntry(e.detail)}
+          on:cancel={() => (editEntry = null)}
+        />
+      {/if}
+    </div>
+  </div>
+{/if}
+
+{#if showSettings}
+  <div class="modal-backdrop" on:click={() => (showSettings = false)}>
+    <div class="modal-content" on:click|stopPropagation>
+      <ProgressSettings
+        {email}
+        {newEmail}
+        setNewEmail={(v) => (newEmail = v)}
+        {newPassword}
+        setNewPassword={(v) => (newPassword = v)}
+        {message}
+        {updateEmail}
+        {updatePassword}
+        back={() => (showSettings = false)}
+      />
+    </div>
+  </div>
+{/if}
 
 <style>
 body,
@@ -886,5 +878,35 @@ body,
 @keyframes fadeIn {
   from { opacity: 0; transform: translateX(-50%) translateY(8px);}
   to { opacity: 1; transform: translateX(-50%) translateY(0);}
+}
+
+/* === MODALS: Overlay and center === */
+.modal-backdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  background: rgba(24, 29, 39, 0.31);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-content {
+  background: #fff;
+  border-radius: 18px;
+  max-width: 98vw;
+  min-width: 320px;
+  max-height: 94vh;
+  padding: 2.1em 1.6em 1.5em 1.6em;
+  box-shadow: 0 3px 44px 0 #22292f22;
+  position: relative;
+  overflow: auto;
+}
+@media (max-width: 600px) {
+  .modal-content {
+    min-width: 0;
+    max-width: 99vw;
+    padding: 1.1em 0.2em 1.1em 0.2em;
+    border-radius: 10px;
+  }
 }
 </style>
