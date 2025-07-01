@@ -61,16 +61,12 @@
 		return mins > 0 ? `${mins} min` : `${seconds} sec`;
 	}
 	function formatHours(seconds) {
-		if (!seconds) return '0 hrs';
-		return Math.round(seconds / 3600) + ' hrs';
+		if (!seconds) return "0 hrs";
+		return Math.round(seconds / 3600) + " hrs";
 	}
 
-	function openManualModal() {
-		showManualModal = true;
-	}
-	function closeManualModal() {
-		showManualModal = false;
-	}
+	function openManualModal() { showManualModal = true; }
+	function closeManualModal() { showManualModal = false; }
 
 	async function updateEmail() {
 		message = '';
@@ -127,7 +123,7 @@
 
 		let { data: allSessionsForDaily, error } = await supabase
 			.from('watch_sessions')
-			.select('date, seconds, source, video_id')
+			.select('id, date, seconds, source, video_id') // <-- Fetch id!
 			.eq('user_id', userId);
 
 		if (error) {
@@ -135,44 +131,45 @@
 			manualTotals = [];
 			outsideTime = 0;
 		} else {
+			// --- dailyTotals: only sessions WITH video_id ---
 			const dailyMap = {};
-			const manualMap = {};
-			let outsideSeconds = 0;
-			(allSessionsForDaily ?? []).forEach(({ date, seconds, video_id, source }) => {
-				if (!date) return;
-				if (video_id) {
-					dailyMap[date] = (dailyMap[date] || 0) + (seconds || 0);
-				} else {
-					if (!manualMap[date]) manualMap[date] = { totalSeconds: 0, source: '' };
-					manualMap[date].totalSeconds += seconds || 0;
-					if (source && !manualMap[date].source.includes(source)) {
-						manualMap[date].source += (manualMap[date].source ? ', ' : '') + source;
-					}
-					outsideSeconds += seconds || 0;
-				}
+			(allSessionsForDaily ?? []).forEach(({ date, seconds, video_id }) => {
+				if (!date || !video_id) return;
+				dailyMap[date] = (dailyMap[date] || 0) + (seconds || 0);
 			});
 			dailyTotals = Object.entries(dailyMap)
 				.map(([date, totalSeconds]) => ({ date, totalSeconds }))
 				.sort((a, b) => b.date.localeCompare(a.date));
-			manualTotals = Object.entries(manualMap)
-				.map(([date, { totalSeconds, source }]) => ({ date, totalSeconds, source }))
+			
+			// --- manualTotals: one entry per row, only sessions WITHOUT video_id, include id! ---
+			manualTotals = (allSessionsForDaily ?? [])
+				.filter(({ video_id }) => !video_id)
+				.map(({ id, date, seconds, source }) => ({
+					id,
+					date,
+					totalSeconds: seconds || 0,
+					source: source || ""
+				}))
 				.sort((a, b) => b.date.localeCompare(a.date));
-			outsideTime = outsideSeconds;
+
+			// Calculate outsideTime
+			outsideTime = manualTotals.reduce((acc, m) => acc + (m.totalSeconds || 0), 0);
 		}
-		daysPracticed = dailyTotals.filter((dt) => dt.totalSeconds > 0).length;
+
+		daysPracticed = dailyTotals.filter(dt => dt.totalSeconds > 0).length;
 
 		// Calculate days this month
 		const now = new Date();
 		const month = now.getMonth();
 		const year = now.getFullYear();
-		daysThisMonth = dailyTotals.filter((dt) => {
+		daysThisMonth = dailyTotals.filter(dt => {
 			const d = new Date(dt.date);
 			return d.getFullYear() === year && d.getMonth() === month && dt.totalSeconds > 0;
 		}).length;
 
 		// Calculate weeks in a row (basic version)
 		let weekSet = new Set();
-		dailyTotals.forEach((dt) => {
+		dailyTotals.forEach(dt => {
 			if (dt.totalSeconds > 0) {
 				const d = new Date(dt.date);
 				const week = getISOWeekNumber(d);
