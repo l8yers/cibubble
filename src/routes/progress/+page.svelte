@@ -1,6 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
-	import { user, loadUser } from '$lib/stores/user.js';
+	import { user } from '$lib/stores/user.js';
 	import { supabase } from '$lib/supabaseClient.js';
 	import ProgressManualEntry from '$lib/components/progress/ProgressManualEntry.svelte';
 	import MonthlyCalendar from '$lib/components/progress/MonthlyCalendar.svelte';
@@ -61,12 +61,16 @@
 		return mins > 0 ? `${mins} min` : `${seconds} sec`;
 	}
 	function formatHours(seconds) {
-		if (!seconds) return "0 hrs";
-		return Math.round(seconds / 3600) + " hrs";
+		if (!seconds) return '0 hrs';
+		return Math.round(seconds / 3600) + ' hrs';
 	}
 
-	function openManualModal() { showManualModal = true; }
-	function closeManualModal() { showManualModal = false; }
+	function openManualModal() {
+		showManualModal = true;
+	}
+	function closeManualModal() {
+		showManualModal = false;
+	}
 
 	async function updateEmail() {
 		message = '';
@@ -123,7 +127,7 @@
 
 		let { data: allSessionsForDaily, error } = await supabase
 			.from('watch_sessions')
-			.select('id, date, seconds, source, video_id') // <-- Fetch id!
+			.select('id, date, seconds, source, video_id')
 			.eq('user_id', userId);
 
 		if (error) {
@@ -131,45 +135,44 @@
 			manualTotals = [];
 			outsideTime = 0;
 		} else {
-			// --- dailyTotals: only sessions WITH video_id ---
 			const dailyMap = {};
-			(allSessionsForDaily ?? []).forEach(({ date, seconds, video_id }) => {
-				if (!date || !video_id) return;
-				dailyMap[date] = (dailyMap[date] || 0) + (seconds || 0);
+			const manualArr = [];
+			let outsideSeconds = 0;
+			(allSessionsForDaily ?? []).forEach(({ id, date, seconds, video_id, source }) => {
+				if (!date) return;
+				if (video_id) {
+					dailyMap[date] = (dailyMap[date] || 0) + (seconds || 0);
+				} else {
+					// Manual entries get pushed as an object (not grouped by date)
+					manualArr.push({
+						id,
+						date,
+						totalSeconds: seconds,
+						source: source || ''
+					});
+					outsideSeconds += seconds || 0;
+				}
 			});
 			dailyTotals = Object.entries(dailyMap)
 				.map(([date, totalSeconds]) => ({ date, totalSeconds }))
 				.sort((a, b) => b.date.localeCompare(a.date));
-			
-			// --- manualTotals: one entry per row, only sessions WITHOUT video_id, include id! ---
-			manualTotals = (allSessionsForDaily ?? [])
-				.filter(({ video_id }) => !video_id)
-				.map(({ id, date, seconds, source }) => ({
-					id,
-					date,
-					totalSeconds: seconds || 0,
-					source: source || ""
-				}))
-				.sort((a, b) => b.date.localeCompare(a.date));
-
-			// Calculate outsideTime
-			outsideTime = manualTotals.reduce((acc, m) => acc + (m.totalSeconds || 0), 0);
+			manualTotals = manualArr.sort((a, b) => b.date.localeCompare(a.date));
+			outsideTime = outsideSeconds;
 		}
-
-		daysPracticed = dailyTotals.filter(dt => dt.totalSeconds > 0).length;
+		daysPracticed = dailyTotals.filter((dt) => dt.totalSeconds > 0).length;
 
 		// Calculate days this month
 		const now = new Date();
 		const month = now.getMonth();
 		const year = now.getFullYear();
-		daysThisMonth = dailyTotals.filter(dt => {
+		daysThisMonth = dailyTotals.filter((dt) => {
 			const d = new Date(dt.date);
 			return d.getFullYear() === year && d.getMonth() === month && dt.totalSeconds > 0;
 		}).length;
 
 		// Calculate weeks in a row (basic version)
 		let weekSet = new Set();
-		dailyTotals.forEach(dt => {
+		dailyTotals.forEach((dt) => {
 			if (dt.totalSeconds > 0) {
 				const d = new Date(dt.date);
 				const week = getISOWeekNumber(d);
@@ -338,52 +341,41 @@
 			</div>
 		</div>
 	</div>
-	<!-- MODALS (unchanged) -->
+	<!-- MODALS (unchanged except edit modal has no extra close "×") -->
 	{#if showManualModal}
 		<div class="modal-backdrop" on:click={closeManualModal}>
 			<div class="modal-content" on:click|stopPropagation>
-				<button class="close-button" on:click={closeManualModal} aria-label="Close modal">×</button>
-				<ProgressManualEntry
-					onAdded={() => {
-						fetchAllUserData($user.id);
-						closeManualModal();
-					}}
-				/>
+				<ProgressManualEntry ... onCancel={closeManualModal} />
 			</div>
 		</div>
 	{/if}
 	{#if showManualTab}
-		<div class="modal-backdrop" on:click={() => (showManualTab = false)}>
+		<div
+			class="modal-backdrop"
+			on:click={() => {
+				showManualTab = false;
+				editEntry = null;
+			}}
+		>
 			<div class="modal-content" on:click|stopPropagation>
-				<button
-					class="close-button"
-					on:click={() => (showManualTab = false)}
-					aria-label="Close modal">×</button
-				>
-				<ManualEntryList
-					manualEntries={manualTotals}
-					formatMinutesOnly={formatWatchTime}
-					{SENTINEL_DATE}
-					on:back={() => (showManualTab = false)}
-					on:edit={(e) => (editEntry = e.detail)}
-					on:delete={deleteManualEntry}
-				/>
-				{#if editEntry}
-					<div class="modal-backdrop" on:click={() => (editEntry = null)}>
-						<div class="modal-content" on:click|stopPropagation>
-							<button
-								class="close-button"
-								on:click={() => (editEntry = null)}
-								aria-label="Close modal">×</button
-							>
-							<ManualEntryEditForm
-								entry={editEntry}
-								{SENTINEL_DATE}
-								on:submit={updateManualEntry}
-								on:cancel={() => (editEntry = null)}
-							/>
-						</div>
-					</div>
+				{#if !editEntry}
+					<ManualEntryList
+						manualEntries={manualTotals || []}
+						formatMinutesOnly={formatWatchTime}
+						{SENTINEL_DATE}
+						on:cancel={() => {
+							showManualTab = false;
+							editEntry = null;
+						}}
+						on:edit={(e) => (editEntry = e.detail)}
+						on:delete={(e) => deleteManualEntry(e.detail)}
+					/>
+				{:else}
+					<ManualEntryEditForm
+						entry={editEntry}
+						on:submit={(e) => updateManualEntry(e.detail)}
+						on:cancel={() => (editEntry = null)}
+					/>
 				{/if}
 			</div>
 		</div>

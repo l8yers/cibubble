@@ -1,24 +1,21 @@
 <script>
   import { createEventDispatcher } from 'svelte';
   export let entry = {};
-  export let SENTINEL_DATE = '1975-01-01';
   export let onCancel;
   const dispatch = createEventDispatcher();
 
   let form = {
-    date: entry.date === SENTINEL_DATE ? "" : entry.date,
     hours: entry.totalSeconds ? Math.floor(entry.totalSeconds / 3600) : "",
     minutes: entry.totalSeconds ? Math.round((entry.totalSeconds % 3600) / 60) : "",
     comment: entry.source || ""
   };
-  let useNoDate = entry.date === SENTINEL_DATE;
   let error = "";
   let submitting = false;
 
   function handleSubmit(e) {
     e.preventDefault();
-    if ((!useNoDate && !form.date) || ((!form.hours || +form.hours === 0) && (!form.minutes || +form.minutes === 0))) {
-      error = "Please enter a date (or select 'No date') and at least some time.";
+    if ((!form.hours || +form.hours === 0) && (!form.minutes || +form.minutes === 0)) {
+      error = "Please enter at least some time.";
       return;
     }
     error = "";
@@ -26,7 +23,6 @@
     const seconds = (+form.hours || 0) * 3600 + (+form.minutes || 0) * 60;
     dispatch('submit', {
       ...entry,
-      date: useNoDate ? SENTINEL_DATE : form.date,
       totalSeconds: seconds,
       source: form.comment
     });
@@ -45,13 +41,6 @@
       ×
     </button>
   </div>
-  <label>Date
-    <input type="date" bind:value={form.date} required={!useNoDate} disabled={useNoDate} />
-  </label>
-  <label class="no-date-checkbox">
-    <input type="checkbox" bind:checked={useNoDate} />
-    No date / Don't show on calendar
-  </label>
   <label>Hours
     <input type="number" min="0" bind:value={form.hours} placeholder="0" />
   </label>
@@ -59,7 +48,7 @@
     <input type="number" min="0" max="59" bind:value={form.minutes} placeholder="0" />
   </label>
   <label>Comments/Source (optional)
-    <textarea rows="2" bind:value={form.comment} placeholder="E.g. Dreaming Spanish, podcast…" />
+    <textarea rows="2" bind:value={form.comment} placeholder="E.g. Dreaming Spanish, podcast…"></textarea>
   </label>
   {#if error}<div class="form-error">{error}</div>{/if}
   <div class="manual-btn-row">
@@ -118,17 +107,6 @@
   font-weight: 600;
   letter-spacing: 0.01em;
 }
-.no-date-checkbox {
-  margin-bottom: 1em;
-  font-weight: 500;
-  font-size: 0.99em;
-  color: #7a7a7a;
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
-  user-select: none;
-}
-.manual-edit-form input[type="date"],
 .manual-edit-form input[type="number"],
 .manual-edit-form textarea {
   width: 100%;
@@ -143,7 +121,6 @@
   font-family: inherit;
   transition: border 0.13s;
 }
-.manual-edit-form input[type="date"]:focus,
 .manual-edit-form input[type="number"]:focus,
 .manual-edit-form textarea:focus {
   border-color: #e93c2f;
