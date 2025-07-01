@@ -765,23 +765,54 @@
 			margin-top: 0.7em;
 		}
 	}
-	@media (max-width: 700px) {
-		.card {
-			padding: 1.3em 0.7em 1.3em 0.7em;
-			border-radius: 10px;
-		}
-		.stat-box,
-		.outside-card,
-		.activity-card {
-			border-radius: 10px;
-			margin-bottom: 0.9em;
-		}
-		.stat-inner-box,
-		.outside-box {
-			border-radius: 7px;
-			padding: 0.7em 0.5em 1em 0.5em;
-		}
-	}
+@media (max-width: 700px) {
+  .progress-layout {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100vw;
+    max-width: 100vw;
+    gap: 1.1em;
+  }
+  .card {
+    padding: 1.0em 0.3em 1.0em 0.3em;
+    border-radius: 11px;
+    margin: 0 0 1.1em 0;
+    width: 100vw;
+    max-width: 100vw;
+    box-sizing: border-box;
+    /* remove box-shadow for more mobile-app feel (optional): */
+    /* box-shadow: none; */
+  }
+  .stats-card, .outside-card, .activity-card {
+    margin: 0 0 1.1em 0;
+    width: 100vw;
+    max-width: 100vw;
+    border-radius: 11px;
+    box-sizing: border-box;
+  }
+  .stats-boxes-row,
+  .progress-row {
+    flex-direction: column;
+    gap: 1em;
+    margin: 0;
+    width: 100vw;
+    max-width: 100vw;
+  }
+  .stat-box {
+    min-width: 0;
+    width: 100%;
+    max-width: 100vw;
+    margin: 0;
+    border-radius: 10px;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  .stat-inner-box {
+    border-radius: 9px;
+    padding: 1em 0.3em 1em 0.3em;
+  }
+}
+
 	@keyframes fadeIn {
 		from {
 			opacity: 0;
