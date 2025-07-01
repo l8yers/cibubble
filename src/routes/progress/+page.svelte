@@ -399,7 +399,7 @@
 	{/if}
 {/if}
 
-<style>/* Outer background and layout */
+<style>
 body,
 :global(body) {
   background: #f7f8fc;
@@ -414,11 +414,10 @@ body,
   gap: 2.3em;
 }
 
-/* CARDS: Outer white panels */
+/* Outer cards */
 .card {
   background: #fff;
   border-radius: 22px;
-  box-shadow: 0 6px 32px 0 #e9eaeecc;
   padding: 2.3em 2.4em 2.3em 2.4em;
   margin-bottom: 0;
   display: flex;
@@ -426,9 +425,10 @@ body,
   align-items: flex-start;
   min-width: 0;
   box-sizing: border-box;
+  border: 1.2px solid #ededf2;
 }
 
-/* Stats: flex row of 3 colored cards inside white card */
+/* Stats: row of 3 colored cards inside white card */
 .stats-boxes-row {
   display: flex;
   width: 100%;
@@ -439,7 +439,6 @@ body,
   justify-content: space-between;
 }
 
-/* Each stat card */
 .stat-box {
   flex: 1 1 0;
   min-width: 240px;
@@ -449,64 +448,75 @@ body,
   align-items: stretch;
 }
 
-/* Colored stat backgrounds */
+/* Stat backgrounds and unified color for icon/number/text */
 .stat-inner-box {
   display: flex;
   flex-direction: column;
   align-items: center;
   border-radius: 16px;
-  padding: 2em 1em 1.6em 1em;
+  padding: 1.5em 1em 1.2em 1em;
   text-align: center;
-  box-shadow: 0 1px 10px #ededed44;
   font-family: inherit;
+  border: 1.2px solid #ededf2;
+  background: #fff;
 }
+
 .stat-time .stat-inner-box {
   background: #ffeaea;
 }
+.stat-time .stat-icon,
+.stat-time .stat-number,
+.stat-time .stat-label {
+  color: #e93c2f;
+}
+
 .stat-today .stat-inner-box {
   background: #eaffea;
 }
+.stat-today .stat-icon,
+.stat-today .stat-number,
+.stat-today .stat-label {
+  color: #23b04a;
+}
+
 .stat-practiced .stat-inner-box {
   background: #fff6e4;
 }
+.stat-practiced .stat-icon,
+.stat-practiced .stat-number,
+.stat-practiced .stat-label {
+  color: #e3a800;
+}
 
-/* Stat content */
+/* Stat icon */
+.stat-inner-box svg,
+.stat-icon {
+  width: 36px;
+  height: 36px;
+  margin-bottom: 0.18em;
+  display: block;
+  opacity: 0.97;
+}
+
+/* Stat number */
 .stat-number {
-  font-size: 2.3em;
+  font-size: 1.57em;
   font-weight: 900;
-  color: #e93c2f;
   letter-spacing: 0.01em;
-  margin-bottom: 0.12em;
-  margin-top: 0.4em;
+  margin-bottom: 0.11em;
+  margin-top: 0.08em;
   text-align: center;
+  line-height: 1.13;
 }
-.stat-time-color {
-  color: #e93c2f;
-}
-.stat-today-color {
-  color: #31b361;
-}
-.stat-practiced-color {
-  color: #f4a000;
-}
-.stat-today .stat-number { color: #31b361; }
-.stat-practiced .stat-number { color: #f4a000; }
 
+/* Stat label */
 .stat-label {
-  font-size: 1.1em;
-  font-weight: 700;
-  margin-top: 0.3em;
+  font-size: 1em;
+  font-weight: 600;
+  margin-top: 0.07em;
   color: inherit;
-  opacity: 0.86;
-  letter-spacing: 0.04em;
-}
-
-/* ICON SIZE */
-.stat-inner-box svg {
-  width: 42px;
-  height: 42px;
-  margin-bottom: 0.4em;
-  opacity: 0.93;
+  letter-spacing: 0.02em;
+  text-transform: none;
 }
 
 /* STATS HEADER */
@@ -552,61 +562,65 @@ body,
 /* OUTSIDE & ACTIVITY GRID */
 .progress-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 2fr;   /* 1/3 : 2/3 ratio */
   gap: 2em;
   width: 100%;
 }
-.outside-card,
+.outside-card {
+  min-width: 240px;
+  max-width: 430px;
+}
 .activity-card {
-  min-width: 220px;
-  background: #fff;
-  border-radius: 20px;
-  box-shadow: 0 6px 32px 0 #e9eaeecc;
-  padding: 2.1em 2em 2em 2em;
-  margin: 0;
+  min-width: 320px;
 }
 
-/* OUTSIDE HOURS BLOCK */
+/* OUTSIDE HOURS STAT BOX */
 .outside-box {
   background: #e7f5fb;
   border-radius: 15px;
   width: 100%;
-  padding: 1.3em 0.6em 1.6em 0.6em;
+  padding: 1.5em 1em 1.2em 1em;
   text-align: center;
   margin-top: 1.1em;
   margin-bottom: 0.8em;
   display: flex;
   flex-direction: column;
   align-items: center;
+  border: 1.2px solid #e1edf7;
+}
+.outside-box svg,
+.outside-number,
+.outside-label,
+.outside-label-lower {
+  color: #2196d3;
 }
 .outside-box svg {
-  color: #31b0e9;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
+  margin-bottom: 0.18em;
+  opacity: 0.97;
 }
 .outside-number {
-  font-size: 2em;
-  font-weight: 800;
-  color: #31b0e9;
-  margin-bottom: 0.18em;
-  margin-top: 0.45em;
+  font-size: 1.57em;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  margin-bottom: 0.11em;
+  margin-top: 0.08em;
+  text-align: center;
+  line-height: 1.13;
 }
-.outside-label {
-  font-size: 1.08em;
-  margin-top: 0.25em;
-  letter-spacing: 0.09em;
-  margin-bottom: 0.7em;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: #1b6c8c;
-}
+.outside-label,
 .outside-label-lower {
+  font-size: 1em;
+  font-weight: 600;
+  margin-top: 0.07em;
+  color: #2196d3;
+  letter-spacing: 0.02em;
   text-transform: none;
-  color: #31b0e9;
-  font-size: 1.08em;
-  font-weight: 700;
-  letter-spacing: 0.09em;
 }
+
+
+/* Links for "Add/View outside hours" */
 .outside-links-row {
   display: flex;
   flex-direction: column;
@@ -734,6 +748,11 @@ body,
     grid-template-columns: 1fr;
     gap: 1em;
   }
+  .outside-card,
+  .activity-card {
+    max-width: 100%;
+    min-width: 0;
+  }
   .activity-2col {
     flex-direction: column;
     gap: 1em;
@@ -757,7 +776,6 @@ body,
   .card, .outside-card, .activity-card {
     padding: 0.7em 0.2em 1.2em 0.2em;
     border-radius: 13px;
-    box-shadow: 0 3px 16px 0 #e9eaee55;
   }
   .stats-heading-row {
     margin-bottom: 0.3em;
@@ -765,43 +783,28 @@ body,
   .card-heading {
     font-size: 1em;
   }
-  .stat-inner-box {
-    border-radius: 11px;
-    padding: 1.2em 0.1em 1.1em 0.1em;
-  }
-  .stat-number {
-    font-size: 1.38em;
-    margin-top: 0.28em;
-    margin-bottom: 0.05em;
-  }
-  .stat-label {
-    font-size: 0.96em;
-    margin-top: 0.11em;
-  }
-  .stat-inner-box svg {
-    width: 32px;
-    height: 32px;
-    margin-bottom: 0.15em;
-  }
+  .stat-inner-box,
   .outside-box {
     border-radius: 10px;
-    padding: 1.1em 0.3em 1em 0.3em;
+    padding: 1.1em 0.2em 0.9em 0.2em;
   }
+  .stat-inner-box svg,
+  .outside-box svg {
+    width: 25px;
+    height: 25px;
+    margin-bottom: 0.09em;
+  }
+  .stat-number,
   .outside-number {
     font-size: 1.1em;
-    margin-top: 0.28em;
-    margin-bottom: 0.05em;
+    margin-top: 0.06em;
+    margin-bottom: 0.01em;
   }
-  .outside-label {
-    font-size: 0.94em;
-  }
-  .calendar-section {
-    margin-top: 0.2em;
-    max-width: 100%;
-  }
-  .activity-list {
-    margin-bottom: 0.2em;
-    margin-top: 0.2em;
+  .stat-label,
+  .outside-label,
+  .outside-label-lower {
+    font-size: 0.93em;
+    margin-top: 0.03em;
   }
 }
 
