@@ -143,7 +143,6 @@
 				if (video_id) {
 					dailyMap[date] = (dailyMap[date] || 0) + (seconds || 0);
 				} else {
-					// Manual entries get pushed as an object (not grouped by date)
 					manualArr.push({
 						id,
 						date,
@@ -225,7 +224,6 @@
 		await fetchAllUserData($user.id);
 	}
 </script>
-
 {#if $user === undefined}
 	<div style="text-align:center; margin:3em;">Loading...</div>
 {:else if !$user}
@@ -247,7 +245,7 @@
 			<div class="stats-boxes-row">
 				<div class="stat-box stat-time">
 					<div class="stat-inner-box">
-						<Timer size={40} style="margin-bottom:0.5em; color:#e93c2f;" />
+						<Timer class="stat-icon" style="color:#e93c2f;" />
 						<div class="stat-number stat-time-color">
 							<span
 								class="tooltip-parent"
@@ -268,7 +266,7 @@
 				</div>
 				<div class="stat-box stat-today">
 					<div class="stat-inner-box">
-						<CalendarCheck size={40} style="margin-bottom:0.5em; color:#31b361;" />
+						<CalendarCheck class="stat-icon" style="color:#31b361;" />
 						<div class="stat-number stat-today-color">
 							<span
 								class="tooltip-parent"
@@ -280,30 +278,29 @@
 							>
 								{formatWatchTime(todayWatchTime)}
 								{#if showTodayTooltip}
-									<span class="custom-tooltip stat-today-tooltip"
-										>{formatFullTime(todayWatchTime)}</span
-									>
+									<span class="custom-tooltip stat-today-tooltip">{formatFullTime(todayWatchTime)}</span>
 								{/if}
 							</span>
 						</div>
-						<div class="stat-label stat-today-color">Todays watch time</div>
+						<div class="stat-label stat-today-color">Today's watch time</div>
 					</div>
 				</div>
 				<div class="stat-box stat-practiced">
 					<div class="stat-inner-box">
-						<Award size={40} style="margin-bottom:0.5em; color:#f4a000;" />
+						<Award class="stat-icon" style="color:#e3a800;" />
 						<div class="stat-number stat-practiced-color">{daysPracticed}</div>
 						<div class="stat-label stat-practiced-color">Days you practiced</div>
 					</div>
 				</div>
 			</div>
 		</div>
+
 		<!-- OUTSIDE HOURS & ACTIVITY ROW -->
 		<div class="progress-row">
 			<div class="card outside-card">
 				<div class="card-heading">Outside Hours</div>
 				<div class="outside-box">
-					<ExternalLink size={40} style="margin-bottom:0.5em; color:#31b0e9;" />
+					<ExternalLink class="stat-icon" style="color:#2196d3;" />
 					<div class="outside-number">{formatHours(outsideTime)}</div>
 					<div class="outside-label outside-label-lower">hours outside the platform</div>
 				</div>
@@ -316,32 +313,34 @@
 					</a>
 				</div>
 			</div>
+
 			<div class="card activity-card">
-				<div class="card-heading">Your Activity</div>
+				<div class="card-heading activity-heading">Your Activity</div>
 				<div class="activity-2col align-top">
-					<div class="activity-list">
-						<div class="activity-row">
-							<span class="activity-label">Weeks in a row</span>
-							<span class="activity-number">{weeksInARow}</span>
+					<div class="activity-stats-cards">
+						<div class="mini-stat-card">
+							<div class="mini-stat-number">{weeksInARow}</div>
+							<div class="mini-stat-label">Weeks in a row</div>
 						</div>
-						<div class="activity-row">
-							<span class="activity-label">Days this month</span>
-							<span class="activity-number">{daysThisMonth}</span>
+						<div class="mini-stat-card">
+							<div class="mini-stat-number">{daysThisMonth}</div>
+							<div class="mini-stat-label">Days this month</div>
 						</div>
 					</div>
-					<div class="calendar-section" style="margin-top: 0.5em;">
+					<div class="calendar-section" style="margin-top: 0.3em;">
 						<MonthlyCalendar
 							dailyTotals={dailyTotals || []}
 							manualEntries={manualTotals || []}
 							{formatMinutesOnly}
-							class="no-border-calendar"
+							class="no-border-calendar compact-calendar"
 						/>
 					</div>
 				</div>
 			</div>
 		</div>
 	</div>
-	<!-- MODALS (unchanged except edit modal has no extra close "×") -->
+
+	<!-- MODALS etc, unchanged -->
 	{#if showManualModal}
 		<div class="modal-backdrop" on:click={closeManualModal}>
 			<div class="modal-content" on:click|stopPropagation>
@@ -398,6 +397,9 @@
 		</div>
 	{/if}
 {/if}
+
+<!-- CSS: as you posted previously, unchanged for layout, colors now use icon style above -->
+
 
 <style>
 body,
@@ -537,6 +539,9 @@ body,
   text-transform: none;
   line-height: 1.16;
 }
+.activity-heading {
+  margin-bottom: 1em;
+}
 
 /* Settings icon btn */
 .settings-link {
@@ -649,7 +654,7 @@ body,
   outline: none;
 }
 
-/* ACTIVITY */
+/* ACTIVITY STATS MINI CARDS */
 .activity-2col {
   display: flex;
   flex-direction: row;
@@ -657,70 +662,105 @@ body,
   width: 100%;
   align-items: flex-start;
 }
-.activity-list {
-  width: 160px;
-  margin-bottom: 0;
-  margin-top: 0.7em;
-}
-.activity-row {
+.activity-stats-cards {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 1em;
+  min-width: 130px;
+  max-width: 160px;
+  margin-right: 1.7em;
+}
+.mini-stat-card {
+  background: #f7f8fc;
+  border: 1.2px solid #ededf2;
+  border-radius: 13px;
+  padding: 0.88em 1em 0.78em 1em;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  font-size: 1.12em;
-  padding: 0.41em 0;
-  border-bottom: 1px solid #f0f0f0;
-  font-weight: 500;
+  box-sizing: border-box;
 }
-.activity-row:last-child {
-  border-bottom: none;
-}
-.activity-label {
-  color: #444e69;
-}
-.activity-number {
-  font-weight: 700;
+.mini-stat-number {
+  font-size: 1.38em;
+  font-weight: 900;
   color: #e93c2f;
-  font-size: 1.14em;
+  text-align: center;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.33em;
+  margin-top: 0;
 }
+.mini-stat-label {
+  font-size: 1em;
+  font-weight: 600;
+  color: #6c7591;
+  text-align: center;
+  letter-spacing: 0.01em;
+}
+
+/* Calendar smaller/tighter, especially on desktop */
 .calendar-section {
-  margin-top: 0.7em;
+  margin-top: 0.3em;
   flex: 1 1 auto;
   min-width: 0;
-  max-width: 370px;
+  max-width: 320px;
   width: 100%;
   display: flex;
   align-items: flex-start;
 }
+:global(.compact-calendar) {
+  padding: 0.7em 0.6em 1em 0.6em !important;
+  max-width: 320px !important;
+}
+:global(.compact-calendar .calendar-header) {
+  font-size: 0.95em !important;
+  margin-bottom: 0.5em !important;
+}
+:global(.compact-calendar .calendar-label) {
+  font-size: 0.89em !important;
+  margin-bottom: 0.05em !important;
+}
+:global(.compact-calendar .calendar-cell) {
+  min-height: 36px !important;
+  height: 36px !important;
+  width: 36px !important;
+  font-size: 0.92em !important;
+  padding: 0.11em 0 0.01em 0 !important;
+}
+:global(.compact-calendar .calendar-cell .date) {
+  font-size: 0.97em !important;
+}
+:global(.compact-calendar .calendar-cell .mins) {
+  font-size: 0.52em !important;
+  margin-top: 1px !important;
+}
 
-/* Remove border on custom calendar */
-:global(.no-border-calendar) {
-  border: none !important;
-  box-shadow: none !important;
-}
-:global(.no-border-calendar .calendar-container),
-:global(.no-border-calendar .calendar) {
-  border: none !important;
-  box-shadow: none !important;
-}
-
-/* MODALS */
-.modal-backdrop {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-.modal-content {
-  background: white;
-  border-radius: 16px;
-  padding: 2rem;
-  max-width: 490px;
-  width: 92%;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.21);
-  position: relative;
+/* Mobile: stats and calendar go horizontal */
+@media (max-width: 900px) {
+  .activity-2col {
+    flex-direction: column;
+    gap: 1em;
+  }
+  .activity-stats-cards {
+    flex-direction: row;
+    gap: 1em;
+    margin: 0 0 1em 0;
+    min-width: 0;
+    max-width: 100%;
+    justify-content: flex-start;
+  }
+  .calendar-section {
+    max-width: 100%;
+  }
+  :global(.compact-calendar) {
+    max-width: 100vw !important;
+    padding: 0.3em 0.02em 1em 0.02em !important;
+  }
+  :global(.compact-calendar .calendar-cell) {
+    width: 100% !important;
+    min-height: unset !important;
+    height: auto !important;
+    font-size: 1.1em !important;
+  }
 }
 
 /* RESPONSIVE BREAKPOINTS */
@@ -753,31 +793,19 @@ body,
     max-width: 100%;
     min-width: 0;
   }
-  .activity-2col {
-    flex-direction: column;
-    gap: 1em;
-  }
-  .activity-list {
-    width: 100%;
-    margin-bottom: 1em;
-  }
-  .calendar-section {
-    max-width: 100%;
-  }
 }
 
-/* MOBILE OPTIMIZATION */
 @media (max-width: 600px) {
   .progress-layout {
-    margin: 1.6em 0.6em 1.4em 0.6em; /* up from 1.1/0.2/0.7/0.2 */
-    gap: 1.5em; /* was 1.2em */
+    margin: 1.6em 0.6em 1.4em 0.6em;
+    gap: 1.5em;
     padding: 0;
   }
   .card, .outside-card, .activity-card {
-    padding: 1.1em 0.6em 1.5em 0.6em; /* more padding all around */
+    padding: 1.1em 0.6em 1.5em 0.6em;
     border-radius: 13px;
     box-shadow: 0 3px 16px 0 #e9eaee55;
-    margin-bottom: 0.7em; /* a bit more space between cards */
+    margin-bottom: 0.7em;
   }
   .stats-heading-row {
     margin-bottom: 0.6em;
@@ -787,7 +815,7 @@ body,
   }
   .stat-inner-box {
     border-radius: 11px;
-    padding: 1.5em 0.3em 1.4em 0.3em; /* more padding in stat cards */
+    padding: 1.5em 0.3em 1.4em 0.3em;
   }
   .stat-number {
     font-size: 1.43em;
@@ -824,7 +852,6 @@ body,
     margin-top: 0.32em;
   }
 }
-
 
 /* TOOLTIP */
 .tooltip-parent {
