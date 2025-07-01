@@ -66,13 +66,13 @@
       {#if day}
         {#key formatDate(day)}
           {#if buildTotalsMap(dailyTotals, manualEntries)[formatDate(day)]}
-            <!-- RED SQUARE, WHITE TEXT -->
+            <!-- Red square, white text -->
             <div class="calendar-cell active" title={formatMinutesOnly(buildTotalsMap(dailyTotals, manualEntries)[formatDate(day)])}>
               <span class="date">{day.getDate()}</span>
               <span class="mins">{formatMinutesOnly(buildTotalsMap(dailyTotals, manualEntries)[formatDate(day)])}</span>
             </div>
           {:else}
-            <!-- PLAIN, BLACK TEXT -->
+            <!-- Plain, black text -->
             <div class="calendar-cell">
               <span class="date plain">{day.getDate()}</span>
             </div>
@@ -89,10 +89,9 @@
 .cibubble-card.calendar-wrap {
   background: #fff;
   border-radius: 13px;
-  padding: 0.2em 2em 1.7em 2em;
+  padding: 0.2em 1.4em 1.7em 1em;  /* left less, right more */
   margin: 0.1em 2em 0.1em auto;
-  max-width: 445px;
-
+  max-width: 455px;
   box-shadow: none;
 }
 
@@ -100,7 +99,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.12em;
+  font-size: 1.1em;
   font-weight: bold;
   margin-bottom: 1.2em;
   gap: 1.2em;
@@ -112,7 +111,7 @@
   border-radius: 7px;
   font-size: 1em;
   padding: 0.21em 0.89em;
-  color: #FF2D21;
+  color: #EF5552;
   font-weight: 700;
   cursor: pointer;
   transition: background 0.14s, color 0.14s;
@@ -124,14 +123,15 @@
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 0.75em;
+  gap: 0.80em;
   margin-bottom: 0.1em;
-  padding: 0.21em 0.1em 0.18em 0.1em;
+  padding: 0.2em 0.1em 0.18em 0.1em;
+  width: 100%;
 }
 .calendar-label {
   text-align: center;
   color: #ffb3ac;
-  font-size: 1em;
+  font-size: 0.95em;
   font-weight: 600;
   margin-bottom: 0.09em;
   letter-spacing: 0.04em;
@@ -139,12 +139,12 @@
 }
 .calendar-cell {
   background: transparent;
-  border-radius: 9px;
-  min-height: 46px;
-  height: 46px;
-  width: 46px;
+  border-radius: 6px;
+  min-height: 52px;
+  height: 52px;
+  width: 52px;
   text-align: center;
-  font-size: 1.07em;
+  font-size: 0.99em;
   color: #111;
   position: relative;
   display: flex;
@@ -154,10 +154,11 @@
   user-select: none;
   margin: 0 auto;
   border: none;
-  padding: 0.5em 0 0.12em 0;
+  padding: 0.28em 0 0.05em 0;
+  transition: background 0.16s, color 0.13s;
 }
 .calendar-cell.active {
-  background: #FF2D21;
+  background: #EF5552;
   color: #fff;
   font-weight: 900;
 }
@@ -167,9 +168,10 @@
 }
 .calendar-cell .date {
   display: block;
-  font-size: 1.12em;
-  font-weight: 900;
-  line-height: 1.12em;
+  font-size: 1.07em;
+  font-weight: 800;
+  line-height: 1.11em;
+  letter-spacing: 0.01em;
 }
 .calendar-cell .date.plain {
   color: #222;
@@ -178,22 +180,51 @@
 }
 .calendar-cell .mins {
   display: block;
-  font-size: 0.58em;
-  margin-top: 3px;
+  font-size: 0.60em; /* bumped up */
+  margin-top: 2px;
   color: #fff;
   font-weight: 500;
-  opacity: 0.78;
+  opacity: 0.76;
   line-height: 1.08em;
+  letter-spacing: 0.01em;
 }
 .calendar-cell.empty {
   background: transparent;
   pointer-events: none;
 }
 
+/* MOBILE STYLES: fills width, bigger cells */
 @media (max-width: 550px) {
-  .cibubble-card.calendar-wrap { max-width: 99vw; border-radius: 0; }
-  .calendar-header { font-size: 1em; margin-bottom: 0.9em; }
-  .calendar-grid { gap: 0.28em; }
-  .calendar-cell { min-height: 30px; height: 30px; width: 30px; font-size: 0.97em; }
+  .cibubble-card.calendar-wrap {
+    max-width: 100vw;
+    border-radius: 0;
+    padding: 0.10em 0.02em 1.1em 0.02em;
+  }
+  .calendar-header {
+    font-size: 1em;
+    margin-bottom: 0.7em;
+  }
+  .calendar-grid {
+    width: 100%;
+    gap: 0.09em;
+    padding: 0.04em;
+    grid-template-columns: repeat(7, 1fr);
+  }
+  .calendar-cell {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    min-height: unset;
+    height: auto;
+    font-size: 1.14em;
+    border-radius: 6px;
+    padding: 0.07em 0 0.02em 0;
+  }
+  .calendar-cell .date {
+    font-size: 1.13em;
+  }
+  .calendar-cell .mins {
+    font-size: 0.79em;
+    margin-top: 2px;
+  }
 }
 </style>

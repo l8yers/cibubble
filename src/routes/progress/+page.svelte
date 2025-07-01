@@ -197,35 +197,29 @@
     return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
   }
 
-  async function deleteManualEntry({ date, source }) {
-    const currentUser = $user;
-    if (!currentUser) return;
-    await supabase.from('watch_sessions')
-      .delete()
-      .eq('user_id', currentUser.id)
-      .eq('date', date)
-      .eq('source', source || null);
-    await fetchAllUserData(currentUser.id);
-  }
+  async function deleteManualEntry(entry) {
+  const currentUser = $user;
+  if (!currentUser || !entry.id) return;
+  await supabase.from('watch_sessions')
+    .delete()
+    .eq('id', entry.id);
+  await fetchAllUserData(currentUser.id);
+}
 
-  async function updateManualEntry(updated) {
-    const currentUser = $user;
-    if (!currentUser) return;
-    await supabase.from('watch_sessions')
-      .delete()
-      .eq('user_id', currentUser.id)
-      .eq('date', editEntry.date)
-      .eq('source', editEntry.source || null);
-    await supabase.from('watch_sessions')
-      .insert([{
-        user_id: currentUser.id,
-        date: updated.date,
-        seconds: updated.totalSeconds,
-        source: updated.source
-      }]);
-    editEntry = null;
-    await fetchAllUserData(currentUser.id);
-  }
+async function updateManualEntry(updated) {
+  const currentUser = $user;
+  if (!currentUser || !updated.id) return;
+  await supabase.from('watch_sessions')
+    .update({
+      date: updated.date,
+      seconds: updated.totalSeconds,
+      source: updated.source
+    })
+    .eq('id', updated.id);
+  editEntry = null;
+  await fetchAllUserData(currentUser.id);
+}
+
 </script>
 
 {#if $user === undefined}
@@ -396,7 +390,7 @@
 {/if}
 
 <style>
-/* ---- LAYOUT ---- */
+  /* ---- LAYOUT ---- */
 .progress-layout {
   max-width: 1150px;
   margin: 2.5em auto 1.6em auto;
@@ -408,7 +402,7 @@
   background: #fff;
   border-radius: 18px;
   box-shadow: 0 4px 24px 0 #ededed55;
-  padding: 2.1em 2em 2.1em 2em;
+  padding: 2em 2em 2.1em 2em;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -422,7 +416,7 @@
   font-weight: 800;
   color: #181d27;
   letter-spacing: 0.02em;
-  margin-bottom: 1.0em;
+  margin-bottom: 0.75em; /* STANDARDIZED WHITESPACE */
   text-align: left;
   text-transform: none;
   line-height: 1.15;
@@ -430,6 +424,7 @@
 .stats-heading-row {
   display: flex;
   width: 100%;
+  margin-bottom: 1em;
   align-items: center;
   justify-content: space-between;
 }
@@ -480,7 +475,7 @@
   background: linear-gradient(120deg, #f7f8fc 70%, #f5faff 100%);
   border-radius: 13px;
   width: 100%;
-  padding: 1.4em 0.5em 1.1em 0.5em;
+  padding: 0.7em 0.5em 1.1em 0.5em; /* MATCHED TO OUTSIDE BOX */
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -571,8 +566,9 @@
   background: #e7f5fb;
   border-radius: 13px;
   width: 100%;
-  padding: 1.4em 0.5em 1.1em 0.5em;
+  padding: 0.7em 0.5em 1.1em 0.5em; /* MATCHED TO .stat-inner-box */
   text-align: center;
+  margin-top: 1.1em;
   margin-bottom: 0.3em;
   display: flex;
   flex-direction: column;
@@ -728,7 +724,7 @@
   .stat-inner-box,
   .outside-box {
     border-radius: 11px;
-    padding: 1em 0.7em 1em 0.7em;
+    padding: 0.7em 0.7em 1em 0.7em; /* keep top padding consistent on smaller screens */
   }
   .activity-2col {
     flex-direction: column;
@@ -754,11 +750,12 @@
   .stat-inner-box,
   .outside-box {
     border-radius: 7px;
-    padding: 1em 0.5em 1em 0.5em;
+    padding: 0.7em 0.5em 1em 0.5em;
   }
 }
 @keyframes fadeIn {
   from { opacity: 0; transform: translateX(-50%) translateY(8px);}
   to   { opacity: 1; transform: translateX(-50%) translateY(0);}
 }
+
 </style>
