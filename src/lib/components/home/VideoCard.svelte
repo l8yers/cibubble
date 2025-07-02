@@ -1,5 +1,8 @@
 <script>
+  import { MoreVertical, Clock, Copy, Share2 } from 'lucide-svelte';
   import { goto } from '$app/navigation';
+  import { watchLaterIds, addToWatchLater, removeFromWatchLater } from '$lib/stores/videos.js';
+  import { get } from 'svelte/store';
 
   export let video;
   export let getBestThumbnail;
@@ -9,11 +12,54 @@
   export let filterByChannel;
   export let query = "";
 
+  let showMenu = false;
+  let menuRef;
+
   function makeChannelUrl(channelId) {
     const params = new URLSearchParams(query);
     params.set('channel', channelId);
     return `/?${params.toString()}`;
   }
+
+  function handleMenuAction(action) {
+    showMenu = false;
+    if (action === 'watchlater') {
+      if (get(watchLaterIds).has(video.id)) {
+        removeFromWatchLater(video.id);
+      } else {
+        addToWatchLater(video.id);
+      }
+    } else if (action === 'copylink') {
+      navigator.clipboard.writeText(`${window.location.origin}/video/${video.id}`);
+    } else if (action === 'share') {
+      // Try Web Share API first
+      if (navigator.share) {
+        navigator.share({
+          title: video.title,
+          url: `${window.location.origin}/video/${video.id}`
+        });
+      } else {
+        navigator.clipboard.writeText(`${window.location.origin}/video/${video.id}`);
+      }
+    }
+  }
+
+  function handleClickOutside(event) {
+    if (showMenu && menuRef && !menuRef.contains(event.target)) {
+      showMenu = false;
+    }
+  }
+
+  // Close menu on outside click
+  import { onMount, onDestroy } from 'svelte';
+  onMount(() => {
+    document.addEventListener('click', handleClickOutside);
+  });
+  onDestroy(() => {
+    document.removeEventListener('click', handleClickOutside);
+  });
+
+  $: isInWatchLater = get(watchLaterIds).has(video.id);
 </script>
 
 <div class="card">
@@ -34,6 +80,31 @@
   <div class="card-body">
     <div class="card-title-row">
       <span class="card-title">{video.title}</span>
+      <div class="menu-container">
+        <button
+          class="more-btn"
+          aria-label="Show more actions"
+          on:click|stopPropagation={() => showMenu = !showMenu}
+        >
+          <MoreVertical size={21} />
+        </button>
+        {#if showMenu}
+          <div class="more-menu" bind:this={menuRef}>
+            <button on:click={() => handleMenuAction('watchlater')}>
+              <Clock size={16} style="margin-right:7px;vertical-align:-2px;" />
+              {isInWatchLater ? 'Remove from Watch Later' : 'Add to Watch Later'}
+            </button>
+            <button on:click={() => handleMenuAction('copylink')}>
+              <Copy size={16} style="margin-right:7px;vertical-align:-2px;" />
+              Copy Link
+            </button>
+            <button on:click={() => handleMenuAction('share')}>
+              <Share2 size={16} style="margin-right:7px;vertical-align:-2px;" />
+              Share
+            </button>
+          </div>
+        {/if}
+      </div>
     </div>
     <div class="card-meta">
       <span class="badge" style="background:{difficultyColor(video.level)};">
@@ -64,6 +135,7 @@
   display: flex;
   flex-direction: column;
   border: 1px solid #ededed;
+  position: relative;
 }
 
 .thumb-wrapper {
@@ -111,9 +183,11 @@
 }
 .card-title-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 0.6em;
   margin-bottom: 0.2em;
+  position: relative;
 }
 .card-title {
   font-size: 1.08rem;
@@ -127,6 +201,58 @@
   flex: 1;
   line-height: 1.32;
 }
+
+.menu-container {
+  position: relative;
+  align-self: flex-start;
+  z-index: 14;
+}
+.more-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.23em;
+  border-radius: 50%;
+  transition: background 0.14s;
+  margin-left: 0.2em;
+}
+.more-btn:hover, .more-btn:focus {
+  background: #f1f1f5;
+}
+.more-menu {
+  position: absolute;
+  top: 2em;
+  right: 0;
+  background: #fff;
+  border-radius: 9px;
+  box-shadow: 0 4px 16px #0001;
+  min-width: 175px;
+  font-size: 0.99em;
+  padding: 0.3em 0.1em;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1em;
+  border: 1px solid #ececec;
+}
+.more-menu button {
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 0.95em 1em 0.85em 0.9em;
+  color: #202134;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.13s, color 0.13s;
+  display: flex;
+  align-items: center;
+}
+.more-menu button:hover, .more-menu button:focus {
+  background: #f5f5fd;
+  color: #e93c2f;
+}
+
 .card-meta {
   display: flex;
   align-items: center;

@@ -1,114 +1,135 @@
 <script>
-	import { onMount, onDestroy } from 'svelte';
-	import { supabase } from '$lib/supabaseClient';
-	import { page } from '$app/stores';
-	import { user } from '$lib/stores/user.js';
-	import SideBar from '$lib/components/player/SideBar.svelte';
-	import PlayerVideoBox from '$lib/components/player/PlayerVideoBox.svelte';
-	import PlayerMetaRow from '$lib/components/player/PlayerMetaRow.svelte';
-	import * as utils from '$lib/utils/utils.js';
-	import { goto } from '$app/navigation';
-	import { autoplay } from '$lib/stores/autoplay.js';
-	import VideoWatchTracker from '$lib/components/VideoWatchTracker.svelte';
-	import { shuffle, parseTags, fetchSuggestions } from '$lib/utils/videoUtils.js';
-	import {
-		watchLaterIds,
-		addToWatchLater,
-		loadWatchLaterVideos
-	} from '$lib/stores/videos.js';
+  import { onMount, onDestroy } from 'svelte';
+  import { supabase } from '$lib/supabaseClient';
+  import { page } from '$app/stores';
+  import { user } from '$lib/stores/user.js';
+  import SideBar from '$lib/components/player/SideBar.svelte';
+  import PlayerVideoBox from '$lib/components/player/PlayerVideoBox.svelte';
+  import PlayerMetaRow from '$lib/components/player/PlayerMetaRow.svelte';
+  import * as utils from '$lib/utils/utils.js';
+  import { goto } from '$app/navigation';
+  import { autoplay } from '$lib/stores/autoplay.js';
+  import VideoWatchTracker from '$lib/components/VideoWatchTracker.svelte';
+  import { shuffle, parseTags, fetchSuggestions } from '$lib/utils/videoUtils.js';
+  import {
+    watchLaterIds,
+    addToWatchLater,
+    loadWatchLaterVideos,
+    removeFromWatchLater
+  } from '$lib/stores/videos.js';
 
-	let video = null;
-	let loading = true;
-	let suggestions = [];
-	let playlistTitle = '';
-	let autoplayValue = true;
-	let isMobile = false;
+  let video = null;
+  let loading = true;
+  let suggestions = [];
+  let playlistTitle = '';
+  let autoplayValue = true;
+  let isMobile = false;
 
-	const unsubscribe = autoplay.subscribe((val) => (autoplayValue = val));
-	let savingChannel = false;
-	let isChannelSaved = false;
+  const unsubscribe = autoplay.subscribe((val) => (autoplayValue = val));
+  let savingChannel = false;
+  let isChannelSaved = false;
 
-	let savingWatchLater = false;
-	let isWatchLater = false;
+  let savingWatchLater = false;
+  let isWatchLater = false;
 
-	$: id = $page.params.id;
-	$: if (id) initializePlayer();
+  $: id = $page.params.id;
+  $: if (id) initializePlayer();
 
-	// ---- Watch Later logic ----
-	$: $watchLaterIds;
-	$: isWatchLater = video ? $watchLaterIds.has(video.id) : false;
+  // ---- Watch Later logic ----
+  $: $watchLaterIds;
+  $: isWatchLater = video ? $watchLaterIds.has(video.id) : false;
 
-	onMount(() => {
-		const check = () => (isMobile = window.innerWidth <= 800);
-		check();
-		window.addEventListener('resize', check);
-		return () => window.removeEventListener('resize', check);
-	});
+  onMount(() => {
+    const check = () => (isMobile = window.innerWidth <= 800);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  });
 
-	onDestroy(() => {
-		if (unsubscribe) unsubscribe();
-	});
+  onDestroy(() => {
+    if (unsubscribe) unsubscribe();
+  });
 
-	async function initializePlayer() {
-		loading = true;
-		video = null;
-		suggestions = [];
-		playlistTitle = '';
-		isChannelSaved = false;
+  async function initializePlayer() {
+    loading = true;
+    video = null;
+    suggestions = [];
+    playlistTitle = '';
+    isChannelSaved = false;
 
-		const { data: vid } = await supabase
-			.from('videos')
-			.select('*, playlist:playlist_id(title), channel:channel_id(name,country,tags)')
-			.eq('id', id)
-			.maybeSingle();
-		video = vid;
-		loading = false;
-		if (!video) return;
-		suggestions = await fetchSuggestions(video, supabase);
-		if ($user && video?.channel_id) checkIfChannelSaved();
-		if ($user && video) loadWatchLaterVideos();
-	}
+    const { data: vid } = await supabase
+      .from('videos')
+      .select('*, playlist:playlist_id(title), channel:channel_id(name,country,tags)')
+      .eq('id', id)
+      .maybeSingle();
+    video = vid;
+    loading = false;
+    if (!video) return;
+    suggestions = await fetchSuggestions(video, supabase);
+    if ($user && video?.channel_id) checkIfChannelSaved();
+    if ($user && video) loadWatchLaterVideos();
+  }
 
-	async function checkIfChannelSaved() {
-		if (!$user || !video?.channel_id) return;
-		const { data } = await supabase
-			.from('saved_channels')
-			.select('channel_id')
-			.eq('user_id', $user.id)
-			.eq('channel_id', video.channel_id)
-			.maybeSingle();
-		isChannelSaved = !!data;
-	}
+  async function checkIfChannelSaved() {
+    if (!$user || !video?.channel_id) return;
+    const { data } = await supabase
+      .from('saved_channels')
+      .select('channel_id')
+      .eq('user_id', $user.id)
+      .eq('channel_id', video.channel_id)
+      .maybeSingle();
+    isChannelSaved = !!data;
+  }
 
-	async function saveChannelToMyChannels() {
-		if (!$user || !video?.channel_id) return;
-		savingChannel = true;
-		await supabase.from('saved_channels').upsert(
-			{
-				user_id: $user.id,
-				channel_id: video.channel_id
-			},
-			{ onConflict: ['user_id', 'channel_id'] }
-		);
-		isChannelSaved = true;
-		savingChannel = false;
-	}
+  async function saveChannelToMyChannels() {
+    if (!$user || !video?.channel_id) return;
+    savingChannel = true;
+    await supabase.from('saved_channels').upsert(
+      {
+        user_id: $user.id,
+        channel_id: video.channel_id
+      },
+      { onConflict: ['user_id', 'channel_id'] }
+    );
+    isChannelSaved = true;
+    savingChannel = false;
+  }
 
-	// ---- Watch Later logic: call from dropdown ----
-	async function saveToWatchLater() {
-		if (!$user || !video?.id || isWatchLater || savingWatchLater) return;
-		savingWatchLater = true;
-		await addToWatchLater(video.id);
-		savingWatchLater = false;
-	}
+  async function removeChannelFromMyChannels() {
+    if (!$user || !video?.channel_id) return;
+    savingChannel = true;
+    await supabase
+      .from('saved_channels')
+      .delete()
+      .eq('user_id', $user.id)
+      .eq('channel_id', video.channel_id);
+    isChannelSaved = false;
+    savingChannel = false;
+  }
 
-	function handlePlayNextVideo(event) {
-		const nextId = event.detail;
-		if (nextId) {
-			goto(`/video/${nextId}`);
-		}
-	}
+  // ---- Watch Later logic: call from dropdown ----
+  async function saveToWatchLater() {
+    if (!$user || !video?.id || isWatchLater || savingWatchLater) return;
+    savingWatchLater = true;
+    await addToWatchLater(video.id);
+    savingWatchLater = false;
+  }
+
+  async function handleRemoveFromWatchLater() {
+    if (!$user || !video?.id || !isWatchLater || savingWatchLater) return;
+    savingWatchLater = true;
+    await removeFromWatchLater(video.id);
+    savingWatchLater = false;
+  }
+
+  function handlePlayNextVideo(event) {
+    const nextId = event.detail;
+    if (nextId) {
+      goto(`/video/${nextId}`);
+    }
+  }
 </script>
+
 
 {#if loading}
 	<div class="player-loading">Loading…</div>
@@ -120,17 +141,20 @@
 			<PlayerVideoBox {video} user={$user} {suggestions} {autoplayValue} {handlePlayNextVideo} />
 
 			<div class="player-content">
-				<PlayerMetaRow
-					{video}
-					{utils}
-					user={$user}
-					isChannelSaved={isChannelSaved}
-					savingChannel={savingChannel}
-					saveChannelToMyChannels={saveChannelToMyChannels}
-					isWatchLater={isWatchLater}
-					savingWatchLater={savingWatchLater}
-					saveToWatchLater={saveToWatchLater}
-				/>
+<PlayerMetaRow
+  {video}
+  {utils}
+  user={$user}
+  isChannelSaved={isChannelSaved}
+  savingChannel={savingChannel}
+  saveChannelToMyChannels={saveChannelToMyChannels}
+  removeChannelFromMyChannels={removeChannelFromMyChannels}
+  isWatchLater={isWatchLater}
+  savingWatchLater={savingWatchLater}
+  saveToWatchLater={saveToWatchLater}
+  removeFromWatchLater={handleRemoveFromWatchLater}
+/>
+
 			</div>
 
 			{#if isMobile}
