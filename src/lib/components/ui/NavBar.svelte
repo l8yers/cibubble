@@ -88,7 +88,7 @@
   z-index: 100;
   min-height: 55px;
 }
-.logo-img { height: 3em; width: auto; }
+.logo-img { height: 4em; width: auto; }
 .logo-link { display: flex; align-items: center; }
 .nav-links {
   display: flex;
@@ -217,14 +217,14 @@ body.dark-mode .drawer-close {
     top: 0;
     z-index: 2100;
     background: #fff;
-    padding: 0.2em 2vw;
+    padding: 0.2em 0.2em;
     min-height: 44px;
   }
   .nav-links { display: none; }
   .menu-toggle { display: block; }
   .logo-img {
-    height: 2.15em !important;
-    max-height: 40px !important;
+    height: 3em !important;
+    max-height: 48px !important;
   }
 }
 @media (min-width: 721px) {
