@@ -1,8 +1,20 @@
 <script>
-  import { MoreVertical, Clock, Copy, Share2 } from 'lucide-svelte';
   import { goto } from '$app/navigation';
-  import { watchLaterIds, addToWatchLater, removeFromWatchLater } from '$lib/stores/videos.js';
-  import { get } from 'svelte/store';
+
+  // onClickOutside Svelte action
+  function onClickOutside(node, callback) {
+    const handleClick = (event) => {
+      if (!node.contains(event.target)) {
+        callback();
+      }
+    };
+    document.addEventListener('mousedown', handleClick, true);
+    return {
+      destroy() {
+        document.removeEventListener('mousedown', handleClick, true);
+      }
+    };
+  }
 
   export let video;
   export let getBestThumbnail;
@@ -12,54 +24,28 @@
   export let filterByChannel;
   export let query = "";
 
-  let showMenu = false;
-  let menuRef;
+  let menuOpen = false;
 
   function makeChannelUrl(channelId) {
     const params = new URLSearchParams(query);
     params.set('channel', channelId);
     return `/?${params.toString()}`;
   }
-
-  function handleMenuAction(action) {
-    showMenu = false;
-    if (action === 'watchlater') {
-      if (get(watchLaterIds).has(video.id)) {
-        removeFromWatchLater(video.id);
-      } else {
-        addToWatchLater(video.id);
-      }
-    } else if (action === 'copylink') {
-      navigator.clipboard.writeText(`${window.location.origin}/video/${video.id}`);
-    } else if (action === 'share') {
-      // Try Web Share API first
-      if (navigator.share) {
-        navigator.share({
-          title: video.title,
-          url: `${window.location.origin}/video/${video.id}`
-        });
-      } else {
-        navigator.clipboard.writeText(`${window.location.origin}/video/${video.id}`);
-      }
-    }
+  function toggleMenu(e) {
+    e.stopPropagation();
+    menuOpen = !menuOpen;
   }
-
-  function handleClickOutside(event) {
-    if (showMenu && menuRef && !menuRef.contains(event.target)) {
-      showMenu = false;
-    }
+  function closeMenu() {
+    menuOpen = false;
   }
-
-  // Close menu on outside click
-  import { onMount, onDestroy } from 'svelte';
-  onMount(() => {
-    document.addEventListener('click', handleClickOutside);
-  });
-  onDestroy(() => {
-    document.removeEventListener('click', handleClickOutside);
-  });
-
-  $: isInWatchLater = get(watchLaterIds).has(video.id);
+  function addToChannels() {
+    alert('Added to My Channels!');
+    menuOpen = false;
+  }
+  function addToWatchLater() {
+    alert('Added to Watch Later!');
+    menuOpen = false;
+  }
 </script>
 
 <div class="card">
@@ -80,37 +66,30 @@
   <div class="card-body">
     <div class="card-title-row">
       <span class="card-title">{video.title}</span>
-      <div class="menu-container">
-        <button
-          class="more-btn"
-          aria-label="Show more actions"
-          on:click|stopPropagation={() => showMenu = !showMenu}
-        >
-          <MoreVertical size={21} />
-        </button>
-        {#if showMenu}
-          <div class="more-menu" bind:this={menuRef}>
-            <button on:click={() => handleMenuAction('watchlater')}>
-              <Clock size={16} style="margin-right:7px;vertical-align:-2px;" />
-              {isInWatchLater ? 'Remove from Watch Later' : 'Add to Watch Later'}
+      <span class="dots-menu" title="Menu" on:click={toggleMenu}>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="display:block;" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="10" cy="4" r="1.45" fill="#222" />
+          <circle cx="10" cy="10" r="1.45" fill="#222" />
+          <circle cx="10" cy="16" r="1.45" fill="#222" />
+        </svg>
+        {#if menuOpen}
+          <div class="dropdown-menu" use:onClickOutside={closeMenu}>
+            <button class="dropdown-item" on:click={addToChannels}>
+              <svg width="16" height="16" viewBox="0 0 24 24" style="margin-right:0.6em;vertical-align:-3px"><circle cx="12" cy="12" r="10" fill="none" stroke="#222" stroke-width="2"/><path d="M8 12h8M12 8v8" stroke="#222" stroke-width="2" stroke-linecap="round"/></svg>
+              Add to My Channels
             </button>
-            <button on:click={() => handleMenuAction('copylink')}>
-              <Copy size={16} style="margin-right:7px;vertical-align:-2px;" />
-              Copy Link
-            </button>
-            <button on:click={() => handleMenuAction('share')}>
-              <Share2 size={16} style="margin-right:7px;vertical-align:-2px;" />
-              Share
+            <button class="dropdown-item" on:click={addToWatchLater}>
+              <svg width="16" height="16" viewBox="0 0 24 24" style="margin-right:0.6em;vertical-align:-3px"><circle cx="12" cy="12" r="10" fill="none" stroke="#222" stroke-width="2"/><path d="M12 8v4l3 2" stroke="#222" stroke-width="2" stroke-linecap="round"/></svg>
+              Add to Watch Later
             </button>
           </div>
         {/if}
-      </div>
+      </span>
     </div>
     <div class="card-meta">
       <span class="badge" style="background:{difficultyColor(video.level)};">
         {difficultyLabel(video.level)}
       </span>
-
       {#if video.channel_id && (video.channel?.name || video.channel_name)}
         <a
           class="meta-link channel-name"
@@ -135,14 +114,11 @@
   display: flex;
   flex-direction: column;
   border: 1px solid #ededed;
-  position: relative;
 }
-
 .thumb-wrapper {
   position: relative;
   display: block;
 }
-
 .thumb {
   width: 100%;
   aspect-ratio: 16/9;
@@ -153,8 +129,6 @@
   position: relative;
   z-index: 1;
 }
-
-/* Duration label inside thumbnail, bottom right, always on top */
 .length-inline {
   position: absolute;
   right: 0.55em;
@@ -173,7 +147,6 @@
   text-align: right;
   white-space: nowrap;
 }
-
 .card-body {
   padding: 1rem 1rem 0.7rem 1rem;
   color: #222;
@@ -184,10 +157,8 @@
 .card-title-row {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
   gap: 0.6em;
   margin-bottom: 0.2em;
-  position: relative;
 }
 .card-title {
   font-size: 1.08rem;
@@ -201,58 +172,51 @@
   flex: 1;
   line-height: 1.32;
 }
-
-.menu-container {
-  position: relative;
-  align-self: flex-start;
-  z-index: 14;
-}
-.more-btn {
-  background: none;
-  border: none;
+.dots-menu {
+  margin-left: auto;
+  display: flex;
+  align-items: flex-start;
   cursor: pointer;
-  padding: 0.23em;
-  border-radius: 50%;
-  transition: background 0.14s;
-  margin-left: 0.2em;
+  position: relative;
+  margin-top: 0.03em;
+  z-index: 20;
 }
-.more-btn:hover, .more-btn:focus {
-  background: #f1f1f5;
-}
-.more-menu {
+.dropdown-menu {
   position: absolute;
-  top: 2em;
+  bottom: 28px;    /* Drop up! */
   right: 0;
+  min-width: 170px;
   background: #fff;
-  border-radius: 9px;
-  box-shadow: 0 4px 16px #0001;
-  min-width: 175px;
-  font-size: 0.99em;
-  padding: 0.3em 0.1em;
-  z-index: 999;
+  box-shadow: 0 8px 32px #0001, 0 1.5px 6px #0002;
+  border-radius: 8px;
+  padding: 0.18em 0;
+  z-index: 200;
+  border: 1px solid #ededed;
   display: flex;
   flex-direction: column;
   gap: 0.1em;
-  border: 1px solid #ececec;
 }
-.more-menu button {
+.dropdown-item {
   background: none;
   border: none;
+  color: #222;
   text-align: left;
-  padding: 0.95em 1em 0.85em 0.9em;
-  color: #202134;
-  font-weight: 600;
+  padding: 0.52em 1em 0.44em 0.9em;
+  font-size: 0.99em;
+  font-weight: 500;
+  border-radius: 5px;
   cursor: pointer;
-  border-radius: 8px;
-  transition: background 0.13s, color 0.13s;
   display: flex;
   align-items: center;
+  gap: 0.5em;
+  transition: background 0.16s;
 }
-.more-menu button:hover, .more-menu button:focus {
-  background: #f5f5fd;
-  color: #e93c2f;
+.dropdown-item:active {
+  background: #ececec;
 }
-
+.dropdown-item:focus {
+  outline: none;
+}
 .card-meta {
   display: flex;
   align-items: center;
@@ -275,7 +239,6 @@
   text-shadow: 0 1px 4px #0001;
   white-space: nowrap;
 }
-/* Remove any max-width and truncation from channel name */
 .meta-link,
 .channel-name {
   color: #2e9be6;
@@ -297,7 +260,6 @@
   background: #e4e4e4;
   color: #e93c2f;
 }
-
 @media (max-width: 720px) {
   .card-title {
     font-size: 0.95em;
