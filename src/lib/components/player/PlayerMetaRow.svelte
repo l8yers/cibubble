@@ -1,6 +1,7 @@
 <script>
 	import { onMount, createEventDispatcher } from 'svelte';
 	import AddToMyChannelsButton from '$lib/components/player/AddToMyChannelsButton.svelte';
+	import { CheckCircle, PlusCircle, Clock } from 'lucide-svelte';
 
 	export let video;
 	export let utils;
@@ -8,11 +9,32 @@
 	export let isChannelSaved = false;
 	export let savingChannel = false;
 	export let saveChannelToMyChannels = () => {};
+	// --- NEW PROPS for watch later ---
+	export let isWatchLater = false;
+	export let savingWatchLater = false;
+	export let saveToWatchLater = () => {};
 
 	const dispatch = createEventDispatcher();
 
 	let isMobile = false;
 	let menuButtonRef;
+	let showDropdown = false;
+
+	function toggleDropdown() {
+		showDropdown = !showDropdown;
+	}
+	function closeDropdown() {
+		showDropdown = false;
+	}
+	// Close dropdown if you click outside
+	function handleBlur(e) {
+		setTimeout(() => {
+			if (!menuButtonRef?.contains(document.activeElement)) {
+				showDropdown = false;
+			}
+		}, 100);
+	}
+
 	onMount(() => {
 		const check = () => (isMobile = window.innerWidth <= 800);
 		check();
@@ -26,16 +48,58 @@
 	<div class="meta-title-row">
 		<div class="player-title">{video.title}</div>
 		{#if user && video?.channel_id && !isMobile}
-			<div class="add-to-channels-wrapper">
-				<AddToMyChannelsButton {isChannelSaved} {savingChannel} {saveChannelToMyChannels} />
+			<!-- DROPDOWN WRAPPER -->
+			<div class="add-to-channels-wrapper" style="position: relative;">
+				<button
+					class="more-btn"
+					bind:this={menuButtonRef}
+					aria-label="More options"
+					on:click={toggleDropdown}
+					tabindex="0"
+					on:blur={handleBlur}
+					type="button"
+				>
+					<span class="stacked-dots">
+						<span class="dot"></span>
+						<span class="dot"></span>
+						<span class="dot"></span>
+					</span>
+				</button>
+				{#if showDropdown}
+					<div class="meta-dropdown-menu">
+						<!-- ADD TO MY CHANNELS -->
+						<button
+							class="dropdown-link"
+							type="button"
+							on:click={() => { saveChannelToMyChannels(); closeDropdown(); }}
+							disabled={savingChannel}
+						>
+							{#if isChannelSaved}
+								<CheckCircle class="dropdown-icon in" />
+								In My Channels
+							{:else}
+								<PlusCircle class="dropdown-icon" />
+								Add to My Channels
+							{/if}
+						</button>
+						<!-- ADD TO WATCH LATER -->
+						<button
+							class="dropdown-link"
+							type="button"
+							on:click={() => { saveToWatchLater(); closeDropdown(); }}
+							disabled={savingWatchLater || isWatchLater}
+						>
+							{#if isWatchLater}
+								<CheckCircle class="dropdown-icon in" />
+								In Watch Later
+							{:else}
+								<Clock class="dropdown-icon" />
+								Add to Watch Later
+							{/if}
+						</button>
+					</div>
+				{/if}
 			</div>
-			<button class="more-btn" bind:this={menuButtonRef} aria-label="More options">
-				<span class="stacked-dots">
-					<span class="dot"></span>
-					<span class="dot"></span>
-					<span class="dot"></span>
-				</span>
-			</button>
 		{/if}
 	</div>
 	
@@ -75,6 +139,75 @@
 </div>
 
 <style>
+/* --- DROPDOWN MENU STYLES --- */
+.meta-dropdown-menu {
+	position: absolute;
+	top: 110%;
+	right: 0;
+	background: #fff;
+	border-radius: 14px;
+	box-shadow: 0 4px 16px #2a223310;
+	min-width: 190px;
+	padding: 0.23em 0;
+	z-index: 100;
+	display: flex;
+	flex-direction: column;
+}
+.dropdown-link {
+	display: flex;
+	align-items: center;
+	gap: 0.7em;
+	width: 100%;
+	padding: 0.77em 1.1em 0.77em 1em;
+	font-size: 1.04em;
+	color: #222943;
+	background: none;
+	border: none;
+	cursor: pointer;
+	transition: background 0.12s, color 0.12s;
+	text-align: left;
+	font-weight: 700;
+	border-radius: 10px;
+}
+.dropdown-link:disabled {
+	color: #b0b0b0;
+	cursor: default;
+}
+.dropdown-link:hover:not(:disabled),
+.dropdown-link:focus:not(:disabled) {
+	background: #f6f4fa;
+	color: #e93c2f;
+}
+.dropdown-icon {
+	width: 1.3em;
+	height: 1.3em;
+	color: #babdcf;
+	margin-right: 0.5em;
+	vertical-align: middle;
+	transition: color 0.13s;
+}
+.dropdown-icon.in {
+	color: #e93c2f;
+}
+
+/* --- REMOVE HOVER STYLING FROM DOTS BUTTON --- */
+.more-btn {
+	background: none;
+	border: none;
+	padding: 0.20em 0.4em 0.20em 0.4em;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50%;
+	transition: none;
+	position: relative;
+}
+.more-btn:hover, .more-btn:focus {
+	background: none;
+}
+
+/* --- REST OF YOUR ORIGINAL STYLES (unchanged) --- */
 .player-meta-row {
 	display: flex;
 	flex-direction: column;
@@ -110,21 +243,6 @@
 	display: flex;
 	align-items: center;
 	flex-shrink: 0;
-}
-.more-btn {
-	background: none;
-	border: none;
-	padding: 0.20em 0.4em 0.20em 0.4em;
-	cursor: pointer;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	border-radius: 50%;
-	transition: background 0.14s;
-	position: relative;
-}
-.more-btn:hover, .more-btn:focus {
-	background: #ededed;
 }
 .stacked-dots {
 	display: flex;
