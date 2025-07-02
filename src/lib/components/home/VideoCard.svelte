@@ -229,7 +229,6 @@
   font-size: 1.08rem;
   font-weight: 600;
   line-height: 1.32;
-  /* No max-width or flex, let layout handle it */
 }
 
 .dots-menu {
@@ -307,27 +306,34 @@
   text-shadow: 0 1px 4px #0001;
   white-space: nowrap;
 }
-.meta-link,
-.channel-name {
-  color: #2e9be6;
-  font-size: 0.97em;
-  text-decoration: none;
-  background: #f6f6f6;
-  border-radius: 3px;
-  padding: 0.12em 0.55em;
-  margin-right: 0.18em;
+
+/* ---- Channel name & meta-link: bulletproof dark grey ---- */
+a.channel-name,
+a.meta-link {
+  color: #444 !important;
+  font-size: 0.98em;
   font-weight: 500;
-  transition: background 0.13s, color 0.13s;
-  display: inline-block;
-  white-space: normal;
-  overflow: visible;
-  text-overflow: unset;
-  max-width: none;
+  background: none;
+  border-radius: 0;
+  padding: 0;
+  margin-right: 0.18em;
+  text-decoration: none;
+  transition: color 0.14s;
+  display: inline;
 }
-.meta-link:hover {
-  background: #e4e4e4;
-  color: #e93c2f;
+a.channel-name:hover,
+a.meta-link:hover,
+a.channel-name:focus,
+a.meta-link:focus {
+  color: #222 !important;
+  background: none;
+  text-decoration: none;
 }
+a.channel-name:visited,
+a.meta-link:visited {
+  color: #444 !important;
+}
+
 @media (max-width: 720px) {
   .card-title {
     font-size: 0.95em;
@@ -345,14 +351,11 @@
     font-size: 0.88em;
     padding: 0.11em 0.45em;
   }
-  .meta-link,
-  .channel-name {
+  a.channel-name,
+  a.meta-link {
     font-size: 0.93em;
-    max-width: none;
-    padding: 0.05em 0.28em;
-    white-space: normal;
-    overflow: visible;
-    text-overflow: unset;
+    padding: 0;
   }
 }
+
 </style>
