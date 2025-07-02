@@ -1,6 +1,6 @@
 <script>
   import { createEventDispatcher } from 'svelte';
-  import { ChevronRight, ChevronLeft, BarChart3, Earth, Tag, Eye, User } from 'lucide-svelte';
+  import { ChevronRight, ChevronLeft, BarChart3, Earth, Tag, Eye, User, Clock } from 'lucide-svelte';
 
   export let open = false;
   export let levels = [];
@@ -44,7 +44,7 @@
     dispatch('close');
   }
   function handleReset() {
-    localLevels = ['easy', 'intermediate', 'advanced'];
+    localLevels = levels.map(l => l.value); // select all levels by default
     localTags = [];
     localCountry = '';
     localChannel = '';
@@ -83,11 +83,10 @@
           <li on:click={() => page='tags'}>
             <Tag class="icon"/><span>Tags</span> <ChevronRight class="chev"/>
           </li>
-          {#if myChannels.length}
+          <!-- ALWAYS SHOW My Channels IN THE LIST -->
           <li on:click={() => page='channels'}>
             <User class="icon"/><span>My Channels</span> <ChevronRight class="chev"/>
           </li>
-          {/if}
           <li class="toggle-row">
             <Eye class="icon"/><span>Hide watched</span>
             <label class="switch">
@@ -161,6 +160,20 @@
           <span>My Channels</span>
         </div>
         <div class="options-list">
+          <!-- ALWAYS SHOW THESE OPTIONS -->
+          <label class="checkbox-row">
+            <input
+              type="radio"
+              name="mychannels"
+              value="__WATCH_LATER__"
+              checked={localChannel === '__WATCH_LATER__'}
+              on:change={() => localChannel = '__WATCH_LATER__'}
+            />
+            <span style="display:flex;align-items:center;">
+              <Clock size={17} style="margin-right:4px;vertical-align:-2px;" />
+              Watch Later
+            </span>
+          </label>
           <label class="checkbox-row">
             <input
               type="radio"
@@ -169,20 +182,43 @@
               checked={localChannel === '__ALL__'}
               on:change={() => localChannel = '__ALL__'}
             />
-            <span>All My Channels</span>
+            <span>All Saved Channels</span>
           </label>
-          {#each myChannels as ch}
-            <label class="checkbox-row">
-              <input
-                type="radio"
-                name="mychannels"
-                value={ch.id}
-                checked={localChannel === ch.id}
-                on:change={() => localChannel = ch.id}
-              />
-              <span>{ch.name}</span>
-            </label>
-          {/each}
+          <!-- Only list individual channels if any -->
+          {#if myChannels && myChannels.length}
+            {#each myChannels as ch}
+              <label class="checkbox-row">
+                <input
+                  type="radio"
+                  name="mychannels"
+                  value={ch.id}
+                  checked={localChannel === ch.id}
+                  on:change={() => localChannel = ch.id}
+                />
+                <span>{ch.name}</span>
+              </label>
+            {/each}
+          {/if}
+          <a
+            href="/mychannels"
+            class="edit-my-channels-link"
+            style="display: flex; align-items: center; color: #7950f2; font-weight: 700; text-decoration: none; font-size: 1em; gap: 0.6em; padding: 0.2em 0.1em; margin-top: 0.8em;"
+          >
+            <svg
+              width="18"
+              height="18"
+              fill="none"
+              stroke="#7950f2"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="9" cy="9" r="7.5" />
+              <path d="M12.5 7.5l-5 5" />
+              <path d="M7.5 7.5l5 5" />
+            </svg>
+            Edit My Channels
+          </a>
         </div>
         <button class="apply-btn" on:click={handleApply}>View videos</button>
         <button class="reset-btn" on:click={handleReset}>Reset filters</button>
@@ -190,6 +226,8 @@
     </div>
   </div>
 {/if}
+
+
 
 <style>
   .modal-bg {

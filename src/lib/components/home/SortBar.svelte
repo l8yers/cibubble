@@ -329,43 +329,44 @@
 					</div>
 				{/if}
 			</div>
-			{#if myChannels && myChannels.length}
-				<div class="dropdown" bind:this={myChannelsDropdownRef}>
-					<button
-						class="dropdown-btn"
-						aria-expanded={showMyChannelsDropdown}
-						on:click={() => (showMyChannelsDropdown = !showMyChannelsDropdown)}
-						type="button"
-					>
-						<User size={18} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
-						My Channels
-						<svg width="12" height="9" style="margin-left:7px;" fill="none">
-							<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
-						</svg>
-					</button>
-					{#if showMyChannelsDropdown}
-						<div class="dropdown-content">
-							<!-- WATCH LATER OPTION -->
-							<label class="level-checkbox">
-								<input
-									type="checkbox"
-									checked={selectedChannel === '__WATCH_LATER__'}
-									on:change={() => emitChange({ selectedChannel: '__WATCH_LATER__' })}
-								/>
-								<span style="display:flex;align-items:center;">
-									<Clock size={17} style="margin-right:4px;vertical-align:-2px;" />
-									Watch Later
-								</span>
-							</label>
-							<hr style="margin:0.5em 0;" />
-							<label class="level-checkbox">
-								<input
-									type="checkbox"
-									checked={selectedChannel === '__ALL__'}
-									on:change={() => emitChange({ selectedChannel: '__ALL__' })}
-								/>
-								<span>All Saved Channels</span>
-							</label>
+			<!-- ALWAYS SHOW "MY CHANNELS" DROPDOWN, EVEN IF NONE SAVED -->
+			<div class="dropdown" bind:this={myChannelsDropdownRef}>
+				<button
+					class="dropdown-btn"
+					aria-expanded={showMyChannelsDropdown}
+					on:click={() => (showMyChannelsDropdown = !showMyChannelsDropdown)}
+					type="button"
+				>
+					<User size={18} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
+					My Channels
+					<svg width="12" height="9" style="margin-left:7px;" fill="none">
+						<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
+					</svg>
+				</button>
+				{#if showMyChannelsDropdown}
+					<div class="dropdown-content">
+						<!-- WATCH LATER OPTION (always) -->
+						<label class="level-checkbox">
+							<input
+								type="checkbox"
+								checked={selectedChannel === '__WATCH_LATER__'}
+								on:change={() => emitChange({ selectedChannel: '__WATCH_LATER__' })}
+							/>
+							<span style="display:flex;align-items:center;">
+								<Clock size={17} style="margin-right:4px;vertical-align:-2px;" />
+								Watch Later
+							</span>
+						</label>
+						<hr style="margin:0.5em 0;" />
+						<label class="level-checkbox">
+							<input
+								type="checkbox"
+								checked={selectedChannel === '__ALL__'}
+								on:change={() => emitChange({ selectedChannel: '__ALL__' })}
+							/>
+							<span>All Saved Channels</span>
+						</label>
+						{#if myChannels && myChannels.length}
 							{#each myChannels as ch}
 								<label class="level-checkbox">
 									<input
@@ -376,31 +377,31 @@
 									<span>{ch.name}</span>
 								</label>
 							{/each}
-							<hr style="margin: 0.7em 0;" />
-							<a
-								href="/mychannels"
-								class="edit-my-channels-link"
-								style="display: flex; align-items: center; color: #7950f2; font-weight: 700; text-decoration: none; font-size: 1em; gap: 0.6em; padding: 0.2em 0.1em;"
+						{/if}
+						<hr style="margin: 0.7em 0;" />
+						<a
+							href="/mychannels"
+							class="edit-my-channels-link"
+							style="display: flex; align-items: center; color: #7950f2; font-weight: 700; text-decoration: none; font-size: 1em; gap: 0.6em; padding: 0.2em 0.1em;"
+						>
+							<svg
+								width="18"
+								height="18"
+								fill="none"
+								stroke="#7950f2"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
 							>
-								<svg
-									width="18"
-									height="18"
-									fill="none"
-									stroke="#7950f2"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								>
-									<circle cx="9" cy="9" r="7.5" />
-									<path d="M12.5 7.5l-5 5" />
-									<path d="M7.5 7.5l5 5" />
-								</svg>
-								Edit My Channels
-							</a>
-						</div>
-					{/if}
-				</div>
-			{/if}
+								<circle cx="9" cy="9" r="7.5" />
+								<path d="M12.5 7.5l-5 5" />
+								<path d="M7.5 7.5l5 5" />
+							</svg>
+							Edit My Channels
+						</a>
+					</div>
+				{/if}
+			</div>
 		{:else}
 			<!-- More Dropdown: at tablet/small, includes Tags, Country, Channels, and (at mobile) Levels -->
 			<div class="dropdown" bind:this={moreDropdownRef}>
@@ -504,32 +505,32 @@
 							{/each}
 						</div>
 						<hr style="margin:1em 0 1em 0;" />
-						<!-- My Channels -->
-						{#if myChannels && myChannels.length}
-							<div>
-								<div class="dropdown-label" style="font-weight:700; font-size:1.01em;">
-									My Channels
-								</div>
-								<!-- WATCH LATER OPTION -->
-								<label class="level-checkbox">
-									<input
-										type="checkbox"
-										checked={selectedChannel === '__WATCH_LATER__'}
-										on:change={() => emitChange({ selectedChannel: '__WATCH_LATER__' })}
-									/>
-									<span style="display:flex;align-items:center;">
-										<Clock size={17} style="margin-right:4px;vertical-align:-2px;" />
-										Watch Later
-									</span>
-								</label>
-								<label class="level-checkbox">
-									<input
-										type="checkbox"
-										checked={selectedChannel === '__ALL__'}
-										on:change={() => emitChange({ selectedChannel: '__ALL__' })}
-									/>
-									<span>All Saved Channels</span>
-								</label>
+						<!-- My Channels (always show) -->
+						<div>
+							<div class="dropdown-label" style="font-weight:700; font-size:1.01em;">
+								My Channels
+							</div>
+							<!-- WATCH LATER OPTION (always) -->
+							<label class="level-checkbox">
+								<input
+									type="checkbox"
+									checked={selectedChannel === '__WATCH_LATER__'}
+									on:change={() => emitChange({ selectedChannel: '__WATCH_LATER__' })}
+								/>
+								<span style="display:flex;align-items:center;">
+									<Clock size={17} style="margin-right:4px;vertical-align:-2px;" />
+									Watch Later
+								</span>
+							</label>
+							<label class="level-checkbox">
+								<input
+									type="checkbox"
+									checked={selectedChannel === '__ALL__'}
+									on:change={() => emitChange({ selectedChannel: '__ALL__' })}
+								/>
+								<span>All Saved Channels</span>
+							</label>
+							{#if myChannels && myChannels.length}
 								{#each myChannels as ch}
 									<label class="level-checkbox">
 										<input
@@ -540,28 +541,28 @@
 										<span>{ch.name}</span>
 									</label>
 								{/each}
-								<a
-									href="/mychannels"
-									class="edit-my-channels-link"
-									style="display: flex; align-items: center; color: #7950f2; font-weight: 700; text-decoration: none; font-size: 1em; gap: 0.6em; padding: 0.2em 0.1em;"
+							{/if}
+							<a
+								href="/mychannels"
+								class="edit-my-channels-link"
+								style="display: flex; align-items: center; color: #7950f2; font-weight: 700; text-decoration: none; font-size: 1em; gap: 0.6em; padding: 0.2em 0.1em;"
+							>
+								<svg
+									width="18"
+									height="18"
+									fill="none"
+									stroke="#7950f2"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
 								>
-									<svg
-										width="18"
-										height="18"
-										fill="none"
-										stroke="#7950f2"
-										stroke-width="2"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-									>
-										<circle cx="9" cy="9" r="7.5" />
-										<path d="M12.5 7.5l-5 5" />
-										<path d="M7.5 7.5l5 5" />
-									</svg>
-									Edit My Channels
-								</a>
-							</div>
-						{/if}
+									<circle cx="9" cy="9" r="7.5" />
+									<path d="M12.5 7.5l-5 5" />
+									<path d="M7.5 7.5l5 5" />
+								</svg>
+								Edit My Channels
+							</a>
+						</div>
 					</div>
 				{/if}
 			</div>
@@ -610,6 +611,7 @@
 		</div>
 	</div>
 </div>
+
 
 <style>
 /* --- SORTBAR WRAPPER --- */
