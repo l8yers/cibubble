@@ -1,7 +1,8 @@
 <script>
   import { goto } from '$app/navigation';
+  import { PlusCircle, XCircle, Clock, X } from 'lucide-svelte';
 
-  // onClickOutside Svelte action
+  // Svelte action: call callback when clicking outside node
   function onClickOutside(node, callback) {
     const handleClick = (event) => {
       if (!node.contains(event.target)) {
@@ -22,7 +23,18 @@
   export let difficultyLabel;
   export let formatLength;
   export let filterByChannel;
+  export let filterByPlaylist;
   export let query = "";
+
+  // State for toggle logic and action handlers
+  export let isChannelSaved = false;
+  export let isWatchLater = false;
+  export let onAddToChannels;
+  export let onRemoveFromChannels;
+  export let onAddToWatchLater;
+  export let onRemoveFromWatchLater;
+  export let savingChannel = false;
+  export let savingWatchLater = false;
 
   let menuOpen = false;
 
@@ -31,20 +43,31 @@
     params.set('channel', channelId);
     return `/?${params.toString()}`;
   }
+
   function toggleMenu(e) {
     e.stopPropagation();
     menuOpen = !menuOpen;
   }
+
   function closeMenu() {
     menuOpen = false;
   }
-  function addToChannels() {
-    alert('Added to My Channels!');
-    menuOpen = false;
+
+  async function handleChannelClick() {
+    if (isChannelSaved) {
+      if (onRemoveFromChannels) await onRemoveFromChannels(video);
+    } else {
+      if (onAddToChannels) await onAddToChannels(video);
+    }
+    closeMenu();
   }
-  function addToWatchLater() {
-    alert('Added to Watch Later!');
-    menuOpen = false;
+  async function handleWatchLaterClick() {
+    if (isWatchLater) {
+      if (onRemoveFromWatchLater) await onRemoveFromWatchLater(video);
+    } else {
+      if (onAddToWatchLater) await onAddToWatchLater(video);
+    }
+    closeMenu();
   }
 </script>
 
@@ -74,14 +97,51 @@
         </svg>
         {#if menuOpen}
           <div class="dropdown-menu" use:onClickOutside={closeMenu}>
-            <button class="dropdown-item" on:click={addToChannels}>
-              <svg width="16" height="16" viewBox="0 0 24 24" style="margin-right:0.6em;vertical-align:-3px"><circle cx="12" cy="12" r="10" fill="none" stroke="#222" stroke-width="2"/><path d="M8 12h8M12 8v8" stroke="#222" stroke-width="2" stroke-linecap="round"/></svg>
-              Add to My Channels
-            </button>
-            <button class="dropdown-item" on:click={addToWatchLater}>
-              <svg width="16" height="16" viewBox="0 0 24 24" style="margin-right:0.6em;vertical-align:-3px"><circle cx="12" cy="12" r="10" fill="none" stroke="#222" stroke-width="2"/><path d="M12 8v4l3 2" stroke="#222" stroke-width="2" stroke-linecap="round"/></svg>
-              Add to Watch Later
-            </button>
+            <!-- Toggle My Channels -->
+            {#if isChannelSaved}
+              <button
+                class="dropdown-link"
+                type="button"
+                on:click={handleChannelClick}
+                disabled={savingChannel}
+              >
+                <XCircle class="dropdown-icon in" />
+                Remove from My Channels
+              </button>
+            {:else}
+              <button
+                class="dropdown-link"
+                type="button"
+                on:click={handleChannelClick}
+                disabled={savingChannel}
+              >
+                <PlusCircle class="dropdown-icon" />
+                Add to My Channels
+              </button>
+            {/if}
+
+            <!-- Toggle Watch Later -->
+            {#if isWatchLater}
+              <button
+                class="dropdown-link"
+                type="button"
+                on:click={handleWatchLaterClick}
+                disabled={savingWatchLater}
+              >
+                <X class="dropdown-icon in" />
+                Remove from Watch Later
+              </button>
+            {:else}
+              <button
+                class="dropdown-link"
+                type="button"
+                on:click={handleWatchLaterClick}
+                disabled={savingWatchLater}
+              >
+                <Clock class="dropdown-icon" />
+                Add to Watch Later
+              </button>
+            {/if}
           </div>
         {/if}
       </span>
@@ -183,9 +243,9 @@
 }
 .dropdown-menu {
   position: absolute;
-  bottom: 28px;    /* Drop up! */
+  bottom: 28px;
   right: 0;
-  min-width: 170px;
+  min-width: 210px;
   background: #fff;
   box-shadow: 0 8px 32px #0001, 0 1.5px 6px #0002;
   border-radius: 8px;
@@ -196,7 +256,7 @@
   flex-direction: column;
   gap: 0.1em;
 }
-.dropdown-item {
+.dropdown-link {
   background: none;
   border: none;
   color: #222;
@@ -211,11 +271,17 @@
   gap: 0.5em;
   transition: background 0.16s;
 }
-.dropdown-item:active {
+.dropdown-link:active {
   background: #ececec;
 }
-.dropdown-item:focus {
+.dropdown-link:focus {
   outline: none;
+}
+.dropdown-icon {
+  width: 1.2em;
+  height: 1.2em;
+  margin-right: 0.6em;
+  vertical-align: -3px;
 }
 .card-meta {
   display: flex;

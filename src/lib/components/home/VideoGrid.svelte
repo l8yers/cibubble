@@ -7,7 +7,14 @@
   export let formatLength;
   export let filterByChannel;
   export let filterByPlaylist;
-  export let query = ""; // 👈 New!
+  export let query = "";
+
+  export let isChannelSaved;
+  export let isWatchLater;
+  export let onAddToChannels;
+  export let onRemoveFromChannels;
+  export let onAddToWatchLater;
+  export let onRemoveFromWatchLater;
 </script>
 
 <div class="video-grid">
@@ -20,7 +27,13 @@
       {formatLength}
       {filterByChannel}
       {filterByPlaylist}
-      {query} 
+      {query}
+      isChannelSaved={isChannelSaved ? isChannelSaved(video) : false}
+      isWatchLater={isWatchLater ? isWatchLater(video) : false}
+      onAddToChannels={onAddToChannels}
+      onRemoveFromChannels={onRemoveFromChannels}
+      onAddToWatchLater={onAddToWatchLater}
+      onRemoveFromWatchLater={onRemoveFromWatchLater}
     />
   {/each}
 </div>

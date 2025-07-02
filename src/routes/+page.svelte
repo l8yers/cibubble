@@ -3,7 +3,6 @@
 	import { writable, get } from 'svelte/store';
 	import { page } from '$app/stores';
 
-	import VideoWatchTracker from '$lib/components/VideoWatchTracker.svelte';
 	import VideoGrid from '$lib/components/home/VideoGrid.svelte';
 	import SortBar from '$lib/components/home/SortBar.svelte';
 	import FilterChip from '$lib/components/home/FilterChip.svelte';
@@ -17,7 +16,12 @@
 	import * as utils from '$lib/utils/utils.js';
 	import { filtersToQuery, queryToFilters } from '$lib/utils/filters.js';
 	import { updateUrlFromFilters } from '$lib/utils/url.js';
-	import { watchLaterLoading } from '$lib/stores/videos.js';
+	import {
+		watchLaterIds,
+		addToWatchLater,
+		removeFromWatchLater,
+		watchLaterLoading
+	} from '$lib/stores/videos.js';
 
 	import {
 		selectedChannel,
@@ -27,7 +31,6 @@
 		selectedTags,
 		hideWatched,
 		watchedIds,
-		watchLaterIds, // PATCH: Needed for watch later logic
 		searchTerm,
 		loadWatchLaterVideos
 	} from '$lib/stores/videos.js';
@@ -44,7 +47,9 @@
 	import { userChannels } from '$lib/stores/userChannels.js';
 	import { getUserSavedChannels } from '$lib/api/userChannels.js';
 
-	import { isMobile, isTablet } from '$lib/stores/screen.js';
+	import { isMobile } from '$lib/stores/screen.js';
+
+	import { supabase } from '$lib/supabaseClient';
 
 	let mounted = false;
 	let showSortDropdown = false;
@@ -53,7 +58,6 @@
 
 	onMount(() => {
 		mounted = true;
-		// Load Watch Later IDs when user logs in or page loads
 		if ($user) loadWatchLaterVideos();
 	});
 
@@ -124,9 +128,7 @@
 			channelFilter = get(userChannels)
 				.map((ch) => ch.id)
 				.join(',');
-		}
-		// PATCH: Never send __WATCH_LATER__ to API. Just fetch ALL videos for this case.
-		else if (channelFilter === '' || channelFilter === '__WATCH_LATER__') {
+		} else if (channelFilter === '' || channelFilter === '__WATCH_LATER__') {
 			channelFilter = '';
 		}
 
@@ -214,7 +216,6 @@
 		const channel = detail.selectedChannel || '';
 		const hide = detail.hideWatched || false;
 
-		// If no levels selected, default to ALL levels (matches desktop behavior)
 		if (!levels.length) {
 			levels = ['easy', 'intermediate', 'advanced'];
 		}
@@ -281,11 +282,9 @@
 	onMount(() => {
 		let filters;
 		if ($page.url.search && $page.url.search.length > 1) {
-			// Query string present: use that, save to storage
 			filters = queryToFilters($page.url.search);
 			saveFiltersToStorage(filters);
 		} else {
-			// No query string: try to restore from storage
 			filters = loadFiltersFromStorage() || {};
 		}
 
@@ -347,6 +346,48 @@
 		sort: $sortBy,
 		search: $searchTerm
 	});
+
+	// ---- Toggle Handlers and State ----
+	function isChannelSaved(video) {
+		return $user && video.channel_id && $userChannels.some((ch) => ch.id === video.channel_id);
+	}
+	function isWatchLater(video) {
+		return $user && $watchLaterIds.has(video.id);
+	}
+	async function handleAddToChannels(video) {
+		if (!$user || !video?.channel_id) return;
+		await supabase
+			.from('saved_channels')
+			.upsert(
+				{ user_id: $user.id, channel_id: video.channel_id },
+				{ onConflict: ['user_id', 'channel_id'] }
+			);
+		// Force refresh:
+		getUserSavedChannels($user.id).then(userChannels.set);
+	}
+
+	async function handleRemoveFromChannels(video) {
+		if (!$user || !video?.channel_id) return;
+		await supabase
+			.from('saved_channels')
+			.delete()
+			.eq('user_id', $user.id)
+			.eq('channel_id', video.channel_id);
+		// Force refresh:
+		getUserSavedChannels($user.id).then(userChannels.set);
+	}
+	async function handleAddToWatchLater(video) {
+		if (!$user || !video?.id) return;
+		if (!$watchLaterIds.has(video.id)) {
+			await addToWatchLater(video.id);
+		}
+	}
+	async function handleRemoveFromWatchLater(video) {
+		if (!$user || !video?.id) return;
+		if ($watchLaterIds.has(video.id)) {
+			await removeFromWatchLater(video.id);
+		}
+	}
 </script>
 
 <div class="page-container">
@@ -372,22 +413,19 @@
 	{/if}
 
 	<div class="content-container">
-{#if $selectedChannel 
-   && $selectedChannel !== '__ALL__' 
-   && $selectedChannel !== '__WATCH_LATER__'}
-	<div class="chips-row">
-		<FilterChip
-			type="info"
-			label="Filtered by channel"
-			value={$videos.length > 0
-				? ($videos[0].channel?.name ?? $videos[0].channel_name ?? $selectedChannel)
-				: $selectedChannel}
-			onClear={clearChannelFilter}
-			clearClass="clear-btn--blue"
-		/>
-	</div>
-{/if}
-
+		{#if $selectedChannel && $selectedChannel !== '__ALL__' && $selectedChannel !== '__WATCH_LATER__'}
+			<div class="chips-row">
+				<FilterChip
+					type="info"
+					label="Filtered by channel"
+					value={$videos.length > 0
+						? ($videos[0].channel?.name ?? $videos[0].channel_name ?? $selectedChannel)
+						: $selectedChannel}
+					onClear={clearChannelFilter}
+					clearClass="clear-btn--blue"
+				/>
+			</div>
+		{/if}
 
 		{#if $videos.length > 0}
 			<VideoGrid
@@ -398,6 +436,12 @@
 				formatLength={utils.formatLength}
 				{filterByChannel}
 				query={$page.url.search}
+				{isChannelSaved}
+				{isWatchLater}
+				onAddToChannels={handleAddToChannels}
+				onRemoveFromChannels={handleRemoveFromChannels}
+				onAddToWatchLater={handleAddToWatchLater}
+				onRemoveFromWatchLater={handleRemoveFromWatchLater}
 			/>
 			{#if $sortBy === 'random'}
 				<button
@@ -432,8 +476,6 @@
 			on:closeSearch={() => (showMobileSearch = false)}
 			on:searchInput={(e) => handleMobileSearchInput(e.detail)}
 			on:submitSearch={(e) => handleMobileSearchSubmit(e.detail)}
-			on:sort={() => (showSortDropdown = true)}
-			on:filter={() => (showFullPageFilter = true)}
 		/>
 		<SortDropdown
 			open={showSortDropdown}
@@ -562,5 +604,4 @@
 		opacity: 0.66;
 		cursor: not-allowed;
 	}
-	
 </style>
