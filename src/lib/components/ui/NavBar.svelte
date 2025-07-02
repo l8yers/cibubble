@@ -217,16 +217,28 @@ body.dark-mode .drawer-close {
     top: 0;
     z-index: 2100;
     background: #fff;
-    padding: 0.2em 0.2em;
-    min-height: 44px;
+    padding: 0 !important;
+    min-height: unset;
+    height: auto;
+    align-items: center;   /* <-- Center everything vertically */
   }
   .nav-links { display: none; }
   .menu-toggle { display: block; }
+  .logo-link {
+    padding: 0 !important;
+    margin: 0 !important;
+    height: 100%;
+  }
   .logo-img {
-    height: 3em !important;
+    display: block;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 2.8em !important;
     max-height: 48px !important;
+    width: auto !important;
   }
 }
+
 @media (min-width: 721px) {
   .drawer-backdrop, .mobile-drawer { display: none !important; }
 }
