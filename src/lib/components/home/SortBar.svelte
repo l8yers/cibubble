@@ -1,6 +1,6 @@
 <script>
 	import { createEventDispatcher, onMount } from 'svelte';
-	import { ArrowDownUp, BarChart3, Search, X, Earth, Tag, User, MoreHorizontal } from 'lucide-svelte';
+	import { ArrowDownUp, BarChart3, Search, X, Earth, Tag, User, MoreHorizontal, Clock } from 'lucide-svelte';
 	import { user } from '$lib/stores/user.js';
 
 	export let levels = [];
@@ -18,7 +18,6 @@
 
 	const dispatch = createEventDispatcher();
 
-	// Dropdown state
 	let showSortDropdown = false;
 	let showLevelDropdown = false;
 	let showCountryDropdown = false;
@@ -33,13 +32,12 @@
 		myChannelsDropdownRef,
 		moreDropdownRef;
 
-	// "Tablet" logic, if you want to collapse more controls at certain width
 	let isTablet = false;
 	let isSmallMobile = false;
 
 	function updateSize() {
 		isTablet = window.innerWidth < 1200;
-		isSmallMobile = window.innerWidth < 650; // Collapse Levels as well!
+		isSmallMobile = window.innerWidth < 650;
 	}
 	onMount(() => {
 		updateSize();
@@ -347,6 +345,19 @@
 					</button>
 					{#if showMyChannelsDropdown}
 						<div class="dropdown-content">
+							<!-- WATCH LATER OPTION -->
+							<label class="level-checkbox">
+								<input
+									type="checkbox"
+									checked={selectedChannel === '__WATCH_LATER__'}
+									on:change={() => emitChange({ selectedChannel: '__WATCH_LATER__' })}
+								/>
+								<span style="display:flex;align-items:center;">
+									<Clock size={17} style="margin-right:4px;vertical-align:-2px;" />
+									Watch Later
+								</span>
+							</label>
+							<hr style="margin:0.5em 0;" />
 							<label class="level-checkbox">
 								<input
 									type="checkbox"
@@ -499,6 +510,18 @@
 								<div class="dropdown-label" style="font-weight:700; font-size:1.01em;">
 									My Channels
 								</div>
+								<!-- WATCH LATER OPTION -->
+								<label class="level-checkbox">
+									<input
+										type="checkbox"
+										checked={selectedChannel === '__WATCH_LATER__'}
+										on:change={() => emitChange({ selectedChannel: '__WATCH_LATER__' })}
+									/>
+									<span style="display:flex;align-items:center;">
+										<Clock size={17} style="margin-right:4px;vertical-align:-2px;" />
+										Watch Later
+									</span>
+								</label>
 								<label class="level-checkbox">
 									<input
 										type="checkbox"

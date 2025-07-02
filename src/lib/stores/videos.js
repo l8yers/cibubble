@@ -2,14 +2,13 @@ import { writable, derived } from 'svelte/store';
 import { fetchAllVideos } from '../api/videos.js';
 import { filterAndSortVideos } from '../services/videoFilters.js';
 import { supabase } from '$lib/supabaseClient';
-import { user } from '$lib/stores/user.js';
 
-// Core video state
+// --- VIDEO STATE ---
 export const allVideos = writable([]);
 export const loading = writable(false);
 export const errorMsg = writable('');
 
-// UI filter state
+// --- FILTER STATE ---
 export const selectedChannel = writable('');
 export const selectedPlaylist = writable('');
 export const selectedLevels = writable(new Set(['easy', 'intermediate', 'advanced']));
@@ -20,10 +19,11 @@ export const hideWatched = writable(false);
 export const watchedIds = writable(new Set());
 export const searchTerm = writable('');
 
-// ---- NEW: Watch Later State ----
+// --- WATCH LATER STATE ---
 export const watchLaterIds = writable(new Set());
+export const watchLaterLoading = writable(false);
 
-// Fetch all videos and set store
+// -- FETCH: All Videos --
 export async function loadVideos() {
   loading.set(true);
   errorMsg.set('');
@@ -33,7 +33,7 @@ export async function loadVideos() {
   loading.set(false);
 }
 
-// Fetch watched video IDs for the current user
+// -- FETCH: Watched Video IDs --
 export async function loadWatchedVideos() {
   const { data: currentUser } = await supabase.auth.getUser();
   const userId = currentUser?.user?.id;
@@ -41,7 +41,6 @@ export async function loadWatchedVideos() {
     watchedIds.set(new Set());
     return;
   }
-
   let { data, error } = await supabase
     .from('watch_sessions')
     .select('video_id')
@@ -54,12 +53,14 @@ export async function loadWatchedVideos() {
   watchedIds.set(new Set(data.map(row => row.video_id)));
 }
 
-// ---- NEW: Load Watch Later Video IDs ----
+// -- FETCH: Watch Later Video IDs --
 export async function loadWatchLaterVideos() {
+  watchLaterLoading.set(true);
   const { data: currentUser } = await supabase.auth.getUser();
   const userId = currentUser?.user?.id;
   if (!userId) {
     watchLaterIds.set(new Set());
+    watchLaterLoading.set(false);
     return;
   }
 
@@ -70,12 +71,14 @@ export async function loadWatchLaterVideos() {
 
   if (error || !data) {
     watchLaterIds.set(new Set());
+    watchLaterLoading.set(false);
     return;
   }
   watchLaterIds.set(new Set(data.map(row => row.video_id)));
+  watchLaterLoading.set(false);
 }
 
-// ---- NEW: Add to Watch Later ----
+// -- ADD: Watch Later --
 export async function addToWatchLater(videoId) {
   const { data: currentUser } = await supabase.auth.getUser();
   const userId = currentUser?.user?.id;
@@ -96,7 +99,7 @@ export async function addToWatchLater(videoId) {
   return error;
 }
 
-// ---- NEW: Remove from Watch Later (optional, for toggling UI) ----
+// -- REMOVE: Watch Later --
 export async function removeFromWatchLater(videoId) {
   const { data: currentUser } = await supabase.auth.getUser();
   const userId = currentUser?.user?.id;
@@ -118,16 +121,20 @@ export async function removeFromWatchLater(videoId) {
   return error;
 }
 
-// Derived store for filtered videos (unchanged)
+// -- DERIVED: Filtered Videos --
 export const filteredVideos = derived(
   [
     allVideos, selectedChannel, selectedPlaylist, selectedLevels,
-    sortBy, selectedCountry, selectedTags, hideWatched, watchedIds, searchTerm
+    sortBy, selectedCountry, selectedTags, hideWatched, watchedIds, searchTerm, watchLaterIds
   ],
   ([
     $allVideos, $selectedChannel, $selectedPlaylist, $selectedLevels,
-    $sortBy, $selectedCountry, $selectedTags, $hideWatched, $watchedIds, $searchTerm
+    $sortBy, $selectedCountry, $selectedTags, $hideWatched, $watchedIds, $searchTerm, $watchLaterIds
   ]) => {
+    // WATCH LATER IS PURELY CLIENT-SIDE FILTER
+    if ($selectedChannel === '__WATCH_LATER__') {
+      return $allVideos.filter(v => $watchLaterIds.has(v.id));
+    }
     return filterAndSortVideos($allVideos, {
       selectedChannel: $selectedChannel,
       selectedPlaylist: $selectedPlaylist,
@@ -142,7 +149,7 @@ export const filteredVideos = derived(
   }
 );
 
-// Mark watched utility (unchanged)
+// -- MARK VIDEO WATCHED --
 export function markVideoWatched(videoId) {
   watchedIds.update(ids => {
     const next = new Set(ids);

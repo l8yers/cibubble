@@ -17,7 +17,7 @@
 	import * as utils from '$lib/utils/utils.js';
 	import { filtersToQuery, queryToFilters } from '$lib/utils/filters.js';
 	import { updateUrlFromFilters } from '$lib/utils/url.js';
-
+	import { watchLaterLoading } from '$lib/stores/videos.js';
 
 	import {
 		selectedChannel,
@@ -27,8 +27,11 @@
 		selectedTags,
 		hideWatched,
 		watchedIds,
-		searchTerm
+		watchLaterIds, // PATCH: Needed for watch later logic
+		searchTerm,
+		loadWatchLaterVideos
 	} from '$lib/stores/videos.js';
+
 	import {
 		LEVELS,
 		VALID_LEVELS,
@@ -36,6 +39,7 @@
 		COUNTRY_OPTIONS,
 		TAG_OPTIONS
 	} from '$lib/constants.js';
+
 	import { user } from '$lib/stores/user.js';
 	import { userChannels } from '$lib/stores/userChannels.js';
 	import { getUserSavedChannels } from '$lib/api/userChannels.js';
@@ -49,7 +53,11 @@
 
 	onMount(() => {
 		mounted = true;
+		// Load Watch Later IDs when user logs in or page loads
+		if ($user) loadWatchLaterVideos();
 	});
+
+	$: if ($user) loadWatchLaterVideos();
 
 	const PAGE_SIZE = 36;
 	const videos = writable([]);
@@ -116,7 +124,9 @@
 			channelFilter = get(userChannels)
 				.map((ch) => ch.id)
 				.join(',');
-		} else if (channelFilter === '') {
+		}
+		// PATCH: Never send __WATCH_LATER__ to API. Just fetch ALL videos for this case.
+		else if (channelFilter === '' || channelFilter === '__WATCH_LATER__') {
 			channelFilter = '';
 		}
 
@@ -312,8 +322,15 @@
 		resetAndFetch();
 	}
 
-	$: filteredVideos = $hideWatched ? $videos.filter((v) => !$watchedIds.has(v.id)) : $videos;
+	// ---- FILTERED VIDEOS LOGIC ----
+	$: filteredVideos =
+		$selectedChannel === '__WATCH_LATER__'
+			? $videos.filter((v) => $watchLaterIds.has(v.id))
+			: $hideWatched
+				? $videos.filter((v) => !$watchedIds.has(v.id))
+				: $videos;
 
+	// Saved channels handling
 	$: if ($user) {
 		getUserSavedChannels($user.id)
 			.then((chs) => userChannels.set(chs))
@@ -331,7 +348,6 @@
 		search: $searchTerm
 	});
 </script>
-
 
 <div class="page-container">
 	{#if mounted && !$isMobile}
@@ -397,11 +413,11 @@
 	</div>
 
 	<div class="center-content">
-		{#if $loading && $videos.length === 0}
+		{#if $loading || ($selectedChannel === '__WATCH_LATER__' && $watchLaterLoading)}
 			<LoadingSpinner />
 		{:else if $errorMsg}
 			<ErrorMessage message={$errorMsg} />
-		{:else if !$loading && $videos.length === 0}
+		{:else if filteredVideos.length === 0}
 			<div class="loading-more text-muted">No videos match your filters.</div>
 		{/if}
 	</div>
@@ -440,108 +456,107 @@
 </div>
 
 <style>
-.page-container {
-	width: 100%;
-}
-.sortbar-container {
-	max-width: 1700px;
-	margin: 0 auto;
-}
-.content-container {
-	max-width: 1700px;
-	margin: 0 auto;
-}
-.chips-row {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 0.7em;
-	margin: 0 0 1em 0;
-	justify-content: flex-start;
-	padding-left: 2rem;
-	padding-right: 2rem;
-}
-
-/* Tablet and below */
-@media (max-width: 1200px) {
-	.content-container {
-		max-width: 1100px;
-	}
-	.chips-row {
-		padding-left: 2rem;
-		padding-right: 2rem;
-	}
-}
-@media (max-width: 900px) {
-	.content-container {
-		max-width: 700px;
-	}
-	.chips-row {
-		padding-left: 2rem;
-		padding-right: 2rem;
-	}
-}
-
-/* Mobile: remove all the side padding/margins */
-@media (max-width: 700px) {
 	.page-container {
-		padding-left: 0;
-		padding-right: 0;
+		width: 100%;
 	}
 	.sortbar-container {
-		max-width: 100vw;
-		margin: 0;
+		max-width: 1700px;
+		margin: 0 auto;
 	}
 	.content-container {
-		max-width: 100vw;
-		margin-left: 0;
-		margin-right: 0;
+		max-width: 1700px;
+		margin: 0 auto;
 	}
 	.chips-row {
-		padding-left: 0.3rem;
-		padding-right: 0.3rem;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.7em;
+		margin: 0 0 1em 0;
+		justify-content: flex-start;
+		padding-left: 2rem;
+		padding-right: 2rem;
 	}
-}
 
-/* Misc layout */
-.center-content {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	margin: 1em 0 2em 0;
-	width: 100%;
-	text-align: center;
-	min-height: 48px;
-}
-.center-content > * {
-	margin-bottom: 0.75em;
-}
-.loading-more {
-	font-size: 1.15em;
-	color: #555;
-	margin: 2em 0 0 0;
-	text-align: center;
-}
-.text-muted {
-	color: #888;
-}
-.load-more-btn {
-	padding: 0.9em 2.4em;
-	font-size: 1.17em;
-	background: #fafbff;
-	border: 1.6px solid #d6d6ee;
-	border-radius: 13px;
-	box-shadow: 0 2px 12px #ececec80;
-	font-weight: 700;
-	cursor: pointer;
-	margin: 2em auto 0 auto;
-	transition: background 0.15s;
-	display: block;
-}
-.load-more-btn:disabled {
-	opacity: 0.66;
-	cursor: not-allowed;
-}
+	/* Tablet and below */
+	@media (max-width: 1200px) {
+		.content-container {
+			max-width: 1100px;
+		}
+		.chips-row {
+			padding-left: 2rem;
+			padding-right: 2rem;
+		}
+	}
+	@media (max-width: 900px) {
+		.content-container {
+			max-width: 700px;
+		}
+		.chips-row {
+			padding-left: 2rem;
+			padding-right: 2rem;
+		}
+	}
 
+	/* Mobile: remove all the side padding/margins */
+	@media (max-width: 700px) {
+		.page-container {
+			padding-left: 0;
+			padding-right: 0;
+		}
+		.sortbar-container {
+			max-width: 100vw;
+			margin: 0;
+		}
+		.content-container {
+			max-width: 100vw;
+			margin-left: 0;
+			margin-right: 0;
+		}
+		.chips-row {
+			padding-left: 0.3rem;
+			padding-right: 0.3rem;
+		}
+	}
+
+	/* Misc layout */
+	.center-content {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		margin: 1em 0 2em 0;
+		width: 100%;
+		text-align: center;
+		min-height: 48px;
+	}
+	.center-content > * {
+		margin-bottom: 0.75em;
+	}
+	.loading-more {
+		font-size: 1.15em;
+		color: #555;
+		margin: 2em 0 0 0;
+		text-align: center;
+	}
+	.text-muted {
+		color: #888;
+	}
+	.load-more-btn {
+		padding: 0.9em 2.4em;
+		font-size: 1.17em;
+		background: #fafbff;
+		border: 1.6px solid #d6d6ee;
+		border-radius: 13px;
+		box-shadow: 0 2px 12px #ececec80;
+		font-weight: 700;
+		cursor: pointer;
+		margin: 2em auto 0 auto;
+		transition: background 0.15s;
+		display: block;
+	}
+	.load-more-btn:disabled {
+		opacity: 0.66;
+		cursor: not-allowed;
+	}
 </style>
