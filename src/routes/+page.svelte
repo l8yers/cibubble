@@ -56,37 +56,33 @@
 	let showFullPageFilter = false;
 	let showMobileSearch = false;
 
-onMount(() => {
-	mounted = true;
+	onMount(() => {
+		mounted = true;
 
-	// Handle filters and initial fetch
-	let filters;
-	if ($page.url.search && $page.url.search.length > 1) {
-		filters = queryToFilters($page.url.search);
-		saveFiltersToStorage(filters);
-	} else {
-		filters = loadFiltersFromStorage() || {};
-	}
+		// Handle filters and initial fetch
+		let filters;
+		if ($page.url.search && $page.url.search.length > 1) {
+			filters = queryToFilters($page.url.search);
+			saveFiltersToStorage(filters);
+		} else {
+			filters = loadFiltersFromStorage() || {};
+		}
 
-	const safeLevels = new Set(
-		Array.from(filters.levels || []).filter((lvl) => validLevels.has(lvl))
-	);
-	selectedLevels.set(
-		safeLevels.size ? safeLevels : new Set(['easy', 'intermediate', 'advanced'])
-	);
-	selectedTags.set(filters.tags && filters.tags.length ? new Set(filters.tags) : new Set());
-	selectedCountry.set(filters.country || '');
-	selectedChannel.set(filters.channel || '');
-	sortBy.set(filters.sort || 'new');
-	searchTerm.set(filters.search || '');
+		const safeLevels = new Set(
+			Array.from(filters.levels || []).filter((lvl) => validLevels.has(lvl))
+		);
+		selectedLevels.set(
+			safeLevels.size ? safeLevels : new Set(['easy', 'intermediate', 'advanced'])
+		);
+		selectedTags.set(filters.tags && filters.tags.length ? new Set(filters.tags) : new Set());
+		selectedCountry.set(filters.country || '');
+		selectedChannel.set(filters.channel || '');
+		sortBy.set(filters.sort || 'new');
+		searchTerm.set(filters.search || '');
 
-	resetAndFetch();
-	firstLoad = false;
-
-	// User watch later logic
-	if ($user) loadWatchLaterVideos();
-});
-
+		resetAndFetch();
+		firstLoad = false;
+	});
 
 	$: if ($user) loadWatchLaterVideos();
 
@@ -305,8 +301,6 @@ onMount(() => {
 
 	let firstLoad = true;
 	let lastQuery = '';
-;
-
 	$: currentQuery = $page.url.search;
 	$: if (!firstLoad && currentQuery !== lastQuery) {
 		lastQuery = currentQuery;
