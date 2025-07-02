@@ -473,6 +473,8 @@
 			on:closeSearch={() => (showMobileSearch = false)}
 			on:searchInput={(e) => handleMobileSearchInput(e.detail)}
 			on:submitSearch={(e) => handleMobileSearchSubmit(e.detail)}
+			on:sort={() => (showSortDropdown = true)}
+			on:filter={() => (showFullPageFilter = true)}
 		/>
 		<SortDropdown
 			open={showSortDropdown}
