@@ -11,6 +11,11 @@
 	import { autoplay } from '$lib/stores/autoplay.js';
 	import VideoWatchTracker from '$lib/components/VideoWatchTracker.svelte';
 	import { shuffle, parseTags, fetchSuggestions } from '$lib/utils/videoUtils.js';
+	import {
+		watchLaterIds,
+		addToWatchLater,
+		loadWatchLaterVideos
+	} from '$lib/stores/videos.js';
 
 	let video = null;
 	let loading = true;
@@ -23,8 +28,15 @@
 	let savingChannel = false;
 	let isChannelSaved = false;
 
+	let savingWatchLater = false;
+	let isWatchLater = false;
+
 	$: id = $page.params.id;
 	$: if (id) initializePlayer();
+
+	// ---- Watch Later logic ----
+	$: $watchLaterIds;
+	$: isWatchLater = video ? $watchLaterIds.has(video.id) : false;
 
 	onMount(() => {
 		const check = () => (isMobile = window.innerWidth <= 800);
@@ -54,6 +66,7 @@
 		if (!video) return;
 		suggestions = await fetchSuggestions(video, supabase);
 		if ($user && video?.channel_id) checkIfChannelSaved();
+		if ($user && video) loadWatchLaterVideos();
 	}
 
 	async function checkIfChannelSaved() {
@@ -81,6 +94,14 @@
 		savingChannel = false;
 	}
 
+	// ---- Watch Later logic: call from dropdown ----
+	async function saveToWatchLater() {
+		if (!$user || !video?.id || isWatchLater || savingWatchLater) return;
+		savingWatchLater = true;
+		await addToWatchLater(video.id);
+		savingWatchLater = false;
+	}
+
 	function handlePlayNextVideo(event) {
 		const nextId = event.detail;
 		if (nextId) {
@@ -106,6 +127,9 @@
 					isChannelSaved={isChannelSaved}
 					savingChannel={savingChannel}
 					saveChannelToMyChannels={saveChannelToMyChannels}
+					isWatchLater={isWatchLater}
+					savingWatchLater={savingWatchLater}
+					saveToWatchLater={saveToWatchLater}
 				/>
 			</div>
 

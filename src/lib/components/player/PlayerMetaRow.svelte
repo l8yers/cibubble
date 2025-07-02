@@ -1,15 +1,15 @@
 <script>
 	import { onMount, createEventDispatcher } from 'svelte';
-	import AddToMyChannelsButton from '$lib/components/player/AddToMyChannelsButton.svelte';
 	import { CheckCircle, PlusCircle, Clock } from 'lucide-svelte';
 
 	export let video;
 	export let utils;
 	export let user = null;
+
 	export let isChannelSaved = false;
 	export let savingChannel = false;
 	export let saveChannelToMyChannels = () => {};
-	// --- NEW PROPS for watch later ---
+
 	export let isWatchLater = false;
 	export let savingWatchLater = false;
 	export let saveToWatchLater = () => {};
@@ -26,8 +26,7 @@
 	function closeDropdown() {
 		showDropdown = false;
 	}
-	// Close dropdown if you click outside
-	function handleBlur(e) {
+	function handleBlur() {
 		setTimeout(() => {
 			if (!menuButtonRef?.contains(document.activeElement)) {
 				showDropdown = false;
@@ -44,11 +43,9 @@
 </script>
 
 <div class="player-meta-row">
-	<!-- Title row with AddToMyChannels and three stacked dots -->
 	<div class="meta-title-row">
 		<div class="player-title">{video.title}</div>
 		{#if user && video?.channel_id && !isMobile}
-			<!-- DROPDOWN WRAPPER -->
 			<div class="add-to-channels-wrapper" style="position: relative;">
 				<button
 					class="more-btn"
@@ -67,12 +64,11 @@
 				</button>
 				{#if showDropdown}
 					<div class="meta-dropdown-menu">
-						<!-- ADD TO MY CHANNELS -->
 						<button
 							class="dropdown-link"
 							type="button"
 							on:click={() => { saveChannelToMyChannels(); closeDropdown(); }}
-							disabled={savingChannel}
+							disabled={isChannelSaved || savingChannel}
 						>
 							{#if isChannelSaved}
 								<CheckCircle class="dropdown-icon in" />
@@ -82,12 +78,11 @@
 								Add to My Channels
 							{/if}
 						</button>
-						<!-- ADD TO WATCH LATER -->
 						<button
 							class="dropdown-link"
 							type="button"
 							on:click={() => { saveToWatchLater(); closeDropdown(); }}
-							disabled={savingWatchLater || isWatchLater}
+							disabled={isWatchLater || savingWatchLater}
 						>
 							{#if isWatchLater}
 								<CheckCircle class="dropdown-icon in" />
@@ -103,7 +98,6 @@
 		{/if}
 	</div>
 	
-	<!-- Channel name left, duration right -->
 	<div class="meta-channel-row">
 		{#if video?.channel?.name}
 			<div class="player-channel">{video.channel.name}</div>
@@ -113,7 +107,6 @@
 		{/if}
 	</div>
 
-	<!-- Difficulty badge and tags badge -->
 	<div class="player-meta-badges">
 		<span
 			class="player-diff-badge"
@@ -121,7 +114,6 @@
 		>
 			{utils.difficultyLabel(video.level)}
 		</span>
-		<!-- TAGS BADGE BUTTON -->
 		<button
 			class="player-tags-badge"
 			type="button"
@@ -130,11 +122,6 @@
 		>
 			TAGS
 		</button>
-		{#if user && video?.channel_id && isMobile}
-			<div class="add-to-channels-wrapper mobile">
-				<AddToMyChannelsButton {isChannelSaved} {savingChannel} {saveChannelToMyChannels} />
-			</div>
-		{/if}
 	</div>
 </div>
 
@@ -147,7 +134,7 @@
 	background: #fff;
 	border-radius: 14px;
 	box-shadow: 0 4px 16px #2a223310;
-	min-width: 190px;
+	min-width: 240px;
 	padding: 0.23em 0;
 	z-index: 100;
 	display: flex;
@@ -189,8 +176,6 @@
 .dropdown-icon.in {
 	color: #e93c2f;
 }
-
-/* --- REMOVE HOVER STYLING FROM DOTS BUTTON --- */
 .more-btn {
 	background: none;
 	border: none;
@@ -206,7 +191,23 @@
 .more-btn:hover, .more-btn:focus {
 	background: none;
 }
-
+.stacked-dots {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	height: 16px;
+	width: 14px;
+	padding: 0;
+}
+.stacked-dots .dot {
+	width: 4px;
+	height: 4px;
+	background: #181818;
+	border-radius: 50%;
+	margin: 1px 0;
+	display: block;
+}
 /* --- REST OF YOUR ORIGINAL STYLES (unchanged) --- */
 .player-meta-row {
 	display: flex;
@@ -244,24 +245,6 @@
 	align-items: center;
 	flex-shrink: 0;
 }
-.stacked-dots {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	height: 16px;
-	width: 14px;
-	padding: 0;
-}
-.stacked-dots .dot {
-	width: 4px;
-	height: 4px;
-	background: #181818;
-	border-radius: 50%;
-	margin: 1px 0;
-	display: block;
-}
-
 .meta-channel-row {
 	display: flex;
 	flex-direction: row;

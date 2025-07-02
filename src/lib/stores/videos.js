@@ -13,12 +13,15 @@ export const errorMsg = writable('');
 export const selectedChannel = writable('');
 export const selectedPlaylist = writable('');
 export const selectedLevels = writable(new Set(['easy', 'intermediate', 'advanced']));
-export const sortBy = writable('new'); // <- default is now "new"
+export const sortBy = writable('new');
 export const selectedCountry = writable('');
 export const selectedTags = writable(new Set());
 export const hideWatched = writable(false);
 export const watchedIds = writable(new Set());
 export const searchTerm = writable('');
+
+// ---- NEW: Watch Later State ----
+export const watchLaterIds = writable(new Set());
 
 // Fetch all videos and set store
 export async function loadVideos() {
@@ -51,7 +54,71 @@ export async function loadWatchedVideos() {
   watchedIds.set(new Set(data.map(row => row.video_id)));
 }
 
-// Derived store (if used)
+// ---- NEW: Load Watch Later Video IDs ----
+export async function loadWatchLaterVideos() {
+  const { data: currentUser } = await supabase.auth.getUser();
+  const userId = currentUser?.user?.id;
+  if (!userId) {
+    watchLaterIds.set(new Set());
+    return;
+  }
+
+  let { data, error } = await supabase
+    .from('watch_later')
+    .select('video_id')
+    .eq('user_id', userId);
+
+  if (error || !data) {
+    watchLaterIds.set(new Set());
+    return;
+  }
+  watchLaterIds.set(new Set(data.map(row => row.video_id)));
+}
+
+// ---- NEW: Add to Watch Later ----
+export async function addToWatchLater(videoId) {
+  const { data: currentUser } = await supabase.auth.getUser();
+  const userId = currentUser?.user?.id;
+  if (!userId || !videoId) return;
+
+  let { error } = await supabase
+    .from('watch_later')
+    .insert({ user_id: userId, video_id: videoId })
+    .single();
+
+  if (!error) {
+    watchLaterIds.update(ids => {
+      const next = new Set(ids);
+      next.add(videoId);
+      return next;
+    });
+  }
+  return error;
+}
+
+// ---- NEW: Remove from Watch Later (optional, for toggling UI) ----
+export async function removeFromWatchLater(videoId) {
+  const { data: currentUser } = await supabase.auth.getUser();
+  const userId = currentUser?.user?.id;
+  if (!userId || !videoId) return;
+
+  let { error } = await supabase
+    .from('watch_later')
+    .delete()
+    .eq('user_id', userId)
+    .eq('video_id', videoId);
+
+  if (!error) {
+    watchLaterIds.update(ids => {
+      const next = new Set(ids);
+      next.delete(videoId);
+      return next;
+    });
+  }
+  return error;
+}
+
+// Derived store for filtered videos (unchanged)
 export const filteredVideos = derived(
   [
     allVideos, selectedChannel, selectedPlaylist, selectedLevels,
@@ -75,6 +142,7 @@ export const filteredVideos = derived(
   }
 );
 
+// Mark watched utility (unchanged)
 export function markVideoWatched(videoId) {
   watchedIds.update(ids => {
     const next = new Set(ids);
