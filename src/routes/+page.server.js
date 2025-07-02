@@ -2,7 +2,7 @@
 import { supabase } from '$lib/supabaseClient';
 
 export async function load() {
-  const pageSize = 30; // Same as your front page
+  const pageSize = 36; // Same as your front page
 
   const { data, error } = await supabase
     .from('videos')
