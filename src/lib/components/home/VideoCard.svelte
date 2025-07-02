@@ -1,6 +1,6 @@
 <script>
   import { goto } from '$app/navigation';
-  import { PlusCircle, XCircle, Clock, X } from 'lucide-svelte';
+  import { MoreVertical, PlusCircle, XCircle, Clock, X } from 'lucide-svelte';
 
   // Svelte action: call callback when clicking outside node
   function onClickOutside(node, callback) {
@@ -90,11 +90,7 @@
     <div class="card-title-row">
       <span class="card-title">{video.title}</span>
       <span class="dots-menu" title="Menu" on:click={toggleMenu}>
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="display:block;" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="10" cy="4" r="1.45" fill="#222" />
-          <circle cx="10" cy="10" r="1.45" fill="#222" />
-          <circle cx="10" cy="16" r="1.45" fill="#222" />
-        </svg>
+        <MoreVertical size={20} />
         {#if menuOpen}
           <div class="dropdown-menu" use:onClickOutside={closeMenu}>
             <!-- Toggle My Channels -->
@@ -165,7 +161,7 @@
   </div>
 </div>
 
-<style>
+<style> 
 .card {
   background: #fff;
   border-radius: 6px;
@@ -175,6 +171,7 @@
   flex-direction: column;
   border: 1px solid #ededed;
 }
+
 .thumb-wrapper {
   position: relative;
   display: block;
@@ -207,6 +204,7 @@
   text-align: right;
   white-space: nowrap;
 }
+
 .card-body {
   padding: 1rem 1rem 0.7rem 1rem;
   color: #222;
@@ -214,33 +212,37 @@
   display: flex;
   flex-direction: column;
 }
+
 .card-title-row {
   display: flex;
+  justify-content: space-between;
   align-items: flex-start;
-  gap: 0.6em;
   margin-bottom: 0.2em;
+  gap: 0.6em;
 }
+
 .card-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;        /* Clamp to two lines */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   font-size: 1.08rem;
   font-weight: 600;
-  min-height: 2.7em;
-  max-height: 2.8em;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  flex: 1;
   line-height: 1.32;
+  /* No max-width or flex, let layout handle it */
 }
+
 .dots-menu {
-  margin-left: auto;
+  flex: 0 0 auto;
+  margin-left: 0.6em;
+  margin-right: 0;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   cursor: pointer;
   position: relative;
-  margin-top: 0.03em;
   z-index: 20;
 }
+
 .dropdown-menu {
   position: absolute;
   bottom: 28px;
@@ -331,8 +333,10 @@
     font-size: 0.95em;
     font-weight: 600;
     line-height: 1.23;
-    min-height: 2.1em;
-    max-height: 2.3em;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   .card-meta {
     font-size: 0.8em;
