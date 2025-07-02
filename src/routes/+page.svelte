@@ -372,19 +372,22 @@
 	{/if}
 
 	<div class="content-container">
-		{#if $selectedChannel && $selectedChannel !== '__ALL__'}
-			<div class="chips-row">
-				<FilterChip
-					type="info"
-					label="Filtered by channel"
-					value={$videos.length > 0
-						? ($videos[0].channel?.name ?? $videos[0].channel_name ?? $selectedChannel)
-						: $selectedChannel}
-					onClear={clearChannelFilter}
-					clearClass="clear-btn--blue"
-				/>
-			</div>
-		{/if}
+{#if $selectedChannel 
+   && $selectedChannel !== '__ALL__' 
+   && $selectedChannel !== '__WATCH_LATER__'}
+	<div class="chips-row">
+		<FilterChip
+			type="info"
+			label="Filtered by channel"
+			value={$videos.length > 0
+				? ($videos[0].channel?.name ?? $videos[0].channel_name ?? $selectedChannel)
+				: $selectedChannel}
+			onClear={clearChannelFilter}
+			clearClass="clear-btn--blue"
+		/>
+	</div>
+{/if}
+
 
 		{#if $videos.length > 0}
 			<VideoGrid
