@@ -11,7 +11,6 @@
   let loading = true;
   let playlistTitle = '';
 
-
   function badgeColor(level) {
     switch ((level || '').toLowerCase()) {
       case 'easy': return '#069C56';
@@ -130,7 +129,7 @@
                   style="background: {badgeColor(v.level)};"
                   title={v.level}
                 >
-                  <ChartNoAxesColumnIncreasing size={19} stroke-width="2.2" color="#fff" />
+                  <ChartNoAxesColumnIncreasing size={17} stroke-width="2.1" color="#fff" />
                 </span>
               {/if}
               {#if !video.playlist_id && v.channel_id && (v.channel?.name || v.channel_name)}
@@ -166,7 +165,9 @@
   max-height: 100vh;
   box-sizing: border-box;
   background: #fff;
+  padding: 1.1rem 0 1.1rem 0;
 }
+
 .sidebar-header {
   font-size: 1.08em;
   font-weight: 700;
@@ -208,15 +209,6 @@
   font-size: 0.98em;
 }
 
-.sidebar-root {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1em;
-  padding: 1.1rem 0 1.1rem 0;  /* ADD THIS */
-}
-
-
 .sidebar-card-list {
   flex: 1 1 0;
   overflow-y: auto;
@@ -229,53 +221,51 @@
   padding-bottom: 0.5em;
 }
 
+/* NEW: Perfectly aligned, larger thumbnail */
 .sidebar-card.horizontal-card {
   display: flex;
   flex-direction: row;
-  align-items: center;
+  align-items: stretch;
   background: #fff;
   border-radius: 6px;
-  box-shadow: 0 2px 12px #e8e8e8;
-  border: 1px solid #ededed;
-  text-decoration: none;
-  min-height: 84px;
-  padding: 0 0.7em 0 0.12em;
-  gap: 1.05em;
-  transition: none;
+  box-shadow: 0 2px 8px #e4e4e466;
+  border: 1px solid #ececec;
+  min-height: 98px;
+  height: 98px;
+  padding: 0;
+  gap: 1.03em;
+  transition: box-shadow 0.15s, border 0.15s;
   outline: none;
-}
-.sidebar-card.horizontal-card:hover,
-.sidebar-card.horizontal-card:focus {
-  background: #fff;
-  box-shadow: 0 2px 12px #e8e8e8;
-  transform: none;
+  overflow: hidden;
 }
 
 .sidebar-thumb-wrapper {
   position: relative;
-  width: 45%;
-  min-width: 96px;
-  max-width: 160px;
+  min-width: 174px;
+  max-width: 174px;
+  height: 98px;
   aspect-ratio: 16/9;
-  border-radius: 6px;
+  border-radius: 6px 0 0 6px;
   overflow: hidden;
-  background: #ededed;
-  box-shadow: 0 1px 8px #0001;
+  background: #f0f0f0;
+  box-shadow: none;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
   flex-shrink: 0;
 }
+
 .sidebar-thumb {
   width: 100%;
-  height: auto;
-  aspect-ratio: 16/9;
+  height: 100%;
   object-fit: cover;
-  border-radius: 6px;
   display: block;
+  border-radius: 0;
   background: #ededed;
-  min-height: 54px;
+  min-width: 0;
+  min-height: 0;
 }
+
 .length-inline {
   position: absolute;
   right: 0.47em;
@@ -294,14 +284,17 @@
   text-align: right;
   white-space: nowrap;
 }
+
 .sidebar-card-content {
   display: flex;
   flex-direction: column;
   justify-content: center;
   min-width: 0;
-  flex: 1;
-  padding: 0 0.15em;
+  flex: 1 1 0;
+  padding: 0.36em 0.2em 0.36em 0.15em;
+  height: 100%;
 }
+
 .sidebar-title-row {
   display: flex;
   align-items: center;
@@ -316,7 +309,7 @@
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  line-clamp: 2; /* standard property for future browser support */
+  line-clamp: 2;
   flex: 1;
   line-height: 1.16;
   color: #232323;
@@ -329,7 +322,6 @@
   text-decoration: none;
   outline: none;
 }
-
 .sidebar-card-meta {
   display: flex;
   align-items: center;
@@ -338,7 +330,6 @@
   margin-top: 0.18em;
   font-size: 0.97em;
 }
-
 .ds-difficulty-badge {
   display: inline-flex;
   align-items: center;
@@ -378,10 +369,7 @@
   color: #e93c2f;
   outline: 1.5px solid #e93c2f;
 }
-@media (max-width: 800px) {
-  .sidebar-thumb-wrapper, .sidebar-thumb { width: 35vw; min-width: 50px; max-width: 100px; }
-  .sidebar-card-title { font-size: 0.93em; }
-}
+
 @media (max-width: 800px) {
   .sidebar-root {
     font-size: 0.92rem;
@@ -412,17 +400,40 @@
     padding-bottom: 0.2em;
   }
   .sidebar-card.horizontal-card {
-    min-height: 62px;
-    padding: 0 0.35em 0 0.05em;
-    gap: 0.62em;
+    min-height: 100px;
+    height: 100px;
+    padding: 0;
+    gap: 0;
+    align-items: stretch;
+  }
+  .sidebar-thumb-wrapper,
+  .sidebar-thumb {
+    width: 48vw;
+    min-width: 110px;
+    max-width: 170px;
+    height: 100px;
+    min-height: 100px;
+    max-height: 100px;
+    border-radius: 7px 0 0 7px;
+    margin-right: 0.07em;
+  }
+  .sidebar-card-content {
+    padding: 0 0.17em;
+  }
+  .sidebar-title-row {
+    gap: 0.18em;
+    margin-bottom: 0.03em;
   }
   .sidebar-card-title {
-    font-size: 0.89em;
+    font-size: 0.96em;
+    line-height: 1.19;
+    -webkit-line-clamp: 2;
+    max-height: 2.3em;
   }
   .sidebar-card-meta {
-    font-size: 0.88em;
-    margin-top: 0.08em;
-    gap: 0.18em;
+    font-size: 0.89em;
+    margin-top: 0.06em;
+    gap: 0.14em;
   }
   .ds-difficulty-badge {
     width: 20px;
@@ -430,73 +441,11 @@
     font-size: 0.97em;
   }
   .meta-link {
-    font-size: 0.88em;
-    padding: 0.08em 0.29em;
-    max-width: 78px;
+    font-size: 0.91em;
+    padding: 0.08em 0.21em;
+    max-width: 95px;
   }
 }
-@media (max-width: 800px) {
-  /* Make all sidebar suggestion text smaller on mobile */
-  .sidebar-root,
-  .sidebar-header,
-  .sidebar-title,
-  .sidebar-toggles,
-  .toggle,
-  .toggle-label,
-  .sidebar-card-list,
-  .sidebar-card.horizontal-card,
-  .sidebar-card-title,
-  .sidebar-card-meta,
-  .ds-difficulty-badge,
-  .meta-link {
-    font-size: 0.91rem !important;
-  }
 
-  /* Tighten up spacing above the sidebar and suggestions */
-  .sidebar-root {
-    padding-top: 0.22rem;
-    padding-bottom: 0.18rem;
-  }
-  .sidebar-header {
-    margin-bottom: 0.07em;
-    gap: 0.09em;
-  }
-  .sidebar-title {
-    margin-bottom: 0.11em;
-  }
-  .sidebar-toggles,
-  .toggle {
-    margin-top: 0.01em !important;
-    margin-bottom: 0.02em !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-  }
-  .sidebar-card-list {
-    margin-top: 0.18em;
-    gap: 0.28em;
-    padding-bottom: 0.13em;
-  }
-  .sidebar-card.horizontal-card {
-    min-height: 56px;
-    padding: 0 0.25em 0 0.03em;
-    gap: 0.51em;
-  }
-  .sidebar-card-title {
-    font-size: 0.88em;
-  }
-  .sidebar-card-meta {
-    margin-top: 0.04em;
-    gap: 0.13em;
-  }
-  .ds-difficulty-badge {
-    width: 18px;
-    height: 18px;
-    font-size: 0.89em;
-  }
-  .meta-link {
-    padding: 0.05em 0.18em;
-    max-width: 60px;
-  }
-}
 
 </style>
