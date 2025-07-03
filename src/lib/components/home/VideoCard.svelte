@@ -2,12 +2,9 @@
   import { goto } from '$app/navigation';
   import { MoreVertical, PlusCircle, XCircle, Clock, X } from 'lucide-svelte';
 
-  // Svelte action: call callback when clicking outside node
   function onClickOutside(node, callback) {
     const handleClick = (event) => {
-      if (!node.contains(event.target)) {
-        callback();
-      }
+      if (!node.contains(event.target)) callback();
     };
     document.addEventListener('mousedown', handleClick, true);
     return {
@@ -26,7 +23,6 @@
   export let filterByPlaylist;
   export let query = "";
 
-  // State for toggle logic and action handlers
   export let isChannelSaved = false;
   export let isWatchLater = false;
   export let onAddToChannels;
@@ -93,7 +89,6 @@
         <MoreVertical size={20} />
         {#if menuOpen}
           <div class="dropdown-menu" use:onClickOutside={closeMenu}>
-            <!-- Toggle My Channels -->
             {#if isChannelSaved}
               <button
                 class="dropdown-link"
@@ -115,8 +110,6 @@
                 Add to My Channels
               </button>
             {/if}
-
-            <!-- Toggle Watch Later -->
             {#if isWatchLater}
               <button
                 class="dropdown-link"
@@ -150,7 +143,6 @@
         <a
           class="meta-link channel-name"
           style="color:#2e9be6;cursor:pointer;"
-          title={video.channel?.name ?? video.channel_name}
           href={makeChannelUrl(video.channel_id)}
           on:click|preventDefault={() => goto(makeChannelUrl(video.channel_id))}
         >
@@ -160,8 +152,7 @@
     </div>
   </div>
 </div>
-
-<style> 
+<style>
 .card {
   background: #fff;
   border-radius: 6px;
@@ -223,12 +214,15 @@
 
 .card-title {
   display: -webkit-box;
-  -webkit-line-clamp: 2;        /* Clamp to two lines */
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: 1.08rem;
-  font-weight: 600;
-  line-height: 1.32;
+  text-overflow: ellipsis;
+  white-space: normal;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.35;
+  height: calc(1.15rem * 1.35 * 2);
 }
 
 .dots-menu {
@@ -284,17 +278,20 @@
   margin-right: 0.6em;
   vertical-align: -3px;
 }
+
 .card-meta {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 0.5em;
   margin-top: 0.6em;
-  font-size: 1em;
+  font-size: 0.97em;
+  min-width: 0;  /* KEY: allow children to shrink properly */
 }
+
 .badge {
   display: inline-block;
-  font-size: 0.89em;
+  font-size: 0.86em;
   font-weight: 600;
   padding: 0.18em 0.7em;
   border-radius: 4px;
@@ -305,13 +302,13 @@
   border: 1.5px solid transparent;
   text-shadow: 0 1px 4px #0001;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
-/* ---- Channel name & meta-link: bulletproof dark grey ---- */
 a.channel-name,
 a.meta-link {
   color: #444 !important;
-  font-size: 0.98em;
+  font-size: 0.95em;
   font-weight: 500;
   background: none;
   border-radius: 0;
@@ -319,7 +316,13 @@ a.meta-link {
   margin-right: 0.18em;
   text-decoration: none;
   transition: color 0.14s;
-  display: inline;
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1 1 0%;
+  min-width: 0;
+  vertical-align: bottom;
 }
 a.channel-name:hover,
 a.meta-link:hover,
@@ -336,26 +339,21 @@ a.meta-link:visited {
 
 @media (max-width: 720px) {
   .card-title {
-    font-size: 0.95em;
-    font-weight: 600;
-    line-height: 1.23;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    font-size: 0.98em;
+    line-height: 1.25;
+    height: calc(0.98em * 1.25 * 2);
   }
   .card-meta {
-    font-size: 0.8em;
+    font-size: 0.82em;
   }
   .badge {
-    font-size: 0.88em;
+    font-size: 0.78em;
     padding: 0.11em 0.45em;
   }
   a.channel-name,
   a.meta-link {
-    font-size: 0.93em;
+    font-size: 0.89em;
     padding: 0;
   }
 }
-
 </style>
