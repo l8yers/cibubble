@@ -6,6 +6,7 @@
   import SideBar from '$lib/components/player/SideBar.svelte';
   import PlayerVideoBox from '$lib/components/player/PlayerVideoBox.svelte';
   import PlayerMetaRow from '$lib/components/player/PlayerMetaRow.svelte';
+  import TagManagerModal from '$lib/components/player/TagManagerModal.svelte';
   import * as utils from '$lib/utils/utils.js';
   import { goto } from '$app/navigation';
   import { autoplay } from '$lib/stores/autoplay.js';
@@ -31,6 +32,9 @@
 
   let savingWatchLater = false;
   let isWatchLater = false;
+
+  // ---- MODAL STATE ----
+  let showTagModal = false;
 
   $: id = $page.params.id;
   $: if (id) initializePlayer();
@@ -141,20 +145,20 @@
 			<PlayerVideoBox {video} user={$user} {suggestions} {autoplayValue} {handlePlayNextVideo} />
 
 			<div class="player-content">
-<PlayerMetaRow
-  {video}
-  {utils}
-  user={$user}
-  isChannelSaved={isChannelSaved}
-  savingChannel={savingChannel}
-  saveChannelToMyChannels={saveChannelToMyChannels}
-  removeChannelFromMyChannels={removeChannelFromMyChannels}
-  isWatchLater={isWatchLater}
-  savingWatchLater={savingWatchLater}
-  saveToWatchLater={saveToWatchLater}
-  removeFromWatchLater={handleRemoveFromWatchLater}
-/>
-
+        <PlayerMetaRow
+          {video}
+          {utils}
+          user={$user}
+          isChannelSaved={isChannelSaved}
+          savingChannel={savingChannel}
+          saveChannelToMyChannels={saveChannelToMyChannels}
+          removeChannelFromMyChannels={removeChannelFromMyChannels}
+          isWatchLater={isWatchLater}
+          savingWatchLater={savingWatchLater}
+          saveToWatchLater={saveToWatchLater}
+          removeFromWatchLater={handleRemoveFromWatchLater}
+          on:openTags={() => showTagModal = true}
+        />
 			</div>
 
 			{#if isMobile}
@@ -167,10 +171,18 @@
 		<aside class="player-sidebar" style:display={isMobile ? 'none' : undefined}>
 			<SideBar {video} />
 		</aside>
+
+    <!-- TAG MODAL: Opened by PlayerMetaRow event, passes channelId -->
+    <TagManagerModal
+      open={showTagModal}
+      channelId={video?.channel_id}
+      on:close={() => showTagModal = false}
+    />
 	</div>
 {/if}
 
 <style>
+/* ...your styles unchanged... */
 .player-container {
 	display: grid;
 	grid-template-columns: 1fr 380px;
@@ -183,14 +195,12 @@
 	overflow: hidden;
 	width: 100vw;
 }
-
 .player-main-col {
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
 	padding: 0;
 }
-
 .player-main-col > :first-child,
 .player-main-col video,
 .player-main-col iframe,
@@ -204,25 +214,21 @@
 	max-width: 100%;
 	display: block;
 }
-
 .player-content,
 .player-meta-row,
 .mobile-suggestions-block {
 	margin-left: 0;
 	margin-right: 0;
 }
-
 .player-loading {
 	text-align: center;
 	margin-top: 3rem;
 	color: #aaa;
 	font-size: 1.1rem;
 }
-
 .player-sidebar {
 	padding: 0rem 2px 1.3rem 2px;
 }
-
 /* ---- MOBILE STYLE ---- */
 @media (max-width: 800px) {
 	.player-container {
@@ -260,7 +266,6 @@
 		margin-top: 1.25em;
 	}
 }
-
 @media (max-width: 800px) {
 	html,
 	body {

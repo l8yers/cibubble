@@ -82,14 +82,17 @@
   gap: 0.43em;
   margin-bottom: 0.95em;
   width: 100%;
+  margin-top: 1.1em; /* space between video and meta row */
 }
+
 .player-meta-badges {
   display: flex;
   align-items: center;
-  gap: 0.9em;
-  margin-top: 0.22em;
+  gap: 0.7em;
+  margin-top: 0.18em;
   margin-bottom: 0;
 }
+
 .meta-title-row {
   display: flex;
   flex-direction: row;
@@ -97,6 +100,7 @@
   width: 100%;
   gap: 1.1em;
 }
+
 .player-title {
   font-size: 1.38rem;
   font-weight: 800;
@@ -106,6 +110,7 @@
   min-width: 0;
   flex: 1 1 auto;
 }
+
 .meta-channel-row {
   display: flex;
   flex-direction: row;
@@ -113,8 +118,9 @@
   justify-content: space-between;
   width: 100%;
   margin-top: 0.10em;
-  margin-bottom: 0.10em;
+  margin-bottom: 0.22em; /* a bit more space below channel row */
 }
+
 .player-channel {
   font-size: 1.06rem;
   font-weight: 500;
@@ -125,23 +131,25 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 .player-duration {
   font-size: 0.99em;
   color: #adadad;
   margin-left: 1em;
   white-space: nowrap;
 }
+
 .player-diff-badge,
 .player-tags-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 38px;
-  height: 30px;
-  font-size: 0.99em;
+  min-width: 30px;
+  height: 23px;
+  font-size: 0.87em;
   font-weight: 700;
-  padding: 0 1em;
-  border-radius: 8px;
+  padding: 0 0.65em;
+  border-radius: 7px;
   color: #fff;
   letter-spacing: 0.01em;
   box-shadow: 0 1px 6px #0001;
@@ -152,6 +160,7 @@
   cursor: pointer;
   text-transform: uppercase;
 }
+
 .player-diff-badge {
   background: var(--diff-color, #bbb);
 }
@@ -167,6 +176,7 @@
   outline: none;
   color: #1a1a1a;
 }
+
 @media (max-width: 800px) {
   .player-meta-row {
     flex-direction: column;
@@ -174,6 +184,7 @@
     width: 100%;
     margin-bottom: 0.72em;
     padding: 0.6em 0.08em;
+    margin-top: 0.7em; /* adjust for mobile, less space */
   }
   .meta-title-row {
     flex-direction: column;
@@ -191,7 +202,7 @@
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    margin: 0.06em 0;
+    margin: 0.06em 0 0.17em 0; /* keep a touch more below */
   }
   .player-channel {
     font-size: 0.97rem;
@@ -207,17 +218,14 @@
   }
   .player-meta-badges {
     gap: 0.44em;
-    margin-top: 0.07em;
+    margin-top: 0.06em;
   }
   .player-diff-badge,
   .player-tags-badge {
-    font-size: 0.90em;
-    height: 26px;
-    padding: 0 0.75em;
-    border-radius: 7px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    font-size: 0.80em;
+    height: 20px;
+    padding: 0 0.5em;
+    border-radius: 6px;
   }
 }
 </style>
