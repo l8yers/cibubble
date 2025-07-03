@@ -165,7 +165,7 @@
   background: none;
   border: none;
   font-size: 2.1em;
-  color: #2e9be6;
+  color: #eb1000
   cursor: pointer;
   margin-bottom: 0.15em;
   line-height: 1;
@@ -191,7 +191,7 @@
 }
 .drawer-item:hover, .drawer-item:focus {
   background: #e6f1fb;
-  color: #2e9be6;
+  color: #eb1000
   outline: none;
 }
 

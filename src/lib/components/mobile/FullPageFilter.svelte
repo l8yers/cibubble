@@ -44,7 +44,7 @@
     dispatch('close');
   }
   function handleReset() {
-    localLevels = levels.map(l => l.value); // select all levels by default
+    localLevels = levels.map(l => l.value);
     localTags = [];
     localCountry = '';
     localChannel = '';
@@ -83,7 +83,6 @@
           <li on:click={() => page='tags'}>
             <Tag class="icon"/><span>Tags</span> <ChevronRight class="chev"/>
           </li>
-          <!-- ALWAYS SHOW My Channels IN THE LIST -->
           <li on:click={() => page='channels'}>
             <User class="icon"/><span>My Channels</span> <ChevronRight class="chev"/>
           </li>
@@ -160,7 +159,6 @@
           <span>My Channels</span>
         </div>
         <div class="options-list">
-          <!-- ALWAYS SHOW THESE OPTIONS -->
           <label class="checkbox-row">
             <input
               type="radio"
@@ -184,7 +182,6 @@
             />
             <span>All Saved Channels</span>
           </label>
-          <!-- Only list individual channels if any -->
           {#if myChannels && myChannels.length}
             {#each myChannels as ch}
               <label class="checkbox-row">
@@ -202,13 +199,13 @@
           <a
             href="/mychannels"
             class="edit-my-channels-link"
-            style="display: flex; align-items: center; color: #7950f2; font-weight: 700; text-decoration: none; font-size: 1em; gap: 0.6em; padding: 0.2em 0.1em; margin-top: 0.8em;"
+            style="display: flex; align-items: center; color: #e65c4f; font-weight: 700; text-decoration: none; font-size: 1em; gap: 0.6em; padding: 0.2em 0.1em; margin-top: 0.8em;"
           >
             <svg
               width="18"
               height="18"
               fill="none"
-              stroke="#7950f2"
+              stroke="#e65c4f"
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -227,140 +224,153 @@
   </div>
 {/if}
 
-
-
 <style>
-  .modal-bg {
-    position: fixed; inset: 0;
-    background: #161c23cc;
-    z-index: 2000;
-    display: flex; align-items: flex-end; justify-content: center;
-  }
-  .filter-modal {
-    background: #fff;
-    border-radius: 0;
-    padding: 0 0 2em 0;
-    min-width: 100vw;
-    max-width: 100vw;
-    box-shadow: 0 -2px 24px #2225;
-    animation: slideUp 0.22s cubic-bezier(.16,1,.3,1);
-    font-family: inherit;
-  }
-  @keyframes slideUp { from { transform: translateY(100%);} to { transform: none;} }
-  .modal-header {
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.05em;
-    font-weight: 800;
-    background: #f7f8fa;
-    border-radius: 0;
-    min-height: 48px;
-    position: relative;
-    margin-bottom: 0.16em;
-    letter-spacing: 0.01em;
-    color: #181818;
-  }
-  .modal-header .close-btn {
-    position: absolute; right: 1.2em; top: 50%; transform: translateY(-50%);
-    font-size: 1.4em;
-    background: none; border: none; color: #2e9be6; cursor: pointer;
-    border-radius: 0;
-  }
-  .modal-header .back-btn {
-    position: absolute; left: 1.05em; top: 50%; transform: translateY(-50%);
-    background: none; border: none; color: #2e9be6; font-size: 1.23em; cursor: pointer;
-    padding: 0.14em;
-    border-radius: 0;
-  }
-  .filter-list {
-    padding: 0; margin: 0;
-    list-style: none;
-    background: #fff;
-    border-radius: 0;
-    font-size: 1em;
-    color: #161c23;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-  }
-  .filter-list li {
-    display: flex; align-items: center; gap: 0.7em;
-    border-bottom: 1px solid #f1f1f3;
-    padding: 0.88em 1.1em;
-    font-size: 1.01em;
-    font-weight: 700; color: #181818;
-    cursor: pointer;
-    background: #fff;
-    transition: background 0.13s, color 0.13s;
-    line-height: 1.17;
-    border-radius: 0;
-  }
-  .filter-list li:last-child { border-bottom: none; }
-  .filter-list li:active,
-  .filter-list li:hover { background: #f4f7fa; color: #2e9be6;}
-  .filter-list .icon {
-    width: 1.2em; height: 1.2em;
-    color: #181818;
-    margin-right: 0.12em;
-    flex-shrink: 0;
-  }
-  .filter-list .chev {
-    margin-left:auto; color: #c4cad6;
-    width: 1.1em; height: 1.1em; flex-shrink: 0;
-  }
-  .toggle-row {
-    cursor: default;
-    gap: 1em;
-    border-bottom: none;
-    padding-top: 1em;
-    padding-bottom: 1em;
-    color: #181818;
-    font-weight: 700;
-    font-size: 1em;
-  }
-  .switch {
-    position: relative; display: inline-block; width: 34px; height: 19px;
-    vertical-align: middle;
-  }
-  .switch input { opacity: 0; width: 0; height: 0;}
-  .slider {
-    position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
-    background: #ccd4e4; border-radius: 11px; transition: .2s;
-  }
-  .switch input:checked + .slider { background: #2e9be6; }
-  .slider:before {
-    position: absolute; content: ""; height: 13px; width: 13px; left: 3px; bottom: 3px;
-    background: white; border-radius: 50%; transition: .2s;
-  }
-  .switch input:checked + .slider:before { transform: translateX(13px);}
-  .apply-btn {
-    display: block; width: calc(100% - 2.4em); margin: 1.1em auto 0 auto;
-    background: #2e9be6; color: #fff; font-weight: 800;
-    border: none; border-radius: 0; padding: 0.9em 0; font-size: 1.02em;
-    box-shadow: 0 2px 14px #2e9be633; cursor: pointer;
-    transition: background 0.13s;
-    letter-spacing: 0.03em;
-    margin-bottom: 0.1em;
-  }
-  .apply-btn:hover { background: #197bb8; }
-  .reset-btn {
-    display: block; width: calc(100% - 2.4em); margin: 0.7em auto 0 auto;
-    background: #f5f7fa; color: #181818; font-weight: 700;
-    border: none; border-radius: 0; padding: 0.86em 0; font-size: 0.98em;
-    box-shadow: 0 2px 14px #f7fafc2b; cursor: pointer;
-    transition: background 0.13s;
-    letter-spacing: 0.02em;
-  }
-  .reset-btn:hover { background: #e7eaf2; }
-  .options-list {
-    padding: 1em 1.1em 0.2em 1.1em;
-    background: #fff;
-    max-height: 60vh;
-    overflow-y: auto;
-  }
-  .checkbox-row {
-    display: flex; align-items: center; gap: 0.7em;
-    font-size: 1em; margin: 0.5em 0;
-    color: #181818;
-    font-weight: 600;
-    letter-spacing: 0.01em;
-  }
+:root {
+  --cibubble-red: #e65c4f;    /* Muted/soft CIBUBBLE red */
+  --cibubble-red-soft: #fbecea;
+  --cibubble-accent: #fff6f5;
+  --cibubble-dark: #18191a;
+  --cibubble-radius: 13px;
+}
+
+.modal-bg {
+  position: fixed; inset: 0;
+  background: #161c23cc;
+  z-index: 2000;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.filter-modal {
+  background: #fff;
+  border-radius: 0;
+  padding: 0 0 2em 0;
+  min-width: 100vw;
+  max-width: 100vw;
+  box-shadow: 0 -2px 24px #2225;
+  animation: slideUp 0.22s cubic-bezier(.16,1,.3,1);
+  font-family: inherit;
+}
+@keyframes slideUp { from { transform: translateY(100%);} to { transform: none;} }
+.modal-header {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.05em;
+  font-weight: 800;
+  background: #f7f8fa;
+  border-radius: 0;
+  min-height: 48px;
+  position: relative;
+  margin-bottom: 0.16em;
+  letter-spacing: 0.01em;
+  color: #181818;
+}
+.modal-header .close-btn {
+  position: absolute; right: 1.2em; top: 50%; transform: translateY(-50%);
+  font-size: 1.4em;
+  background: none; border: none; color: var(--cibubble-red); cursor: pointer;
+  border-radius: 0;
+}
+.modal-header .back-btn {
+  position: absolute; left: 1.05em; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: var(--cibubble-red); font-size: 1.23em; cursor: pointer;
+  padding: 0.14em;
+  border-radius: 0;
+}
+.filter-list {
+  padding: 0; margin: 0;
+  list-style: none;
+  background: #fff;
+  border-radius: 0;
+  font-size: 1em;
+  color: #161c23;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.filter-list li {
+  display: flex; align-items: center; gap: 0.7em;
+  border-bottom: 1px solid #f1f1f3;
+  padding: 0.88em 1.1em;
+  font-size: 1.01em;
+  font-weight: 700; color: #181818;
+  cursor: pointer;
+  background: #fff;
+  transition: none;
+  line-height: 1.17;
+  border-radius: 0;
+  border: none;
+}
+.filter-list li:last-child { border-bottom: none; }
+.filter-list .icon,
+.filter-list .chev {
+  color: var(--cibubble-red) !important;
+}
+.toggle-row {
+  cursor: default;
+  gap: 1em;
+  border-bottom: none;
+  padding-top: 1em;
+  padding-bottom: 1em;
+  color: #181818;
+  font-weight: 700;
+  font-size: 1em;
+}
+.switch {
+  position: relative; display: inline-block; width: 34px; height: 19px;
+  vertical-align: middle;
+}
+.switch input { opacity: 0; width: 0; height: 0;}
+.slider {
+  position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+  background: #fbecea; /* faded red for off state */
+  border-radius: 11px; transition: .2s;
+}
+.switch input:checked + .slider { background: var(--cibubble-red); }
+.slider:before {
+  position: absolute; content: ""; height: 13px; width: 13px; left: 3px; bottom: 3px;
+  background: white; border-radius: 50%; transition: .2s;
+}
+.switch input:checked + .slider:before { transform: translateX(13px);}
+.apply-btn {
+  display: block; width: calc(100% - 2.4em); margin: 1.1em auto 0 auto;
+  background: var(--cibubble-red); color: #fff; font-weight: 800;
+  border: none; border-radius: 0; padding: 0.9em 0; font-size: 1.02em;
+  box-shadow: 0 2px 14px #e65c4f44; cursor: pointer;
+  transition: none;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.1em;
+}
+.apply-btn:hover { background: #b83d2f; }
+.reset-btn {
+  display: block; width: calc(100% - 2.4em); margin: 0.7em auto 0 auto;
+  background: #f5f7fa; color: var(--cibubble-red); font-weight: 700;
+  border: none; border-radius: 0; padding: 0.86em 0; font-size: 0.98em;
+  box-shadow: 0 2px 14px #f7fafc2b; cursor: pointer;
+  transition: none;
+  letter-spacing: 0.02em;
+}
+.reset-btn:hover { background: #ffe7e2; }
+.options-list {
+  padding: 1em 1.1em 0.2em 1.1em;
+  background: #fff;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.checkbox-row {
+  display: flex; align-items: center; gap: 0.7em;
+  font-size: 1em; margin: 0.5em 0;
+  color: #181818;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 0.3em 0.5em 0.3em 0.1em;
+  border-radius: 7px;
+  border: none;
+  transition: none;
+  cursor: pointer;
+}
+.checkbox-row input[type='checkbox'],
+.checkbox-row input[type='radio'] {
+  accent-color: var(--cibubble-red);
+  width: 1.1em; height: 1.1em;
+}
+.edit-my-channels-link {
+  display: flex; align-items: center; color: var(--cibubble-red); font-weight: 700; text-decoration: none; font-size: 1em; gap: 0.6em; padding: 0.2em 0.1em; margin-top: 0.8em;
+}
 </style>
