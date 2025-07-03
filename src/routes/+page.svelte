@@ -559,8 +559,8 @@
 	/* Mobile: remove all the side padding/margins */
 	@media (max-width: 700px) {
 		.page-container {
-			padding-left: 0;
-			padding-right: 0;
+			padding-left: 0.3em;
+			padding-right: 0.3em;
 		}
 		.sortbar-container {
 			max-width: 100vw;
