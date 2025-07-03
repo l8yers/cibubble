@@ -712,14 +712,20 @@
 }
 
 /* --- CHECKBOXES & LISTS --- */
-.levels-list,
+.levels-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.19em;
+  padding: 0.1em 0.05em;
+}
 .level-checkbox {
-	display: flex;
-	align-items: center;
-	gap: 0.45em;
-	font-size: 1em;
-	padding: 0.05em 0.05em;
-	cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  font-size: 1em;
+  padding: 0.05em 0.05em;
+  cursor: pointer;
 }
 .level-checkbox input[type='checkbox'] {
 	accent-color: var(--cibubble-red);

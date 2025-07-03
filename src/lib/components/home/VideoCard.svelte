@@ -223,16 +223,21 @@
 }
 
 .card-title {
+  font-size: 1.02em;           /* Match .dropdown-btn font-size in sortbar */
+  font-weight: 700;            /* Same as .dropdown-btn */
+  color: #232344;              /* Match .dropdown-btn color */
+  font-family: inherit;        /* Use your app default or swap for your preferred font */
+  letter-spacing: 0.01em;      /* Match the sortbar feel */
+  line-height: 1.18;
+  margin-bottom: 0.07em;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: normal;
-  font-size: 1.15rem;
-  font-weight: 700;
-  line-height: 1.35;
-  height: calc(1.15rem * 1.35 * 2);
+  height: calc(1.02em * 1.18 * 2);
+  transition: none;
 }
 
 .dots-dropdown-container {
@@ -298,12 +303,11 @@
 }
 
 .badge {
-  display: inline-block;
-  font-size: 0.86em;
+  font-size: 0.88em;         /* was 0.86em, now slightly smaller */
   font-weight: 600;
-  padding: 0.18em 0.7em;
+  padding: 0.12em 0.55em;    /* was 0.18em 0.7em, now less padding */
   border-radius: 4px;
-  margin-right: 0.5em;
+  margin-right: 0.35em;      /* slightly tighter spacing */
   color: #fff;
   background: #bbb;
   letter-spacing: 0.01em;
@@ -347,7 +351,7 @@ a.meta-link:visited {
 
 @media (max-width: 720px) {
   .card-title {
-    font-size: 0.98em;
+    font-size: 0.90em;
     line-height: 1.25;
     height: calc(0.98em * 1.25 * 2);
   }
@@ -355,7 +359,7 @@ a.meta-link:visited {
     font-size: 0.82em;
   }
   .badge {
-    font-size: 0.78em;
+    font-size: 0.95em;
     padding: 0.11em 0.45em;
   }
   a.channel-name,
