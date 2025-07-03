@@ -63,12 +63,6 @@
     if (localCountry === country) localCountry = '';
     else localCountry = country;
   }
-
-  // --- New: Hide watched toggles and applies instantly ---
-  function handleToggleHideWatched() {
-    localHideWatched = !localHideWatched;
-    handleApply();
-  }
 </script>
 
 {#if open}
@@ -95,11 +89,7 @@
           <li class="toggle-row">
             <Eye class="icon"/><span>Hide watched</span>
             <label class="switch">
-              <input
-                type="checkbox"
-                checked={localHideWatched}
-                on:change={handleToggleHideWatched}
-              >
+              <input type="checkbox" bind:checked={localHideWatched}>
               <span class="slider"></span>
             </label>
           </li>
