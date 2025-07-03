@@ -1,6 +1,6 @@
 <script>
   import { CheckCircle, PlusCircle, Clock, X, XCircle } from 'lucide-svelte';
-  import { onMount, createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
 
   export let video;
   export let user = null;
@@ -15,48 +15,48 @@
   export let saveToWatchLater = () => {};
   export let removeFromWatchLater = () => {};
 
-  // Optionally allow custom placement styling from parent
   export let className = '';
 
   const dispatch = createEventDispatcher();
-  let menuButtonRef;
+
   let showDropdown = false;
+  let dropdownContainer;
 
   function toggleDropdown(e) {
     e?.stopPropagation?.();
     showDropdown = !showDropdown;
   }
+
   function closeDropdown() {
     showDropdown = false;
   }
-  function handleBlur() {
-    setTimeout(() => {
-      if (!menuButtonRef?.contains(document.activeElement)) {
-        showDropdown = false;
-      }
-    }, 100);
-  }
 
-  onMount(() => {
-    function handleDocumentClick(e) {
-      if (showDropdown && !menuButtonRef?.contains(e.target)) {
-        showDropdown = false;
+  // Handles clicks outside of the dropdownContainer
+  function onClickOutside(node, callback) {
+    const handleClick = (event) => {
+      if (!node.contains(event.target)) callback();
+    };
+    document.addEventListener('mousedown', handleClick, true);
+    return {
+      destroy() {
+        document.removeEventListener('mousedown', handleClick, true);
       }
-    }
-    document.addEventListener('click', handleDocumentClick);
-    return () => document.removeEventListener('click', handleDocumentClick);
-  });
+    };
+  }
 </script>
 
 {#if user && video?.channel_id}
-  <div class="add-to-channels-wrapper {className}" style="position: relative;">
+  <div
+    class="add-to-channels-wrapper {className}"
+    bind:this={dropdownContainer}
+    use:onClickOutside={closeDropdown}
+    style="position: relative;"
+  >
     <button
       class="more-btn"
-      bind:this={menuButtonRef}
       aria-label="More options"
       on:click={toggleDropdown}
       tabindex="0"
-      on:blur={handleBlur}
       type="button"
     >
       <span class="stacked-dots">

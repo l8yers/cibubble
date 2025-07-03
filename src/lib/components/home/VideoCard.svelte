@@ -2,18 +2,6 @@
   import { goto } from '$app/navigation';
   import { MoreVertical, PlusCircle, XCircle, Clock, X } from 'lucide-svelte';
 
-  function onClickOutside(node, callback) {
-    const handleClick = (event) => {
-      if (!node.contains(event.target)) callback();
-    };
-    document.addEventListener('mousedown', handleClick, true);
-    return {
-      destroy() {
-        document.removeEventListener('mousedown', handleClick, true);
-      }
-    };
-  }
-
   export let video;
   export let getBestThumbnail;
   export let difficultyColor;
@@ -31,6 +19,7 @@
   export let savingWatchLater = false;
 
   let menuOpen = false;
+  let dropdownContainer;
 
   function makeChannelUrl(channelId) {
     const params = new URLSearchParams(query);
@@ -55,6 +44,7 @@
     }
     closeMenu();
   }
+
   async function handleWatchLaterClick() {
     if (isWatchLater) {
       if (onRemoveFromWatchLater) await onRemoveFromWatchLater(video);
@@ -62,6 +52,19 @@
       if (onAddToWatchLater) await onAddToWatchLater(video);
     }
     closeMenu();
+  }
+
+  // Handles clicks outside of the dropdownContainer
+  function onClickOutside(node, callback) {
+    const handleClick = (event) => {
+      if (!node.contains(event.target)) callback();
+    };
+    document.addEventListener('mousedown', handleClick, true);
+    return {
+      destroy() {
+        document.removeEventListener('mousedown', handleClick, true);
+      }
+    };
   }
 </script>
 
@@ -83,10 +86,18 @@
   <div class="card-body">
     <div class="card-title-row">
       <span class="card-title">{video.title}</span>
-      <span class="dots-menu" title="Menu" on:click={toggleMenu}>
-        <MoreVertical size={20} />
+      <!-- Dropdown Container: fixes "dead zone" bug -->
+      <span
+        class="dots-dropdown-container"
+        bind:this={dropdownContainer}
+        use:onClickOutside={closeMenu}
+        style="position:relative;z-index:30;"
+      >
+        <span class="dots-menu" title="Menu" on:click={toggleMenu}>
+          <MoreVertical size={20} />
+        </span>
         {#if menuOpen}
-          <div class="dropdown-menu" use:onClickOutside={closeMenu}>
+          <div class="dropdown-menu">
             {#if isChannelSaved}
               <button
                 class="dropdown-link"
@@ -150,6 +161,7 @@
     </div>
   </div>
 </div>
+
 <style>
 .card {
   background: #fff;
@@ -223,7 +235,7 @@
   height: calc(1.15rem * 1.35 * 2);
 }
 
-.dots-menu {
+.dots-dropdown-container {
   flex: 0 0 auto;
   margin-left: 0.6em;
   margin-right: 0;
@@ -232,6 +244,10 @@
   cursor: pointer;
   position: relative;
   z-index: 20;
+}
+.dots-menu {
+  display: flex;
+  align-items: center;
 }
 
 .dropdown-menu {
