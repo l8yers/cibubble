@@ -36,7 +36,7 @@
   });
 </script>
 
-<nav class="header" role="navigation" aria-label="Main Navigation">
+<nav class="header" aria-label="Main Navigation">
   <a href="/" aria-label="CIBUBBLE Home" class="logo-link">
     <img src="/logo.png" alt="CIBUBBLE logo" class="logo-img" />
   </a>
@@ -75,7 +75,6 @@
     </div>
   {/if}
 </nav>
-
 <style>
 .header {
   display: flex;
@@ -165,7 +164,7 @@
   background: none;
   border: none;
   font-size: 2.1em;
-  color: #eb1000
+  color: #eb1000;
   cursor: pointer;
   margin-bottom: 0.15em;
   line-height: 1;
@@ -191,26 +190,10 @@
 }
 .drawer-item:hover, .drawer-item:focus {
   background: #e6f1fb;
-  color: #eb1000
+  color: #eb1000;
   outline: none;
 }
 
-/* Dark mode for drawer */
-body.dark-mode .mobile-drawer {
-  background: #161c23;
-  box-shadow: -6px 0 18px #0009, -1px 0 5px #2e9be633;
-}
-body.dark-mode .drawer-item {
-  color: #f4f7fa;
-  background: none;
-}
-body.dark-mode .drawer-item:hover, body.dark-mode .drawer-item:focus {
-  background: #223040;
-  color: #6bb8ff;
-}
-body.dark-mode .drawer-close {
-  color: #6bb8ff;
-}
 @media (max-width: 720px) {
   .header {
     position: sticky;
@@ -227,7 +210,6 @@ body.dark-mode .drawer-close {
   .logo-link {
     padding: 0 !important;
     margin: 0 !important;
-    /* height: 100%; */
   }
   .logo-img {
     display: block;
@@ -236,6 +218,8 @@ body.dark-mode .drawer-close {
     height: 2.2em !important;
     max-height: 40px !important;
     width: auto !important;
+    /* Optional: vertically center for pixel-perfect look */
+    align-self: center;
   }
 }
 

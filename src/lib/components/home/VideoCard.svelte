@@ -19,8 +19,6 @@
   export let difficultyColor;
   export let difficultyLabel;
   export let formatLength;
-  export let filterByChannel;
-  export let filterByPlaylist;
   export let query = "";
 
   export let isChannelSaved = false;
@@ -271,12 +269,6 @@
 }
 .dropdown-link:focus {
   outline: none;
-}
-.dropdown-icon {
-  width: 1.2em;
-  height: 1.2em;
-  margin-right: 0.6em;
-  vertical-align: -3px;
 }
 
 .card-meta {

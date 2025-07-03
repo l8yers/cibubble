@@ -713,11 +713,6 @@
 
 /* --- CHECKBOXES & LISTS --- */
 .levels-list,
-.dropdown-content .tags-dropdown-content {
-	display: flex;
-	flex-direction: column;
-	gap: 0.6em;
-}
 .level-checkbox {
 	display: flex;
 	align-items: center;

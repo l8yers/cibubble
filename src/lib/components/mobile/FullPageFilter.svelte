@@ -298,10 +298,6 @@
   border: none;
 }
 .filter-list li:last-child { border-bottom: none; }
-.filter-list .icon,
-.filter-list .chev {
-  color: var(--cibubble-red) !important;
-}
 .toggle-row {
   cursor: default;
   gap: 1em;
