@@ -116,6 +116,7 @@ export async function GET({ url }) {
     let query = supabase
       .from('videos')
       .select('*, playlist:playlist_id(title), channel:channel_id(name,country,tags)', { count: 'exact' });
+      
 
     if (levels && levels.length) query = query.in('level', levels);
 

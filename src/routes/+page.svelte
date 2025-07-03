@@ -320,11 +320,25 @@
 
 	// ---- FILTERED VIDEOS LOGIC ----
 	$: filteredVideos =
-		$selectedChannel === '__WATCH_LATER__'
+		($selectedChannel === '__WATCH_LATER__'
 			? $videos.filter((v) => $watchLaterIds.has(v.id))
 			: $hideWatched
 				? $videos.filter((v) => !$watchedIds.has(v.id))
-				: $videos;
+				: $videos
+		)
+		.filter(v => {
+			// Hide videos with private/deleted/unavailable titles
+			if (!v.title || typeof v.title !== 'string') return false;
+			const t = v.title.trim().toLowerCase();
+			if (
+				t === '' ||
+				t === 'deleted video' ||
+				t === 'private video' ||
+				t.startsWith('[deleted') ||
+				t.includes('video unavailable')
+			) return false;
+			return true;
+		});
 
 	// Saved channels handling
 	$: if ($user) {
