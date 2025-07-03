@@ -1,7 +1,10 @@
+<script context="module">
+  export const ssr = false;
+</script>
 <script>
 	import { onMount } from 'svelte';
 	import { user } from '$lib/stores/user.js';
-	import { supabase } from '$lib/supabaseClient.js';
+	import { progressData, fetchProgressData, updateUserEmail, updateUserPassword, deleteManualEntry, updateManualEntry } from '$lib/stores/progress.js';
 	import ProgressManualEntry from '$lib/components/progress/ProgressManualEntry.svelte';
 	import MonthlyCalendar from '$lib/components/progress/MonthlyCalendar.svelte';
 	import ManualEntryList from '$lib/components/progress/ManualEntryList.svelte';
@@ -9,24 +12,12 @@
 	import ProgressSettings from '$lib/components/progress/ProgressSettings.svelte';
 	import { Timer, CalendarCheck, Award, ExternalLink, Settings } from 'lucide-svelte';
 	import { writable } from 'svelte/store';
+	import { formatWatchTime, formatFullTime, formatMinutesOnly, formatHours } from '$lib/utils/time.js';
 
-	export const windowWidth = writable(typeof window !== 'undefined' ? window.innerWidth : 1200);
+	const windowWidth = writable(typeof window !== 'undefined' ? window.innerWidth : 1200);
 	const SENTINEL_DATE = '1975-01-01';
 
-	let email = '';
-	let newEmail = '';
-	let newPassword = '';
-	let message = '';
-	let watchTime = 0;
-	let todayWatchTime = 0;
-	let daysPracticed = 0;
-	let outsideTime = 0;
-	let weeksInARow = 0;
-	let daysThisMonth = 0;
-
 	let showSettings = false;
-	let dailyTotals = [];
-	let manualTotals = [];
 	let showManualModal = false;
 	let showManualTab = false;
 	let editEntry = null;
@@ -35,193 +26,27 @@
 	let showTotalTooltip = false;
 	let showTodayTooltip = false;
 
-	function formatWatchTime(seconds) {
-		if (!seconds) return '0 min';
-		const mins = Math.round(seconds / 60);
-		if (mins >= 60) {
-			const hours = Math.floor(seconds / 3600);
-			return `${hours} hr${hours !== 1 ? 's' : ''}`;
-		}
-		return mins > 0 ? `${mins} min` : `${seconds} sec`;
-	}
-	function formatFullTime(seconds) {
-		if (!seconds) return '0 seconds';
-		const h = Math.floor(seconds / 3600);
-		const m = Math.floor((seconds % 3600) / 60);
-		const s = seconds % 60;
-		let result = [];
-		if (h) result.push(`${h} hr${h !== 1 ? 's' : ''}`);
-		if (m) result.push(`${m} min${m !== 1 ? 's' : ''}`);
-		if (s || result.length === 0) result.push(`${s} sec${s !== 1 ? 's' : ''}`);
-		return result.join(' ');
-	}
-	function formatMinutesOnly(seconds) {
-		if (!seconds) return '0 min';
-		const mins = Math.round(seconds / 60);
-		return mins > 0 ? `${mins} min` : `${seconds} sec`;
-	}
-	function formatHours(seconds) {
-		if (!seconds) return '0 hrs';
-		return Math.round(seconds / 3600) + ' hrs';
-	}
-
-	function openManualModal() {
-		showManualModal = true;
-	}
-	function closeManualModal() {
-		showManualModal = false;
-	}
-
-	async function updateEmail() {
-		message = '';
-		if (!newEmail || newEmail === email) {
-			message = 'Please enter a new email address.';
-			return;
-		}
-		const { error: updateError } = await supabase.auth.updateUser({ email: newEmail });
-		if (updateError) {
-			message = updateError.message || 'Failed to update email.';
-			return;
-		}
-		message = 'Email updated. Please check your inbox for a confirmation email.';
-		email = newEmail;
-	}
-	async function updatePassword() {
-		message = '';
-		if (!newPassword) {
-			message = 'Please enter a new password.';
-			return;
-		}
-		const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
-		if (updateError) {
-			message = updateError.message || 'Failed to update password.';
-			return;
-		}
-		message = 'Password updated.';
-		newPassword = '';
-	}
-
+	// Watch for user and refetch progress data
 	let lastFetchedUserId = null;
 	$: if ($user && $user.id && $user.id !== lastFetchedUserId) {
-		fetchAllUserData($user.id);
+		fetchProgressData($user);
 		lastFetchedUserId = $user.id;
 	}
 
-	async function fetchAllUserData(userId) {
-		email = $user.email;
-		newEmail = email;
+	// Progress store auto-subscribed
+	$: p = $progressData;
 
-		let { data: allSessions } = await supabase
-			.from('watch_sessions')
-			.select('seconds')
-			.eq('user_id', userId);
-		watchTime = (allSessions ?? []).reduce((acc, s) => acc + (s.seconds || 0), 0);
+	// Handlers for settings
+	let newEmail = '';
+	let newPassword = '';
 
-		const today = new Date().toISOString().slice(0, 10);
-		let { data: todaySessions } = await supabase
-			.from('watch_sessions')
-			.select('seconds')
-			.eq('user_id', userId)
-			.eq('date', today);
-		todayWatchTime = (todaySessions ?? []).reduce((acc, s) => acc + (s.seconds || 0), 0);
-
-		let { data: allSessionsForDaily, error } = await supabase
-			.from('watch_sessions')
-			.select('id, date, seconds, source, video_id')
-			.eq('user_id', userId);
-
-		if (error) {
-			dailyTotals = [];
-			manualTotals = [];
-			outsideTime = 0;
-		} else {
-			const dailyMap = {};
-			const manualArr = [];
-			let outsideSeconds = 0;
-			(allSessionsForDaily ?? []).forEach(({ id, date, seconds, video_id, source }) => {
-				if (!date) return;
-				if (video_id) {
-					dailyMap[date] = (dailyMap[date] || 0) + (seconds || 0);
-				} else {
-					manualArr.push({
-						id,
-						date,
-						totalSeconds: seconds,
-						source: source || ''
-					});
-					outsideSeconds += seconds || 0;
-				}
-			});
-			dailyTotals = Object.entries(dailyMap)
-				.map(([date, totalSeconds]) => ({ date, totalSeconds }))
-				.sort((a, b) => b.date.localeCompare(a.date));
-			manualTotals = manualArr.sort((a, b) => b.date.localeCompare(a.date));
-			outsideTime = outsideSeconds;
-		}
-		daysPracticed = dailyTotals.filter((dt) => dt.totalSeconds > 0).length;
-
-		// Calculate days this month
-		const now = new Date();
-		const month = now.getMonth();
-		const year = now.getFullYear();
-		daysThisMonth = dailyTotals.filter((dt) => {
-			const d = new Date(dt.date);
-			return d.getFullYear() === year && d.getMonth() === month && dt.totalSeconds > 0;
-		}).length;
-
-		// Calculate weeks in a row (basic version)
-		let weekSet = new Set();
-		dailyTotals.forEach((dt) => {
-			if (dt.totalSeconds > 0) {
-				const d = new Date(dt.date);
-				const week = getISOWeekNumber(d);
-				weekSet.add(`${d.getFullYear()}-${week}`);
-			}
-		});
-		let count = 0;
-		let current = new Date();
-		while (true) {
-			const weekKey = `${current.getFullYear()}-${getISOWeekNumber(current)}`;
-			if (weekSet.has(weekKey)) {
-				count++;
-				current.setDate(current.getDate() - 7);
-			} else {
-				break;
-			}
-		}
-		weeksInARow = count;
+	function handleEmailUpdate() {
+		updateUserEmail(newEmail);
 	}
 
-	function getISOWeekNumber(date) {
-		const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-		const dayNum = d.getUTCDay() || 7;
-		d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-		const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-		return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
-	}
-
-	async function deleteManualEntry(e) {
-		const entry = e.detail || e;
-		if (!entry.id) return alert('Missing ID for deletion!');
-		const { error } = await supabase.from('watch_sessions').delete().eq('id', entry.id);
-		if (error) alert('Error deleting entry: ' + error.message);
-		await fetchAllUserData($user.id);
-	}
-
-	async function updateManualEntry(e) {
-		const updated = e.detail || e;
-		if (!updated.id) return alert('Missing ID for update!');
-		const { error } = await supabase
-			.from('watch_sessions')
-			.update({
-				date: updated.date,
-				seconds: updated.totalSeconds,
-				source: updated.source
-			})
-			.eq('id', updated.id);
-		if (error) alert('Error updating entry: ' + error.message);
-		editEntry = null;
-		await fetchAllUserData($user.id);
+	function handlePasswordUpdate() {
+		updateUserPassword(newPassword);
+		newPassword = '';
 	}
 </script>
 
@@ -256,9 +81,9 @@
 								on:focus={() => (showTotalTooltip = true)}
 								on:blur={() => (showTotalTooltip = false)}
 							>
-								{formatWatchTime(watchTime)}
+								{formatWatchTime(p.watchTime)}
 								{#if showTotalTooltip}
-									<span class="custom-tooltip stat-time-tooltip">{formatFullTime(watchTime)}</span>
+									<span class="custom-tooltip stat-time-tooltip">{formatFullTime(p.watchTime)}</span>
 								{/if}
 							</span>
 						</div>
@@ -277,9 +102,9 @@
 								on:focus={() => (showTodayTooltip = true)}
 								on:blur={() => (showTodayTooltip = false)}
 							>
-								{formatWatchTime(todayWatchTime)}
+								{formatWatchTime(p.todayWatchTime)}
 								{#if showTodayTooltip}
-									<span class="custom-tooltip stat-today-tooltip">{formatFullTime(todayWatchTime)}</span>
+									<span class="custom-tooltip stat-today-tooltip">{formatFullTime(p.todayWatchTime)}</span>
 								{/if}
 							</span>
 						</div>
@@ -289,7 +114,7 @@
 				<div class="stat-box stat-practiced">
 					<div class="stat-inner-box">
 						<Award class="stat-icon" style="color:#e3a800;" />
-						<div class="stat-number stat-practiced-color">{daysPracticed}</div>
+						<div class="stat-number stat-practiced-color">{p.daysPracticed}</div>
 						<div class="stat-label stat-practiced-color">Days you practiced</div>
 					</div>
 				</div>
@@ -302,11 +127,11 @@
 				<div class="card-heading">Outside Hours</div>
 				<div class="outside-box">
 					<ExternalLink class="stat-icon" style="color:#2196d3;" />
-					<div class="outside-number">{formatHours(outsideTime)}</div>
+					<div class="outside-number">{formatHours(p.outsideTime)}</div>
 					<div class="outside-label outside-label-lower">hours outside the platform</div>
 				</div>
 				<div class="outside-links-row">
-					<a class="outside-link" on:click|preventDefault={openManualModal} href="#">
+					<a class="outside-link" on:click|preventDefault={() => (showManualModal = true)} href="#">
 						Add time outside the platform
 					</a>
 					<a class="outside-link" on:click|preventDefault={() => (showManualTab = true)} href="#">
@@ -320,18 +145,18 @@
 				<div class="activity-2col align-top">
 					<div class="activity-stats-cards">
 						<div class="mini-stat-card">
-							<div class="mini-stat-number">{weeksInARow}</div>
+							<div class="mini-stat-number">{p.weeksInARow}</div>
 							<div class="mini-stat-label">Weeks in a row</div>
 						</div>
 						<div class="mini-stat-card">
-							<div class="mini-stat-number">{daysThisMonth}</div>
+							<div class="mini-stat-number">{p.daysThisMonth}</div>
 							<div class="mini-stat-label">Days this month</div>
 						</div>
 					</div>
 					<div class="calendar-section" style="margin-top: 0.3em;">
 						<MonthlyCalendar
-							dailyTotals={dailyTotals || []}
-							manualEntries={manualTotals || []}
+							dailyTotals={p.dailyTotals || []}
+							manualEntries={p.manualTotals || []}
 							{formatMinutesOnly}
 							class="no-border-calendar compact-calendar"
 						/>
@@ -342,12 +167,12 @@
 	</div>
 {/if}
 
-<!-- ===== MODALS: moved out of layout, overlaying the viewport ===== -->
+<!-- ===== MODALS ===== -->
 
 {#if showManualModal}
-  <div class="modal-backdrop" on:click={closeManualModal}>
+  <div class="modal-backdrop" on:click={() => (showManualModal = false)}>
     <div class="modal-content" on:click|stopPropagation>
-      <ProgressManualEntry onCancel={closeManualModal} />
+      <ProgressManualEntry onCancel={() => (showManualModal = false)} />
     </div>
   </div>
 {/if}
@@ -357,17 +182,17 @@
     <div class="modal-content" on:click|stopPropagation>
       {#if !editEntry}
         <ManualEntryList
-          manualEntries={manualTotals || []}
+          manualEntries={p.manualTotals || []}
           formatMinutesOnly={formatWatchTime}
           {SENTINEL_DATE}
           on:cancel={() => { showManualTab = false; editEntry = null; }}
           on:edit={(e) => (editEntry = e.detail)}
-          on:delete={(e) => deleteManualEntry(e.detail)}
+          on:delete={(e) => deleteManualEntry(e.detail, $user)}
         />
       {:else}
         <ManualEntryEditForm
           entry={editEntry}
-          on:submit={(e) => updateManualEntry(e.detail)}
+          on:submit={(e) => updateManualEntry(e.detail, $user)}
           on:cancel={() => (editEntry = null)}
         />
       {/if}
@@ -379,14 +204,14 @@
   <div class="modal-backdrop" on:click={() => (showSettings = false)}>
     <div class="modal-content" on:click|stopPropagation>
       <ProgressSettings
-        {email}
-        {newEmail}
-        setNewEmail={(v) => (newEmail = v)}
-        {newPassword}
-        setNewPassword={(v) => (newPassword = v)}
-        {message}
-        {updateEmail}
-        {updatePassword}
+        email={p.email}
+        newEmail={newEmail}
+        setNewEmail={v => (newEmail = v)}
+        newPassword={newPassword}
+        setNewPassword={v => (newPassword = v)}
+        message={p.message}
+        updateEmail={handleEmailUpdate}
+        updatePassword={handlePasswordUpdate}
         back={() => (showSettings = false)}
       />
     </div>

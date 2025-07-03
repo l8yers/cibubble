@@ -18,4 +18,5 @@
 
 <NavBar />
 <slot />
+
 <!-- <CookieConsent /> -->
