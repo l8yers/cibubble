@@ -611,9 +611,15 @@
 		</div>
 	</div>
 </div>
-
-
 <style>
+:root {
+	--cibubble-red: #eb1000;
+	--cibubble-red-soft: #fceaea;
+	--cibubble-accent: #fff6f5;
+	--cibubble-dark: #18191a;
+	--cibubble-radius: 13px;
+}
+
 /* --- SORTBAR WRAPPER --- */
 .controls-bar {
 	display: flex;
@@ -623,7 +629,7 @@
 	margin: 2em 2em 2em 2em;
 	padding: 0.5em 1.2em 0.5em 1.2em;
 	background: #fafbfc;
-	border-radius: 11px;
+	border-radius: var(--cibubble-radius);
 	box-shadow: 0 1.5px 8px #e0e0e040;
 	border: 1px solid #e0e3ea;
 	position: relative;
@@ -634,7 +640,6 @@
 	display: flex;
 	align-items: center;
 	gap: 1em;
-	/* NO flex-wrap! */
 }
 
 /* --- RIGHT BAR: Hide Watched + Search --- */
@@ -650,13 +655,15 @@
 	position: relative;
 	min-width: 110px;
 }
+
+/* --- TOP-LEVEL DROPDOWN BUTTONS --- */
 .dropdown-btn {
 	display: flex;
 	align-items: center;
 	gap: 0.5em;
 	padding: 0.38em 1em;
 	border: 1.3px solid #e7e7f6;
-	border-radius: 13px;
+	border-radius: var(--cibubble-radius);
 	background: #fdfdff;
 	font-size: 1.02em;
 	font-weight: 700;
@@ -667,11 +674,15 @@
 		background 0.13s,
 		color 0.13s;
 }
-.dropdown-btn[aria-expanded='true'] {
-	border: 1.3px solid #bbb;
-	background: #f1f5fb;
-	color: #e93c2f;
+/* --- HIGHLIGHT ON HOVER/FOCUS/EXPANDED: ONLY BORDER --- */
+.dropdown-btn[aria-expanded='true'],
+.dropdown-btn:focus,
+.dropdown-btn:hover {
+	border: 1.8px solid var(--cibubble-red);
+	background: #fdfdff;
+	color: #232344;
 }
+
 .dropdown-content {
 	position: absolute;
 	top: 115%;
@@ -716,7 +727,7 @@
 	cursor: pointer;
 }
 .level-checkbox input[type='checkbox'] {
-	accent-color: #2e9be6;
+	accent-color: var(--cibubble-red);
 	width: 1.02em;
 	height: 1.02em;
 }
@@ -724,7 +735,7 @@
 /* --- RESET BUTTON --- */
 .reset-filters-btn {
 	font-weight: 800;
-	color: #e93c2f;
+	color: var(--cibubble-red);
 	background: none;
 	border: none;
 	font-size: 1em;
@@ -741,7 +752,7 @@
 .reset-filters-btn:hover,
 .reset-filters-btn:focus {
 	text-decoration: underline;
-	background: #fceaea;
+	background: var(--cibubble-red-soft);
 }
 
 /* --- HIDE WATCHED BUTTON (switch) --- */
@@ -750,7 +761,7 @@
 	align-items: center;
 	gap: 0.7em;
 	border: 1.3px solid #e7e7f6;
-	border-radius: 13px;
+	border-radius: var(--cibubble-radius);
 	background: #fdfdff;
 	padding: 0.4em 1em;
 	font-size: 1em;
@@ -778,7 +789,7 @@
 	vertical-align: middle;
 }
 .hide-watched-btn[aria-pressed='true'] .switch-slider {
-	background: #fd2b23;
+	background: var(--cibubble-red);
 }
 .switch-slider::before {
 	content: '';
@@ -796,7 +807,7 @@
 }
 .hide-watched-btn[aria-pressed='true'] .switch-slider::before {
 	transform: translateX(14px);
-	box-shadow: 0 1px 4px #fd2b2333;
+	box-shadow: 0 1px 4px #eb100033;
 }
 .switch-label-text {
 	font-size: 1em;
@@ -830,9 +841,9 @@
 		box-shadow 0.13s;
 }
 .search-input:focus {
-	border: 1.3px solid #2e9be6;
-	background: #f7faff;
-	box-shadow: 0 2px 14px #cbeafe44;
+	border: 1.3px solid var(--cibubble-red);
+	background: #fff6f5;
+	box-shadow: 0 2px 14px #fd2b2330;
 }
 .search-toggle {
 	background: none;
@@ -846,14 +857,13 @@
 }
 .search-toggle:hover,
 .search-toggle:focus-visible {
-	background: #e5f2fd;
+	background: var(--cibubble-red-soft);
 }
 
-/* --- ACTIVE SORT HIGHLIGHT --- */
+/* --- ACTIVE SORT HIGHLIGHT (DROPDOWN ITEMS, NOT TOP-LEVEL BUTTONS) --- */
 .active-sort-option {
-	background: #e5f2fd;
 	font-weight: 700;
-	color: #2e9be6;
+	color: var(--cibubble-red);
 	border-radius: 7px;
 }
 

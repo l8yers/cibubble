@@ -82,13 +82,13 @@
   align-items: center;
   justify-content: space-between;
   background: #fff;
-  padding: 0.8em 2vw;
+  padding: 1.2em 2vw;
   border-bottom: 1px solid #ececec;
   position: relative;
   z-index: 100;
   min-height: 55px;
 }
-.logo-img { height: 4em; width: auto; }
+.logo-img { height: 2.6em; width: auto; }
 .logo-link { display: flex; align-items: center; }
 .nav-links {
   display: flex;
@@ -219,7 +219,7 @@ body.dark-mode .drawer-close {
     background: #fff;
     padding: 0 !important;
     min-height: unset;
-    height: auto;
+    height: 40px;
     align-items: center;   /* <-- Center everything vertically */
   }
   .nav-links { display: none; }
@@ -227,14 +227,14 @@ body.dark-mode .drawer-close {
   .logo-link {
     padding: 0 !important;
     margin: 0 !important;
-    height: 100%;
+    /* height: 100%; */
   }
   .logo-img {
     display: block;
     margin: 0 !important;
     padding: 0 !important;
-    height: 2.8em !important;
-    max-height: 48px !important;
+    height: 1.8em !important;
+    max-height: 32px !important;
     width: auto !important;
   }
 }

@@ -1,9 +1,14 @@
 :root {
+    --cibubble-red: #eb1000;
+  --cibubble-accent: #fff6f5;
+  --cibubble-dark: #18191a;
+  --cibubble-radius: 1.25rem;
+  --cibubble-font-main: 'Inter', Arial, sans-serif;
   --accent: #0077ff;
   --accent-hover: #005dc1;
   --easy: #16a34a;
   --intermediate: #f59e0b;
-  --advanced: #dc2626;
+  --advanced: #eb1000;
 }
 
 /* Reset & base */
