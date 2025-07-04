@@ -365,6 +365,9 @@ a.meta-link:visited {
     line-height: 1.25;
     height: calc(0.98em * 1.25 * 2);
   }
+  .card-body {
+  padding: 0.1rem 1rem 0.5rem 1rem;
+}
   .card-meta {
     font-size: 0.82em;
   }
