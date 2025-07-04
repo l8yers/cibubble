@@ -61,7 +61,7 @@
 					<div class="stats-list">
 						<div class="stat-item stat-time">
 							<div class="stat-icon-col">
-								<Timer class="stat-icon" size={40} />
+								<Timer class="stat-icon" size={30} />
 							</div>
 							<div class="stat-main">
 								<div class="stat-value">
@@ -84,7 +84,7 @@
 						</div>
 						<div class="stat-item stat-today">
 							<div class="stat-icon-col">
-								<CalendarCheck class="stat-icon" size={40} />
+								<CalendarCheck class="stat-icon" size={30} />
 							</div>
 							<div class="stat-main">
 								<div class="stat-value">
@@ -107,7 +107,7 @@
 						</div>
 						<div class="stat-item stat-practiced">
 							<div class="stat-icon-col">
-								<Award class="stat-icon" size={40} />
+								<Award class="stat-icon" size={30} />
 							</div>
 							<div class="stat-main">
 								<div class="stat-value">{p.daysPracticed}</div>
@@ -116,7 +116,7 @@
 						</div>
 						<div class="stat-item stat-outside">
 							<div class="stat-icon-col">
-								<ExternalLink class="stat-icon" size={40} />
+								<ExternalLink class="stat-icon" size={30} />
 							</div>
 							<div class="stat-main">
 								<div class="stat-value">{formatHours(p.outsideTime)}</div>
@@ -274,7 +274,7 @@ body,
   gap: 1.2em;
   border-radius: 14px;
   padding: 1.15em 1.4em 1.15em 1.2em;
-  font-size: 1.08em;
+  font-size: 1.1em;
   box-shadow: 0 2px 10px 0 #e9eaee10;
   border: 1.1px solid #ededf2;
   margin-bottom: 0;
@@ -311,14 +311,14 @@ body,
 }
 
 .stat-value {
-  font-size: 1.75em;
+  font-size: 1.55em;
   font-weight: 700;
   margin-bottom: 0.07em;
   line-height: 1.09;
   color: #181d27;
 }
 .stat-label {
-  font-size: 1.03em;
+  font-size: 0.97em;
   font-weight: 600;
   margin-bottom: 0.08em;
   margin-top: 0.1em;
@@ -403,7 +403,7 @@ body,
   margin-top: 0;
 }
 .mini-stat-label {
-  font-size: 1em;
+  font-size: 0.95em;
   font-weight: 600;
   color: #6c7591;
   text-align: center;
