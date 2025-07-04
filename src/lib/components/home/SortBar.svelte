@@ -694,7 +694,7 @@
 	border: 1.4px solid #ececec;
 	border-radius: 11px;
 	box-shadow: 0 5px 36px #c9d7e155;
-	padding: 1em 0.7em 1.2em 0.7em;
+	padding: 1em 0.7em 1em 0.7em;
 	font-size: 0.98em;
 	animation: fadeInSortbar 0.13s;
 	overflow-y: auto;

@@ -6,16 +6,13 @@
   export let utils;
   export let user = null;
 
-  // Channel actions
   export let isChannelSaved = false;
   export let savingChannel = false;
   export let saveChannelToMyChannels = () => {};
   export let removeChannelFromMyChannels = () => {};
 
-  // Watch Later actions
   export let isWatchLater = false;
   export let savingWatchLater = false;
-  // The fix: set these to undefined unless you want to handle them yourself!
   export let saveToWatchLater = undefined;
   export let removeFromWatchLater = undefined;
 
@@ -32,7 +29,7 @@
 <div class="player-meta-row">
   <div class="meta-title-row">
     <div class="player-title">{video.title}</div>
-    {#if user && video?.channel_id && !isMobile}
+    {#if user && video?.channel_id}
       <VideoMenuDropdown
         {video}
         {user}
@@ -86,18 +83,11 @@
   margin-top: 1.1em; /* space between video and meta row */
 }
 
-.player-meta-badges {
-  display: flex;
-  align-items: center;
-  gap: 0.7em;
-  margin-top: 0.18em;
-  margin-bottom: 0;
-}
-
 .meta-title-row {
   display: flex;
-  flex-direction: row;
+  flex-direction: row; /* always a row! */
   align-items: center;
+  justify-content: space-between; /* dots always on the right */
   width: 100%;
   gap: 1.1em;
 }
@@ -110,6 +100,17 @@
   overflow-wrap: anywhere;
   min-width: 0;
   flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-meta-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  margin-top: 0.18em;
+  margin-bottom: 0;
 }
 
 .meta-channel-row {
@@ -119,7 +120,7 @@
   justify-content: space-between;
   width: 100%;
   margin-top: 0.10em;
-  margin-bottom: 0.22em; /* a bit more space below channel row */
+  margin-bottom: 0.22em;
 }
 
 .player-channel {
@@ -178,20 +179,19 @@
   color: #1a1a1a;
 }
 
+/* Only touch font sizes and margins for mobile, not flex-direction */
 @media (max-width: 800px) {
   .player-meta-row {
-    flex-direction: column;
     gap: 0.33em;
     width: 100%;
     margin-bottom: 0.72em;
     padding: 0.6em 0.08em;
-    margin-top: 0.7em; /* adjust for mobile, less space */
+    margin-top: 0.7em;
   }
   .meta-title-row {
-    flex-direction: column;
-    align-items: flex-start;
     gap: 0.08em;
     width: 100%;
+    /* No flex-direction here! */
   }
   .player-title {
     font-size: 1.07rem;
@@ -203,7 +203,7 @@
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    margin: 0.06em 0 0.17em 0; /* keep a touch more below */
+    margin: 0.06em 0 0.17em 0;
   }
   .player-channel {
     font-size: 0.97rem;
