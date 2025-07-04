@@ -2,15 +2,16 @@
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import * as utils from '$lib/utils/utils.js';
-  import { ChartNoAxesColumnIncreasing } from 'lucide-svelte';
+  import { ChartNoAxesColumnIncreasing, ChevronUp, ChevronDown } from 'lucide-svelte';
   import { autoplay } from '$lib/stores/autoplay.js';
 
   export let video;
 
   // ---- YOUR CONTROL FLAG ----
-  export let sortBarIsVisibleMobile = true;
+  export let sortBarIsVisibleMobile = false;
 
   let isMobile = false;
+  let showMobileBar = true; // controls the bottom bar
 
   onMount(() => {
     const checkMobile = () => {
@@ -106,6 +107,18 @@
           ? (playlistTitle ? `Playlist: ${playlistTitle}` : "Playlist")
           : "Suggested Videos"}
       </span>
+      {#if isMobile}
+        <button
+          class="sidebar-hide-btn"
+          type="button"
+          on:click={() => { sortBarIsVisibleMobile = false; showMobileBar = true; }}
+          on:keydown={(e) => { if (e.key === "Enter" || e.key === " ") { sortBarIsVisibleMobile = false; showMobileBar = true; } }}
+          aria-label="Hide suggestions"
+          tabindex="0"
+        >
+          <ChevronDown size={22} />
+        </button>
+      {/if}
       <div class="sidebar-toggles">
         <label class="toggle">
           <input type="checkbox" bind:checked={$autoplay} />
@@ -171,6 +184,18 @@
   </div>
 {/if}
 
+{#if isMobile && showMobileBar && !sortBarIsVisibleMobile}
+  <div
+    class="mobile-more-bar"
+    role="button"
+    tabindex="0"
+    on:click={() => { showMobileBar = false; sortBarIsVisibleMobile = true; }}
+    on:keydown={(e) => { if (e.key === "Enter" || e.key === " ") { showMobileBar = false; sortBarIsVisibleMobile = true; } }}
+  >
+    <span class="mobile-more-bar-label">More videos like this</span>
+    <span class="mobile-more-bar-chevron"><ChevronUp size={22} /></span>
+  </div>
+{/if}
 
 <style>
 .sidebar-root {
@@ -193,11 +218,37 @@
   display: flex;
   flex-direction: column;
   gap: 0.4em;
+  position: relative;
 }
 .sidebar-title {
   font-weight: 800;
   font-size: 1.1em;
   color: var(--text-main, #232323);
+  display: inline-block;
+}
+.sidebar-hide-btn {
+  background: none;
+  border: none;
+  margin-left: 0.55em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  color: #222;
+  transition: background 0.11s;
+  position: absolute;
+  right: 0.2em;
+  top: 0;
+}
+.sidebar-hide-btn:focus {
+  outline: 2px solid #e93c2f;
+  outline-offset: 2px;
+}
+@media (min-width: 801px) {
+  .sidebar-hide-btn {
+    display: none;
+  }
 }
 .sidebar-toggles {
   display: flex;
@@ -386,6 +437,43 @@
   color: #e93c2f;
   outline: 1.5px solid #e93c2f;
 }
+.mobile-more-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100vw;
+  background: #fff;
+  color: #111;
+  font-weight: bold;
+  font-size: 1rem;
+  text-align: left;
+  padding: 0.75em 1em 0.75em 1em;
+  border-top: 1px solid #eee;
+  z-index: 9999;
+  letter-spacing: 0.01em;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  box-shadow: 0 -1px 8px 0 rgba(0,0,0,0.01);
+}
+.mobile-more-bar-label {
+  font-size: 1rem;
+}
+.mobile-more-bar-chevron {
+  display: flex;
+  align-items: center;
+  margin-left: 1em;
+}
+@media (min-width: 801px) {
+  .mobile-more-bar {
+    display: none;
+  }
+  .sidebar-hide-btn {
+    display: none;
+  }
+}
 
 @media (max-width: 800px) {
   .sidebar-root {
@@ -397,6 +485,8 @@
     font-size: 0.93em;
     margin-bottom: 0.09em;
     gap: 0.12em;
+    flex-direction: row;
+    align-items: center;
   }
   .sidebar-title {
     font-size: 0.98em;
@@ -463,6 +553,4 @@
     max-width: 95px;
   }
 }
-
-
 </style>
