@@ -6,6 +6,7 @@
   export let searchValue = '';
   const dispatch = createEventDispatcher();
   let localValue = searchValue;
+  let searchInput;
 
   $: if (openSearch && localValue !== searchValue) {
     localValue = searchValue;
@@ -27,6 +28,14 @@
   }
   function handleCloseSearch() {
     dispatch('closeSearch');
+  }
+
+  function scrollSearchIntoView() {
+    setTimeout(() => {
+      if (searchInput) {
+        searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 200);
   }
 </script>
 
@@ -52,6 +61,8 @@
         type="text"
         placeholder="Search videos..."
         bind:value={localValue}
+        bind:this={searchInput}
+        on:focus={scrollSearchIntoView}
         on:input={handleInput}
         on:keydown={handleKeydown}
         autocomplete="off"
@@ -79,6 +90,7 @@
     pointer-events: auto;
     padding: 0 0.07em;
     gap: 0.12em;
+    transition: top 0.3s, bottom 0.3s;
   }
   .menu-btn {
     flex: 1 1 0;
@@ -143,6 +155,8 @@
     outline: none;
     background: #fff;
     color: #181818;
+    position: relative;
+    z-index: 1100;
   }
   .close-btn {
     font-size: 1.4em;
