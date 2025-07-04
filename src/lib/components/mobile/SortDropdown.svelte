@@ -14,7 +14,7 @@
   <div class="modal-bg" on:click={onClose}>
     <div class="sort-modal" on:click|stopPropagation>
       <div class="modal-header">
-        <span>sort by</span>
+        <span>Sort by</span>
         <button class="close-btn" on:click={onClose} aria-label="Close">×</button>
       </div>
       <ul class="sort-list">
@@ -72,7 +72,6 @@
   margin-bottom: 0.12em;
   letter-spacing: 0.01em;
   color: #181818;
-  text-transform: lowercase;
 }
 .modal-header .close-btn {
   position: absolute;
