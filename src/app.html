@@ -1,6 +1,5 @@
 <!doctype html>
 <script>
-  // Set dark mode instantly on first load before Svelte renders
   try {
     const theme = localStorage.getItem('theme');
     if (theme === 'dark') {
@@ -16,11 +15,17 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#fff" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="description" content="Track your comprehensible input progress on CIBUBBLE. The minimalist language learner’s app." />
+    <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" href="%sveltekit.assets%/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/app.css" />
-    <!-- DO NOT link dark.css here -->
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">
