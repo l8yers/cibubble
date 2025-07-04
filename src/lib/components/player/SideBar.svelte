@@ -208,6 +208,10 @@
   box-sizing: border-box;
   background: #fff;
   padding: 1.1rem 0 1.1rem 0;
+    flex: 1 1 0;
+  min-height: 0;
+
+  padding-bottom: calc(1.1rem + env(safe-area-inset-bottom, 0));
 }
 
 .sidebar-header {

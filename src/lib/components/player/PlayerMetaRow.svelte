@@ -1,6 +1,7 @@
 <script>
   import VideoMenuDropdown from '$lib/components/ui/VideoMenuDropdown.svelte';
   import { createEventDispatcher, onMount } from 'svelte';
+  import { goto } from '$app/navigation';
 
   export let video;
   export let utils;
@@ -18,12 +19,36 @@
 
   const dispatch = createEventDispatcher();
   let isMobile = false;
+
   onMount(() => {
     const check = () => (isMobile = window.innerWidth <= 800);
     check();
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   });
+
+  // ---- TAGS ----
+  $: videoTags = Array.isArray(video?.tags)
+    ? video.tags
+    : (typeof video?.tags === 'string'
+        ? video.tags.split(',').map(t => t.trim()).filter(Boolean)
+        : []);
+
+  // Tag color matching your modal
+  const TAG_COLORS = [
+    '#254B8B', '#953553', '#296D3F', '#5A2386', '#3B3333', '#DB4B2A', '#008080',
+    '#3D3946', '#8E562E', '#B80028', '#205072', '#34495E', '#1E2D3B', '#232526',
+    '#36454F', '#432818'
+  ];
+  function tagColor(tag) {
+    let sum = 0;
+    for (let i = 0; i < tag.length; i++) sum += tag.charCodeAt(i);
+    return TAG_COLORS[sum % TAG_COLORS.length];
+  }
+
+  function goToTag(tag) {
+    goto(`/?tags=${encodeURIComponent(tag)}`);
+  }
 </script>
 
 <div class="player-meta-row">
@@ -61,13 +86,28 @@
     >
       {utils.difficultyLabel(video.level)}
     </span>
+
+    {#each videoTags as tag}
+      <span
+        class="player-tag"
+        tabindex="0"
+        style="background: {tagColor(tag)}; color: #fff; cursor: pointer;"
+        title={"View more videos tagged " + tag}
+        role="button"
+        on:click={() => goToTag(tag)}
+        on:keydown={(e) => { if (e.key === "Enter" || e.key === " ") goToTag(tag); }}
+      >
+        {tag}
+      </span>
+    {/each}
+
     <button
       class="player-tags-badge"
       type="button"
       aria-label="View tags"
       on:click={() => dispatch('openTags')}
     >
-      TAGS
+      ADD TAGS
     </button>
   </div>
 </div>
@@ -80,14 +120,14 @@
   gap: 0.43em;
   margin-bottom: 0.95em;
   width: 100%;
-  margin-top: 1.1em; /* space between video and meta row */
+  margin-top: 1.1em;
 }
 
 .meta-title-row {
   display: flex;
-  flex-direction: row; /* always a row! */
+  flex-direction: row;
   align-items: center;
-  justify-content: space-between; /* dots always on the right */
+  justify-content: space-between;
   width: 100%;
   gap: 1.1em;
 }
@@ -111,6 +151,34 @@
   gap: 0.7em;
   margin-top: 0.18em;
   margin-bottom: 0;
+}
+
+.player-tag {
+  display: inline-flex;
+  align-items: center;
+  background: #f0f0fc;
+  color: #334;
+  border-radius: 6px;
+  font-size: 0.89em;
+  font-weight: 600;
+  padding: 0 0.65em;
+  margin: 0 0.12em;
+  height: 23px;
+  line-height: 23px;
+  letter-spacing: 0.01em;
+  box-shadow: 0 1px 4px #0001;
+  text-shadow: 0 1px 2px #fff1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  outline: none;
+  border: none;
+}
+.player-tag:hover,
+.player-tag:focus {
+  filter: brightness(1.17);
+  outline: 2px solid #fff6;
 }
 
 .meta-channel-row {
@@ -179,7 +247,6 @@
   color: #1a1a1a;
 }
 
-/* Only touch font sizes and margins for mobile, not flex-direction */
 @media (max-width: 800px) {
   .player-meta-row {
     gap: 0.33em;
@@ -191,7 +258,6 @@
   .meta-title-row {
     gap: 0.08em;
     width: 100%;
-    /* No flex-direction here! */
   }
   .player-title {
     font-size: 1.07rem;
@@ -226,6 +292,12 @@
     font-size: 0.80em;
     height: 20px;
     padding: 0 0.5em;
+    border-radius: 6px;
+  }
+  .player-tag {
+    font-size: 0.77em;
+    height: 20px;
+    padding: 0 0.49em;
     border-radius: 6px;
   }
 }
