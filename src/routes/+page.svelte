@@ -6,7 +6,7 @@
 	import VideoGrid from '$lib/components/home/VideoGrid.svelte';
 	import SortBar from '$lib/components/home/SortBar.svelte';
 	import FilterChip from '$lib/components/home/FilterChip.svelte';
-	import LoadingSpinner from '$lib/components/home/LoadingSpinner.svelte';
+	import BubbleLoader from '$lib/components/ui/BubbleLoader.svelte';
 	import ErrorMessage from '$lib/components/home/ErrorMessage.svelte';
 
 	import MobileMenuBar from '$lib/components/mobile/MobileMenuBar.svelte';
