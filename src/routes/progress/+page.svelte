@@ -10,6 +10,7 @@
 	import { Timer, CalendarCheck, Award, ExternalLink, Settings } from 'lucide-svelte';
 	import { writable } from 'svelte/store';
 	import { formatWatchTime, formatFullTime, formatMinutesOnly, formatHours } from '$lib/utils/time.js';
+	import BubbleSpinner from '$lib/components/ui/BubbleSpinner.svelte';
 
 	const windowWidth = writable(typeof window !== 'undefined' ? window.innerWidth : 1200);
 	const SENTINEL_DATE = '1975-01-01';
@@ -43,7 +44,7 @@
 </script>
 
 {#if $user === undefined}
-	<div style="text-align:center; margin:3em;">Loading...</div>
+	<div class="progress-loading"><BubbleSpinner /></div>
 {:else if !$user}
 	<div class="profile-main" style="text-align:center;">
 		<div style="margin:2em 0;">
@@ -209,19 +210,16 @@
     </div>
   </div>
 {/if}
-<svg width="70" height="22">
-  <circle cx="12" cy="12" r="9" fill="#e93c2f">
-    <animate attributeName="cy" values="12;4;12" dur="0.7s" repeatCount="indefinite"/>
-  </circle>
-  <circle cx="35" cy="12" r="9" fill="#31b361">
-    <animate attributeName="cy" values="12;20;12" dur="0.7s" begin="0.2s" repeatCount="indefinite"/>
-  </circle>
-  <circle cx="58" cy="12" r="9" fill="#f4a000">
-    <animate attributeName="cy" values="12;4;12" dur="0.7s" begin="0.4s" repeatCount="indefinite"/>
-  </circle>
-</svg> 
 
 <style>
+.progress-loading {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 40vh;
+	width: 100%;
+}
+
 body,
 :global(body) {
   background: #f7f8fc;

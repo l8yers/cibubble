@@ -18,6 +18,7 @@
     loadWatchLaterVideos,
     removeFromWatchLater
   } from '$lib/stores/videos.js';
+  import BubbleSpinner from '$lib/components/ui/BubbleSpinner.svelte';
 
   let video = null;
   let loading = true;
@@ -134,17 +135,16 @@
   }
 </script>
 
-
 {#if loading}
-	<div class="player-loading">Loading…</div>
+  <div class="player-loading"><BubbleSpinner /></div>
 {:else if !video}
-	<div class="player-loading">Video not found.</div>
+  <div class="player-loading">Video not found.</div>
 {:else}
-	<div class="player-container">
-		<div class="player-main-col">
-			<PlayerVideoBox {video} user={$user} {suggestions} {autoplayValue} {handlePlayNextVideo} />
+  <div class="player-container">
+    <div class="player-main-col">
+      <PlayerVideoBox {video} user={$user} {suggestions} {autoplayValue} {handlePlayNextVideo} />
 
-			<div class="player-content">
+      <div class="player-content">
         <PlayerMetaRow
           {video}
           {utils}
@@ -159,29 +159,36 @@
           removeFromWatchLater={handleRemoveFromWatchLater}
           on:openTags={() => showTagModal = true}
         />
-			</div>
+      </div>
 
-			{#if isMobile}
-				<div class="mobile-suggestions-block">
-					<SideBar {video} />
-				</div>
-			{/if}
-		</div>
+      {#if isMobile}
+        <div class="mobile-suggestions-block">
+          <SideBar {video} />
+        </div>
+      {/if}
+    </div>
 
-		<aside class="player-sidebar" style:display={isMobile ? 'none' : undefined}>
-			<SideBar {video} />
-		</aside>
+    <aside class="player-sidebar" style:display={isMobile ? 'none' : undefined}>
+      <SideBar {video} />
+    </aside>
 
-    <!-- TAG MODAL: Opened by PlayerMetaRow event, passes channelId -->
     <TagManagerModal
       open={showTagModal}
       channelId={video?.channel_id}
       on:close={() => showTagModal = false}
     />
-	</div>
+  </div>
 {/if}
 
 <style>
+.player-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+  width: 100%;
+  font-size: 1.4em;
+}
 /* ...your styles unchanged... */
 .player-container {
 	display: grid;

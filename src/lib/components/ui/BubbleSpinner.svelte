@@ -1,5 +1,5 @@
 <!-- BubbleLoader.svelte -->
-<svg width="70" height="22" style="display: block; margin: 2em auto;">
+<svg width="70" height="30" style="display: block; margin: 2em auto;">
   <circle cx="12" cy="12" r="9" fill="#e93c2f">
     <animate attributeName="cy" values="12;4;12" dur="0.7s" repeatCount="indefinite"/>
   </circle>

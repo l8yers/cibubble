@@ -6,7 +6,7 @@
 	import VideoGrid from '$lib/components/home/VideoGrid.svelte';
 	import SortBar from '$lib/components/home/SortBar.svelte';
 	import FilterChip from '$lib/components/home/FilterChip.svelte';
-	import BubbleLoader from '$lib/components/ui/BubbleLoader.svelte';
+	import BubbleSpinner from '$lib/components/ui/BubbleSpinner.svelte';
 	import ErrorMessage from '$lib/components/home/ErrorMessage.svelte';
 
 	import MobileMenuBar from '$lib/components/mobile/MobileMenuBar.svelte';
@@ -56,10 +56,11 @@
 	let showFullPageFilter = false;
 	let showMobileSearch = false;
 
+	const loadedOnce = writable(false); // <-- New
+
 	onMount(() => {
 		mounted = true;
 
-		// Handle filters and initial fetch
 		let filters;
 		if ($page.url.search && $page.url.search.length > 1) {
 			filters = queryToFilters($page.url.search);
@@ -145,6 +146,7 @@
 	async function fetchVideos({ append = false } = {}) {
 		loading.set(true);
 		errorMsg.set('');
+		loadedOnce.set(false); // Reset before each fetch
 
 		let channelFilter = get(selectedChannel);
 		if (channelFilter === '__ALL__' && get(userChannels).length > 0) {
@@ -171,6 +173,7 @@
 			const errText = await res.text();
 			errorMsg.set('Error loading videos: ' + errText);
 			loading.set(false);
+			loadedOnce.set(true);
 			return;
 		}
 		const { videos: fetched, hasMore: more } = await res.json();
@@ -187,6 +190,7 @@
 			hasMore.set(more);
 		}
 		loading.set(false);
+		loadedOnce.set(true); // <-- Set after fetch
 	}
 
 	async function loadMore() {
@@ -472,10 +476,10 @@
 
 	<div class="center-content">
 		{#if $loading || ($selectedChannel === '__WATCH_LATER__' && $watchLaterLoading)}
-			<LoadingSpinner />
+			<BubbleSpinner />
 		{:else if $errorMsg}
 			<ErrorMessage message={$errorMsg} />
-		{:else if filteredVideos.length === 0}
+		{:else if $loadedOnce && filteredVideos.length === 0}
 			<div class="loading-more text-muted">No videos match your filters.</div>
 		{/if}
 	</div>
@@ -514,6 +518,13 @@
 </div>
 
 <style>
+	.center-content {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		min-height: 180px;
+		width: 100%;
+	}
 	.page-container {
 		width: 100%;
 	}
@@ -617,5 +628,4 @@
 		opacity: 0.66;
 		cursor: not-allowed;
 	}
-	
 </style>
