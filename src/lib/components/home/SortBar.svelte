@@ -678,7 +678,7 @@
 .dropdown-btn[aria-expanded='true'],
 .dropdown-btn:focus,
 .dropdown-btn:hover {
-	border: 1.8px solid var(--cibubble-red);
+	border: 1.8px solid #B2BEB5;
 	background: #fdfdff;
 	color: #232344;
 }
@@ -752,7 +752,7 @@
 }
 .reset-filters-btn:hover,
 .reset-filters-btn:focus {
-	text-decoration: underline;
+	text-decoration: none;
 	background: var(--cibubble-red-soft);
 }
 

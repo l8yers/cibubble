@@ -78,14 +78,26 @@ export async function fetchProgressData(user) {
 	}
 	daysPracticed = dailyTotals.filter((dt) => dt.totalSeconds > 0).length;
 
-	// Days this month
+	// Days this month (INCLUDES BOTH dailyTotals and manualTotals, unique dates only)
 	const now = new Date();
 	const month = now.getMonth();
 	const year = now.getFullYear();
-	daysThisMonth = dailyTotals.filter((dt) => {
-		const d = new Date(dt.date);
-		return d.getFullYear() === year && d.getMonth() === month && dt.totalSeconds > 0;
-	}).length;
+
+	const daysThisMonthSet = new Set([
+		...dailyTotals
+			.filter(dt => {
+				const d = new Date(dt.date);
+				return d.getFullYear() === year && d.getMonth() === month && dt.totalSeconds > 0;
+			})
+			.map(dt => dt.date),
+		...manualTotals
+			.filter(mt => {
+				const d = new Date(mt.date);
+				return d.getFullYear() === year && d.getMonth() === month && mt.totalSeconds > 0;
+			})
+			.map(mt => mt.date)
+	]);
+	daysThisMonth = daysThisMonthSet.size;
 
 	// Weeks in a row
 	let weekSet = new Set();

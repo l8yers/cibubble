@@ -87,7 +87,7 @@
 								{/if}
 							</span>
 						</div>
-						<div class="stat-label stat-time-color">Total input time</div>
+						<div class="stat-label stat-time-color">total input time</div>
 					</div>
 				</div>
 				<div class="stat-box stat-today">
@@ -108,14 +108,14 @@
 								{/if}
 							</span>
 						</div>
-						<div class="stat-label stat-today-color">Today's watch time</div>
+						<div class="stat-label stat-today-color">todays watch time</div>
 					</div>
 				</div>
 				<div class="stat-box stat-practiced">
 					<div class="stat-inner-box">
 						<Award class="stat-icon" style="color:#e3a800;" />
 						<div class="stat-number stat-practiced-color">{p.daysPracticed}</div>
-						<div class="stat-label stat-practiced-color">Days you practiced</div>
+						<div class="stat-label stat-practiced-color">days you practiced</div>
 					</div>
 				</div>
 			</div>

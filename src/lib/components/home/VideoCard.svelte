@@ -54,7 +54,6 @@
     closeMenu();
   }
 
-  // Handles clicks outside of the dropdownContainer
   function onClickOutside(node, callback) {
     const handleClick = (event) => {
       if (!node.contains(event.target)) callback();
@@ -86,7 +85,6 @@
   <div class="card-body">
     <div class="card-title-row">
       <span class="card-title">{video.title}</span>
-      <!-- Dropdown Container: fixes "dead zone" bug -->
       <span
         class="dots-dropdown-container"
         bind:this={dropdownContainer}
@@ -97,10 +95,10 @@
           <MoreVertical size={20} />
         </span>
         {#if menuOpen}
-          <div class="dropdown-menu">
+          <div class="card-dropdown-menu">
             {#if isChannelSaved}
               <button
-                class="dropdown-link"
+                class="card-dropdown-link"
                 type="button"
                 on:click={handleChannelClick}
                 disabled={savingChannel}
@@ -110,7 +108,7 @@
               </button>
             {:else}
               <button
-                class="dropdown-link"
+                class="card-dropdown-link"
                 type="button"
                 on:click={handleChannelClick}
                 disabled={savingChannel}
@@ -121,7 +119,7 @@
             {/if}
             {#if isWatchLater}
               <button
-                class="dropdown-link"
+                class="card-dropdown-link"
                 type="button"
                 on:click={handleWatchLaterClick}
                 disabled={savingWatchLater}
@@ -131,7 +129,7 @@
               </button>
             {:else}
               <button
-                class="dropdown-link"
+                class="card-dropdown-link"
                 type="button"
                 on:click={handleWatchLaterClick}
                 disabled={savingWatchLater}
@@ -223,11 +221,11 @@
 }
 
 .card-title {
-  font-size: 1.02em;           /* Match .dropdown-btn font-size in sortbar */
-  font-weight: 700;            /* Same as .dropdown-btn */
-  color: #232344;              /* Match .dropdown-btn color */
-  font-family: inherit;        /* Use your app default or swap for your preferred font */
-  letter-spacing: 0.01em;      /* Match the sortbar feel */
+  font-size: 1.02em;
+  font-weight: 700;
+  color: #232344;
+  font-family: inherit;
+  letter-spacing: 0.01em;
   line-height: 1.18;
   margin-bottom: 0.07em;
   display: -webkit-box;
@@ -255,11 +253,12 @@
   align-items: center;
 }
 
-.dropdown-menu {
+/* ---- Card Dropdown Menu Styles ---- */
+.card-dropdown-menu {
   position: absolute;
   bottom: 28px;
   right: 0;
-  min-width: 210px;
+  min-width: 232px;
   background: #fff;
   box-shadow: 0 8px 32px #0001, 0 1.5px 6px #0002;
   border-radius: 8px;
@@ -270,27 +269,39 @@
   flex-direction: column;
   gap: 0.1em;
 }
-.dropdown-link {
+.card-dropdown-link {
   background: none;
   border: none;
   color: #222;
   text-align: left;
-  padding: 0.52em 1em 0.44em 0.9em;
-  font-size: 0.99em;
+  padding: 0.48em 1.25em 0.48em 1em;
+  font-size: 0.95em;
   font-weight: 500;
   border-radius: 5px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 0.5em;
+  gap: 0.47em;
   transition: background 0.16s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.dropdown-link:active {
+.card-dropdown-link:active {
   background: #ececec;
 }
-.dropdown-link:focus {
+.card-dropdown-link:focus {
   outline: none;
 }
+.card-dropdown-link svg {
+  min-width: 16px;
+  min-height: 16px;
+  flex-shrink: 0;
+}
+.dropdown-icon {
+  width: 1.3em; height: 1.3em; color: #babdcf; margin-right: 0.5em; vertical-align: middle; transition: color 0.13s;
+}
+.dropdown-icon.in { color: #e93c2f; }
 
 .card-meta {
   display: flex;
@@ -299,15 +310,14 @@
   gap: 0.5em;
   margin-top: 0.6em;
   font-size: 0.97em;
-  min-width: 0;  /* KEY: allow children to shrink properly */
+  min-width: 0;
 }
-
 .badge {
-  font-size: 0.88em;         /* was 0.86em, now slightly smaller */
+  font-size: 0.88em;
   font-weight: 600;
-  padding: 0.12em 0.55em;    /* was 0.18em 0.7em, now less padding */
+  padding: 0.12em 0.55em;
   border-radius: 4px;
-  margin-right: 0.35em;      /* slightly tighter spacing */
+  margin-right: 0.35em;
   color: #fff;
   background: #bbb;
   letter-spacing: 0.01em;
@@ -366,6 +376,23 @@ a.meta-link:visited {
   a.meta-link {
     font-size: 0.89em;
     padding: 0;
+  }
+}
+
+/* Even smaller dropdown on mobile */
+@media (max-width: 600px) {
+  .card-dropdown-menu {
+    min-width: 150px;
+  }
+  .card-dropdown-link {
+    font-size: 0.88em;
+    padding: 0.38em 0.6em 0.38em 0.5em;
+    gap: 0.24em;
+  }
+  .card-dropdown-link svg {
+    width: 12px;
+    height: 12px;
+    margin-right: 0.32em;
   }
 }
 </style>

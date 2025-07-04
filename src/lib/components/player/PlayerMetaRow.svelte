@@ -15,8 +15,9 @@
   // Watch Later actions
   export let isWatchLater = false;
   export let savingWatchLater = false;
-  export let saveToWatchLater = () => {};
-  export let removeFromWatchLater = () => {};
+  // The fix: set these to undefined unless you want to handle them yourself!
+  export let saveToWatchLater = undefined;
+  export let removeFromWatchLater = undefined;
 
   const dispatch = createEventDispatcher();
   let isMobile = false;
