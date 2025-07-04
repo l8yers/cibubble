@@ -1,6 +1,3 @@
-<script context="module">
-  export const ssr = false;
-</script>
 <script>
 	import { onMount } from 'svelte';
 	import { user } from '$lib/stores/user.js';
@@ -22,28 +19,23 @@
 	let showManualTab = false;
 	let editEntry = null;
 
-	// Tooltip state
 	let showTotalTooltip = false;
 	let showTodayTooltip = false;
 
-	// Watch for user and refetch progress data
 	let lastFetchedUserId = null;
 	$: if ($user && $user.id && $user.id !== lastFetchedUserId) {
 		fetchProgressData($user);
 		lastFetchedUserId = $user.id;
 	}
 
-	// Progress store auto-subscribed
 	$: p = $progressData;
 
-	// Handlers for settings
 	let newEmail = '';
 	let newPassword = '';
 
 	function handleEmailUpdate() {
 		updateUserEmail(newEmail);
 	}
-
 	function handlePasswordUpdate() {
 		updateUserPassword(newPassword);
 		newPassword = '';
@@ -72,7 +64,7 @@
 				<div class="stat-box stat-time">
 					<div class="stat-inner-box">
 						<Timer class="stat-icon" style="color:#e93c2f;" />
-						<div class="stat-number stat-time-color">
+						<div class="stat-number">
 							<span
 								class="tooltip-parent"
 								tabindex="0"
@@ -87,13 +79,13 @@
 								{/if}
 							</span>
 						</div>
-						<div class="stat-label stat-time-color">total input time</div>
+						<div class="stat-label">total input time</div>
 					</div>
 				</div>
 				<div class="stat-box stat-today">
 					<div class="stat-inner-box">
-						<CalendarCheck class="stat-icon" style="color:#31b361;" />
-						<div class="stat-number stat-today-color">
+						<CalendarCheck class="stat-icon" style="color:#23b04a;" />
+						<div class="stat-number">
 							<span
 								class="tooltip-parent"
 								tabindex="0"
@@ -108,14 +100,14 @@
 								{/if}
 							</span>
 						</div>
-						<div class="stat-label stat-today-color">todays watch time</div>
+						<div class="stat-label">todays watch time</div>
 					</div>
 				</div>
 				<div class="stat-box stat-practiced">
 					<div class="stat-inner-box">
 						<Award class="stat-icon" style="color:#e3a800;" />
-						<div class="stat-number stat-practiced-color">{p.daysPracticed}</div>
-						<div class="stat-label stat-practiced-color">days you practiced</div>
+						<div class="stat-number">{p.daysPracticed}</div>
+						<div class="stat-label">days you practiced</div>
 					</div>
 				</div>
 			</div>
@@ -218,13 +210,13 @@
   </div>
 {/if}
 
+
 <style>
 body,
 :global(body) {
   background: #f7f8fc;
 }
 
-/* MAIN LAYOUT */
 .progress-layout {
   max-width: 1200px;
   margin: 2.5em auto 2em auto;
@@ -258,82 +250,130 @@ body,
   justify-content: space-between;
 }
 
+/* Stat box sizing and spacing */
 .stat-box {
   flex: 1 1 0;
   min-width: 240px;
   max-width: 370px;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: stretch;
 }
 
-/* Stat backgrounds and unified color for icon/number/text */
+/* Stat backgrounds and color */
+.stat-time .stat-inner-box {
+  background: #ffeaea;
+}
+.stat-today .stat-inner-box {
+  background: #eaffea;
+}
+.stat-practiced .stat-inner-box {
+  background: #fff6e4;
+}
+.stat-time .stat-icon,
+.stat-time .stat-inner-box svg { color: #e93c2f !important; }
+.stat-today .stat-icon,
+.stat-today .stat-inner-box svg { color: #23b04a !important; }
+.stat-practiced .stat-icon,
+.stat-practiced .stat-inner-box svg { color: #e3a800 !important; }
+.stat-time .stat-number,
+.stat-time .stat-label { color: #e93c2f; }
+.stat-today .stat-number,
+.stat-today .stat-label { color: #23b04a; }
+.stat-practiced .stat-number,
+.stat-practiced .stat-label { color: #e3a800; }
+
+/* Stat inner box: updated look */
 .stat-inner-box {
   display: flex;
   flex-direction: column;
   align-items: center;
-  border-radius: 16px;
-  padding: 1.5em 1em 1.2em 1em;
+  border-radius: 18px;
+  padding: 1.8em 1em 1.35em 1em;
   text-align: center;
   font-family: inherit;
   border: 1.2px solid #ededf2;
+  box-shadow: 0 3px 22px 0 #e9eaee18;
+  margin: 0;
+  gap: 0.53em;
   background: #fff;
-}
-
-.stat-time .stat-inner-box {
-  background: #ffeaea;
-}
-.stat-time .stat-icon,
-.stat-time .stat-number,
-.stat-time .stat-label {
-  color: #e93c2f;
-}
-
-.stat-today .stat-inner-box {
-  background: #eaffea;
-}
-.stat-today .stat-icon,
-.stat-today .stat-number,
-.stat-today .stat-label {
-  color: #23b04a;
-}
-
-.stat-practiced .stat-inner-box {
-  background: #fff6e4;
-}
-.stat-practiced .stat-icon,
-.stat-practiced .stat-number,
-.stat-practiced .stat-label {
-  color: #e3a800;
+  min-height: 130px;
 }
 
 /* Stat icon */
 .stat-inner-box svg,
 .stat-icon {
-  width: 36px;
-  height: 36px;
-  margin-bottom: 0.18em;
+  width: 38px !important;
+  height: 38px !important;
+  margin-bottom: 0.25em;
   display: block;
   opacity: 0.97;
 }
 
 /* Stat number */
 .stat-number {
-  font-size: 1.57em;
+  font-size: 2.1em;
   font-weight: 900;
   letter-spacing: 0.01em;
-  margin-bottom: 0.11em;
-  margin-top: 0.08em;
+  margin-bottom: 0.07em;
+  margin-top: 0.03em;
   text-align: center;
   line-height: 1.13;
 }
 
 /* Stat label */
 .stat-label {
-  font-size: 1em;
+  font-size: 1.12em;
   font-weight: 600;
-  margin-top: 0.07em;
+  margin-top: 0.14em;
   color: inherit;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+/* OUTSIDE HOURS - updated to match stats cards look & colors */
+.outside-box {
+  background: #e7f5fb;
+  border-radius: 18px;
+  width: 100%;
+  padding: 1.7em 1em 1.2em 1em;
+  text-align: center;
+  margin-top: 1.1em;
+  margin-bottom: 0.8em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1.2px solid #e1edf7;
+  box-shadow: 0 3px 22px 0 #b8eaff1a;
+  gap: 0.3em;
+  min-height: 130px;
+}
+.outside-box .stat-icon,
+.outside-box svg {
+  color: #2196d3 !important;
+  width: 38px !important;
+  height: 38px !important;
+  margin-bottom: 0.25em;
+  display: block;
+  opacity: 0.97;
+}
+.outside-number {
+  font-size: 2.1em;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  margin-bottom: 0.07em;
+  margin-top: 0.03em;
+  text-align: center;
+  line-height: 1.13;
+  color: #2196d3;
+}
+.outside-label,
+.outside-label-lower {
+  font-size: 1.12em;
+  font-weight: 600;
+  margin-top: 0.14em;
+  color: #2196d3;
   letter-spacing: 0.02em;
   text-transform: none;
 }
@@ -384,7 +424,7 @@ body,
 /* OUTSIDE & ACTIVITY GRID */
 .progress-row {
   display: grid;
-  grid-template-columns: 1fr 2fr;   /* 1/3 : 2/3 ratio */
+  grid-template-columns: 1fr 2fr;
   gap: 2em;
   width: 100%;
 }
@@ -395,52 +435,6 @@ body,
 .activity-card {
   min-width: 320px;
 }
-
-/* OUTSIDE HOURS STAT BOX */
-.outside-box {
-  background: #e7f5fb;
-  border-radius: 15px;
-  width: 100%;
-  padding: 1.5em 1em 1.2em 1em;
-  text-align: center;
-  margin-top: 1.1em;
-  margin-bottom: 0.8em;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  border: 1.2px solid #e1edf7;
-}
-.outside-box svg,
-.outside-number,
-.outside-label,
-.outside-label-lower {
-  color: #2196d3;
-}
-.outside-box svg {
-  width: 36px;
-  height: 36px;
-  margin-bottom: 0.18em;
-  opacity: 0.97;
-}
-.outside-number {
-  font-size: 1.57em;
-  font-weight: 900;
-  letter-spacing: 0.01em;
-  margin-bottom: 0.11em;
-  margin-top: 0.08em;
-  text-align: center;
-  line-height: 1.13;
-}
-.outside-label,
-.outside-label-lower {
-  font-size: 1em;
-  font-weight: 600;
-  margin-top: 0.07em;
-  color: #2196d3;
-  letter-spacing: 0.02em;
-  text-transform: none;
-}
-
 
 /* Links for "Add/View outside hours" */
 .outside-links-row {
@@ -568,31 +562,6 @@ body,
   .calendar-section {
     max-width: 100%;
   }
-  :global(.compact-calendar) {
-    max-width: 100vw !important;
-    padding: 0.3em 0.02em 1em 0.02em !important;
-  }
-  :global(.compact-calendar .calendar-cell) {
-    width: 100% !important;
-    min-height: unset !important;
-    height: auto !important;
-    font-size: 1.1em !important;
-  }
-}
-
-/* RESPONSIVE BREAKPOINTS */
-@media (max-width: 1100px) {
-  .stats-boxes-row {
-    gap: 1em;
-  }
-  .progress-row {
-    gap: 1em;
-  }
-  .outside-card, .activity-card, .card {
-    padding: 1.5em 1em 1.5em 1em;
-  }
-}
-@media (max-width: 900px) {
   .stats-boxes-row {
     flex-direction: column;
     gap: 1em;
@@ -609,6 +578,30 @@ body,
   .activity-card {
     max-width: 100%;
     min-width: 0;
+  }
+  .stat-inner-box,
+  .outside-box {
+    border-radius: 12px;
+    padding: 1.1em 0.3em 1em 0.3em;
+    min-height: 90px;
+  }
+  .stat-number,
+  .outside-number {
+    font-size: 1.28em;
+    margin-top: 0.25em;
+    margin-bottom: 0.10em;
+  }
+  .stat-label,
+  .outside-label,
+  .outside-label-lower {
+    font-size: 0.99em;
+    margin-top: 0.16em;
+  }
+  .stat-inner-box svg,
+  .outside-box svg {
+    width: 30px !important;
+    height: 30px !important;
+    margin-bottom: 0.17em;
   }
 }
 
@@ -630,47 +623,8 @@ body,
   .card-heading {
     font-size: 1.04em;
   }
-  .stat-inner-box {
-    border-radius: 11px;
-    padding: 1.5em 0.3em 1.4em 0.3em;
-  }
-  .stat-number {
-    font-size: 1.43em;
-    margin-top: 0.38em;
-    margin-bottom: 0.15em;
-  }
-  .stat-label {
-    font-size: 1em;
-    margin-top: 0.21em;
-  }
-  .stat-inner-box svg {
-    width: 33px;
-    height: 33px;
-    margin-bottom: 0.23em;
-  }
-  .outside-box {
-    border-radius: 10px;
-    padding: 1.2em 0.5em 1.2em 0.5em;
-  }
-  .outside-number {
-    font-size: 1.15em;
-    margin-top: 0.32em;
-    margin-bottom: 0.11em;
-  }
-  .outside-label {
-    font-size: 0.99em;
-  }
-  .calendar-section {
-    margin-top: 0.35em;
-    max-width: 100%;
-  }
-  .activity-list {
-    margin-bottom: 0.38em;
-    margin-top: 0.32em;
-  }
 }
 
-/* TOOLTIP */
 .tooltip-parent {
   position: relative;
   cursor: pointer;
@@ -705,7 +659,6 @@ body,
   to { opacity: 1; transform: translateX(-50%) translateY(0);}
 }
 
-/* === MODALS: Overlay and center === */
 .modal-backdrop {
   position: fixed;
   z-index: 1000;
