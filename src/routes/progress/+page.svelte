@@ -219,7 +219,7 @@
   <circle cx="58" cy="12" r="9" fill="#f4a000">
     <animate attributeName="cy" values="12;4;12" dur="0.7s" begin="0.4s" repeatCount="indefinite"/>
   </circle>
-</svg>
+</svg> 
 
 <style>
 body,
