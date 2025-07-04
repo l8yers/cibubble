@@ -44,3 +44,14 @@ img { max-width: 100%; display: block; }
 
 /* Headings (optional) */
 h1, h2, h3, h4, h5 { font-family: inherit; font-weight: 700; color: #222; margin-top: 0.7em; margin-bottom: 0.4em; }
+
+.bubble-spinner-overlay {
+  position: fixed;
+  z-index: 9999;
+  inset: 0;
+  background: rgba(255,255,255,0.78); /* or transparent */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: all;
+}

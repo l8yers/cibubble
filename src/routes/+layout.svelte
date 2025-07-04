@@ -22,8 +22,8 @@
 
 <!-- Global loading overlay -->
 {#if $globalLoading}
-	<div class="global-loader">
-		<BubbleSpinner />
+  <div class="bubble-spinner-overlay global loader">
+			<BubbleSpinner />
 	</div>
 {/if}
 
