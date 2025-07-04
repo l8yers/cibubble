@@ -43,7 +43,7 @@
 		display: grid;
 		grid-template-columns: repeat(4, 1fr);
 		gap: 1.5rem;
-		margin: 1rem auto 5.5rem auto;
+		margin: 1.1rem auto 5.5rem auto;
 		max-width: 1700px;
 		padding: 0 2rem;
 		box-sizing: border-box;
@@ -65,7 +65,7 @@
 			grid-template-columns: 1fr;
 			max-width: 420px;
 			padding: 0 0.2rem;
-			gap: 1rem; /* CHANGE THIS VALUE to control the vertical spacing between cards on mobile */
+			gap: 1.1rem; /* CHANGE THIS VALUE to control the vertical spacing between cards on mobile */
 		}
 	}
 </style>
