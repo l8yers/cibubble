@@ -5,8 +5,11 @@
   import {
     watchLaterIds,
     addToWatchLater,
-    removeFromWatchLater as removeFromWatchLaterStore, // RENAMED IMPORT
+    removeFromWatchLater as removeFromWatchLaterStore,
   } from '$lib/stores/videos.js';
+
+  // Use Lucide icons for consistency
+  import { PlusCircle, XCircle, Clock, X, MoreVertical } from 'lucide-svelte';
 
   export let video;
 
@@ -74,7 +77,7 @@
   async function removeWatchLaterFunc() {
     if (!_savingWatchLater && $user && video?.id) {
       _savingWatchLater = true;
-      await removeFromWatchLaterStore(video.id); // USE STORE IMPORT HERE!
+      await removeFromWatchLaterStore(video.id);
       _savingWatchLater = false;
     }
   }
@@ -125,45 +128,47 @@
   }
 </script>
 
-<span class="dots-menu" title="Menu" on:click={toggleMenu}>
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="display:block;" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="10" cy="4" r="1.45" fill="#222" />
-    <circle cx="10" cy="10" r="1.45" fill="#222" />
-    <circle cx="10" cy="16" r="1.45" fill="#222" />
-  </svg>
+<span class="dots-dropdown-container" use:onClickOutside={closeMenu} style="position:relative;z-index:30;">
+  <span class="dots-menu" title="Menu" on:click={toggleMenu}>
+    <MoreVertical size={20} />
+  </span>
   {#if menuOpen}
-    <div class="card-dropdown-menu" use:onClickOutside={closeMenu}>
+    <div class="card-dropdown-menu">
       {#if _isChannelSaved}
-        <button class="card-dropdown-link" on:click={handleRemoveChannel} disabled={savingChannel ?? _savingChannel}>
-          <svg width="16" height="16" viewBox="0 0 24 24" style="margin-right:0.6em;vertical-align:-3px">
-            <circle cx="12" cy="12" r="10" fill="none" stroke="#222" stroke-width="2"/>
-            <path d="M8 12h8" stroke="#222" stroke-width="2" stroke-linecap="round"/>
-          </svg>
+        <button
+          class="card-dropdown-link"
+          on:click={handleRemoveChannel}
+          disabled={savingChannel ?? _savingChannel}
+        >
+          <XCircle class="dropdown-icon in" />
           {(savingChannel ?? _savingChannel) ? 'Removing...' : 'Remove from My Channels'}
         </button>
       {:else}
-        <button class="card-dropdown-link" on:click={handleSaveChannel} disabled={savingChannel ?? _savingChannel}>
-          <svg width="16" height="16" viewBox="0 0 24 24" style="margin-right:0.6em;vertical-align:-3px">
-            <circle cx="12" cy="12" r="10" fill="none" stroke="#222" stroke-width="2"/>
-            <path d="M8 12h8M12 8v8" stroke="#222" stroke-width="2" stroke-linecap="round"/>
-          </svg>
+        <button
+          class="card-dropdown-link"
+          on:click={handleSaveChannel}
+          disabled={savingChannel ?? _savingChannel}
+        >
+          <PlusCircle class="dropdown-icon" />
           {(savingChannel ?? _savingChannel) ? 'Saving...' : 'Add to My Channels'}
         </button>
       {/if}
       {#if _isWatchLater}
-        <button class="card-dropdown-link" on:click={handleRemoveWatchLater} disabled={savingWatchLater ?? _savingWatchLater}>
-          <svg width="16" height="16" viewBox="0 0 24 24" style="margin-right:0.6em;vertical-align:-3px">
-            <circle cx="12" cy="12" r="10" fill="none" stroke="#222" stroke-width="2"/>
-            <path d="M12 8v4l3 2" stroke="#222" stroke-width="2" stroke-linecap="round"/>
-          </svg>
+        <button
+          class="card-dropdown-link"
+          on:click={handleRemoveWatchLater}
+          disabled={savingWatchLater ?? _savingWatchLater}
+        >
+          <X class="dropdown-icon in" />
           {(savingWatchLater ?? _savingWatchLater) ? 'Removing...' : 'Remove from Watch Later'}
         </button>
       {:else}
-        <button class="card-dropdown-link" on:click={handleAddWatchLater} disabled={savingWatchLater ?? _savingWatchLater}>
-          <svg width="16" height="16" viewBox="0 0 24 24" style="margin-right:0.6em;vertical-align:-3px">
-            <circle cx="12" cy="12" r="10" fill="none" stroke="#222" stroke-width="2"/>
-            <path d="M12 8v4l3 2" stroke="#222" stroke-width="2" stroke-linecap="round"/>
-          </svg>
+        <button
+          class="card-dropdown-link"
+          on:click={handleAddWatchLater}
+          disabled={savingWatchLater ?? _savingWatchLater}
+        >
+          <Clock class="dropdown-icon" />
           {(savingWatchLater ?? _savingWatchLater) ? 'Saving...' : 'Add to Watch Later'}
         </button>
       {/if}
@@ -172,15 +177,19 @@
 </span>
 
 <style>
-/* --- Matches card dropdown style exactly --- */
-.dots-menu {
-  margin-left: auto;
+.dots-dropdown-container {
+  flex: 0 0 auto;
+  margin-left: 0.6em;
+  margin-right: 0;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   cursor: pointer;
   position: relative;
-  margin-top: 0.03em;
   z-index: 20;
+}
+.dots-menu {
+  display: flex;
+  align-items: center;
 }
 .card-dropdown-menu {
   position: absolute;
@@ -221,13 +230,24 @@
 .card-dropdown-link:focus {
   outline: none;
 }
+.dropdown-icon {
+  width: 1.3em;
+  height: 1.3em;
+  color: #babdcf;
+  margin-right: 0.5em;
+  vertical-align: middle;
+  transition: color 0.13s;
+}
+.dropdown-icon.in {
+  color: #e93c2f;
+}
 .card-dropdown-link svg {
   min-width: 16px;
   min-height: 16px;
   flex-shrink: 0;
 }
 
-/* Even smaller on mobile */
+/* Even smaller dropdown on mobile */
 @media (max-width: 600px) {
   .card-dropdown-menu {
     min-width: 150px;
