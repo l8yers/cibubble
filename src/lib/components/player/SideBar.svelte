@@ -7,6 +7,20 @@
 
   export let video;
 
+  // ---- YOUR CONTROL FLAG ----
+  export let sortBarIsVisibleMobile = true;
+
+  let isMobile = false;
+
+  onMount(() => {
+    const checkMobile = () => {
+      isMobile = window.innerWidth <= 800;
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  });
+
   let suggestions = [];
   let loading = true;
   let playlistTitle = '';
@@ -84,76 +98,79 @@
   }
 </script>
 
-<div class="sidebar-root">
-  <div class="sidebar-header">
-    <span class="sidebar-title">
-      {video.playlist_id
-        ? (playlistTitle ? `Playlist: ${playlistTitle}` : "Playlist")
-        : "Suggested Videos"}
-    </span>
-    <div class="sidebar-toggles">
-      <label class="toggle">
-        <input type="checkbox" bind:checked={$autoplay} />
-        <span class="toggle-label">Autoplay</span>
-      </label>
+{#if !isMobile || (isMobile && sortBarIsVisibleMobile)}
+  <div class="sidebar-root">
+    <div class="sidebar-header">
+      <span class="sidebar-title">
+        {video.playlist_id
+          ? (playlistTitle ? `Playlist: ${playlistTitle}` : "Playlist")
+          : "Suggested Videos"}
+      </span>
+      <div class="sidebar-toggles">
+        <label class="toggle">
+          <input type="checkbox" bind:checked={$autoplay} />
+          <span class="toggle-label">Autoplay</span>
+        </label>
+      </div>
     </div>
-  </div>
-  {#if loading}
-    <div class="sidebar-loading">Loading…</div>
-  {:else if suggestions.length === 0}
-    <div class="sidebar-loading">No suggestions found.</div>
-  {:else}
-    <div class="sidebar-card-list">
-      {#each suggestions as v, i (v.id)}
-        <div class="sidebar-card horizontal-card">
-          <a class="sidebar-thumb-wrapper" href={`/video/${v.id}`} title={v.title}>
-            <img
-              class="sidebar-thumb"
-              src={utils.getBestThumbnail(v)}
-              alt={v.title}
-              loading="lazy"
-              on:error={(e) => e.target.src = '/images/no_thumb_nail.png'}
-            />
-            {#if v.length}
-              <span class="length-inline">{utils.formatLength(v.length)}</span>
-            {/if}
-          </a>
-          <div class="sidebar-card-content">
-            <div class="sidebar-title-row">
-              <a class="sidebar-card-title" href={`/video/${v.id}`}>{v.title}</a>
-            </div>
-            <div class="sidebar-card-meta">
-              {#if v.level}
-                <span
-                  class="ds-difficulty-badge"
-                  style="background: {badgeColor(v.level)};"
-                  title={v.level}
-                >
-                  <ChartNoAxesColumnIncreasing size={17} stroke-width="2.1" color="#fff" />
-                </span>
+    {#if loading}
+      <div class="sidebar-loading">Loading…</div>
+    {:else if suggestions.length === 0}
+      <div class="sidebar-loading">No suggestions found.</div>
+    {:else}
+      <div class="sidebar-card-list">
+        {#each suggestions as v, i (v.id)}
+          <div class="sidebar-card horizontal-card">
+            <a class="sidebar-thumb-wrapper" href={`/video/${v.id}`} title={v.title}>
+              <img
+                class="sidebar-thumb"
+                src={utils.getBestThumbnail(v)}
+                alt={v.title}
+                loading="lazy"
+                on:error={(e) => e.target.src = '/images/no_thumb_nail.png'}
+              />
+              {#if v.length}
+                <span class="length-inline">{utils.formatLength(v.length)}</span>
               {/if}
-              {#if !video.playlist_id && v.channel_id && (v.channel?.name || v.channel_name)}
-                <span
-                  class="meta-link"
-                  style="color:#2e9be6;cursor:pointer;"
-                  title={v.channel?.name ?? v.channel_name}
-                  tabindex="0"
-                  on:click={() => window.location = makeChannelUrl(v.channel_id)}
-                  on:keydown={(e) => { if (e.key === "Enter") window.location = makeChannelUrl(v.channel_id); }}
-                >
-                  {(v.channel?.name ?? v.channel_name).length > 14
-                    ? (v.channel?.name ?? v.channel_name).slice(0, 13) + '…'
-                    : (v.channel?.name ?? v.channel_name)
-                  }
-                </span>
-              {/if}
+            </a>
+            <div class="sidebar-card-content">
+              <div class="sidebar-title-row">
+                <a class="sidebar-card-title" href={`/video/${v.id}`}>{v.title}</a>
+              </div>
+              <div class="sidebar-card-meta">
+                {#if v.level}
+                  <span
+                    class="ds-difficulty-badge"
+                    style="background: {badgeColor(v.level)};"
+                    title={v.level}
+                  >
+                    <ChartNoAxesColumnIncreasing size={17} stroke-width="2.1" color="#fff" />
+                  </span>
+                {/if}
+                {#if !video.playlist_id && v.channel_id && (v.channel?.name || v.channel_name)}
+                  <span
+                    class="meta-link"
+                    style="color:#2e9be6;cursor:pointer;"
+                    title={v.channel?.name ?? v.channel_name}
+                    tabindex="0"
+                    on:click={() => window.location = makeChannelUrl(v.channel_id)}
+                    on:keydown={(e) => { if (e.key === "Enter") window.location = makeChannelUrl(v.channel_id); }}
+                  >
+                    {(v.channel?.name ?? v.channel_name).length > 14
+                      ? (v.channel?.name ?? v.channel_name).slice(0, 13) + '…'
+                      : (v.channel?.name ?? v.channel_name)
+                    }
+                  </span>
+                {/if}
+              </div>
             </div>
           </div>
-        </div>
-      {/each}
-    </div>
-  {/if}
-</div>
+        {/each}
+      </div>
+    {/if}
+  </div>
+{/if}
+
 
 <style>
 .sidebar-root {
