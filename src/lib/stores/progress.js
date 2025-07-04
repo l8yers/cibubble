@@ -3,6 +3,36 @@ import { writable, get } from 'svelte/store';
 import { supabase } from '$lib/supabaseClient.js';
 import { getISOWeekNumber } from '$lib/utils/time.js';
 
+// --- Helper for days marked in calendar this month ---
+function getActiveDaysCountThisMonth(dailyTotals, manualTotals) {
+	function buildTotalsMap(dailyTotals, manualTotals) {
+		const map = {};
+		for (const d of dailyTotals) map[d.date] = d.totalSeconds;
+		if (manualTotals) for (const m of manualTotals) map[m.date] = m.totalSeconds;
+		return map;
+	}
+	function formatDate(date) {
+		return date.toISOString().split('T')[0];
+	}
+	function getDaysInMonth(year, month) {
+		const days = [];
+		for (let i = 1; i <= new Date(year, month, 0).getDate(); i++) {
+			days.push(new Date(year, month - 1, i));
+		}
+		return days;
+	}
+	const now = new Date();
+	const year = now.getFullYear();
+	const month = now.getMonth() + 1;
+	const totalsMap = buildTotalsMap(dailyTotals, manualTotals);
+	const days = getDaysInMonth(year, month);
+	let count = 0;
+	for (const day of days) {
+		if (totalsMap[formatDate(day)] > 0) count++;
+	}
+	return count;
+}
+
 export const progressData = writable({
 	email: '',
 	newEmail: '',
@@ -78,26 +108,8 @@ export async function fetchProgressData(user) {
 	}
 	daysPracticed = dailyTotals.filter((dt) => dt.totalSeconds > 0).length;
 
-	// Days this month (INCLUDES BOTH dailyTotals and manualTotals, unique dates only)
-	const now = new Date();
-	const month = now.getMonth();
-	const year = now.getFullYear();
-
-	const daysThisMonthSet = new Set([
-		...dailyTotals
-			.filter(dt => {
-				const d = new Date(dt.date);
-				return d.getFullYear() === year && d.getMonth() === month && dt.totalSeconds > 0;
-			})
-			.map(dt => dt.date),
-		...manualTotals
-			.filter(mt => {
-				const d = new Date(mt.date);
-				return d.getFullYear() === year && d.getMonth() === month && mt.totalSeconds > 0;
-			})
-			.map(mt => mt.date)
-	]);
-	daysThisMonth = daysThisMonthSet.size;
+	// Use calendar logic for daysThisMonth:
+	daysThisMonth = getActiveDaysCountThisMonth(dailyTotals, manualTotals);
 
 	// Weeks in a row
 	let weekSet = new Set();

@@ -494,8 +494,7 @@ body,
 .mini-stat-number {
   font-size: 1.38em;
   font-weight: 900;
-  color: #e93c2f;
-  text-align: center;
+  color: #6c7591; /* matches .mini-stat-label */  text-align: center;
   letter-spacing: 0.02em;
   margin-bottom: 0.33em;
   margin-top: 0;

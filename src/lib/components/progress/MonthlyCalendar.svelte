@@ -85,11 +85,11 @@
   </div>
 </div>
 
-<style>
+<style> 
 .cibubble-card.calendar-wrap {
   background: #fff;
   border-radius: 13px;
-  padding: 0.2em 1.4em 1.7em 1em;  /* left less, right more */
+  padding: 0.2em 1.4em 1.7em 1em;
   margin: 0.1em 2em 0.1em auto;
   max-width: 455px;
   box-shadow: none;
@@ -105,6 +105,7 @@
   gap: 1.2em;
   letter-spacing: 0.01em;
 }
+
 .calendar-header button {
   background: #ffe0dd;
   border: none;
@@ -128,6 +129,7 @@
   padding: 0.2em 0.1em 0.18em 0.1em;
   width: 100%;
 }
+
 .calendar-label {
   text-align: center;
   color: #ffb3ac;
@@ -137,6 +139,7 @@
   letter-spacing: 0.04em;
   user-select: none;
 }
+
 .calendar-cell {
   background: transparent;
   border-radius: 6px;
@@ -154,7 +157,7 @@
   user-select: none;
   margin: 0 auto;
   border: none;
-  padding: 0.28em 0 0.05em 0;
+  padding: 0.18em 0 0.02em 0;
   transition: background 0.16s, color 0.13s;
 }
 .calendar-cell.active {
@@ -180,7 +183,7 @@
 }
 .calendar-cell .mins {
   display: block;
-  font-size: 0.60em; /* bumped up */
+  font-size: 0.60em;
   margin-top: 2px;
   color: #fff;
   font-weight: 500;
@@ -193,21 +196,22 @@
   pointer-events: none;
 }
 
-/* MOBILE STYLES: fills width, bigger cells */
-@media (max-width: 550px) {
+/* --- MOBILE: Fill width, smaller text, square cells --- */
+@media (max-width: 600px) {
   .cibubble-card.calendar-wrap {
     max-width: 100vw;
     border-radius: 0;
-    padding: 0.10em 0.02em 1.1em 0.02em;
+    padding: 0.10em 0 1.1em 0;
+    margin: 0;
   }
   .calendar-header {
     font-size: 1em;
     margin-bottom: 0.7em;
   }
   .calendar-grid {
-    width: 100%;
-    gap: 0.09em;
-    padding: 0.04em;
+    width: 90vw;
+    gap: 0.12em;
+    padding: 0.02em;
     grid-template-columns: repeat(7, 1fr);
   }
   .calendar-cell {
@@ -215,16 +219,20 @@
     aspect-ratio: 1 / 1;
     min-height: unset;
     height: auto;
-    font-size: 1.14em;
+    font-size: 0.98em;
     border-radius: 6px;
-    padding: 0.07em 0 0.02em 0;
+    padding: 0.05em 0 0.01em 0;
+    margin: 0;
+    box-sizing: border-box;
   }
   .calendar-cell .date {
-    font-size: 1.13em;
+    font-size: 0.96em;
+    font-weight: 700;
   }
   .calendar-cell .mins {
-    font-size: 0.79em;
-    margin-top: 2px;
+    font-size: 0.51em;
+    margin-top: 0px;
+    line-height: 1.1em;
   }
 }
 </style>
