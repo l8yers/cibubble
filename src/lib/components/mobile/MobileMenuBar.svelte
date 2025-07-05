@@ -113,27 +113,6 @@
     background: #e9e9ea;
     outline: none;
   }
-  .menu-icon {
-    color: #181818;
-    stroke-width: 2.1px;
-    margin-bottom: -1.2px;
-    flex-shrink: 0;
-  }
-  .chevron {
-    color: #181818;
-    margin-left: 0.03em;
-    flex-shrink: 0;
-    opacity: 0.7;
-    margin-bottom: -0.7px;
-  }
-  .menu-btn span {
-    font-size: 0.95em;
-    letter-spacing: 0.01em;
-    margin: 0;
-    line-height: 1.1;
-    padding-left: 0.02em;
-    color: #181818;
-  }
   .search-bar {
     display: flex;
     flex: 1 1 0;

@@ -136,7 +136,9 @@
 </script>
 
 {#if loading}
-  <div class="player-loading"><BubbleSpinner /></div>
+ 			<div class="bubble-spinner-overlay">
+				<BubbleSpinner />
+			</div>
 {:else if !video}
   <div class="player-loading">Video not found.</div>
 {:else}

@@ -4,8 +4,8 @@
       title: 'CIBUBBLE',
       faqs: [
         {
-          question: "WHAT IS CIBUBBLE?",
-          answer: "CIBUBBLE IS A FREE, COMMUNITY-CURATED PLATFORM FOR DISCOVERING, RATING, AND TRACKING YOUTUBE VIDEOS AS COMPREHENSIBLE INPUT FOR LANGUAGE LEARNING. LOREM IPSUM DOLOR SIT AMET."
+          question: "What is CIBUBBLE?",
+          answer: "CIBUBBLE IS A FREE, COMMUNITY-AGE LEARNING. LOREM IPSUM DOLOR SIT AMET."
         },
         {
           question: "DO I NEED TO REGISTER TO USE CIBUBBLE?",
@@ -205,11 +205,6 @@
     .faq-a {
       font-size: 0.97em;
     }
-  .faq-page {
-    padding: 0 0.17em;
-    margin: 1.1em 0 1em 0;
-  }
-
   .faq-main-title {
     font-size: 1.25rem;
     margin-bottom: 1.2rem;
