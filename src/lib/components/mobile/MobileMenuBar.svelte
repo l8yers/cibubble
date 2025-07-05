@@ -6,7 +6,6 @@
   export let searchValue = '';
   const dispatch = createEventDispatcher();
   let localValue = searchValue;
-  let searchInput;
 
   $: if (openSearch && localValue !== searchValue) {
     localValue = searchValue;
@@ -29,17 +28,9 @@
   function handleCloseSearch() {
     dispatch('closeSearch');
   }
-
-  function scrollSearchIntoView() {
-    setTimeout(() => {
-      if (searchInput) {
-        searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }, 200);
-  }
 </script>
 
-<nav class="mobile-menu-bar">
+<nav class="mobile-menu-bar {openSearch ? 'search-open' : ''}">
   {#if !openSearch}
     <button class="menu-btn" title="Sort" on:click={() => dispatch('sort')}>
       <ArrowDownUp size={18} class="menu-icon" />
@@ -61,8 +52,6 @@
         type="text"
         placeholder="Search videos..."
         bind:value={localValue}
-        bind:this={searchInput}
-        on:focus={scrollSearchIntoView}
         on:input={handleInput}
         on:keydown={handleKeydown}
         autocomplete="off"
@@ -91,6 +80,13 @@
     padding: 0 0.07em;
     gap: 0.12em;
     transition: top 0.3s, bottom 0.3s;
+  }
+  .mobile-menu-bar.search-open {
+    top: 0;
+    bottom: auto;
+    border-top: none;
+    border-bottom: 1.5px solid #ececec;
+    box-shadow: 0 2px 12px #ececec70;
   }
   .menu-btn {
     flex: 1 1 0;
@@ -155,8 +151,6 @@
     outline: none;
     background: #fff;
     color: #181818;
-    position: relative;
-    z-index: 1100;
   }
   .close-btn {
     font-size: 1.4em;
@@ -174,5 +168,19 @@
   }
   .close-btn:hover {
     background: #ececec;
+  }
+
+  @media (max-width: 700px) {
+    .mobile-menu-bar.search-open {
+      position: fixed;
+      top: 0;
+      bottom: auto;
+      width: 100vw;
+      z-index: 9999;
+      background: #fff;
+      border-bottom: 1.5px solid #ececec;
+      border-top: none;
+      box-shadow: 0 2px 12px #ececec70;
+    }
   }
 </style>
