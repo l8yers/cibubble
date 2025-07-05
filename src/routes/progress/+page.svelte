@@ -494,7 +494,7 @@
 @media (max-width: 900px) {
 	.progress-row {
 		grid-template-columns: 1fr;
-		gap: 1em;
+		gap: 0.5em;
 	}
 	.stats-card,
 	.activity-card {
@@ -508,17 +508,19 @@
 	.activity-stats-cards {
 		display: flex;
 		flex-direction: row;
-		gap: 0.7em;
-		width: 100%;
+		gap: 0.5em;
+		width: 100% !important;
+		min-width: 0 !important;
+		max-width: 100% !important;
 		margin: 0 0 1em 0;
 		justify-content: stretch;
 	}
 	.mini-stat-card {
-		flex: 1 1 0;
-		width: 100%;
+		flex: 1 1 0 !important;
+		width: 100% !important;
+		min-width: 0 !important;
+		max-width: 100% !important;
 		box-sizing: border-box;
-		max-width: none;
-		min-width: 0;
 	}
 	.mini-stat-number {
 		font-size: 1.08em;
@@ -549,9 +551,10 @@
 		font-size: 1.33em;
 	}
 }
+
 @media (max-width: 600px) {
 	.progress-layout {
-		margin: 1.6em 0.6em 1.4em 0.6em;
+		margin: 1em 0.6em 1.4em 0.6em;  /* Set top margin to 0 for less space above stats cards */
 		gap: 1.5em;
 		padding: 0;
 	}
@@ -561,7 +564,7 @@
 		padding: 1.1em 0.6em 1.5em 0.6em;
 		border-radius: 13px;
 		box-shadow: 0 3px 16px 0 #e9eaee55;
-		margin-bottom: 0.7em;
+		margin-bottom: 0.5em;
 	}
 	.stats-heading-row {
 		margin-bottom: 0.6em;
@@ -576,5 +579,4 @@
 		padding: 0.38em 0.07em 0.38em 0.07em;
 	}
 }
-
 </style>
