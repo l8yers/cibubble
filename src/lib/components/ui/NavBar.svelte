@@ -96,7 +96,7 @@
   align-items: center;
 }
 .nav-link, .logout-btn {
-  color: #181818;
+  color:  #101720;
   font-size: 1.08em;
   font-weight: 600;
   padding: 0.2em 0.6em;

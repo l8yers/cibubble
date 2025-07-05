@@ -133,9 +133,9 @@
 }
 
 .player-title {
-  font-size: 1.38rem;
-  font-weight: 800;
-  color: #1a1a1a;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #101720;
   line-height: 1.21;
   overflow-wrap: anywhere;
   min-width: 0;
@@ -159,7 +159,7 @@
   background: #f0f0fc;
   color: #334;
   border-radius: 6px;
-  font-size: 0.89em;
+  font-size: 0.81em;
   font-weight: 600;
   padding: 0 0.65em;
   margin: 0 0.12em;
@@ -192,9 +192,9 @@
 }
 
 .player-channel {
-  font-size: 1.06rem;
+  font-size: 1.1rem;
   font-weight: 500;
-  color: #435576;
+  color: #101720;
   letter-spacing: 0.01em;
   max-width: 300px;
   overflow: hidden;

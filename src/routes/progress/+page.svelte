@@ -95,7 +95,7 @@
 										{/if}
 									</span>
 								</div>
-								<div class="stat-label">total input</div>
+								<div class="stat-label">Total input</div>
 							</div>
 						</div>
 						<div class="stat-item stat-today">
@@ -120,7 +120,7 @@
 										{/if}
 									</span>
 								</div>
-								<div class="stat-label">watched today</div>
+								<div class="stat-label">Watched today</div>
 							</div>
 						</div>
 						<div class="stat-item stat-practiced">
@@ -129,7 +129,7 @@
 							</div>
 							<div class="stat-main">
 								<div class="stat-value">{p.daysPracticed}</div>
-								<div class="stat-label">days practiced</div>
+								<div class="stat-label">Days practiced</div>
 							</div>
 						</div>
 						<div class="stat-item stat-outside">
@@ -138,7 +138,7 @@
 							</div>
 							<div class="stat-main">
 								<div class="stat-value">{formatHours(p.outsideTime)}</div>
-								<div class="stat-label">from other sources</div>
+								<div class="stat-label">From other sources</div>
 							</div>
 						</div>
 					</div>
@@ -153,6 +153,9 @@
 						</a>
 						<a class="outside-link" on:click|preventDefault={() => (showManualTab = true)} href="#">
 							View time from other sources
+						</a>
+												<a class="outside-link" href="/history">
+							View watched history
 						</a>
 					</div>
 				</div>
@@ -343,7 +346,7 @@
 		width: 70px !important;
 		height: 70px !important;
 		opacity: 0.98;
-		color: #191919;
+		color: #101720;
 	}
 
 	.stat-item .stat-main {
@@ -355,17 +358,17 @@
 
 	.stat-value {
 		font-size: 1.55em;
-		font-weight: 700;
+		font-weight: 600;
 		margin-bottom: 0.07em;
 		line-height: 1.09;
-		color: #181d27;
+		color: #101720;
 	}
 	.stat-label {
-		font-size: 0.97em;
+		font-size: 0.95em;
 		font-weight: 600;
 		margin-bottom: 0.08em;
 		margin-top: 0.1em;
-		color: #181d27;
+		color: #101720;
 	}
 
 	.outside-links-row {
@@ -378,7 +381,7 @@
 	}
 	.outside-link {
 		color: #e93c2f;
-		font-weight: 700;
+		font-weight: 00;
 		font-size: 1em;
 		text-decoration: none;
 		background: none;
@@ -393,15 +396,13 @@
 	}
 	.outside-link:hover,
 	.outside-link:focus {
-		color: #fd6c6c;
-		background: #fff3f1;
 		outline: none;
 	}
 
 	.card-heading {
-		font-size: 1.22em;
-		font-weight: 800;
-		color: #181d27;
+		font-size: 1.2em;
+		font-weight: 600;
+		color: #101720;
 		letter-spacing: 0.03em;
 		margin-bottom: 0.9em;
 		text-align: left;
@@ -440,8 +441,8 @@
 	}
 	.mini-stat-number {
 		font-size: 1.38em;
-		font-weight: 900;
-		color: #6c7591;
+		font-weight: 600;
+		color: #101720;
 		text-align: center;
 		letter-spacing: 0.02em;
 		margin-bottom: 0.33em;
@@ -450,7 +451,7 @@
 	.mini-stat-label {
 		font-size: 0.95em;
 		font-weight: 600;
-		color: #6c7591;
+		color: #101720;
 		text-align: center;
 		letter-spacing: 0.01em;
 	}

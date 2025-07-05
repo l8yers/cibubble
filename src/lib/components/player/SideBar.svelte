@@ -215,9 +215,9 @@
 }
 
 .sidebar-header {
-  font-size: 1.08em;
-  font-weight: 700;
-  color: var(--text-secondary, #666);
+  font-size: 1.02em;
+  font-weight: 600;
+  color: #101720;
   margin-bottom: 0.2em;
   display: flex;
   flex-direction: column;
@@ -225,9 +225,9 @@
   position: relative;
 }
 .sidebar-title {
-  font-weight: 800;
+  font-weight: 600;
   font-size: 1.1em;
-  color: var(--text-main, #232323);
+  color: #101720;
   display: inline-block;
 }
 .sidebar-hide-btn {
