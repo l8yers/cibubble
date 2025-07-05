@@ -293,7 +293,7 @@
 				on:click={() => (showSortDropdown = !showSortDropdown)}
 				type="button"
 			>
-				<ArrowDownUp size={18} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
+				<ArrowDownUp size={20} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
 				Sort by
 				<svg width="12" height="9" style="margin-left:7px;" fill="none">
 					<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
@@ -323,7 +323,7 @@
 					on:click={() => (showLevelDropdown = !showLevelDropdown)}
 					type="button"
 				>
-					<BarChart3 size={18} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
+					<BarChart3 size={20} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
 					Levels
 					<svg width="12" height="9" style="margin-left:7px;" fill="none">
 						<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
@@ -363,7 +363,7 @@
 					on:click={() => (showTagDropdown = !showTagDropdown)}
 					type="button"
 				>
-					<Tag size={18} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
+					<Tag size={20} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
 					Tags
 					<svg width="12" height="9" style="margin-left:7px;" fill="none">
 						<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
@@ -417,7 +417,7 @@
 					on:click={() => (showCountryDropdown = !showCountryDropdown)}
 					type="button"
 				>
-					<Earth size={18} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
+					<Earth size={20} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
 					Country
 					<svg width="12" height="9" style="margin-left:7px;" fill="none">
 						<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
@@ -454,7 +454,7 @@
 						on:click={() => (showMyChannelsDropdown = !showMyChannelsDropdown)}
 						type="button"
 					>
-						<User size={18} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
+						<User size={20} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
 						My Channels
 						<svg width="12" height="9" style="margin-left:7px;" fill="none">
 							<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
@@ -499,11 +499,11 @@
 							<a
 								href="/mychannels"
 								class="edit-my-channels-link"
-								style="display: flex; align-items: center; color: #7950f2; font-weight: 700; text-decoration: none; font-size: 1em; gap: 0.6em; padding: 0.2em 0.1em;"
+								style="display: flex; align-items: center; color: #7950f2; font-weight: 700; text-decoration: none; font-size: 1.1em; gap: 0.6em; padding: 0.2em 0.1em;"
 							>
 								<svg
-									width="18"
-									height="18"
+									width="19"
+									height="19"
 									fill="none"
 									stroke="#7950f2"
 									stroke-width="2"
@@ -530,7 +530,7 @@
 					type="button"
 				>
 					<MoreHorizontal
-						size={18}
+						size={20}
 						style="margin-right:7px;vertical-align:-3px;color:currentColor;"
 					/>
 					More

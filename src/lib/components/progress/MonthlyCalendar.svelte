@@ -107,7 +107,6 @@
 }
 
 .calendar-header button {
-  background: #ffe0dd;
   border: none;
   border-radius: 7px;
   font-size: 1em;
@@ -115,11 +114,8 @@
   color: #EF5552;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.14s, color 0.14s;
   outline: none;
 }
-.calendar-header button:hover,
-.calendar-header button:focus { background: #ffb3ac; color: #e93c2f; }
 
 .calendar-grid {
   display: grid;
@@ -132,7 +128,7 @@
 
 .calendar-label {
   text-align: center;
-  color: #ffb3ac;
+  color: #71797E;
   font-size: 0.95em;
   font-weight: 600;
   margin-bottom: 0.09em;
@@ -148,7 +144,7 @@
   width: 52px;
   text-align: center;
   font-size: 0.99em;
-  color: #111;
+  color: #101720;
   position: relative;
   display: flex;
   flex-direction: column;
