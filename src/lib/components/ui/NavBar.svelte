@@ -75,6 +75,7 @@
     </div>
   {/if}
 </nav>
+
 <style>
 .header {
   display: flex;
@@ -87,7 +88,7 @@
   z-index: 100;
   min-height: 55px;
 }
-.logo-img { height: 4em; width: auto; }
+.logo-img { height: 3em; width: auto; }
 .logo-link { display: flex; align-items: center; }
 .nav-links {
   display: flex;
@@ -201,6 +202,7 @@
     z-index: 2100;
     background: #fff;
     padding: 0 !important;
+    margin-left: 0.7em;
     min-height: unset;
     height: 48px;
     align-items: center;   /* <-- Center everything vertically */
@@ -215,7 +217,7 @@
     display: block;
     margin: 0 !important;
     padding: 0 !important;
-    height: 2.2em !important;
+    height: 2.4em !important;
     max-height: 40px !important;
     width: auto !important;
     /* Optional: vertically center for pixel-perfect look */
