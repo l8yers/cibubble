@@ -491,143 +491,90 @@
 		font-size: 0.52em !important;
 		margin-top: 1px !important;
 	}
-	@media (max-width: 900px) {
-		.progress-row {
-			grid-template-columns: 1fr;
-			gap: 1em;
-		}
-		.stats-card,
-		.activity-card {
-			max-width: 100%;
-			min-width: 0;
-		}
-		.activity-2col {
-			flex-direction: column;
-			gap: 1em;
-		}
-		.activity-stats-cards {
-			flex-direction: row;
-			gap: 1em;
-			margin: 0 0 1em 0;
-			min-width: 0;
-			max-width: 100%;
-			justify-content: flex-start;
-		}
-		.calendar-section {
-			max-width: 100%;
-		}
-		.stats-list {
-			gap: 0.7em;
-		}
-		.stat-item {
-			font-size: 0.99em;
-			padding: 0.8em 0.6em 0.7em 0.6em;
-			gap: 0.8em;
-		}
-		.stat-item .stat-icon-col {
-			width: 56px;
-			height: 56px;
-		}
-		.stat-item .stat-icon {
-			width: 40px !important;
-			height: 40px !important;
-		}
-		.stat-value {
-			font-size: 1.33em;
-		}
+@media (max-width: 900px) {
+	.progress-row {
+		grid-template-columns: 1fr;
+		gap: 1em;
 	}
-	@media (max-width: 600px) {
-		.progress-layout {
-			margin: 1.6em 0.6em 1.4em 0.6em;
-			gap: 1.5em;
-			padding: 0;
-		}
-		.card,
-		.stats-card,
-		.activity-card {
-			padding: 1.1em 0.6em 1.5em 0.6em;
-			border-radius: 13px;
-			box-shadow: 0 3px 16px 0 #e9eaee55;
-			margin-bottom: 0.7em;
-		}
-		.stats-heading-row {
-			margin-bottom: 0.6em;
-		}
-		.card-heading {
-			font-size: 1.04em;
-		}
+	.stats-card,
+	.activity-card {
+		max-width: 100%;
+		min-width: 0;
 	}
-	.tooltip-parent {
-		position: relative;
-		cursor: pointer;
-		outline: none;
-		display: inline-block;
+	.activity-2col {
+		flex-direction: column;
+		gap: 1em;
 	}
-	.tooltip-parent:focus {
-		box-shadow: 0 0 0 2px #e93c2f55;
-	}
-	.custom-tooltip {
-		position: absolute;
-		left: 50%;
-		bottom: 120%;
-		transform: translateX(-50%);
-		background: #232323;
-		color: #fff;
-		font-size: 1.01rem;
-		font-weight: 500;
-		padding: 0.53em 1.1em;
-		border-radius: 12px;
-		white-space: nowrap;
-		z-index: 10;
-		pointer-events: none;
-		opacity: 1;
-		animation: fadeIn 0.17s;
-	}
-	.stat-time-tooltip {
-		background: #e93c2f;
-	}
-	.stat-today-tooltip {
-		background: #31b361;
-	}
-	.stat-practiced-tooltip {
-		background: #f4a000;
-	}
-	@keyframes fadeIn {
-		from {
-			opacity: 0;
-			transform: translateX(-50%) translateY(8px);
-		}
-		to {
-			opacity: 1;
-			transform: translateX(-50%) translateY(0);
-		}
-	}
-	.modal-backdrop {
-		position: fixed;
-		z-index: 1000;
-		inset: 0;
-		background: rgba(24, 29, 39, 0.31);
+	.activity-stats-cards {
 		display: flex;
-		align-items: center;
-		justify-content: center;
+		flex-direction: row;
+		gap: 0.7em;
+		width: 100%;
+		margin: 0 0 1em 0;
+		justify-content: stretch;
 	}
-	.modal-content {
-		background: #fff;
-		border-radius: 18px;
-		max-width: 98vw;
-		min-width: 320px;
-		max-height: 94vh;
-		padding: 2.1em 1.6em 1.5em 1.6em;
-		box-shadow: 0 3px 44px 0 #22292f22;
-		position: relative;
-		overflow: auto;
+	.mini-stat-card {
+		flex: 1 1 0;
+		width: 100%;
+		box-sizing: border-box;
+		max-width: none;
+		min-width: 0;
 	}
-	@media (max-width: 600px) {
-		.modal-content {
-			min-width: 0;
-			max-width: 99vw;
-			padding: 1.1em 0.2em 1.1em 0.2em;
-			border-radius: 10px;
-		}
+	.mini-stat-number {
+		font-size: 1.08em;
 	}
+	.mini-stat-label {
+		font-size: 0.92em;
+	}
+	.calendar-section {
+		max-width: 100%;
+	}
+	.stats-list {
+		gap: 0.7em;
+	}
+	.stat-item {
+		font-size: 0.99em;
+		padding: 0.8em 0.6em 0.7em 0.6em;
+		gap: 0.8em;
+	}
+	.stat-item .stat-icon-col {
+		width: 56px;
+		height: 56px;
+	}
+	.stat-item .stat-icon {
+		width: 40px !important;
+		height: 40px !important;
+	}
+	.stat-value {
+		font-size: 1.33em;
+	}
+}
+@media (max-width: 600px) {
+	.progress-layout {
+		margin: 1.6em 0.6em 1.4em 0.6em;
+		gap: 1.5em;
+		padding: 0;
+	}
+	.card,
+	.stats-card,
+	.activity-card {
+		padding: 1.1em 0.6em 1.5em 0.6em;
+		border-radius: 13px;
+		box-shadow: 0 3px 16px 0 #e9eaee55;
+		margin-bottom: 0.7em;
+	}
+	.stats-heading-row {
+		margin-bottom: 0.6em;
+	}
+	.card-heading {
+		font-size: 1.04em;
+	}
+	.activity-stats-cards {
+		gap: 0.4em;
+	}
+	.mini-stat-card {
+		padding: 0.38em 0.07em 0.38em 0.07em;
+	}
+}
+
 </style>
