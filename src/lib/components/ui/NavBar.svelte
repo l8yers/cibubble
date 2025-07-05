@@ -88,7 +88,7 @@
   z-index: 100;
   min-height: 55px;
 }
-.logo-img { height: 3em; width: auto; }
+.logo-img { height: 2.8em; width: auto; }
 .logo-link { display: flex; align-items: center; }
 .nav-links {
   display: flex;
@@ -108,7 +108,7 @@
   transition: background 0.18s, color 0.18s;
   font-family: inherit;
 }
-.nav-link:hover, .logout-btn:hover { background: #f7f7f7; color: #e93c2f; }
+
 .logout-btn { font-family: inherit; }
 
 /* Hamburger menu (mobile only) */
@@ -217,8 +217,8 @@
     display: block;
     margin: 0 !important;
     padding: 0 !important;
-    height: 2.4em !important;
-    max-height: 40px !important;
+    height: 2.1em !important;
+    max-height: 38px !important;
     width: auto !important;
     /* Optional: vertically center for pixel-perfect look */
     align-self: center;

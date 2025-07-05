@@ -187,7 +187,7 @@
   margin-top: 2px;
   color: #fff;
   font-weight: 500;
-  opacity: 0.76;
+  opacity: 0.95;
   line-height: 1.08em;
   letter-spacing: 0.01em;
 }
@@ -230,8 +230,8 @@
     font-weight: 700;
   }
   .calendar-cell .mins {
-    font-size: 0.51em;
-    margin-top: 0px;
+    font-size: 0.60em;
+    margin-top: 4px;
     line-height: 1.1em;
   }
 }
