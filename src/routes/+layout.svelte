@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { loadUser, user } from '$lib/stores/user.js';
 	import { loadWatchedVideos } from '$lib/stores/videos.js';
-	// import NavBar from '$lib/components/ui/NavBar.svelte';
+	import NavBar from '$lib/components/ui/NavBar.svelte';
 	import BubbleSpinner from '$lib/components/ui/BubbleSpinner.svelte';
 	import { globalLoading } from '$lib/stores/loading.js';
 	// import CookieConsent from '$lib/components/CookieConsent.svelte';
@@ -16,7 +16,7 @@
 	}
 </script>
 
-<!-- <NavBar /> -->
+<NavBar />
 <slot />
 
 <!-- Only ONE loader per context: global overlay here -->

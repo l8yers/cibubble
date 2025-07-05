@@ -26,34 +26,28 @@ export async function GET({ url }) {
     }
 
     // --- EASY + RANDOM: Use special function for just "easy" level ---
-    if (
-      sort === 'random' &&
-      levels?.length === 1 &&
-      levels[0] === 'easy'
-    ) {
-      const params = {
-        p_tags: tags?.length ? tags : null,
-        p_country: country || null,
-        p_channel_ids: channel ? channel.split(',').filter(Boolean) : null,
-        p_playlist: playlist || null,
-        p_search: search || null,
-        p_limit: pageSize
-      };
-      console.log("Calling Supabase RPC random_easy_videos with", params);
-
-      const { data, error } = await supabase.rpc('random_easy_videos', params);
-
-      if (error) {
-        console.error('Supabase RPC random_easy_videos error:', error);
-        return json({ error: error.message }, { status: 500 });
-      }
-
-      return json({
-        videos: data ?? [],
-        total: data?.length ?? 0,
-        hasMore: true // For "random", always allow Load More
-      });
-    }
+if (sort === 'random') {
+  const params = {
+    p_levels: levels?.length ? levels : null,
+    p_tags: tags?.length ? tags : null,
+    p_country: country || null,
+    p_channel_ids: channel ? channel.split(',').filter(Boolean) : null,
+    p_playlist: playlist || null,
+    p_search: search || null,
+    p_limit: pageSize
+  };
+  console.log("Calling Supabase RPC random_videos with", params);
+  const { data, error } = await supabase.rpc('random_videos', params);
+  if (error) {
+    console.error('Supabase RPC random_videos error:', error);
+    return json({ error: error.message }, { status: 500 });
+  }
+  return json({
+    videos: data ?? [],
+    total: data?.length ?? 0,
+    hasMore: true
+  });
+}
 
     // --- OTHER RANDOM: Use one-random-per-channel function for other levels ---
     if (sort === 'random') {
@@ -84,32 +78,37 @@ export async function GET({ url }) {
     }
 
     // --- LATEST: Get the latest video from each channel and sort by published desc ---
-    if (sort === 'latest') {
-      const params = {
-        p_levels: levels?.length ? levels : null,
-        p_tags: tags?.length ? tags : null,
-        p_country: country || null,
-        p_channel_ids: channel ? channel.split(',').filter(Boolean) : null,
-        p_playlist: playlist || null,
-        p_search: search || null,
-        p_limit: pageSize
-      };
+if (sort === 'latest') {
+  const page = Number(url.searchParams.get('page') ?? 1);
+  const pageSize = Number(url.searchParams.get('pageSize') ?? 50);
+  const offset = (page - 1) * pageSize;
+  const params = {
+    p_levels: levels?.length ? levels : null,
+    p_tags: tags?.length ? tags : null,
+    p_country: country || null,
+    p_channel_ids: channel ? channel.split(',').filter(Boolean) : null,
+    p_playlist: playlist || null,
+    p_search: search || null,
+    p_limit: pageSize,
+    p_offset: offset
+  };
+  console.log("Calling Supabase RPC latest_one_per_channel_paged with", params);
 
-      console.log("Calling Supabase RPC latest_one_per_channel with", params);
+  const { data, error } = await supabase.rpc('latest_one_per_channel_paged', params);
 
-      const { data, error } = await supabase.rpc('latest_one_per_channel', params);
+  if (error) {
+    console.error('Supabase RPC latest_one_per_channel_paged error:', error);
+    return json({ error: error.message }, { status: 500 });
+  }
 
-      if (error) {
-        console.error('Supabase RPC latest_one_per_channel error:', error);
-        return json({ error: error.message }, { status: 500 });
-      }
+  // If fewer than pageSize returned, assume we're at the end
+  return json({
+    videos: data ?? [],
+    total: data?.length ?? 0,
+    hasMore: (data?.length ?? 0) === pageSize
+  });
+}
 
-      return json({
-        videos: data ?? [],
-        total: data?.length ?? 0,
-        hasMore: false // Not paginated for now
-      });
-    }
 
     // --- NON-RANDOM: Standard paginated query ---
     const page = Number(url.searchParams.get('page') ?? 1);
