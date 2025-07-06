@@ -25,31 +25,7 @@ export async function GET({ url }) {
       return json({ videos: [], total: 0, hasMore: false });
     }
 
-    // --- EASY + RANDOM: Use special function for just "easy" level ---
-if (sort === 'random') {
-  const params = {
-    p_levels: levels?.length ? levels : null,
-    p_tags: tags?.length ? tags : null,
-    p_country: country || null,
-    p_channel_ids: channel ? channel.split(',').filter(Boolean) : null,
-    p_playlist: playlist || null,
-    p_search: search || null,
-    p_limit: pageSize
-  };
-  console.log("Calling Supabase RPC random_videos with", params);
-  const { data, error } = await supabase.rpc('random_videos', params);
-  if (error) {
-    console.error('Supabase RPC random_videos error:', error);
-    return json({ error: error.message }, { status: 500 });
-  }
-  return json({
-    videos: data ?? [],
-    total: data?.length ?? 0,
-    hasMore: true
-  });
-}
-
-    // --- OTHER RANDOM: Use one-random-per-channel function for other levels ---
+    // --- RANDOM: Use random_videos only ---
     if (sort === 'random') {
       const params = {
         p_levels: levels?.length ? levels : null,
@@ -60,16 +36,12 @@ if (sort === 'random') {
         p_search: search || null,
         p_limit: pageSize
       };
-
-      console.log("Calling Supabase RPC random_one_per_channel with", params);
-
-      const { data, error } = await supabase.rpc('random_one_per_channel', params);
-
+      console.log("Calling Supabase RPC random_videos with", params);
+      const { data, error } = await supabase.rpc('random_videos', params);
       if (error) {
-        console.error('Supabase RPC random_one_per_channel error:', error);
+        console.error('Supabase RPC random_videos error:', error);
         return json({ error: error.message }, { status: 500 });
       }
-
       return json({
         videos: data ?? [],
         total: data?.length ?? 0,
@@ -78,44 +50,42 @@ if (sort === 'random') {
     }
 
     // --- LATEST: Get the latest video from each channel and sort by published desc ---
-if (sort === 'latest') {
-  const page = Number(url.searchParams.get('page') ?? 1);
-  const pageSize = Number(url.searchParams.get('pageSize') ?? 50);
-  const offset = (page - 1) * pageSize;
-  const params = {
-    p_levels: levels?.length ? levels : null,
-    p_tags: tags?.length ? tags : null,
-    p_country: country || null,
-    p_channel_ids: channel ? channel.split(',').filter(Boolean) : null,
-    p_playlist: playlist || null,
-    p_search: search || null,
-    p_limit: pageSize,
-    p_offset: offset
-  };
-  console.log("Calling Supabase RPC latest_one_per_channel_paged with", params);
+    if (sort === 'latest') {
+      const page = Number(url.searchParams.get('page') ?? 1);
+      const pageSize = Number(url.searchParams.get('pageSize') ?? 50);
+      const offset = (page - 1) * pageSize;
+      const params = {
+        p_levels: levels?.length ? levels : null,
+        p_tags: tags?.length ? tags : null,
+        p_country: country || null,
+        p_channel_ids: channel ? channel.split(',').filter(Boolean) : null,
+        p_playlist: playlist || null,
+        p_search: search || null,
+        p_limit: pageSize,
+        p_offset: offset
+      };
+      console.log("Calling Supabase RPC latest_one_per_channel_paged with", params);
 
-  const { data, error } = await supabase.rpc('latest_one_per_channel_paged', params);
+      const { data, error } = await supabase.rpc('latest_one_per_channel_paged', params);
 
-  if (error) {
-    console.error('Supabase RPC latest_one_per_channel_paged error:', error);
-    return json({ error: error.message }, { status: 500 });
-  }
+      if (error) {
+        console.error('Supabase RPC latest_one_per_channel_paged error:', error);
+        return json({ error: error.message }, { status: 500 });
+      }
 
-  // If fewer than pageSize returned, assume we're at the end
-  return json({
-    videos: data ?? [],
-    total: data?.length ?? 0,
-    hasMore: (data?.length ?? 0) === pageSize
-  });
-}
-
+      // If fewer than pageSize returned, assume we're at the end
+      return json({
+        videos: data ?? [],
+        total: data?.length ?? 0,
+        hasMore: (data?.length ?? 0) === pageSize
+      });
+    }
 
     // --- NON-RANDOM: Standard paginated query ---
     const page = Number(url.searchParams.get('page') ?? 1);
     let query = supabase
       .from('videos')
       .select('*, playlist:playlist_id(title), channel:channel_id(name,country,tags)', { count: 'exact' });
-      
 
     if (levels && levels.length) query = query.in('level', levels);
 

@@ -7,7 +7,7 @@ export function filterAndSortVideos(videos, {
   selectedChannel = "",
   selectedPlaylist = "",
   selectedLevels = new Set(['easy', 'beginner', 'intermediate', 'advanced']),
-  sortBy = 'random',
+  sortBy = 'new',
   selectedCountry = "",
   selectedTags = new Set(),
   hideWatched = false,
@@ -54,7 +54,7 @@ export function filterAndSortVideos(videos, {
     );
   }
 
-  if (sortBy === 'random') return shuffleArray(filtered);
+  // Removed: random path (was: if (sortBy === 'random') return shuffleArray(filtered);)
   if (sortBy === 'easy') return filtered.slice().sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level]);
   if (sortBy === 'hard') return filtered.slice().sort((a, b) => LEVEL_ORDER[b.level] - LEVEL_ORDER[a.level]);
   if (sortBy === 'long') return filtered.slice().sort((a, b) => (b.length || 0) - (a.length || 0));
@@ -62,9 +62,4 @@ export function filterAndSortVideos(videos, {
   if (sortBy === 'new') return filtered.slice().sort((a, b) => new Date(b.published) - new Date(a.published));
   if (sortBy === 'old') return filtered.slice().sort((a, b) => new Date(a.published) - new Date(b.published));
   return filtered;
-}
-
-// Randomize array order
-function shuffleArray(arr) {
-  return arr.map(v => [Math.random(), v]).sort(([a], [b]) => a - b).map(([, v]) => v);
 }
