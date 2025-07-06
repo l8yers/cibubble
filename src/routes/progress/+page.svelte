@@ -1,6 +1,6 @@
 <script>
 	import { onMount, onDestroy } from 'svelte';
-	import { user } from '$lib/stores/user.js';
+	import { user, authChecked } from '$lib/stores/user.js';
 	import {
 		progressData,
 		fetchProgressData,
@@ -35,15 +35,8 @@
 	let showTodayTooltip = false;
 
 	let lastFetchedUserId = null;
-
-	let loading = false; // NEW: Track loading of progress data
-
-	// Watch user store and refetch progress data if needed
 	$: if ($user && $user.id && $user.id !== lastFetchedUserId) {
-		loading = true;
-		Promise.resolve(fetchProgressData($user)).then(() => {
-			loading = false;
-		});
+		fetchProgressData($user);
 		lastFetchedUserId = $user.id;
 	}
 
@@ -95,7 +88,7 @@
 	});
 </script>
 
-{#if $user === undefined || loading}
+{#if !$authChecked}
 	<div class="bubble-spinner-overlay">
 		<BubbleSpinner />
 	</div>

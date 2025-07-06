@@ -4,6 +4,7 @@ import { goto } from '$app/navigation';
 
 export const user = writable(undefined);      // 'undefined' means "not checked yet"
 export const userLoading = writable(true);    // true = loading, false = ready
+export const authChecked = writable(false);   // <- ADDED: true only after initial check
 export const authError = writable('');
 
 // Helper: map Supabase errors to user-friendly text
@@ -29,10 +30,12 @@ export async function loadUser() {
   if (error) {
     user.set(null);
     userLoading.set(false);
+    authChecked.set(true); // <-- Mark as checked even if error
     return;
   }
   user.set(data?.user || null);
   userLoading.set(false);
+  authChecked.set(true); // <-- Mark as checked after initial load
 }
 
 // Login
@@ -52,6 +55,7 @@ export async function logout() {
   await supabase.auth.signOut();
   user.set(null);
   userLoading.set(false);
+  authChecked.set(true); // Still checked after logout!
   // Keep theme only
   const keepTheme = localStorage.getItem('theme');
   localStorage.clear();
@@ -96,5 +100,6 @@ export async function updatePassword(newPassword) {
 // Keep Svelte store in sync with Supabase on all auth events
 supabase.auth.onAuthStateChange((event, session) => {
   user.set(session?.user || null);
-  userLoading.set(false); // <-- always mark loading as done on any auth event
+  userLoading.set(false); 
+  authChecked.set(true); // <-- Mark as checked after any event
 });
