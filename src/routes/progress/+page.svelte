@@ -1,5 +1,5 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { user } from '$lib/stores/user.js';
 	import {
 		progressData,
@@ -52,7 +52,42 @@
 		updateUserPassword(newPassword);
 		newPassword = '';
 	}
+
+	// === SCROLL LOCK LOGIC (minimal, no layout changes) ===
+	let modalOpen = false;
+	$: modalOpen = showManualModal || showManualTab || showSettings;
+
+	onMount(() => {
+		if (typeof document === "undefined") return;
+		let prev = modalOpen;
+
+		const updateScroll = () => {
+			if (modalOpen) {
+				document.body.style.overflow = 'hidden';
+			} else {
+				document.body.style.overflow = '';
+			}
+		};
+
+		const interval = setInterval(() => {
+			if (modalOpen !== prev) {
+				updateScroll();
+				prev = modalOpen;
+			}
+		}, 30);
+
+		updateScroll();
+
+		return () => {
+			clearInterval(interval);
+			document.body.style.overflow = '';
+		};
+	});
+	onDestroy(() => {
+		if (typeof document !== "undefined") document.body.style.overflow = '';
+	});
 </script>
+
 
 {#if $user === undefined}
 	<div class="bubble-spinner-overlay">
