@@ -33,6 +33,7 @@
 
 	let showTotalTooltip = false;
 	let showTodayTooltip = false;
+	let showOutsideTooltip = false;
 
 	let lastFetchedUserId = null;
 	$: if ($user && $user.id && $user.id !== lastFetchedUserId) {
@@ -51,6 +52,19 @@
 	function handlePasswordUpdate() {
 		updateUserPassword(newPassword);
 		newPassword = '';
+	}
+
+	// --- Watched on CIBUBBLE (in seconds)
+	$: watchedSeconds = (p.dailyTotals || []).reduce((sum, d) => sum + (d.totalSeconds || 0), 0);
+
+	// === Format as "X hrs Y mins", no seconds
+	function formatHoursMins(totalSeconds) {
+		const h = Math.floor(totalSeconds / 3600);
+		const m = Math.floor((totalSeconds % 3600) / 60);
+		const parts = [];
+		if (h) parts.push(`${h} hr${h === 1 ? '' : 's'}`);
+		if (m || !h) parts.push(`${m} min${m === 1 ? '' : 's'}`);
+		return parts.join(' ');
 	}
 
 	// === SCROLL LOCK LOGIC (minimal, no layout changes) ===
@@ -122,9 +136,9 @@
 								>
 									{formatWatchTime(p.watchTime)}
 									{#if showTotalTooltip}
-										<span class="custom-tooltip stat-time-tooltip"
-											>{formatFullTime(p.watchTime)}</span
-										>
+										<span class="custom-tooltip stat-time-tooltip">
+											{formatHoursMins(p.watchTime)}
+										</span>
 									{/if}
 								</span>
 							</div>
@@ -147,9 +161,9 @@
 								>
 									{formatWatchTime(p.todayWatchTime)}
 									{#if showTodayTooltip}
-										<span class="custom-tooltip stat-today-tooltip"
-											>{formatFullTime(p.todayWatchTime)}</span
-										>
+										<span class="custom-tooltip stat-today-tooltip">
+											{formatHoursMins(p.todayWatchTime)}
+										</span>
 									{/if}
 								</span>
 							</div>
@@ -170,7 +184,21 @@
 							<ExternalLink class="stat-icon" size={30} />
 						</div>
 						<div class="stat-main">
-							<div class="stat-value">{formatHours(p.outsideTime)}</div>
+							<div class="stat-value tooltip-parent"
+								tabindex="0"
+								on:mouseenter={() => (showOutsideTooltip = true)}
+								on:mouseleave={() => (showOutsideTooltip = false)}
+								on:focus={() => (showOutsideTooltip = true)}
+								on:blur={() => (showOutsideTooltip = false)}
+							>
+								{formatHours(p.outsideTime)}
+								{#if showOutsideTooltip}
+									<span class="custom-tooltip stat-outside-tooltip">
+										Watched on CIBUBBLE:<br>
+										<b>{formatHoursMins(watchedSeconds)}</b>
+									</span>
+								{/if}
+							</div>
 							<div class="stat-label">From other sources</div>
 						</div>
 					</div>
@@ -586,7 +614,9 @@ body,
 .stat-today-tooltip {
 	background: rgba(28,183,85,0.93);
 }
-
+.stat-outside-tooltip {
+	background: #3582c5;
+}
 @media (max-width: 900px) {
 	.progress-row {
 		display: flex;

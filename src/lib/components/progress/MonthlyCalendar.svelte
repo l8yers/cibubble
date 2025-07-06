@@ -9,10 +9,30 @@
   manualEntries = manualEntries || [];
   formatMinutesOnly = formatMinutesOnly || (s => `${Math.round(s/60)}m`);
 
-  function buildTotalsMap(dailyTotals, manualEntries) {
+  let viewType = 'total';
+  const VIEWS = [
+    { key: 'watched', label: 'Watched' },
+    { key: 'manual', label: 'Other sources' },
+    { key: 'total', label: 'Total' }
+  ];
+
+  function localDateString(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function buildMap(type) {
     const map = {};
-    for (const d of dailyTotals) map[d.date] = d.totalSeconds;
-    if (manualEntries) for (const m of manualEntries) map[m.date] = m.totalSeconds;
+    if (type === 'watched') {
+      for (const d of dailyTotals) map[d.date] = d.totalSeconds;
+    } else if (type === 'manual') {
+      for (const m of manualEntries) map[m.date] = m.totalSeconds;
+    } else if (type === 'total') {
+      for (const d of dailyTotals) map[d.date] = d.totalSeconds;
+      for (const m of manualEntries) map[m.date] = (map[m.date] || 0) + m.totalSeconds;
+    }
     return map;
   }
 
@@ -32,20 +52,19 @@
     month = m; year = y;
   }
 
-  function formatDate(date) {
-    return date.toISOString().split('T')[0];
-  }
   function monthName(m, y) {
     return new Date(y, m - 1).toLocaleString('default', {month:'long', year:'numeric'});
   }
 
-  function getGridData(year, month, totalsByDate) {
+  function getGridData(year, month) {
     const days = getDaysInMonth(year, month);
     let firstDay = days[0]?.getDay() ?? 1;
     if (firstDay === 0) firstDay = 7;
     const blanks = Array(firstDay - 1).fill(null);
     return blanks.concat(days);
   }
+
+  function setView(v) { viewType = v; }
 </script>
 
 <div class="cibubble-card calendar-wrap">
@@ -62,17 +81,15 @@
     <div class="calendar-label">F</div>
     <div class="calendar-label">S</div>
     <div class="calendar-label">S</div>
-    {#each getGridData(year, month, buildTotalsMap(dailyTotals, manualEntries)) as day}
+    {#each getGridData(year, month) as day}
       {#if day}
-        {#key formatDate(day)}
-          {#if buildTotalsMap(dailyTotals, manualEntries)[formatDate(day)]}
-            <!-- Red square, white text -->
-            <div class="calendar-cell active" title={formatMinutesOnly(buildTotalsMap(dailyTotals, manualEntries)[formatDate(day)])}>
+        {#key localDateString(day)}
+          {#if buildMap(viewType)[localDateString(day)]}
+            <div class="calendar-cell active" title={formatMinutesOnly(buildMap(viewType)[localDateString(day)])}>
               <span class="date">{day.getDate()}</span>
-              <span class="mins">{formatMinutesOnly(buildTotalsMap(dailyTotals, manualEntries)[formatDate(day)])}</span>
+              <span class="mins">{formatMinutesOnly(buildMap(viewType)[localDateString(day)])}</span>
             </div>
           {:else}
-            <!-- Plain, black text -->
             <div class="calendar-cell">
               <span class="date plain">{day.getDate()}</span>
             </div>
@@ -83,18 +100,39 @@
       {/if}
     {/each}
   </div>
+  <!-- Button group at the bottom -->
+  <div class="calendar-btn-row" role="tablist" aria-label="Select time type">
+    {#each VIEWS as view}
+      <button
+        type="button"
+        role="tab"
+        aria-selected={viewType === view.key}
+        class="calendar-btn {viewType === view.key ? 'active' : ''}"
+        on:click={() => setView(view.key)}
+        tabindex="0"
+      >
+        {view.label}
+      </button>
+    {/each}
+  </div>
 </div>
 
-<style> 
+<style>
+:root {
+  --cibubble-red: #EF5552;
+  --cibubble-red-light: #ffeaea;
+  --cibubble-grey: #e0e0e0;
+  --cibubble-grey-dark: #c0c0c0;
+}
+
 .cibubble-card.calendar-wrap {
   background: #fff;
   border-radius: 13px;
-  padding: 0.2em 1.4em 1.7em 1em;
+  padding: 0.2em 1.4em 1.3em 1em;
   margin: 0.1em 2em 0.1em auto;
   max-width: 455px;
   box-shadow: none;
 }
-
 .calendar-header {
   display: flex;
   align-items: center;
@@ -105,17 +143,19 @@
   gap: 1.2em;
   letter-spacing: 0.01em;
 }
-
 .calendar-header button {
   border: none;
   border-radius: 7px;
   font-size: 1em;
   padding: 0.21em 0.89em;
-  color: #EF5552;
+  color: var(--cibubble-red);
   font-weight: 700;
   cursor: pointer;
   outline: none;
+  background: transparent;
+  transition: color 0.14s;
 }
+.calendar-header button:hover { color: #d32f2f; }
 
 .calendar-grid {
   display: grid;
@@ -125,7 +165,6 @@
   padding: 0.2em 0.1em 0.18em 0.1em;
   width: 100%;
 }
-
 .calendar-label {
   text-align: center;
   color: #71797E;
@@ -135,7 +174,6 @@
   letter-spacing: 0.04em;
   user-select: none;
 }
-
 .calendar-cell {
   background: transparent;
   border-radius: 6px;
@@ -157,7 +195,7 @@
   transition: background 0.16s, color 0.13s;
 }
 .calendar-cell.active {
-  background: #EF5552;
+  background: var(--cibubble-red);
   color: #fff;
   font-weight: 900;
 }
@@ -192,12 +230,44 @@
   pointer-events: none;
 }
 
-/* --- MOBILE: Fill width, smaller text, square cells --- */
+/* --- Small Buttons Row --- */
+.calendar-btn-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.55em;
+  margin: 1.05em 0 0.1em 0;
+}
+.calendar-btn {
+  border: none;
+  background: var(--cibubble-grey);
+  color: #222;
+  border-radius: 6px;
+  font-size: 0.98em;
+  font-weight: 700;
+  padding: 0.32em 1.1em;
+  transition:
+    color 0.15s,
+    background 0.13s,
+    border-color 0.13s;
+  outline: none;
+  cursor: pointer;
+}
+.calendar-btn.active,
+.calendar-btn:focus {
+  background: var(--cibubble-red);
+  color: #fff;
+}
+.calendar-btn:hover:not(.active) {
+  background: var(--cibubble-grey-dark);
+  color: #101720;
+}
+
 @media (max-width: 600px) {
   .cibubble-card.calendar-wrap {
     max-width: 100vw;
     border-radius: 0;
-    padding: 0.10em 0 1.1em 0;
+    padding: 0.10em 0 0.9em 0;
     margin: 0;
   }
   .calendar-header {
@@ -229,6 +299,15 @@
     font-size: 0.60em;
     margin-top: 4px;
     line-height: 1.1em;
+  }
+  .calendar-btn-row {
+    font-size: 0.96em;
+    gap: 0.41em;
+    margin: 0.51em 0 0.1em 0;
+  }
+  .calendar-btn {
+    padding: 0.26em 0.69em;
+    font-size: 0.97em;
   }
 }
 </style>
