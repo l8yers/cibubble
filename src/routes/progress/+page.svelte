@@ -35,8 +35,15 @@
 	let showTodayTooltip = false;
 
 	let lastFetchedUserId = null;
+
+	let loading = false; // NEW: Track loading of progress data
+
+	// Watch user store and refetch progress data if needed
 	$: if ($user && $user.id && $user.id !== lastFetchedUserId) {
-		fetchProgressData($user);
+		loading = true;
+		Promise.resolve(fetchProgressData($user)).then(() => {
+			loading = false;
+		});
 		lastFetchedUserId = $user.id;
 	}
 
@@ -88,8 +95,7 @@
 	});
 </script>
 
-
-{#if $user === undefined}
+{#if $user === undefined || loading}
 	<div class="bubble-spinner-overlay">
 		<BubbleSpinner />
 	</div>
