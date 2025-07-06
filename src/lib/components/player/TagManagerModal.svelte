@@ -14,167 +14,90 @@
   let saving = false;
   const dispatch = createEventDispatcher();
 
-  // Only show tag options not already in use
   $: availableTagOptions = TAG_OPTIONS.filter(opt => !tags.includes(opt));
-
-  // Dark color palette for tag badges
   const TAG_COLORS = [
-    '#254B8B', // dark blue
-    '#953553', // dark magenta
-    '#296D3F', // deep green
-    '#5A2386', // purple
-    '#3B3333', // charcoal
-    '#DB4B2A', // dark orange-red
-    '#008080', // teal
-    '#3D3946', // slate
-    '#8E562E', // brown
-    '#B80028', // deep red
-    '#205072', // midnight blue
-    '#34495E', // dark grey blue
-    '#1E2D3B', // nearly black blue
-    '#232526', // blackish
-    '#36454F', // onyx
-    '#432818', // dark espresso
+    '#254B8B','#953553','#296D3F','#5A2386','#3B3333','#DB4B2A',
+    '#008080','#3D3946','#8E562E','#B80028','#205072','#34495E',
+    '#1E2D3B','#232526','#36454F','#432818'
   ];
   function tagColor(tag) {
     let sum = 0;
     for (let i = 0; i < tag.length; i++) sum += tag.charCodeAt(i);
     return TAG_COLORS[sum % TAG_COLORS.length];
   }
-
-  // Load channel tags (comma separated string)
   async function loadTags() {
-    if (!channelId) {
-      tags = [];
-      return;
-    }
+    if (!channelId) { tags = []; return; }
     loading = true;
-
     const { data: chan, error } = await supabase
-      .from('channels')
-      .select('tags')
-      .eq('id', channelId)
-      .maybeSingle();
-
-    if (!chan || error) {
-      tags = [];
-      loading = false;
-      return;
-    }
-    tags = (chan.tags || '')
-      .split(',')
-      .map(t => t.trim())
-      .filter(Boolean);
+      .from('channels').select('tags').eq('id', channelId).maybeSingle();
+    if (!chan || error) { tags = []; loading = false; return; }
+    tags = (chan.tags || '').split(',').map(t => t.trim()).filter(Boolean);
     loading = false;
   }
-
-  // Load tags when modal is opened and channelId is set
   $: if (open && channelId) loadTags();
-
-  function handleTagInput(e) {
-    tagInput = e.target.value;
-    addError = '';
-  }
-
-  function handleSelectTag(e) {
-    tagInput = e.target.value;
-    addError = '';
-  }
-
+  function handleTagInput(e) { tagInput = e.target.value; addError = ''; }
+  function handleSelectTag(e) { tagInput = e.target.value; addError = ''; }
   async function handleAddTag() {
     const tagToAdd = tagInput.trim();
-    if (!tagToAdd) {
-      addError = "Enter a tag.";
-      return;
-    }
+    if (!tagToAdd) { addError = "Enter a tag."; return; }
     if (tags.some(t => t.toLowerCase() === tagToAdd.toLowerCase())) {
-      addError = "Tag already added.";
-      return;
+      addError = "Tag already added."; return;
     }
-    saving = true;
-    addError = '';
-
-    // Step 1: Update channel tags
+    saving = true; addError = '';
     const newTags = [...tags, tagToAdd].join(', ');
     const { error: chanError } = await supabase
-      .from('channels')
-      .update({ tags: newTags })
-      .eq('id', channelId);
-    if (chanError) {
-      addError = "Failed to add tag to channel. Try again.";
-      saving = false;
-      return;
-    }
-
-    // Step 2: Bulk update all videos for this channel using the new SQL function
-    const { error: bulkError } = await supabase.rpc(
-      'add_tag_to_channel_videos',
-      {
-        channel_id_input: channelId,
-        tag_input: tagToAdd
-      }
-    );
-    if (bulkError) {
-      addError = "Failed to add tag to videos. Try again.";
-      saving = false;
-      return;
-    }
-
-    // Reload tag list & reset input
-    tagInput = '';
-    saving = false;
-    await loadTags();
+      .from('channels').update({ tags: newTags }).eq('id', channelId);
+    if (chanError) { addError = "Failed to add tag to channel. Try again."; saving = false; return; }
+    const { error: bulkError } = await supabase.rpc('add_tag_to_channel_videos', {
+      channel_id_input: channelId, tag_input: tagToAdd
+    });
+    if (bulkError) { addError = "Failed to add tag to videos. Try again."; saving = false; return; }
+    tagInput = ''; saving = false; await loadTags();
   }
 </script>
 
 {#if open}
   <div class="cb-modal-overlay" on:click={(e) => { if (e.target === e.currentTarget) dispatch('close') }}>
-    <div class="cb-modal-content" role="dialog" aria-modal="true">
+    <form class="cb-modal-content tag-modal" role="dialog" aria-modal="true" on:submit|preventDefault={handleAddTag}>
       <div class="cb-modal-header">
-        <h2>Manage Channel Tags</h2>
-        <button class="cb-close-btn" on:click={() => dispatch('close')} aria-label="Close">&times;</button>
+        <div class="tag-modal-title">Manage Channel Tags</div>
+        <button class="cb-close-btn" type="button" on:click={() => dispatch('close')} aria-label="Close">&times;</button>
       </div>
 
-      <div class="cb-section">
-        <div class="cb-section-title">Channel Tags</div>
-        <div class="cb-tags-row">
+      <div class="tag-section">
+        <div class="tag-label">Channel Tags</div>
+        <div class="tag-badge-list">
           {#if loading}
-            <div class="cb-loading">Loading…</div>
+            <div class="tag-loading">Loading…</div>
           {:else if tags.length === 0}
-            <div class="cb-no-tags">No tags assigned</div>
+            <div class="tag-empty">No tags assigned</div>
           {:else}
             {#each tags as tagId}
               <a
-                class="cb-tag-badge"
-                style="background:{tagColor(tagId)};color:#fff;"
+                class="tag-badge"
+                style="background:{tagColor(tagId)}"
                 href={"/?tags=" + encodeURIComponent(tagId)}
                 on:click|preventDefault={() => goto(`/?tags=${encodeURIComponent(tagId)}`)}
                 title="View all videos with this tag"
-              >
-                {tagId}
-              </a>
+              >{tagId}</a>
             {/each}
           {/if}
         </div>
       </div>
 
-      <div class="cb-section cb-section-add">
-        <div class="cb-section-title">Add a Tag</div>
-        <div class="cb-add-row">
-          {#if availableTagOptions.length > 0}
-            <select class="cb-tag-select" on:change={handleSelectTag} bind:value={tagInput} disabled={saving}>
-              <option value="">Choose Existing…</option>
-              {#each availableTagOptions as tag}
-                <option value={tag}>{tag}</option>
-              {/each}
-            </select>
-          {:else}
-            <span class="cb-no-options" style="color:#b3bad6;">All tag options used</span>
-          {/if}
-          <span class="cb-add-sep">or</span>
+      <div class="tag-section tag-add-section">
+        <div class="tag-label">Add a Tag</div>
+        <div class="tag-add-row">
+          <select class="tag-select" on:change={handleSelectTag} bind:value={tagInput} disabled={saving}>
+            <option value="">Choose Existing…</option>
+            {#each availableTagOptions as tag}
+              <option value={tag}>{tag}</option>
+            {/each}
+          </select>
+          <span class="tag-add-sep">or</span>
           <input
             type="text"
-            class="cb-tag-input"
+            class="tag-input"
             placeholder="Create new tag"
             bind:value={tagInput}
             on:input={handleTagInput}
@@ -183,236 +106,214 @@
             maxlength="32"
             disabled={saving}
           />
-          <button class="cb-add-btn" type="button" on:click={handleAddTag} disabled={saving}>
-            {saving ? "Adding…" : "Add"}
-          </button>
         </div>
+        <button class="tag-add-btn" type="submit" disabled={saving}>
+          {saving ? "Adding…" : "Add"}
+        </button>
         {#if addError}
-          <div class="cb-add-error">{addError}</div>
+          <div class="tag-add-error">{addError}</div>
         {/if}
       </div>
-    </div>
+    </form>
   </div>
 {/if}
 
 <style>
 .cb-modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  background: rgba(245,247,251,0.93);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(24,24,30,0.47);
+  display: flex; align-items: center; justify-content: center;
 }
-
-.cb-modal-content {
+.cb-modal-content.tag-modal {
   background: #fff;
-  color: #212d41;
-  min-width: 340px;
+  color: #101720;
+  min-width: 330px;
   max-width: 94vw;
-  border-radius: 12px;
-  box-shadow: 0 6px 28px #e2e5ee99;
-  padding: 1.7em 2em 1.4em 2em;
+  border-radius: 18px;
+  box-shadow: 0 4px 32px #0002, 0 2px 8px #e93c2f10;
+  padding: 2em 2em 1.5em 2em;
   display: flex;
   flex-direction: column;
-  gap: 1.2em;
+  gap: 1.4em;
   font-family: inherit;
-  font-size: 1.07em;
+  font-size: 1.09em;
+  margin: 0 0.7em;
+  border: 1.5px solid #ededf3;
 }
-
 .cb-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: 0.1em;
-  border-bottom: 1.5px solid #f1f2f7;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 0.3em;
 }
-
+.tag-modal-title {
+  font-weight: 700; font-size: 1.19em; color: #e93c2f; letter-spacing: 0.02em;
+}
 .cb-close-btn {
-  background: none;
-  border: none;
-  color: #b0b8c9;
-  font-size: 1.6em;
-  cursor: pointer;
-  border-radius: 6px;
-  padding: 0 0.5em;
+  background: none; border: none; color: #e93c2f;
+  font-size: 1.6em; cursor: pointer; border-radius: 50%;
+  padding: 0 0.42em;
   transition: background 0.12s, color 0.13s;
 }
-.cb-close-btn:hover,
-.cb-close-btn:focus-visible {
-  background: #f3f3fb;
-  color: #e14747;
+.cb-close-btn:hover, .cb-close-btn:focus-visible {
+  background: #fff6f6; color: #b8271b; outline: none;
 }
-
-.cb-section {
+.tag-section {
   background: #fafbfc;
-  border: 1px solid #f1f2f7;
-  border-radius: 9px;
-  padding: 1.2em 1.15em 1em 1.15em;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5em;
-  margin-bottom: 0.23em;
+  border-radius: 12px;
+  border: 1px solid #ededf3;
+  padding: 1.18em 1.2em 1em 1.2em;
+  display: flex; flex-direction: column; gap: 0.54em;
+  margin-bottom: 0.17em;
 }
-
-.cb-section-title {
-  font-weight: 700;
-  font-size: 1.04em;
-  color: #222b44;
-  margin-bottom: 0.41em;
-  letter-spacing: 0.03em;
-}
-
-.cb-tags-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5em;
-  min-height: 2em;
-}
-
-.cb-tag-badge {
-  background: #f1f2f6;
-  color: #31333b;
-  border-radius: 7px;
-  padding: 0.33em 0.9em;
-  font-size: 0.99em;
-  font-weight: 700;
+.tag-label {
+  font-weight: 600;
+  font-size: 1.05em;
+  color: #212d41;
+  margin-bottom: 0.25em;
   letter-spacing: 0.01em;
-  border: 1.2px solid #e2e4ea;
-  box-shadow: 0 1px 4px #dae3fa14;
-  margin-bottom: 0.04em;
+}
+.tag-badge-list {
+  display: flex; flex-wrap: wrap; gap: 0.5em; min-height: 2.2em;
+}
+.tag-badge {
+  display: inline-block;
+  background: #e3e3e3;
+  color: #fff;
+  border-radius: 5px;         /* NOT a pill, subtle rounding */
+  padding: 0.32em 1em;
+  font-size: 1em;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.1em;
   text-transform: uppercase;
   text-decoration: none;
+  box-shadow: 0 1px 6px #0001;
   transition: background 0.13s, color 0.13s;
+  outline: none;
+  border: none;
 }
-.cb-tag-badge[style] { /* Tag badges with inline color (added) */
-  border: none !important;
-  box-shadow: 0 1px 6px #0002;
-  color: #fff !important;
-  text-shadow: 0 1px 8px #0003;
+.tag-badge:hover, .tag-badge:focus {
+  opacity: 0.94;
+  filter: brightness(1.06) saturate(1.2);
 }
-.cb-tag-badge:hover,
-.cb-tag-badge:focus {
-  background: #e2e9f5;
-  color: #db2e34;
-}
-
-.cb-no-tags {
+.tag-loading, .tag-empty {
   color: #b0b8c9;
   font-size: 1em;
+  font-weight: 500;
   padding: 0.53em 0;
-  font-weight: 500;
 }
-
-.cb-loading {
-  color: #9bb2d5;
-  font-size: 0.98em;
-  padding: 0.5em 0;
+.tag-add-section {
+  background: #f9f6fa;
+  border: 1.2px solid #f3e4ec;
 }
-
-.cb-section-add {
-  background: #f7faff;
-  border: 1.2px solid #e3ebf5;
+.tag-add-row {
+  display: flex; flex-wrap: wrap;
+  align-items: stretch; gap: 0.5em; margin-bottom: 0.55em;
 }
-
-.cb-add-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.36em;
-  margin-bottom: 0.07em;
-}
-
-.cb-tag-select {
+.tag-select, .tag-input {
   font-size: 1em;
-  padding: 0.39em 0.8em;
-  border-radius: 8px;
-  border: 1.2px solid #d0d4e4;
+  padding: 0.65em 1em;
+  border-radius: 7px;
+  border: 1.3px solid #e1e5ec;
   background: #fff;
-  color: #444;
-  font-weight: 500;
-  min-width: 9em;
-  outline: none;
-  transition: border 0.13s;
-  max-width: 210px;
-}
-.cb-tag-select:focus {
-  border: 1.5px solid #395edb;
-}
-
-.cb-no-options {
-  font-size: 0.98em;
-  padding: 0.3em 0.5em;
-}
-
-.cb-add-sep {
-  font-size: 1.02em;
-  color: #b3bad6;
-  padding: 0 0.13em;
-  font-weight: 400;
-  user-select: none;
-}
-
-.cb-tag-input {
-  font-size: 0.99em;
-  border-radius: 8px;
-  border: 1.2px solid #d0d4e4;
-  padding: 0.39em 0.9em;
-  background: #fff;
-  color: #444;
+  color: #212d41;
   font-weight: 500;
   outline: none;
-  min-width: 8em;
+  min-width: 7.5em;
+  max-width: 240px;
+  margin-bottom: 0.06em;
   transition: border 0.13s;
 }
-.cb-tag-input:focus {
-  border: 1.5px solid #395edb;
+.tag-select:focus, .tag-input:focus {
+  border: 1.7px solid #e93c2f;
 }
-
-.cb-add-btn {
-  font-size: 0.98em;
-  font-weight: 700;
-  padding: 0.42em 1.11em;
+.tag-add-sep {
+  font-size: 1em; color: #b3bad6;
+  padding: 0 0.19em; font-weight: 500; user-select: none;
+}
+.tag-add-btn {
+  width: 100%;
+  margin-top: 0.15em;
+  padding: 0.78em 0;
   border-radius: 8px;
-  background: #e14747;
+  background: linear-gradient(90deg, #e93c2f 35%, #f35b36 90%);
   color: #fff;
+  font-size: 1.04em;
+  font-weight: 700;
   border: none;
   box-shadow: 0 1px 4px #ead7d733;
   cursor: pointer;
-  margin-left: 0.12em;
-  margin-top: 0.04em;
-  transition: background 0.13s;
-  text-transform: uppercase;
   letter-spacing: 0.03em;
+  text-transform: uppercase;
+  transition: background 0.12s;
 }
-.cb-add-btn:disabled {
-  opacity: 0.75;
-  cursor: not-allowed;
+.tag-add-btn:disabled {
+  opacity: 0.75; cursor: not-allowed;
 }
-.cb-add-btn:hover,
-.cb-add-btn:focus {
-  background: #c53b3b;
+.tag-add-btn:hover, .tag-add-btn:focus {
+  background: #cc3329;
 }
-
-.cb-add-error {
+.tag-add-error {
   color: #e14747;
   margin-top: 0.13em;
-  font-size: 0.98em;
+  font-size: 0.99em;
   font-weight: 500;
-  min-height: 1.7em;
+  min-height: 1.3em;
 }
 
+/* --------- MOBILE ----------- */
 @media (max-width: 600px) {
-  .cb-modal-content {
-    min-width: 92vw;
-    padding: 1em 0.4em 0.8em 0.4em;
+  .cb-modal-content.tag-modal {
+    min-width: 97vw;
+    max-width: 99vw;
+    border-radius: 11px;
+    padding: 1.09em 0.82em 1.1em 0.82em;
+    font-size: 0.96em;
+    gap: 1.1em;
   }
-  .cb-section {
-    padding: 0.7em 0.2em 0.6em 0.2em;
+  .cb-modal-header {
+    margin-bottom: 0.09em;
   }
-  .cb-tags-row {
-    min-height: 1.4em;
+  .tag-modal-title {
+    font-size: 1em;
+  }
+  .cb-close-btn {
+    font-size: 1.19em; padding: 0 0.41em; border-radius: 8px;
+  }
+  .tag-section {
+    padding: 1.09em 0.77em 0.99em 0.77em;
+    border-radius: 6px;
+    font-size: 0.98em;
+    margin-bottom: 0.15em;
+    gap: 0.6em;
+  }
+  .tag-label {
+    font-size: 0.95em; margin-bottom: 0.15em;
+  }
+  .tag-badge-list {
+    gap: 0.19em; min-height: 1.12em;
+  }
+  .tag-badge {
+    padding: 0.34em 0.74em;
+    font-size: 0.92em;
+    border-radius: 5px;      /* less round on mobile too */
+    margin-bottom: 0.05em;
+  }
+  .tag-add-row {
+    gap: 0.25em; margin-bottom: 0.16em; flex-direction: column;
+  }
+  .tag-select, .tag-input {
+    font-size: 0.94em; padding: 0.66em 1.04em;
+    border-radius: 6px; min-width: 96%; max-width: 100%;
+  }
+  .tag-add-btn {
+    margin-top: 0.11em;
+    padding: 0.56em 0;
+    font-size: 0.98em;
+    border-radius: 7px;
+    width: 100%;
+  }
+  .tag-add-error {
+    font-size: 0.95em; min-height: 1.1em;
   }
 }
 </style>

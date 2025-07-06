@@ -36,6 +36,7 @@
 
   // ---- MODAL STATE ----
   let showTagModal = false;
+  $: modalOpen = showTagModal;
 
   $: id = $page.params.id;
   $: if (id) initializePlayer();
@@ -48,11 +49,35 @@
     const check = () => (isMobile = window.innerWidth <= 800);
     check();
     window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
+
+    // === SCROLL LOCK LOGIC ===
+    if (typeof document === "undefined") return;
+    let prev = modalOpen;
+    const updateScroll = () => {
+      if (modalOpen) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = '';
+      }
+    };
+    const interval = setInterval(() => {
+      if (modalOpen !== prev) {
+        updateScroll();
+        prev = modalOpen;
+      }
+    }, 30);
+    updateScroll();
+
+    return () => {
+      window.removeEventListener('resize', check);
+      clearInterval(interval);
+      document.body.style.overflow = '';
+    };
   });
 
   onDestroy(() => {
     if (unsubscribe) unsubscribe();
+    if (typeof document !== "undefined") document.body.style.overflow = '';
   });
 
   async function initializePlayer() {
@@ -134,6 +159,7 @@
     }
   }
 </script>
+
 
 {#if loading}
  			<div class="bubble-spinner-overlay">
