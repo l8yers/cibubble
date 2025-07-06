@@ -24,10 +24,12 @@ function getActiveDaysCountThisMonth(dailyTotals, manualTotals) {
 	const now = new Date();
 	const year = now.getFullYear();
 	const month = now.getMonth() + 1;
+	const today = now.getDate();
 	const totalsMap = buildTotalsMap(dailyTotals, manualTotals);
 	const days = getDaysInMonth(year, month);
 	let count = 0;
 	for (const day of days) {
+		if (day.getDate() > today) continue; // <-- Only count days up to today!
 		if (totalsMap[formatDate(day)] > 0) count++;
 	}
 	return count;
