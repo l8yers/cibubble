@@ -5,7 +5,7 @@
       faqs: [
         {
           question: "What is CIBUBBLE?",
-          answer: "CIBUBBLE IS A FREE, COMMUNITY-AGE LEARNING. LOREM IPSUM DOLOR SIT AMET."
+          answer: "CIBUBBLE is a YouTube front end, with watched time tracking feature, for people learning Spanish using the Comprehensible Input method."
         },
       ]
     },
@@ -14,7 +14,7 @@
       faqs: [
         {
           question: "WHAT IS 'COMPREHENSIBLE INPUT'?",
-          answer: "COMPREHENSIBLE INPUT IS LANGUAGE THAT LEARNERS CAN UNDERSTAND, EVEN IF IT INCLUDES SOME UNFAMILIAR WORDS OR STRUCTURES. IT’S A PROVEN METHOD TO BOOST ACQUISITION. LOREM IPSUM DOLOR SIT AMET."
+          answer: "Comprehensible input is a method to learn a language "
         },
       ]
     }

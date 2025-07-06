@@ -14,7 +14,7 @@
 	import ManualEntryList from '$lib/components/progress/ManualEntryList.svelte';
 	import ManualEntryEditForm from '$lib/components/progress/ManualEntryEditForm.svelte';
 	import ProgressSettings from '$lib/components/progress/ProgressSettings.svelte';
-	import { Timer, CalendarCheck, Award, ExternalLink, Plus, List, History } from 'lucide-svelte';
+	import { Timer, CalendarCheck, Award, ExternalLink, Plus, List, History, AlignRight } from 'lucide-svelte';
 	import { writable } from 'svelte/store';
 	import {
 		formatWatchTime,
@@ -66,6 +66,37 @@
 		if (m || !h) parts.push(`${m} min${m === 1 ? '' : 's'}`);
 		return parts.join(' ');
 	}
+
+	// === CALENDAR VIEW LOGIC ===
+	let calendarViewType = 'total';
+	let calendarMenuOpen = false;
+	function openCalendarMenu(e) {
+		e.stopPropagation();
+		calendarMenuOpen = !calendarMenuOpen;
+	}
+	function selectCalendarView(key) {
+		calendarViewType = key;
+		calendarMenuOpen = false;
+	}
+	$: calendarDropdownOptions = [
+		{ key: 'watched', label: 'CIBUBBLE time only' },
+		{ key: 'manual', label: 'Outside time only' },
+		{ key: 'total', label: 'Total input time' }
+	].filter(v => v.key !== calendarViewType);
+
+	// Only run in browser
+	let clickListener;
+	onMount(() => {
+		clickListener = () => { calendarMenuOpen = false; };
+		if (typeof window !== "undefined") {
+			window.addEventListener('click', clickListener);
+		}
+	});
+	onDestroy(() => {
+		if (typeof window !== "undefined") {
+			window.removeEventListener('click', clickListener);
+		}
+	});
 
 	// === SCROLL LOCK LOGIC (minimal, no layout changes) ===
 	let modalOpen = false;
@@ -207,7 +238,25 @@
 
 			<!-- Activity Card -->
 			<div class="card activity-card">
-				<div class="card-heading activity-heading">Your Activity</div>
+				<div class="activity-heading-row">
+					<div class="card-heading activity-heading">Your Activity</div>
+					<button
+						class="calendar-view-menu-btn"
+						aria-label="Calendar view options"
+						on:click|stopPropagation={openCalendarMenu}
+					>
+						<AlignRight size={22} />
+					</button>
+					{#if calendarMenuOpen}
+						<div class="calendar-view-menu">
+							{#each calendarDropdownOptions as v}
+								<button class="calendar-view-menu-item" on:click={() => selectCalendarView(v.key)}>
+									Show {v.label}
+								</button>
+							{/each}
+						</div>
+					{/if}
+				</div>
 				<div class="activity-2col align-top">
 					<div class="activity-stats-cards">
 						<div class="mini-stat-card">
@@ -224,6 +273,7 @@
 							dailyTotals={p.dailyTotals || []}
 							manualEntries={p.manualTotals || []}
 							{formatMinutesOnly}
+							viewType={calendarViewType}
 							class="no-border-calendar compact-calendar"
 						/>
 					</div>
@@ -506,8 +556,68 @@ body,
 	text-transform: none;
 	line-height: 1.16;
 }
-.activity-heading {
+.activity-heading-row {
+	display: flex;
+	align-items: center;
+	width: 100%;
+	justify-content: space-between;
 	margin-bottom: 1em;
+	position: relative;
+}
+.calendar-view-menu-btn {
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 0.1em 0.2em;
+	border-radius: 50%;
+	outline: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: none;
+	margin-left: 0.8em;
+	color: #101720;
+}
+.calendar-view-menu-btn:hover,
+.calendar-view-menu-btn:focus {
+	background: none;
+}
+.calendar-view-menu {
+	position: absolute;
+	top: 2.3em;
+	right: 0;
+	min-width: 145px;
+	background: #fff;
+	border-radius: 9px;
+	box-shadow: 0 3px 18px 0 #2221;
+	padding: 0.39em 0.2em 0.39em 0.2em;
+	display: flex;
+	flex-direction: column;
+	z-index: 200;
+	border: 1px solid #e9e9e9;
+	animation: dropdownIn .17s cubic-bezier(.31,1.41,.42,1);
+}
+@keyframes dropdownIn {
+	from { opacity: 0; transform: translateY(6px);}
+	to   { opacity: 1; transform: translateY(0);}
+}
+.calendar-view-menu-item {
+	background: none;
+	border: none;
+	color: #101720;
+	font-size: 1em;
+	font-weight: 500;
+	padding: 0.5em 1em 0.5em 0.8em;
+	border-radius: 5px;
+	cursor: pointer;
+	text-align: left;
+	transition: none;
+	white-space: nowrap;
+}
+.calendar-view-menu-item:hover,
+.calendar-view-menu-item:focus {
+	background: none;
+	color: #101720;
 }
 .activity-2col {
 	display: flex;

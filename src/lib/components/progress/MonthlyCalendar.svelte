@@ -4,17 +4,11 @@
   export let formatMinutesOnly = s => `${Math.round(s/60)}m`;
   export let month = (new Date().getMonth() + 1);
   export let year = (new Date().getFullYear());
+  export let viewType = 'total'; // now controlled by parent!
 
   dailyTotals = dailyTotals || [];
   manualEntries = manualEntries || [];
   formatMinutesOnly = formatMinutesOnly || (s => `${Math.round(s/60)}m`);
-
-  let viewType = 'total';
-  const VIEWS = [
-    { key: 'watched', label: 'Watched' },
-    { key: 'manual', label: 'Other sources' },
-    { key: 'total', label: 'Total' }
-  ];
 
   function localDateString(date) {
     const y = date.getFullYear();
@@ -50,6 +44,7 @@
     if (m < 1) { m = 12; y--; }
     if (m > 12) { m = 1; y++; }
     month = m; year = y;
+    // You may want to dispatch an event if you want parent to sync month/year, but that’s up to your architecture.
   }
 
   function monthName(m, y) {
@@ -63,8 +58,6 @@
     const blanks = Array(firstDay - 1).fill(null);
     return blanks.concat(days);
   }
-
-  function setView(v) { viewType = v; }
 </script>
 
 <div class="cibubble-card calendar-wrap">
@@ -100,31 +93,14 @@
       {/if}
     {/each}
   </div>
-  <!-- Button group at the bottom -->
-  <div class="calendar-btn-row" role="tablist" aria-label="Select time type">
-    {#each VIEWS as view}
-      <button
-        type="button"
-        role="tab"
-        aria-selected={viewType === view.key}
-        class="calendar-btn {viewType === view.key ? 'active' : ''}"
-        on:click={() => setView(view.key)}
-        tabindex="0"
-      >
-        {view.label}
-      </button>
-    {/each}
-  </div>
 </div>
 
 <style>
 :root {
   --cibubble-red: #EF5552;
-  --cibubble-red-light: #ffeaea;
   --cibubble-grey: #e0e0e0;
   --cibubble-grey-dark: #c0c0c0;
 }
-
 .cibubble-card.calendar-wrap {
   background: #fff;
   border-radius: 13px;
@@ -132,6 +108,7 @@
   margin: 0.1em 2em 0.1em auto;
   max-width: 455px;
   box-shadow: none;
+  position: relative;
 }
 .calendar-header {
   display: flex;
@@ -142,6 +119,7 @@
   margin-bottom: 1.2em;
   gap: 1.2em;
   letter-spacing: 0.01em;
+  position: relative;
 }
 .calendar-header button {
   border: none;
@@ -156,7 +134,6 @@
   transition: color 0.14s;
 }
 .calendar-header button:hover { color: #d32f2f; }
-
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -229,40 +206,6 @@
   background: transparent;
   pointer-events: none;
 }
-
-/* --- Small Buttons Row --- */
-.calendar-btn-row {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0.55em;
-  margin: 1.05em 0 0.1em 0;
-}
-.calendar-btn {
-  border: none;
-  background: var(--cibubble-grey);
-  color: #222;
-  border-radius: 6px;
-  font-size: 0.98em;
-  font-weight: 700;
-  padding: 0.32em 1.1em;
-  transition:
-    color 0.15s,
-    background 0.13s,
-    border-color 0.13s;
-  outline: none;
-  cursor: pointer;
-}
-.calendar-btn.active,
-.calendar-btn:focus {
-  background: var(--cibubble-red);
-  color: #fff;
-}
-.calendar-btn:hover:not(.active) {
-  background: var(--cibubble-grey-dark);
-  color: #101720;
-}
-
 @media (max-width: 600px) {
   .cibubble-card.calendar-wrap {
     max-width: 100vw;
@@ -299,15 +242,6 @@
     font-size: 0.60em;
     margin-top: 4px;
     line-height: 1.1em;
-  }
-  .calendar-btn-row {
-    font-size: 0.96em;
-    gap: 0.41em;
-    margin: 0.51em 0 0.1em 0;
-  }
-  .calendar-btn {
-    padding: 0.26em 0.69em;
-    font-size: 0.97em;
   }
 }
 </style>
