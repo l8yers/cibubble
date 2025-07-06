@@ -14,7 +14,7 @@
 	import ManualEntryList from '$lib/components/progress/ManualEntryList.svelte';
 	import ManualEntryEditForm from '$lib/components/progress/ManualEntryEditForm.svelte';
 	import ProgressSettings from '$lib/components/progress/ProgressSettings.svelte';
-	import { Timer, CalendarCheck, Award, ExternalLink } from 'lucide-svelte';
+	import { Timer, CalendarCheck, Award, ExternalLink, Plus, List, History } from 'lucide-svelte';
 	import { writable } from 'svelte/store';
 	import {
 		formatWatchTime,
@@ -142,26 +142,6 @@
 							</div>
 						</div>
 					</div>
-					<!-- OUTSIDE LINKS INSIDE CARD AT BOTTOM -->
-					<div class="outside-links-row">
-						<a
-							class="outside-link"
-							href="#"
-							on:click|preventDefault={() => (showManualModal = true)}
-						>
-							Add time from other sources
-						</a>
-						<a
-							class="outside-link"
-							href="#"
-							on:click|preventDefault={() => (showManualTab = true)}
-						>
-							View time from other sources
-						</a>
-						<a class="outside-link" href="/history">
-							View watched history
-						</a>
-					</div>
 				</div>
 			</div>
 			<!-- ACTIVITY CARD -->
@@ -186,6 +166,26 @@
 							class="no-border-calendar compact-calendar"
 						/>
 					</div>
+				</div>
+				<!-- LINKS ROW AT THE BOTTOM -->
+				<div class="outside-links-row outside-links-bottom">
+					<a
+						class="outside-link"
+						href="#"
+						on:click|preventDefault={() => (showManualModal = true)}
+					>
+						<Plus size={18} style="vertical-align: middle; margin-right: 0.35em;" /> Add time from other sources
+					</a>
+					<a
+						class="outside-link"
+						href="#"
+						on:click|preventDefault={() => (showManualTab = true)}
+					>
+						<List size={18} style="vertical-align: middle; margin-right: 0.35em;" /> View time from other sources
+					</a>
+					<a class="outside-link" href="/history">
+						<History size={18} style="vertical-align: middle; margin-right: 0.35em;" /> View watched videos
+					</a>
 				</div>
 			</div>
 		</div>
@@ -393,17 +393,22 @@ body,
 	margin-top: 0.1em;
 	color: #101720;
 }
+/* Row layout for the links; prevent wrapping */
 .outside-links-row {
 	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	gap: 0.21em;
+	flex-direction: row;
+	align-items: center;
+	gap: 1.1em;
 	margin-top: 1.3em;
 	margin-left: 0.08em;
+	overflow-x: auto;
+}
+.outside-links-bottom {
+	margin-top: 2em;
 }
 .outside-link {
 	color: #e93c2f;
-	font-weight: 600;
+	font-weight: 500;
 	font-size: 1em;
 	text-decoration: none;
 	background: none;
@@ -414,7 +419,9 @@ body,
 	transition:
 		color 0.15s,
 		background 0.13s;
-	display: block;
+	display: flex;
+	align-items: center;
+	white-space: nowrap;
 }
 .outside-link:hover,
 .outside-link:focus {
