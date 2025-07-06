@@ -68,83 +68,82 @@
 	<!-- MAIN LAYOUT -->
 	<div class="progress-layout">
 		<div class="progress-row">
-			<!-- STATISTICS COLUMN -->
-			<div>
-				<div class="card stats-card">
-					<div class="card-heading">Statistics</div>
-					<div class="stats-list">
-						<div class="stat-item stat-time">
-							<div class="stat-icon-col">
-								<Timer class="stat-icon" size={30} />
-							</div>
-							<div class="stat-main">
-								<div class="stat-value">
-									<span
-										class="tooltip-parent"
-										tabindex="0"
-										on:mouseenter={() => (showTotalTooltip = true)}
-										on:mouseleave={() => (showTotalTooltip = false)}
-										on:focus={() => (showTotalTooltip = true)}
-										on:blur={() => (showTotalTooltip = false)}
-									>
-										{formatWatchTime(p.watchTime)}
-										{#if showTotalTooltip}
-											<span class="custom-tooltip stat-time-tooltip"
-												>{formatFullTime(p.watchTime)}</span
-											>
-										{/if}
-									</span>
-								</div>
-								<div class="stat-label">Total input</div>
-							</div>
+			<!-- Statistics Card -->
+			<div class="card stats-card">
+				<div class="card-heading">Statistics</div>
+				<div class="stats-list">
+					<div class="stat-item stat-time">
+						<div class="stat-icon-col">
+							<Timer class="stat-icon" size={30} />
 						</div>
-						<div class="stat-item stat-today">
-							<div class="stat-icon-col">
-								<CalendarCheck class="stat-icon" size={30} />
+						<div class="stat-main">
+							<div class="stat-value">
+								<span
+									class="tooltip-parent"
+									tabindex="0"
+									on:mouseenter={() => (showTotalTooltip = true)}
+									on:mouseleave={() => (showTotalTooltip = false)}
+									on:focus={() => (showTotalTooltip = true)}
+									on:blur={() => (showTotalTooltip = false)}
+								>
+									{formatWatchTime(p.watchTime)}
+									{#if showTotalTooltip}
+										<span class="custom-tooltip stat-time-tooltip"
+											>{formatFullTime(p.watchTime)}</span
+										>
+									{/if}
+								</span>
 							</div>
-							<div class="stat-main">
-								<div class="stat-value">
-									<span
-										class="tooltip-parent"
-										tabindex="0"
-										on:mouseenter={() => (showTodayTooltip = true)}
-										on:mouseleave={() => (showTodayTooltip = false)}
-										on:focus={() => (showTodayTooltip = true)}
-										on:blur={() => (showTodayTooltip = false)}
-									>
-										{formatWatchTime(p.todayWatchTime)}
-										{#if showTodayTooltip}
-											<span class="custom-tooltip stat-today-tooltip"
-												>{formatFullTime(p.todayWatchTime)}</span
-											>
-										{/if}
-									</span>
-								</div>
-								<div class="stat-label">Watched today</div>
-							</div>
+							<div class="stat-label">Total input</div>
 						</div>
-						<div class="stat-item stat-practiced">
-							<div class="stat-icon-col">
-								<Award class="stat-icon" size={30} />
-							</div>
-							<div class="stat-main">
-								<div class="stat-value">{p.daysPracticed}</div>
-								<div class="stat-label">Days practiced</div>
-							</div>
+					</div>
+					<div class="stat-item stat-today">
+						<div class="stat-icon-col">
+							<CalendarCheck class="stat-icon" size={30} />
 						</div>
-						<div class="stat-item stat-outside">
-							<div class="stat-icon-col">
-								<ExternalLink class="stat-icon" size={30} />
+						<div class="stat-main">
+							<div class="stat-value">
+								<span
+									class="tooltip-parent"
+									tabindex="0"
+									on:mouseenter={() => (showTodayTooltip = true)}
+									on:mouseleave={() => (showTodayTooltip = false)}
+									on:focus={() => (showTodayTooltip = true)}
+									on:blur={() => (showTodayTooltip = false)}
+								>
+									{formatWatchTime(p.todayWatchTime)}
+									{#if showTodayTooltip}
+										<span class="custom-tooltip stat-today-tooltip"
+											>{formatFullTime(p.todayWatchTime)}</span
+										>
+									{/if}
+								</span>
 							</div>
-							<div class="stat-main">
-								<div class="stat-value">{formatHours(p.outsideTime)}</div>
-								<div class="stat-label">From other sources</div>
-							</div>
+							<div class="stat-label">Watched today</div>
+						</div>
+					</div>
+					<div class="stat-item stat-practiced">
+						<div class="stat-icon-col">
+							<Award class="stat-icon" size={30} />
+						</div>
+						<div class="stat-main">
+							<div class="stat-value">{p.daysPracticed}</div>
+							<div class="stat-label">Days practiced</div>
+						</div>
+					</div>
+					<div class="stat-item stat-outside">
+						<div class="stat-icon-col">
+							<ExternalLink class="stat-icon" size={30} />
+						</div>
+						<div class="stat-main">
+							<div class="stat-value">{formatHours(p.outsideTime)}</div>
+							<div class="stat-label">From other sources</div>
 						</div>
 					</div>
 				</div>
 			</div>
-			<!-- ACTIVITY CARD -->
+
+			<!-- Activity Card -->
 			<div class="card activity-card">
 				<div class="card-heading activity-heading">Your Activity</div>
 				<div class="activity-2col align-top">
@@ -167,8 +166,12 @@
 						/>
 					</div>
 				</div>
-				<!-- LINKS ROW AT THE BOTTOM -->
-				<div class="outside-links-row outside-links-bottom">
+			</div>
+
+			<!-- Manual Input & History Card -->
+			<div class="card manual-input-card">
+				<div class="card-heading">Manual Input &amp; History</div>
+				<div class="manual-links-row">
 					<a
 						class="outside-link"
 						href="#"
@@ -306,9 +309,18 @@ body,
 .stats-card {
 	min-width: 240px;
 	max-width: 430px;
+	grid-row: 1;
+	grid-column: 1;
 }
 .activity-card {
-	min-width: 320px;
+	grid-row: 1;
+	grid-column: 2;
+}
+.manual-input-card {
+	min-width: 240px;
+	max-width: 430px;
+	grid-row: 2;
+	grid-column: 1;
 }
 .card {
 	background: #fff;
@@ -393,18 +405,13 @@ body,
 	margin-top: 0.1em;
 	color: #101720;
 }
-/* Row layout for the links; prevent wrapping */
-.outside-links-row {
+/* Manual links styling */
+.manual-links-row {
 	display: flex;
-	flex-direction: row;
-	align-items: center;
-	gap: 1.1em;
-	margin-top: 1.3em;
-	margin-left: 0.08em;
-	overflow-x: auto;
-}
-.outside-links-bottom {
-	margin-top: 2em;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 0.5em;
+	margin-top: 0.6em;
 }
 .outside-link {
 	color: #e93c2f;
@@ -548,13 +555,18 @@ body,
 
 @media (max-width: 900px) {
 	.progress-row {
-		grid-template-columns: 1fr;
+		display: flex;
+		flex-direction: column;
 		gap: 0.5em;
 	}
-	.stats-card,
+	.stats-card {
+		order: 1;
+	}
 	.activity-card {
-		max-width: 100%;
-		min-width: 0;
+		order: 2;
+	}
+	.manual-input-card {
+		order: 3;
 	}
 	.activity-2col {
 		flex-direction: column;
@@ -615,17 +627,18 @@ body,
 	}
 	.card,
 	.stats-card,
+	.manual-input-card,
 	.activity-card {
 		padding: 1.1em 0.6em 1.5em 0.6em;
 		border-radius: 13px;
 		box-shadow: 0 3px 16px 0 #e9eaee55;
 		margin-bottom: 0.5em;
 	}
-	.stats-heading-row {
-		margin-bottom: 0.6em;
-	}
 	.card-heading {
 		font-size: 1.04em;
+	}
+	.manual-links-row {
+		gap: 0.5em;
 	}
 	.activity-stats-cards {
 		gap: 0.4em;
