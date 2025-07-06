@@ -293,7 +293,7 @@
 				on:click={() => (showSortDropdown = !showSortDropdown)}
 				type="button"
 			>
-				<ArrowDownUp size={20} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
+				<ArrowDownUp size={20} style="margin-right:7px;vertical-align:-3px;color:#101720;" />
 				Sort by
 				<svg width="12" height="9" style="margin-left:7px;" fill="none">
 					<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
@@ -323,7 +323,7 @@
 					on:click={() => (showLevelDropdown = !showLevelDropdown)}
 					type="button"
 				>
-					<BarChart3 size={20} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
+					<BarChart3 size={20} style="margin-right:7px;vertical-align:-3px;color:#101720;" />
 					Levels
 					<svg width="12" height="9" style="margin-left:7px;" fill="none">
 						<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
@@ -363,7 +363,7 @@
 					on:click={() => (showTagDropdown = !showTagDropdown)}
 					type="button"
 				>
-					<Tag size={20} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
+					<Tag size={20} style="margin-right:7px;vertical-align:-3px;color:#101720;" />
 					Tags
 					<svg width="12" height="9" style="margin-left:7px;" fill="none">
 						<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
@@ -417,7 +417,7 @@
 					on:click={() => (showCountryDropdown = !showCountryDropdown)}
 					type="button"
 				>
-					<Earth size={20} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
+					<Earth size={20} style="margin-right:7px;vertical-align:-3px;color:#101720;" />
 					Country
 					<svg width="12" height="9" style="margin-left:7px;" fill="none">
 						<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
@@ -454,7 +454,7 @@
 						on:click={() => (showMyChannelsDropdown = !showMyChannelsDropdown)}
 						type="button"
 					>
-						<User size={20} style="margin-right:7px;vertical-align:-3px;color:currentColor;" />
+						<User size={20} style="margin-right:7px;vertical-align:-3px;color:#101720;" />
 						My Channels
 						<svg width="12" height="9" style="margin-left:7px;" fill="none">
 							<path d="M1 1l5 6 5-6" stroke="#888" stroke-width="2" />
@@ -470,7 +470,7 @@
 									on:change={() => emitChange({ selectedChannel: '__WATCH_LATER__' })}
 								/>
 								<span style="display:flex;align-items:center;">
-									<Clock size={17} style="margin-right:4px;vertical-align:-2px;" />
+									<Clock size={17} style="margin-right:4px;vertical-align:-2px;color:#101720;" />
 									Watch Later
 								</span>
 							</label>
@@ -531,7 +531,7 @@
 				>
 					<MoreHorizontal
 						size={20}
-						style="margin-right:7px;vertical-align:-3px;color:currentColor;"
+						style="margin-right:7px;vertical-align:-3px;color:#101720;"
 					/>
 					More
 					<svg width="12" height="9" style="margin-left:7px;" fill="none">
@@ -636,7 +636,7 @@
 									on:change={() => emitChange({ selectedChannel: '__WATCH_LATER__' })}
 								/>
 								<span style="display:flex;align-items:center;">
-									<Clock size={17} style="margin-right:4px;vertical-align:-2px;" />
+									<Clock size={17} style="margin-right:4px;vertical-align:-2px;color:#101720;" />
 									Watch Later
 								</span>
 							</label>
@@ -721,9 +721,9 @@
 				aria-label={searchOpen ? 'Close search' : 'Search'}
 			>
 				{#if searchOpen}
-					<X size={22} style="color:currentColor;" />
+					<X size={22} style="color:#101720;" />
 				{:else}
-					<Search size={22} style="color:currentColor;" />
+					<Search size={22} style="color:#101720;" />
 				{/if}
 			</button>
 		</div>

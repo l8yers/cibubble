@@ -202,7 +202,6 @@
     z-index: 2100;
     background: #fff;
     padding: 0 !important;
-    margin-left: 0.7em;
     min-height: unset;
     height: 48px;
     align-items: center;   /* <-- Center everything vertically */
@@ -215,7 +214,7 @@
   }
   .logo-img {
     display: block;
-    margin: 0 !important;
+    margin-left: 0.7em ;
     padding: 0 !important;
     height: 2.1em !important;
     max-height: 38px !important;
