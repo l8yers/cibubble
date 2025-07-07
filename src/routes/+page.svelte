@@ -61,6 +61,10 @@
   let showFullPageFilter = false;
   let showMobileSearch = false;
 
+  // DEFAULTS
+  const DEFAULT_LEVELS = ['easy', 'intermediate', 'advanced'];
+  const DEFAULT_SORT = 'new';
+
   onMount(() => {
     mounted = true;
     let filters;
@@ -75,12 +79,12 @@
       Array.from(filters.levels || []).filter((lvl) => validLevels.has(lvl))
     );
     selectedLevels.set(
-      safeLevels.size ? safeLevels : new Set(['easy', 'intermediate', 'advanced'])
+      safeLevels.size ? safeLevels : new Set(DEFAULT_LEVELS)
     );
     selectedTags.set(filters.tags && filters.tags.length ? new Set(filters.tags) : new Set());
     selectedCountry.set(filters.country || '');
     selectedChannel.set(filters.channel || '');
-    sortBy.set(filters.sort || 'new');
+    sortBy.set(filters.sort || DEFAULT_SORT);
     searchTerm.set(filters.search || '');
 
     resetAndFetch();
@@ -210,35 +214,101 @@
     fetchVideos({ append: false });
   }
 
+  // --- NEW LOGIC: Sort/filter exclusivity for "random" ---
   function handleSortBarChange(e) {
-    const rawLevels = e.detail.selectedLevels;
-    const safeLevels = new Set(Array.from(rawLevels).filter((lvl) => validLevels.has(lvl)));
-    selectedLevels.set(safeLevels);
-    selectedTags.set(new Set(e.detail.selectedTags));
-    sortBy.set(e.detail.sortBy);
-    selectedCountry.set(e.detail.selectedCountry);
-    hideWatched.set(e.detail.hideWatched);
-    searchTerm.set(e.detail.searchTerm);
-    searchOpen = e.detail.searchOpen;
-    selectedChannel.set(e.detail.selectedChannel ?? '');
-    updateUrlFromFilters({
-      selectedLevels,
-      selectedTags,
-      selectedCountry,
-      selectedChannel,
-      sortBy,
-      searchTerm,
-      get
-    });
+    let nextSort = e.detail.sortBy;
+    let nextLevels = e.detail.selectedLevels;
+    let nextTags = e.detail.selectedTags;
+    let nextCountry = e.detail.selectedCountry;
+    let nextChannel = e.detail.selectedChannel ?? '';
+    let nextHideWatched = e.detail.hideWatched;
+    let nextSearchTerm = e.detail.searchTerm;
+    let nextSearchOpen = e.detail.searchOpen;
+
+    // If random selected, clear all filters (levels/tags/country/channel/search)
+    if (nextSort === 'random') {
+      selectedLevels.set(new Set());
+      selectedTags.set(new Set());
+      selectedCountry.set('');
+      selectedChannel.set('');
+      hideWatched.set(false);
+      searchTerm.set('');
+      sortBy.set('random');
+      searchOpen = false;
+      updateUrlFromFilters({
+        selectedLevels: new Set(),
+        selectedTags: new Set(),
+        selectedCountry: '',
+        selectedChannel: '',
+        sortBy: 'random',
+        searchTerm: '',
+        get
+      });
+    } else {
+      // If switching off random, restore defaults for missing levels
+      if (get(sortBy) === 'random' && (!nextLevels || !nextLevels.length)) {
+        nextLevels = DEFAULT_LEVELS;
+      }
+      selectedLevels.set(new Set(nextLevels));
+      selectedTags.set(new Set(nextTags));
+      selectedCountry.set(nextCountry);
+      selectedChannel.set(nextChannel);
+      hideWatched.set(nextHideWatched);
+      searchTerm.set(nextSearchTerm);
+      sortBy.set(nextSort);
+      searchOpen = nextSearchOpen;
+      updateUrlFromFilters({
+        selectedLevels: new Set(nextLevels),
+        selectedTags: new Set(nextTags),
+        selectedCountry: nextCountry,
+        selectedChannel: nextChannel,
+        sortBy: nextSort,
+        searchTerm: nextSearchTerm,
+        get
+      });
+    }
     resetAndFetch();
   }
 
   // Mobile handlers
   function handleMobileSortSelect(val) {
-    sortBy.set(val);
+    if (val === 'random') {
+      selectedLevels.set(new Set());
+      selectedTags.set(new Set());
+      selectedCountry.set('');
+      selectedChannel.set('');
+      hideWatched.set(false);
+      searchTerm.set('');
+      sortBy.set('random');
+      updateUrlFromFilters({
+        selectedLevels: new Set(),
+        selectedTags: new Set(),
+        selectedCountry: '',
+        selectedChannel: '',
+        sortBy: 'random',
+        searchTerm: '',
+        get
+      });
+    } else {
+      // When leaving random, restore levels if needed
+      if (get(sortBy) === 'random' && get(selectedLevels).size === 0) {
+        selectedLevels.set(new Set(DEFAULT_LEVELS));
+      }
+      sortBy.set(val);
+      updateUrlFromFilters({
+        selectedLevels,
+        selectedTags,
+        selectedCountry,
+        selectedChannel,
+        sortBy,
+        searchTerm,
+        get
+      });
+    }
     showSortDropdown = false;
     resetAndFetch();
   }
+
   function handleMobileFilterApply(e) {
     const detail = e.detail || {};
     let levels = detail.selectedLevels || [];
@@ -247,8 +317,12 @@
     const channel = detail.selectedChannel || '';
     const hide = detail.hideWatched || false;
 
+    // If random is set, reset sort to default
+    if (get(sortBy) === 'random') {
+      sortBy.set(DEFAULT_SORT);
+    }
     if (!levels.length) {
-      levels = ['easy', 'intermediate', 'advanced'];
+      levels = DEFAULT_LEVELS;
     }
 
     selectedLevels.set(new Set(levels));
@@ -258,10 +332,10 @@
     hideWatched.set(hide);
 
     updateUrlFromFilters({
-      selectedLevels,
-      selectedTags,
-      selectedCountry,
-      selectedChannel,
+      selectedLevels: new Set(levels),
+      selectedTags: new Set(tags),
+      selectedCountry: country,
+      selectedChannel: channel,
       sortBy,
       searchTerm,
       get
@@ -273,10 +347,28 @@
 
   function handleMobileSearchInput(val) {
     searchTerm.set(val);
+    updateUrlFromFilters({
+      selectedLevels,
+      selectedTags,
+      selectedCountry,
+      selectedChannel,
+      sortBy,
+      searchTerm: val,
+      get
+    });
     resetAndFetch();
   }
   function handleMobileSearchSubmit(val) {
     searchTerm.set(val);
+    updateUrlFromFilters({
+      selectedLevels,
+      selectedTags,
+      selectedCountry,
+      selectedChannel,
+      sortBy,
+      searchTerm: val,
+      get
+    });
     resetAndFetch();
   }
 
@@ -315,19 +407,19 @@
     const filters = queryToFilters(currentQuery);
     const safeLevels = new Set(Array.from(filters.levels).filter((lvl) => validLevels.has(lvl)));
     selectedLevels.set(
-      safeLevels.size ? safeLevels : new Set(['easy', 'intermediate', 'advanced'])
+      safeLevels.size ? safeLevels : new Set(DEFAULT_LEVELS)
     );
     selectedTags.set(filters.tags.size ? filters.tags : new Set());
     selectedCountry.set(filters.country || '');
     selectedChannel.set(filters.channel || '');
-    sortBy.set(filters.sort || 'new');
+    sortBy.set(filters.sort || DEFAULT_SORT);
     searchTerm.set(filters.search || '');
 
     resetAndFetch();
   }
 
   // ---- FILTERED VIDEOS LOGIC ----
-$: filteredVideos =
+  $: filteredVideos =
     $sortBy === 'random'
       ? $videos
       : ($selectedChannel === '__WATCH_LATER__'
@@ -536,6 +628,7 @@ $: filteredVideos =
     />
   {/if}
 </div>
+
 
 <style>
   .center-content {
