@@ -73,43 +73,91 @@
 		});
 	}
 
+	// ----- CORE LOGIC -----
+
+	function handleSetSort(val) {
+		if (val === 'random') {
+			emitChange({
+				sortBy: 'random',
+				// keep current selectedLevels
+				selectedCountry: '',
+				selectedTags: [],
+				selectedChannel: '',
+				searchTerm: ''
+			});
+		} else {
+			emitChange({ sortBy: val });
+		}
+		showSortDropdown = false;
+	}
+
 	function handleToggleLevel(lvl) {
 		const next = new Set(selectedLevels);
 		if (next.has(lvl)) next.delete(lvl);
 		else next.add(lvl);
-		emitChange({ selectedLevels: Array.from(next) });
+		emitChange({
+			selectedLevels: Array.from(next)
+			// don't change sortBy, even if random is active
+		});
 	}
 	function handleToggleAllLevels() {
-		if (selectedLevels.length === levels.length) emitChange({ selectedLevels: [] });
-		else emitChange({ selectedLevels: levels.map((l) => l.value) });
+		if (selectedLevels.length === levels.length) {
+			emitChange({
+				selectedLevels: []
+			});
+		} else {
+			emitChange({
+				selectedLevels: levels.map((l) => l.value)
+			});
+		}
 	}
-	function handleSetSort(val) {
-		emitChange({ sortBy: val });
-		showSortDropdown = false;
-	}
+
+	// When on random, changing ANY filter EXCEPT levels resets sortBy to new:
 	function handleSetCountry(c) {
-		emitChange({ selectedCountry: c === selectedCountry ? '' : c });
+		emitChange({
+			selectedCountry: c === selectedCountry ? '' : c,
+			sortBy: sortBy === 'random' ? 'new' : sortBy
+		});
 	}
 	function handleToggleTag(tag) {
 		const next = new Set(selectedTags);
 		if (next.has(tag)) next.delete(tag);
 		else next.add(tag);
-		emitChange({ selectedTags: Array.from(next) });
+		emitChange({
+			selectedTags: Array.from(next),
+			sortBy: sortBy === 'random' ? 'new' : sortBy
+		});
 	}
 	function handleClearTags() {
-		emitChange({ selectedTags: [] });
+		emitChange({
+			selectedTags: [],
+			sortBy: sortBy === 'random' ? 'new' : sortBy
+		});
 	}
 	function handleHideWatched() {
-		emitChange({ hideWatched: !hideWatched });
+		emitChange({
+			hideWatched: !hideWatched,
+			sortBy: sortBy === 'random' ? 'new' : sortBy
+		});
 	}
 	function handleSearchInput(val) {
-		emitChange({ searchTerm: val });
+		emitChange({
+			searchTerm: val,
+			sortBy: sortBy === 'random' ? 'new' : sortBy
+		});
 	}
 	function handleToggleSearch() {
-		emitChange({ searchOpen: !searchOpen, searchTerm: searchOpen ? '' : searchTerm });
+		emitChange({
+			searchOpen: !searchOpen,
+			searchTerm: searchOpen ? '' : searchTerm,
+			sortBy: sortBy === 'random' ? 'new' : sortBy
+		});
 	}
 	function handleSetChannel(channelId) {
-		emitChange({ selectedChannel: channelId });
+		emitChange({
+			selectedChannel: channelId,
+			sortBy: sortBy === 'random' ? 'new' : sortBy
+		});
 		showMyChannelsDropdown = false;
 	}
 	function handleResetFilters() {
