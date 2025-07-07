@@ -51,6 +51,26 @@
 
   import { supabase } from '$lib/supabaseClient';
 
+  // --- DEBUG LOG FUNCTION ---
+  function debugLog(...args) {
+    try {
+      const cleaned = args.map(arg => {
+        if (typeof arg === 'object' && arg !== null) {
+          // Avoid circular structures
+          try {
+            return JSON.parse(JSON.stringify(arg));
+          } catch (e) {
+            return '[Unserializable object]';
+          }
+        }
+        return arg;
+      });
+      console.log('[CIBUBBLE:DEBUG]', ...cleaned);
+    } catch (err) {
+      console.log('[CIBUBBLE:DEBUG] Log error', err);
+    }
+  }
+
   // Loading state
   const loadedOnce = writable(false);
   const loading = writable(false);
@@ -64,16 +84,27 @@
   onMount(() => {
     mounted = true;
     let filters;
-    if ($page.url.search && $page.url.search.length > 1) {
-      filters = queryToFilters($page.url.search);
+    let initialSearch = '';
+    try {
+      initialSearch = get(page).url.search;
+    } catch (err) {
+      debugLog('Failed to get page.url.search onMount', err);
+    }
+    debugLog('onMount: start', { initialSearch });
+
+    if (initialSearch && initialSearch.length > 1) {
+      filters = queryToFilters(initialSearch);
+      debugLog('onMount: parsed filters from URL', filters);
       saveFiltersToStorage(filters);
     } else {
       filters = loadFiltersFromStorage() || {};
+      debugLog('onMount: loaded filters from storage', filters);
     }
 
     const safeLevels = new Set(
       Array.from(filters.levels || []).filter((lvl) => validLevels.has(lvl))
     );
+    debugLog('onMount: safeLevels', Array.from(safeLevels));
     selectedLevels.set(
       safeLevels.size ? safeLevels : new Set(['easy', 'intermediate', 'advanced'])
     );
@@ -83,11 +114,23 @@
     sortBy.set(filters.sort || 'new');
     searchTerm.set(filters.search || '');
 
+    debugLog('onMount: set stores', {
+      selectedLevels: Array.from(get(selectedLevels)),
+      selectedTags: Array.from(get(selectedTags)),
+      selectedCountry: get(selectedCountry),
+      selectedChannel: get(selectedChannel),
+      sortBy: get(sortBy),
+      searchTerm: get(searchTerm),
+    });
+
     resetAndFetch();
     firstLoad = false;
   });
 
-  $: if ($user) loadWatchLaterVideos();
+  $: if ($user) {
+    debugLog('User changed or loaded', $user);
+    loadWatchLaterVideos();
+  }
 
   const PAGE_SIZE = 36;
   const videos = writable([]);
@@ -130,6 +173,7 @@
         (entries) => {
           entries.forEach((entry) => {
             if (entry.isIntersecting && get(hasMore) && !get(loading) && get(sortBy) !== 'random') {
+              debugLog('IntersectionObserver: loading more videos');
               loadMore();
             }
           });
@@ -145,6 +189,7 @@
   });
 
   async function fetchVideos({ append = false } = {}) {
+    debugLog('fetchVideos called', { append });
     loading.set(true);
     isLoadingMore.set(append);
     errorMsg.set('');
@@ -170,16 +215,45 @@
       search: get(searchTerm)
     });
 
-    const res = await fetch(`/api/videos?${query}`);
+    debugLog('fetchVideos: fetch /api/videos?' + query.toString());
+
+    let res;
+    try {
+      res = await fetch(`/api/videos?${query}`);
+    } catch (err) {
+      debugLog('fetchVideos: fetch error', err);
+      errorMsg.set('Error loading videos: Network error');
+      loading.set(false);
+      isLoadingMore.set(false);
+      loadedOnce.set(true);
+      return;
+    }
     if (!res.ok) {
       const errText = await res.text();
+      debugLog('fetchVideos: response not ok', errText);
       errorMsg.set('Error loading videos: ' + errText);
       loading.set(false);
       isLoadingMore.set(false);
       loadedOnce.set(true);
       return;
     }
-    const { videos: fetched, hasMore: more } = await res.json();
+    let resultJson;
+    try {
+      resultJson = await res.json();
+    } catch (err) {
+      debugLog('fetchVideos: JSON parse error', err);
+      errorMsg.set('Error loading videos: Bad JSON');
+      loading.set(false);
+      isLoadingMore.set(false);
+      loadedOnce.set(true);
+      return;
+    }
+    debugLog('fetchVideos: got data', {
+      videos: (resultJson.videos || []).length,
+      hasMore: resultJson.hasMore,
+    });
+
+    const { videos: fetched, hasMore: more } = resultJson;
 
     if (append) {
       videos.update((vs) => [...vs, ...fetched]);
@@ -195,22 +269,34 @@
     loading.set(false);
     isLoadingMore.set(false);
     loadedOnce.set(true);
+    debugLog('fetchVideos: done', {
+      append,
+      videoCount: get(videos).length,
+      hasMore: get(hasMore)
+    });
   }
 
   async function loadMore() {
-    if (get(loading)) return;
+    debugLog('loadMore called');
+    if (get(loading)) {
+      debugLog('loadMore: already loading');
+      return;
+    }
     if (get(sortBy) !== 'random') {
       pageNum.update((p) => p + 1);
+      debugLog('loadMore: incremented pageNum', get(pageNum));
     }
     await fetchVideos({ append: true });
   }
 
   function resetAndFetch() {
+    debugLog('resetAndFetch called');
     pageNum.set(1);
     fetchVideos({ append: false });
   }
 
   function handleSortBarChange(e) {
+    debugLog('handleSortBarChange', e.detail);
     const rawLevels = e.detail.selectedLevels;
     const safeLevels = new Set(Array.from(rawLevels).filter((lvl) => validLevels.has(lvl)));
     selectedLevels.set(safeLevels);
@@ -235,6 +321,7 @@
 
   // Mobile handlers
   function handleMobileSortSelect(val) {
+    debugLog('handleMobileSortSelect', val);
     sortBy.set(val);
     showSortDropdown = false;
     updateUrlFromFilters({
@@ -250,8 +337,8 @@
   }
 
   function handleMobileFilterApply(e) {
+    debugLog('handleMobileFilterApply', e.detail);
     const detail = e.detail || {};
-    // --- MATCH DESKTOP LOGIC: reset random if sortBy passed back is not random
     selectedLevels.set(new Set(detail.selectedLevels || []));
     selectedTags.set(new Set(detail.selectedTags || []));
     selectedCountry.set(detail.selectedCountry || '');
@@ -272,6 +359,7 @@
   }
 
   function handleMobileSearchInput(val) {
+    debugLog('handleMobileSearchInput', val);
     searchTerm.set(val);
     updateUrlFromFilters({
       selectedLevels,
@@ -285,6 +373,7 @@
     resetAndFetch();
   }
   function handleMobileSearchSubmit(val) {
+    debugLog('handleMobileSearchSubmit', val);
     searchTerm.set(val);
     updateUrlFromFilters({
       selectedLevels,
@@ -299,6 +388,7 @@
   }
 
   function filterByChannel(channelId) {
+    debugLog('filterByChannel', channelId);
     selectedChannel.set(channelId);
     updateUrlFromFilters({
       selectedLevels,
@@ -312,6 +402,7 @@
     resetAndFetch();
   }
   function clearChannelFilter() {
+    debugLog('clearChannelFilter');
     selectedChannel.set('');
     updateUrlFromFilters({
       selectedLevels,
@@ -329,6 +420,7 @@
   let lastQuery = '';
   $: currentQuery = $page.url.search;
   $: if (!firstLoad && currentQuery !== lastQuery) {
+    debugLog('URL changed (reactive)', { from: lastQuery, to: currentQuery });
     lastQuery = currentQuery;
     const filters = queryToFilters(currentQuery);
     const safeLevels = new Set(Array.from(filters.levels).filter((lvl) => validLevels.has(lvl)));
@@ -370,9 +462,16 @@
 
   // Saved channels handling
   $: if ($user) {
+    debugLog('getUserSavedChannels called', $user.id);
     getUserSavedChannels($user.id)
-      .then((chs) => userChannels.set(chs))
-      .catch(() => userChannels.set([]));
+      .then((chs) => {
+        debugLog('userChannels.set (api result)', chs);
+        userChannels.set(chs);
+      })
+      .catch((err) => {
+        debugLog('getUserSavedChannels error', err);
+        userChannels.set([]);
+      });
   } else {
     userChannels.set([]);
   }
@@ -393,6 +492,7 @@
     return $user && $watchLaterIds.has(video.id);
   }
   async function handleAddToChannels(video) {
+    debugLog('handleAddToChannels', video);
     if (!$user || !video?.channel_id) return;
     await supabase
       .from('saved_channels')
@@ -405,6 +505,7 @@
   }
 
   async function handleRemoveFromChannels(video) {
+    debugLog('handleRemoveFromChannels', video);
     if (!$user || !video?.channel_id) return;
     await supabase
       .from('saved_channels')
@@ -415,18 +516,22 @@
     getUserSavedChannels($user.id).then(userChannels.set);
   }
   async function handleAddToWatchLater(video) {
+    debugLog('handleAddToWatchLater', video);
     if (!$user || !video?.id) return;
     if (!$watchLaterIds.has(video.id)) {
       await addToWatchLater(video.id);
     }
   }
   async function handleRemoveFromWatchLater(video) {
+    debugLog('handleRemoveFromWatchLater', video);
     if (!$user || !video?.id) return;
     if ($watchLaterIds.has(video.id)) {
       await removeFromWatchLater(video.id);
     }
   }
 </script>
+
+
 
 <div class="page-container">
   {#if mounted && !$isMobile}

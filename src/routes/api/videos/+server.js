@@ -29,11 +29,11 @@ export async function GET({ url }) {
     if (sort === 'random') {
       const params = {
         p_levels: levels?.length ? levels : null,
-        p_tags: tags?.length ? tags : null,
-        p_country: country || null,
-        p_channel_ids: channel ? channel.split(',').filter(Boolean) : null,
-        p_playlist: playlist || null,
-        p_search: search || null,
+        // p_tags: tags?.length ? tags : null,
+        // p_country: country || null,
+        // p_channel_ids: channel ? channel.split(',').filter(Boolean) : null,
+        // p_playlist: playlist || null,
+        // p_search: search || null,
         p_limit: pageSize
       };
       console.log("Calling Supabase RPC random_videos with", params);
