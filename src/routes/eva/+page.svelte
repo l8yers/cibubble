@@ -1,8 +1,30 @@
 <script>
+  import { user } from '$lib/stores/user.js';
+  import { goto } from '$app/navigation';
+  import { onMount } from 'svelte';
   import { COUNTRY_OPTIONS, TAG_OPTIONS } from '$lib/constants';
   import Papa from 'papaparse';
 
-  // === Single Channel Add State ===
+  // --- ADMIN PANEL PROTECTION ---
+  let loaded = false;
+  let isAdmin = false;
+
+  $: if ($user !== undefined) {
+    if (!$user) {
+      loaded = true;
+      isAdmin = false;
+      goto('/login');
+    } else if (!$user.profile?.is_admin) {
+      loaded = true;
+      isAdmin = false;
+      goto('/');
+    } else {
+      loaded = true;
+      isAdmin = true;
+    }
+  }
+
+  // --- STATE FOR SINGLE CHANNEL ADD ---
   let url = '';
   let loading = false;
   let error = '';
@@ -12,7 +34,7 @@
   let country = '';
   let selectedTags = [];
 
-  // === Bulk Upload State ===
+  // --- BULK UPLOAD STATE ---
   let csvFile = null;
   let bulkUploading = false;
   let bulkResults = [];
@@ -50,25 +72,10 @@
     }
   }
 
-  // === Video Sync Logic ===
+  // --- VIDEO SYNC LOGIC ---
   let syncing = false;
   let syncResult = null;
 
-  async function syncVideos() {
-    syncing = true;
-    syncResult = null;
-    try {
-      const res = await fetch('/api/sync-videos', { method: 'POST' });
-      const data = await res.json();
-      syncResult = data;
-    } catch (err) {
-      syncResult = { error: err.message || 'Unknown sync error' };
-    } finally {
-      syncing = false;
-    }
-  }
-
-  // === Channel Details for Add ===
   async function fetchChannelDetails() {
     loading = true;
     error = '';
@@ -130,29 +137,26 @@
     }
   }
 
-  // ==== CHANNEL TOOLS (Legacy) ====
-  import { onMount, onDestroy } from 'svelte';
-  import { supabase } from '$lib/supabaseClient.js';
+  async function syncVideos() {
+    syncing = true;
+    syncResult = null;
+    try {
+      const res = await fetch('/api/sync-videos', { method: 'POST' });
+      const data = await res.json();
+      syncResult = data;
+    } catch (err) {
+      syncResult = { error: err.message || 'Unknown sync error' };
+    } finally {
+      syncing = false;
+    }
+  }
+
+  // --- CHANNEL TOOLS STATE (search, edit, delete, paginate) ---
+  import { stripAccent } from '$lib/utils/adminutils.js';
   import { getTagsForChannel } from '$lib/api/tags.js';
+  import { supabase } from '$lib/supabaseClient';
 
-  const levels = [
-    { value: '', label: 'Set Level' },
-    { value: 'easy', label: 'Easy' },
-    { value: 'intermediate', label: 'Intermediate' },
-    { value: 'advanced', label: 'Advanced' },
-    { value: 'notyet', label: 'Not Yet Rated' }
-  ];
-
-  // Pagination/search/filter state
-  let currentTab = 'tools';
-  let search = '';
-  let currentPage = 1;
-  const channelsPerPage = 12;
-  let totalPages = 1;
   let allChannels = [];
-  let filteredChannels = [];
-
-  // Channel edit state
   let refreshing = false;
   let showPlaylistsFor = null;
   let playlists = [];
@@ -161,17 +165,23 @@
   let settingLevel = {};
   let settingPlaylistLevel = {};
   let deleting = {};
+
+  // Pagination & search
+  let search = '';
+  let currentPage = 1;
+  const channelsPerPage = 12;
+  let totalPages = 1;
+  let filteredChannels = [];
   let message = '';
 
-  // Main channel fetch & filter logic
   $: {
-    let s = (search || '').trim().toLowerCase();
+    let s = stripAccent(search.trim().toLowerCase());
     let filtered = !s
       ? allChannels
       : allChannels.filter(chan =>
-        (chan.name || '').toLowerCase().includes(s)
-        || (chan.country || '').toLowerCase().includes(s)
-        || (chan._tags || []).some(t => (t.name || '').toLowerCase().includes(s))
+        stripAccent(chan.name || '').toLowerCase().includes(s)
+        || stripAccent(chan.country || '').toLowerCase().includes(s)
+        || (chan._tags || []).some(t => stripAccent(t.name || '').toLowerCase().includes(s))
       );
     totalPages = Math.max(1, Math.ceil(filtered.length / channelsPerPage));
     if (currentPage > totalPages) currentPage = totalPages;
@@ -188,57 +198,6 @@
     currentPage = p;
   }
 
-  async function refresh() {
-    refreshing = true;
-    try {
-      let { data, error } = await supabase.from('channels').select('*');
-      if (error) {
-        message = "Channels error: " + (error.message ?? error);
-        allChannels = [];
-        return;
-      }
-      allChannels = await Promise.all(
-        (data || []).map(async (chan) => {
-          // legacy logic, tags are handled async
-          let _tags = [];
-          try {
-            _tags = await getTagsForChannel(chan.id);
-          } catch (e) { _tags = []; }
-          return {
-            ...chan,
-            _country: chan.country || '',
-            _tags
-          };
-        })
-      );
-      currentPage = 1;
-    } catch (e) {
-      message = "Refresh error: " + e.message;
-      allChannels = [];
-    } finally {
-      refreshing = false;
-    }
-  }
-
-  // Channel editing actions
-  async function setChannelCountry(channelId, country) {
-    settingCountry = { ...settingCountry, [channelId]: true };
-    await supabase.from('channels').update({ country }).eq('id', channelId);
-    await supabase.from('videos').update({ country }).eq('channel_id', channelId);
-    message = '✅ Country updated';
-    await refresh();
-    settingCountry = { ...settingCountry, [channelId]: false };
-  }
-
-  async function setChannelLevel(channelId, level) {
-    if (!level) return;
-    settingLevel = { ...settingLevel, [channelId]: true };
-    await supabase.from('videos').update({ level }).eq('channel_id', channelId);
-    message = `✅ All videos for this channel set to "${levels.find((l) => l.value === level)?.label}"`;
-    await refresh();
-    settingLevel = { ...settingLevel, [channelId]: false };
-  }
-
   async function deleteChannel(id) {
     const doDelete = typeof window !== 'undefined'
       ? confirm('Delete this channel and ALL its videos/playlists?')
@@ -252,81 +211,70 @@
     deleting = { ...deleting, [id]: false };
   }
 
-  async function togglePlaylistsFor(channelId) {
-    if (showPlaylistsFor === channelId) {
-      showPlaylistsFor = null;
-      playlists = [];
-      return;
-    }
-    showPlaylistsFor = channelId;
-    playlistsLoading = true;
-    let { data, error } = await supabase.from('playlists').select('*').eq('channel_id', channelId);
-    if (!error) {
-      playlists = data || [];
-    } else {
-      playlists = [];
-    }
-    playlistsLoading = false;
+  async function setChannelLevel(channelId, level) {
+    if (!level) return;
+    settingLevel = { ...settingLevel, [channelId]: true };
+    await supabase.from('videos').update({ level }).eq('channel_id', channelId);
+    message = `✅ All videos for this channel set to "${level}"`;
+    await refresh();
+    settingLevel = { ...settingLevel, [channelId]: false };
   }
 
-  onMount(refresh);
+  async function setChannelCountry(channelId, country) {
+    settingCountry = { ...settingCountry, [channelId]: true };
+    await supabase.from('channels').update({ country }).eq('id', channelId);
+    await supabase.from('videos').update({ country }).eq('channel_id', channelId);
+    message = '✅ Country updated';
+    await refresh();
+    settingCountry = { ...settingCountry, [channelId]: false };
+  }
+
+  async function refresh() {
+    refreshing = true;
+    try {
+      let { data, error } = await supabase.from('channels').select('*');
+      if (error) {
+        message = "Channels error: " + (error.message ?? error);
+        allChannels = [];
+        return;
+      }
+      allChannels = await Promise.all(
+        (data || []).map(async (chan) => {
+          let _tags = [];
+          try {
+            _tags = await getTagsForChannel(chan.id);
+          } catch (e) { _tags = []; }
+          return {
+            ...chan,
+            _country: chan.country || '',
+            _tags,
+            _newLevel: '',
+          };
+        })
+      );
+      currentPage = 1;
+    } catch (e) {
+      message = "Refresh error: " + e.message;
+      allChannels = [];
+    } finally {
+      refreshing = false;
+    }
+  }
+
+  onMount(() => {
+    refresh();
+  });
 </script>
 
-<div class="container" style="max-width: 800px;">
-  <!-- === Channel Add + Bulk Upload === -->
-  <div style="background: #f5f6fa; border-radius: 14px; margin: 2em 0 2em 0; padding: 2em 2em 1.2em 2em; box-shadow: 0 1.5px 10px #e3e3e3;">
-    <h2 style="margin-top:0;">Add YouTube Channel</h2>
-    <div style="margin-bottom: 1em;">
-      <label>YouTube Channel URL or @handle:</label>
-      <input bind:value={url} placeholder="@somehandle or full URL" style="width:340px; margin-right:0.5em;" />
-      <button on:click={fetchChannelDetails} disabled={loading}>{loading ? 'Loading...' : 'Fetch'}</button>
-    </div>
-    {#if error}
-      <p style="color: red;">{error}</p>
-    {/if}
-    {#if success}
-      <p style="color: green;">Channel inserted!</p>
-    {/if}
-    {#if channelPreview}
-      <div style="border:1px solid #e3e3e3; border-radius:10px; padding:1.1em; margin-bottom:1.2em;">
-        <h3>Confirm Channel Info</h3>
-        <p><strong>{channelPreview.title}</strong></p>
-        <img src={channelPreview.thumbnail} alt="Thumbnail" width="120" height="120" />
-        <form on:submit|preventDefault={submitChannel} style="margin-top:1.1em;">
-          <div>
-            <label>Level (required):</label>
-            <div>
-              {#each ['easy', 'intermediate', 'advanced'] as lvl}
-                <label>
-                  <input type="radio" bind:group={level} value={lvl} required />
-                  {lvl}
-                </label>
-              {/each}
-            </div>
-          </div>
-          <div>
-            <label>Country:</label>
-            <select bind:value={country}>
-              <option value="">None</option>
-              {#each COUNTRY_OPTIONS as c}
-                <option value={c}>{c}</option>
-              {/each}
-            </select>
-          </div>
-          <div>
-            <label>Tags:</label>
-            <select multiple bind:value={selectedTags}>
-              {#each TAG_OPTIONS as tag}
-                <option value={tag}>{tag}</option>
-              {/each}
-            </select>
-          </div>
-          <button type="submit" style="margin-top:0.7em;">Submit Channel</button>
-        </form>
-      </div>
-    {/if}
-    <hr style="margin:1.5em 0;" />
-    <div class="import-bar" style="margin-bottom: 1.5em;">
+{#if !loaded}
+  <div style="margin:4em; text-align:center;">Checking permissions…</div>
+{:else if !isAdmin}
+  <div style="margin:4em; color:#e93c2f; text-align:center;">You are not authorized to view this page.</div>
+{:else}
+  <div class="container">
+
+    <!-- === Bulk Upload CSV Bar === -->
+    <div class="import-bar">
       <span class="import-videos-title">BULK UPLOAD CSV</span>
       <input
         type="file"
@@ -341,6 +289,8 @@
         {bulkUploading ? 'Uploading…' : 'Upload CSV'}
       </button>
     </div>
+
+    <!-- Bulk Upload Results -->
     {#if bulkResults.length}
       <div class="bulk-results">
         <h3>Bulk Upload Results</h3>
@@ -358,6 +308,8 @@
         </ul>
       </div>
     {/if}
+
+    <!-- Failed Channels Section -->
     {#if failedChannels.length}
       <div class="bulk-failed">
         <h3>❌ Failed to Add Channels</h3>
@@ -371,7 +323,70 @@
         </div>
       </div>
     {/if}
-    <div class="sync-section" style="margin-top:2em;">
+
+    <!-- === Single Channel Add Section === -->
+    <h1>Add YouTube Channel</h1>
+    <div>
+      <label>YouTube Channel URL or @handle:</label>
+      <input bind:value={url} placeholder="@somehandle or full URL" />
+      <button on:click={fetchChannelDetails} disabled={loading}>
+        {loading ? 'Loading...' : 'Fetch'}
+      </button>
+    </div>
+
+    {#if error}
+      <p style="color: red;">{error}</p>
+    {/if}
+
+    {#if success}
+      <p style="color: green;">Channel inserted!</p>
+    {/if}
+
+    {#if channelPreview}
+      <hr />
+      <h2>Confirm Channel Info</h2>
+      <p><strong>{channelPreview.title}</strong></p>
+      <img src={channelPreview.thumbnail} alt="Thumbnail" width="120" height="120" />
+      <form on:submit|preventDefault={submitChannel}>
+        <div>
+          <label>Level (required):</label>
+          <div>
+            {#each ['easy', 'intermediate', 'advanced'] as lvl}
+              <label>
+                <input
+                  type="radio"
+                  bind:group={level}
+                  value={lvl}
+                  required
+                />
+                {lvl}
+              </label>
+            {/each}
+          </div>
+        </div>
+        <div>
+          <label>Country:</label>
+          <select bind:value={country}>
+            <option value="">None</option>
+            {#each COUNTRY_OPTIONS as c}
+              <option value={c}>{c}</option>
+            {/each}
+          </select>
+        </div>
+        <div>
+          <label>Tags:</label>
+          <select multiple bind:value={selectedTags}>
+            {#each TAG_OPTIONS as tag}
+              <option value={tag}>{tag}</option>
+            {/each}
+          </select>
+        </div>
+        <button type="submit">Submit Channel</button>
+      </form>
+    {/if}
+
+    <!-- === VIDEO SYNC SECTION === -->
+    <div class="sync-section">
       <button on:click={syncVideos} disabled={syncing}>
         {syncing ? 'Syncing...' : 'Sync Videos for All Channels'}
       </button>
@@ -379,25 +394,24 @@
         <pre>{JSON.stringify(syncResult, null, 2)}</pre>
       {/if}
     </div>
-  </div>
 
-  <!-- === Channel Tools (legacy edit panel) === -->
-  <div style="background: #fff; border-radius: 14px; box-shadow: 0 2px 12px #e3e8ee; padding: 2em 2.2em 1.2em 2.2em; margin-bottom: 2em;">
+    <!-- === CHANNEL TOOLS SECTION (edit/search/delete) === -->
+    <hr />
     <h2>Channel Tools</h2>
-    <div style="display: flex; align-items: center; gap:1.2em;">
-      <input type="text" placeholder="Search channel, country, or tag…" bind:value={search} on:input={onSearchInput} style="width:320px;" />
-      <button on:click={refresh} disabled={refreshing}>Refresh</button>
-      <span style="color:#888;font-size:1em; margin-left:2em;">Page {currentPage} of {totalPages}</span>
-      <button on:click={() => goToPage(currentPage - 1)} disabled={currentPage <= 1}>Prev</button>
-      <button on:click={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages}>Next</button>
+    <div>
+      <input
+        type="text"
+        placeholder="Search channels…"
+        bind:value={search}
+        on:input={onSearchInput}
+        style="width:300px;margin-bottom:1em;"
+      />
+      <span style="margin-left:1em;">{filteredChannels.length} shown / {allChannels.length} total</span>
     </div>
-    {#if message}
-      <div style="margin: 1em 0; color: #e93c2f;">{message}</div>
-    {/if}
-    <table style="width:100%;margin-top:1.3em;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px #eee;">
-      <thead style="background:#f5f6fa;">
+    <table>
+      <thead>
         <tr>
-          <th style="padding:0.6em 0.7em;">Name</th>
+          <th>Name</th>
           <th>Country</th>
           <th>Tags</th>
           <th>Level</th>
@@ -407,9 +421,13 @@
       <tbody>
         {#each filteredChannels as chan}
           <tr>
-            <td style="padding:0.55em 0.6em;">{chan.name}</td>
+            <td>{chan.name}</td>
             <td>
-              <select bind:value={chan._country} on:change={() => setChannelCountry(chan.id, chan._country)} disabled={settingCountry[chan.id]}>
+              <select
+                bind:value={chan._country}
+                on:change={e => setChannelCountry(chan.id, e.target.value)}
+                disabled={settingCountry[chan.id]}
+              >
                 <option value="">No Country</option>
                 {#each COUNTRY_OPTIONS as country}
                   <option value={country}>{country}</option>
@@ -417,50 +435,73 @@
               </select>
             </td>
             <td>
-              {#each chan._tags as tag, i}
-                <span style="display:inline-block;padding:2px 8px;border-radius:5px;background:#eaeaea;margin-right:3px;font-size:0.96em;">{tag.name}</span>
-              {/each}
+              {(chan._tags || []).map(t => t.name).join(', ')}
             </td>
             <td>
-              <select bind:value={chan.level} on:change={() => setChannelLevel(chan.id, chan.level)} disabled={settingLevel[chan.id]}>
-                {#each levels as lvl}
-                  <option value={lvl.value}>{lvl.label}</option>
-                {/each}
+              <select
+                bind:value={chan._newLevel}
+                on:change={e => setChannelLevel(chan.id, e.target.value)}
+                disabled={settingLevel[chan.id]}
+              >
+                <option value="">Set Level</option>
+                <option value="easy">Easy</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+                <option value="notyet">Not Yet Rated</option>
               </select>
             </td>
             <td>
-              <button on:click={() => deleteChannel(chan.id)} style="color:#e93c2f;font-weight:bold;" disabled={deleting[chan.id]}>Delete</button>
+              <button
+                on:click={() => deleteChannel(chan.id)}
+                disabled={deleting[chan.id]}
+                style="color:red;"
+              >Delete</button>
             </td>
           </tr>
         {/each}
       </tbody>
     </table>
-    {#if filteredChannels.length === 0}
-      <div style="color:#888;margin:2em auto 1em auto;text-align:center;">No channels found.</div>
+    <div style="margin-top:1.5em;">
+      {#each Array(totalPages) as _, i}
+        <button on:click={() => goToPage(i + 1)} disabled={currentPage === i + 1}>
+          {i + 1}
+        </button>
+      {/each}
+    </div>
+    {#if message}
+      <div style="margin:1em;color:#244fa2;">{message}</div>
     {/if}
   </div>
-</div>
+{/if}
 
 <style>
   .container {
-    margin: 0 auto;
-    padding: 1.5em 0 3em 0;
-    max-width: 920px;
+    max-width: 1100px;
+    margin: 2.5em auto;
+    padding: 1.5em 2em;
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 6px 30px 0 #0001, 0 1.5px 7px #e3e8ee35;
   }
   .import-bar {
     display: flex;
     align-items: center;
     gap: 1em;
-    margin-bottom: 0.5em;
+    margin-bottom: 1em;
+    padding-bottom: 1em;
+    border-bottom: 1.5px solid #eee;
   }
-  .main-btn.import-btn {
+  .import-videos-title {
+    font-weight: 700;
+    font-size: 1.11em;
+    margin-right: 1em;
+  }
+  .main-btn {
     background: #e93c2f;
     color: #fff;
-    font-weight: bold;
-    padding: 0.6em 1.2em;
-    border-radius: 7px;
+    border-radius: 8px;
+    padding: 0.7em 1.2em;
     border: none;
-    margin-left: 0.2em;
     font-size: 1em;
     cursor: pointer;
   }
@@ -472,5 +513,49 @@
     margin: 0.5em 0 0 0.5em;
     padding: 0;
     list-style: disc;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1em;
+    background: #fafbfc;
+    border-radius: 10px;
+    box-shadow: 0 1.5px 8px #e0e0e040;
+  }
+  th, td {
+    padding: 0.7em 0.5em;
+    border-bottom: 1px solid #f0f0f0;
+    text-align: left;
+  }
+  th {
+    background: #f7fafd;
+    color: #244fa2;
+    font-weight: bold;
+  }
+  tr:last-child td {
+    border-bottom: none;
+  }
+  select, input[type="text"] {
+    padding: 0.34em 0.6em;
+    border-radius: 7px;
+    border: 1px solid #ddd;
+    font-size: 1em;
+    background: #fafafa;
+    color: #222;
+    min-width: 80px;
+    margin-right: 0.3em;
+  }
+  button[disabled] {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+  .sync-section {
+    margin: 2em 0 2.5em 0;
+    padding: 1em 0;
+    border-top: 1px solid #e4e4e4;
+    border-bottom: 1px solid #e4e4e4;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7em;
   }
 </style>
