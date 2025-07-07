@@ -12,15 +12,16 @@
   export let myChannels = [];
   export let selectedChannel = '';
   export let hideWatched = false;
+  export let currentSort = 'new'; // Pass in $sortBy from parent!
 
   const dispatch = createEventDispatcher();
 
   let page = 'main';
-  let localLevels = [...selectedLevels];
-  let localTags = [...selectedTags];
-  let localCountry = selectedCountry;
-  let localChannel = selectedChannel || '';
-  let localHideWatched = hideWatched;
+  let localLevels = [];
+  let localTags = [];
+  let localCountry = '';
+  let localChannel = '';
+  let localHideWatched = false;
 
   $: if (open) {
     page = 'main';
@@ -31,14 +32,32 @@
     localHideWatched = hideWatched;
   }
 
-  function handleApply() {
+  function emitApply(partial = {}) {
+    // Core logic: if random is active and *any* filter except levels is changed, reset to 'new'
+    let nextSort = currentSort;
+    if (
+      currentSort === 'random' &&
+      (
+        partial.selectedCountry !== undefined ||
+        partial.selectedTags !== undefined ||
+        partial.selectedChannel !== undefined ||
+        partial.hideWatched !== undefined
+      )
+    ) {
+      nextSort = 'new';
+    }
     dispatch('apply', {
-      selectedLevels: localLevels,
-      selectedTags: localTags,
-      selectedCountry: localCountry,
-      selectedChannel: localChannel,
-      hideWatched: localHideWatched
+      selectedLevels: partial.selectedLevels ?? localLevels,
+      selectedTags: partial.selectedTags ?? localTags,
+      selectedCountry: partial.selectedCountry ?? localCountry,
+      selectedChannel: partial.selectedChannel ?? localChannel,
+      hideWatched: partial.hideWatched ?? localHideWatched,
+      sortBy: nextSort
     });
+  }
+
+  function handleApply() {
+    emitApply();
   }
   function handleClose() {
     dispatch('close');
@@ -49,19 +68,39 @@
     localCountry = '';
     localChannel = '';
     localHideWatched = false;
-    handleApply();
+    emitApply({
+      selectedLevels: localLevels,
+      selectedTags: [],
+      selectedCountry: '',
+      selectedChannel: '',
+      hideWatched: false
+    });
   }
   function toggleLevel(level) {
     if (localLevels.includes(level)) localLevels = localLevels.filter(l => l !== level);
     else localLevels = [...localLevels, level];
+    emitApply({ selectedLevels: localLevels }); // Only levels, so keep random if random
   }
   function toggleTag(tag) {
     if (localTags.includes(tag)) localTags = localTags.filter(t => t !== tag);
     else localTags = [...localTags, tag];
+    emitApply({ selectedTags: localTags });
   }
   function toggleCountry(country) {
-    if (localCountry === country) localCountry = '';
-    else localCountry = country;
+    if (localCountry === country) {
+      localCountry = '';
+    } else {
+      localCountry = country;
+    }
+    emitApply({ selectedCountry: localCountry });
+  }
+  function toggleHideWatched() {
+    localHideWatched = !localHideWatched;
+    emitApply({ hideWatched: localHideWatched });
+  }
+  function selectChannel(channel) {
+    localChannel = channel;
+    emitApply({ selectedChannel: localChannel });
   }
 </script>
 
@@ -89,7 +128,7 @@
           <li class="toggle-row">
             <Eye class="icon"/><span>Hide watched</span>
             <label class="switch">
-              <input type="checkbox" bind:checked={localHideWatched}>
+              <input type="checkbox" bind:checked={localHideWatched} on:change={toggleHideWatched}>
               <span class="slider"></span>
             </label>
           </li>
@@ -121,7 +160,7 @@
             <input
               type="checkbox"
               checked={localCountry === ''}
-              on:change={() => localCountry = ''}
+              on:change={() => toggleCountry('')}
             />
             <span>All</span>
           </label>
@@ -130,7 +169,7 @@
               <input
                 type="checkbox"
                 checked={localCountry === country}
-                on:change={() => localCountry = country}
+                on:change={() => toggleCountry(country)}
               />
               <span>{country}</span>
             </label>
@@ -165,7 +204,7 @@
               name="mychannels"
               value="__WATCH_LATER__"
               checked={localChannel === '__WATCH_LATER__'}
-              on:change={() => localChannel = '__WATCH_LATER__'}
+              on:change={() => selectChannel('__WATCH_LATER__')}
             />
             <span style="display:flex;align-items:center;">
               <Clock size={17} style="margin-right:4px;vertical-align:-2px;" />
@@ -178,7 +217,7 @@
               name="mychannels"
               value="__ALL__"
               checked={localChannel === '__ALL__'}
-              on:change={() => localChannel = '__ALL__'}
+              on:change={() => selectChannel('__ALL__')}
             />
             <span>All Saved Channels</span>
           </label>
@@ -190,7 +229,7 @@
                   name="mychannels"
                   value={ch.id}
                   checked={localChannel === ch.id}
-                  on:change={() => localChannel = ch.id}
+                  on:change={() => selectChannel(ch.id)}
                 />
                 <span>{ch.name}</span>
               </label>

@@ -61,10 +61,6 @@
   let showFullPageFilter = false;
   let showMobileSearch = false;
 
-  // DEFAULTS
-  const DEFAULT_LEVELS = ['easy', 'intermediate', 'advanced'];
-  const DEFAULT_SORT = 'new';
-
   onMount(() => {
     mounted = true;
     let filters;
@@ -79,12 +75,12 @@
       Array.from(filters.levels || []).filter((lvl) => validLevels.has(lvl))
     );
     selectedLevels.set(
-      safeLevels.size ? safeLevels : new Set(DEFAULT_LEVELS)
+      safeLevels.size ? safeLevels : new Set(['easy', 'intermediate', 'advanced'])
     );
     selectedTags.set(filters.tags && filters.tags.length ? new Set(filters.tags) : new Set());
     selectedCountry.set(filters.country || '');
     selectedChannel.set(filters.channel || '');
-    sortBy.set(filters.sort || DEFAULT_SORT);
+    sortBy.set(filters.sort || 'new');
     searchTerm.set(filters.search || '');
 
     resetAndFetch();
@@ -214,133 +210,63 @@
     fetchVideos({ append: false });
   }
 
-  // --- NEW LOGIC: Sort/filter exclusivity for "random" ---
   function handleSortBarChange(e) {
-    let nextSort = e.detail.sortBy;
-    let nextLevels = e.detail.selectedLevels;
-    let nextTags = e.detail.selectedTags;
-    let nextCountry = e.detail.selectedCountry;
-    let nextChannel = e.detail.selectedChannel ?? '';
-    let nextHideWatched = e.detail.hideWatched;
-    let nextSearchTerm = e.detail.searchTerm;
-    let nextSearchOpen = e.detail.searchOpen;
-
-    // If random selected, clear all filters (levels/tags/country/channel/search)
-    if (nextSort === 'random') {
-      selectedLevels.set(new Set());
-      selectedTags.set(new Set());
-      selectedCountry.set('');
-      selectedChannel.set('');
-      hideWatched.set(false);
-      searchTerm.set('');
-      sortBy.set('random');
-      searchOpen = false;
-      updateUrlFromFilters({
-        selectedLevels: new Set(),
-        selectedTags: new Set(),
-        selectedCountry: '',
-        selectedChannel: '',
-        sortBy: 'random',
-        searchTerm: '',
-        get
-      });
-    } else {
-      // If switching off random, restore defaults for missing levels
-      if (get(sortBy) === 'random' && (!nextLevels || !nextLevels.length)) {
-        nextLevels = DEFAULT_LEVELS;
-      }
-      selectedLevels.set(new Set(nextLevels));
-      selectedTags.set(new Set(nextTags));
-      selectedCountry.set(nextCountry);
-      selectedChannel.set(nextChannel);
-      hideWatched.set(nextHideWatched);
-      searchTerm.set(nextSearchTerm);
-      sortBy.set(nextSort);
-      searchOpen = nextSearchOpen;
-      updateUrlFromFilters({
-        selectedLevels: new Set(nextLevels),
-        selectedTags: new Set(nextTags),
-        selectedCountry: nextCountry,
-        selectedChannel: nextChannel,
-        sortBy: nextSort,
-        searchTerm: nextSearchTerm,
-        get
-      });
-    }
+    const rawLevels = e.detail.selectedLevels;
+    const safeLevels = new Set(Array.from(rawLevels).filter((lvl) => validLevels.has(lvl)));
+    selectedLevels.set(safeLevels);
+    selectedTags.set(new Set(e.detail.selectedTags));
+    sortBy.set(e.detail.sortBy);
+    selectedCountry.set(e.detail.selectedCountry);
+    hideWatched.set(e.detail.hideWatched);
+    searchTerm.set(e.detail.searchTerm);
+    searchOpen = e.detail.searchOpen;
+    selectedChannel.set(e.detail.selectedChannel ?? '');
+    updateUrlFromFilters({
+      selectedLevels,
+      selectedTags,
+      selectedCountry,
+      selectedChannel,
+      sortBy,
+      searchTerm,
+      get
+    });
     resetAndFetch();
   }
 
   // Mobile handlers
   function handleMobileSortSelect(val) {
-    if (val === 'random') {
-      selectedLevels.set(new Set());
-      selectedTags.set(new Set());
-      selectedCountry.set('');
-      selectedChannel.set('');
-      hideWatched.set(false);
-      searchTerm.set('');
-      sortBy.set('random');
-      updateUrlFromFilters({
-        selectedLevels: new Set(),
-        selectedTags: new Set(),
-        selectedCountry: '',
-        selectedChannel: '',
-        sortBy: 'random',
-        searchTerm: '',
-        get
-      });
-    } else {
-      // When leaving random, restore levels if needed
-      if (get(sortBy) === 'random' && get(selectedLevels).size === 0) {
-        selectedLevels.set(new Set(DEFAULT_LEVELS));
-      }
-      sortBy.set(val);
-      updateUrlFromFilters({
-        selectedLevels,
-        selectedTags,
-        selectedCountry,
-        selectedChannel,
-        sortBy,
-        searchTerm,
-        get
-      });
-    }
+    sortBy.set(val);
     showSortDropdown = false;
+    updateUrlFromFilters({
+      selectedLevels,
+      selectedTags,
+      selectedCountry,
+      selectedChannel,
+      sortBy,
+      searchTerm,
+      get
+    });
     resetAndFetch();
   }
 
   function handleMobileFilterApply(e) {
     const detail = e.detail || {};
-    let levels = detail.selectedLevels || [];
-    const tags = detail.selectedTags || [];
-    const country = detail.selectedCountry || '';
-    const channel = detail.selectedChannel || '';
-    const hide = detail.hideWatched || false;
-
-    // If random is set, reset sort to default
-    if (get(sortBy) === 'random') {
-      sortBy.set(DEFAULT_SORT);
-    }
-    if (!levels.length) {
-      levels = DEFAULT_LEVELS;
-    }
-
-    selectedLevels.set(new Set(levels));
-    selectedTags.set(new Set(tags));
-    selectedCountry.set(country);
-    selectedChannel.set(channel);
-    hideWatched.set(hide);
-
+    // --- MATCH DESKTOP LOGIC: reset random if sortBy passed back is not random
+    selectedLevels.set(new Set(detail.selectedLevels || []));
+    selectedTags.set(new Set(detail.selectedTags || []));
+    selectedCountry.set(detail.selectedCountry || '');
+    selectedChannel.set(detail.selectedChannel || '');
+    hideWatched.set(detail.hideWatched || false);
+    if (detail.sortBy) sortBy.set(detail.sortBy);
     updateUrlFromFilters({
-      selectedLevels: new Set(levels),
-      selectedTags: new Set(tags),
-      selectedCountry: country,
-      selectedChannel: channel,
+      selectedLevels,
+      selectedTags,
+      selectedCountry,
+      selectedChannel,
       sortBy,
       searchTerm,
       get
     });
-
     showFullPageFilter = false;
     resetAndFetch();
   }
@@ -353,7 +279,7 @@
       selectedCountry,
       selectedChannel,
       sortBy,
-      searchTerm: val,
+      searchTerm,
       get
     });
     resetAndFetch();
@@ -366,7 +292,7 @@
       selectedCountry,
       selectedChannel,
       sortBy,
-      searchTerm: val,
+      searchTerm,
       get
     });
     resetAndFetch();
@@ -407,12 +333,12 @@
     const filters = queryToFilters(currentQuery);
     const safeLevels = new Set(Array.from(filters.levels).filter((lvl) => validLevels.has(lvl)));
     selectedLevels.set(
-      safeLevels.size ? safeLevels : new Set(DEFAULT_LEVELS)
+      safeLevels.size ? safeLevels : new Set(['easy', 'intermediate', 'advanced'])
     );
     selectedTags.set(filters.tags.size ? filters.tags : new Set());
     selectedCountry.set(filters.country || '');
     selectedChannel.set(filters.channel || '');
-    sortBy.set(filters.sort || DEFAULT_SORT);
+    sortBy.set(filters.sort || 'new');
     searchTerm.set(filters.search || '');
 
     resetAndFetch();
@@ -623,12 +549,13 @@
       selectedTags={Array.from($selectedTags)}
       myChannels={$userChannels}
       selectedChannel={$selectedChannel}
+      hideWatched={$hideWatched}
+      currentSort={$sortBy}
       on:apply={handleMobileFilterApply}
       on:close={() => (showFullPageFilter = false)}
     />
   {/if}
 </div>
-
 
 <style>
   .center-content {
