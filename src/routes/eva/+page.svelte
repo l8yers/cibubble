@@ -1,30 +1,16 @@
 <script>
   import { user } from '$lib/stores/user.js';
-  import { goto } from '$app/navigation';
-  import { onMount } from 'svelte';
   import { COUNTRY_OPTIONS, TAG_OPTIONS } from '$lib/constants';
   import Papa from 'papaparse';
+  import { onMount } from 'svelte';
+  import { stripAccent } from '$lib/utils/adminutils.js';
+  import { getTagsForChannel } from '$lib/api/tags.js';
+  import { supabase } from '$lib/supabaseClient';
 
-  // --- ADMIN PANEL PROTECTION ---
-  let loaded = false;
-  let isAdmin = false;
+  // --- Minimal Security ---
+  user.subscribe((v) => $user = v);
 
-  $: if ($user !== undefined) {
-    if (!$user) {
-      loaded = true;
-      isAdmin = false;
-      goto('/login');
-    } else if (!$user.profile?.is_admin) {
-      loaded = true;
-      isAdmin = false;
-      goto('/');
-    } else {
-      loaded = true;
-      isAdmin = true;
-    }
-  }
-
-  // --- STATE FOR SINGLE CHANNEL ADD ---
+  // === Single Channel Add State ===
   let url = '';
   let loading = false;
   let error = '';
@@ -34,7 +20,7 @@
   let country = '';
   let selectedTags = [];
 
-  // --- BULK UPLOAD STATE ---
+  // === Bulk Upload State ===
   let csvFile = null;
   let bulkUploading = false;
   let bulkResults = [];
@@ -72,7 +58,7 @@
     }
   }
 
-  // --- VIDEO SYNC LOGIC ---
+  // === Video Sync Logic ===
   let syncing = false;
   let syncResult = null;
 
@@ -151,22 +137,12 @@
     }
   }
 
-  // --- CHANNEL TOOLS STATE (search, edit, delete, paginate) ---
-  import { stripAccent } from '$lib/utils/adminutils.js';
-  import { getTagsForChannel } from '$lib/api/tags.js';
-  import { supabase } from '$lib/supabaseClient';
-
+  // --- Channel Tools State (search, edit, delete, paginate) ---
   let allChannels = [];
   let refreshing = false;
-  let showPlaylistsFor = null;
-  let playlists = [];
-  let playlistsLoading = false;
   let settingCountry = {};
   let settingLevel = {};
-  let settingPlaylistLevel = {};
   let deleting = {};
-
-  // Pagination & search
   let search = '';
   let currentPage = 1;
   const channelsPerPage = 12;
@@ -266,10 +242,10 @@
   });
 </script>
 
-{#if !loaded}
-  <div style="margin:4em; text-align:center;">Checking permissions…</div>
-{:else if !isAdmin}
-  <div style="margin:4em; color:#e93c2f; text-align:center;">You are not authorized to view this page.</div>
+{#if !$user}
+  <div style="margin:4em; text-align:center;">You must be logged in to view this page.</div>
+{:else if !$user.profile?.is_admin}
+  <div style="margin:4em; color:#e93c2f; text-align:center;">Not allowed (admin only).</div>
 {:else}
   <div class="container">
 
