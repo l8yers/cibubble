@@ -7,10 +7,10 @@
   import { getTagsForChannel } from '$lib/api/tags.js';
   import { user } from '$lib/stores/user.js';
 
-  // --- Admin Check (copy-paste from your working test file!) ---
+  // --- Admin Check (from working test logic) ---
   let profileRow = null;
-  let error = null;
   let checked = false;
+  let error = null;
   $: currentUser = $user;
 
   async function checkProfileDirect() {
@@ -37,44 +37,7 @@
     refresh();
   });
 
-  // --- Bulk Upload State ---
-  let csvFile = null;
-  let bulkUploading = false;
-  let bulkResults = [];
-  let csvInput;
-  $: failedChannels = bulkResults.filter(r => !r.ok).map(r => r.url);
-
-  function handleCsvFile(e) {
-    csvFile = e.target.files[0];
-  }
-  async function uploadCsv() {
-    if (!csvFile) return;
-    bulkUploading = true;
-    bulkResults = [];
-    try {
-      const text = await csvFile.text();
-      const { data } = Papa.parse(text, { header: true, skipEmptyLines: true });
-      const rows = data.map(row => ({
-        url: (row.url || '').trim(),
-        tags: (row.tags || '').trim(),
-        country: (row.country || '').trim(),
-        level: (row.level || '').trim()
-      }));
-      const res = await fetch('/api/bulk-upload-channels', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rows })
-      });
-      const out = await res.json();
-      bulkUploading = false;
-      bulkResults = out.results || [];
-    } catch (err) {
-      bulkUploading = false;
-      bulkResults = [{ url: '', error: err.message || 'Bulk upload failed' }];
-    }
-  }
-
-  // --- Single Channel Add State ---
+  // === Single Channel Add State ===
   let url = '';
   let loading = false;
   let submitError = '';
@@ -140,12 +103,52 @@
       level = '';
       country = '';
       selectedTags = [];
+      refresh();
     } catch (err) {
       submitError = err.message || 'Insert error';
     }
   }
 
-  // --- Channel Editing State ---
+  // === Bulk Upload State ===
+  let csvFile = null;
+  let bulkUploading = false;
+  let bulkResults = [];
+  let csvInput;
+  $: failedChannels = bulkResults.filter(r => !r.ok).map(r => r.url);
+
+  function handleCsvFile(e) {
+    csvFile = e.target.files[0];
+  }
+
+  async function uploadCsv() {
+    if (!csvFile) return;
+    bulkUploading = true;
+    bulkResults = [];
+    try {
+      const text = await csvFile.text();
+      const { data } = Papa.parse(text, { header: true, skipEmptyLines: true });
+      const rows = data.map(row => ({
+        url: (row.url || '').trim(),
+        tags: (row.tags || '').trim(),
+        country: (row.country || '').trim(),
+        level: (row.level || '').trim()
+      }));
+      const res = await fetch('/api/bulk-upload-channels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows })
+      });
+      const out = await res.json();
+      bulkUploading = false;
+      bulkResults = out.results || [];
+      refresh();
+    } catch (err) {
+      bulkUploading = false;
+      bulkResults = [{ url: '', error: err.message || 'Bulk upload failed' }];
+    }
+  }
+
+  // === Channels/Playlists Editing Logic ===
   let allChannels = [];
   let refreshing = false;
   let settingCountry = {};
@@ -157,6 +160,13 @@
   let totalPages = 1;
   let filteredChannels = [];
   let message = '';
+
+  // Playlist editing state
+  let openPlaylistsFor = null; // channel id for which to show playlists
+  let playlistsLoading = false;
+  let playlists = [];
+  let playlistError = null;
+  let playlistLevelSaving = {};
 
   $: {
     let s = stripAccent(search.trim().toLowerCase());
@@ -244,10 +254,40 @@
       refreshing = false;
     }
   }
+
+  // --- Playlists Inline Logic ---
+  async function openPlaylists(channelId) {
+    openPlaylistsFor = channelId;
+    playlistsLoading = true;
+    playlists = [];
+    playlistError = null;
+    let { data, error } = await supabase.from('playlists').select('*').eq('channel_id', channelId).order('name');
+    if (error) {
+      playlistError = error.message;
+    } else {
+      playlists = data;
+    }
+    playlistsLoading = false;
+  }
+
+  function closePlaylists() {
+    openPlaylistsFor = null;
+    playlists = [];
+    playlistError = null;
+  }
+
+  async function savePlaylistLevel(playlistId, level) {
+    playlistLevelSaving = { ...playlistLevelSaving, [playlistId]: true };
+    await supabase.from('playlists').update({ level }).eq('id', playlistId);
+    // optional: update locally
+    playlists = playlists.map(pl => pl.id === playlistId ? { ...pl, level } : pl);
+    playlistLevelSaving = { ...playlistLevelSaving, [playlistId]: false };
+  }
 </script>
 
 <h2>Admin Panel</h2>
 
+<!-- Only show is_admin log and admin panel if admin -->
 {#if checked}
   <p>
     <strong>is_admin:</strong>
@@ -273,7 +313,6 @@
         </button>
       </div>
 
-      <!-- Bulk Upload Results -->
       {#if bulkResults.length}
         <div class="bulk-results">
           <h3>Bulk Upload Results</h3>
@@ -292,7 +331,6 @@
         </div>
       {/if}
 
-      <!-- Failed Channels Section -->
       {#if failedChannels.length}
         <div class="bulk-failed">
           <h3>❌ Failed to Add Channels</h3>
@@ -320,7 +358,6 @@
       {#if submitError}
         <p style="color: red;">{submitError}</p>
       {/if}
-
       {#if success}
         <p style="color: green;">Channel inserted!</p>
       {/if}
@@ -368,7 +405,6 @@
         </form>
       {/if}
 
-      <!-- === CHANNEL TOOLS SECTION (edit/search/delete) === -->
       <hr />
       <h2>Channel Tools</h2>
       <div>
@@ -424,6 +460,7 @@
                 </select>
               </td>
               <td>
+                <button on:click={() => openPlaylists(chan.id)}>Playlists</button>
                 <button
                   on:click={() => deleteChannel(chan.id)}
                   disabled={deleting[chan.id]}
@@ -431,6 +468,55 @@
                 >Delete</button>
               </td>
             </tr>
+            <!-- Inline Playlists Row -->
+            {#if openPlaylistsFor === chan.id}
+              <tr>
+                <td colspan="5" style="background:#f9f9f9;">
+                  <div style="padding:1.1em;">
+                    <strong>Playlists for {chan.name}</strong>
+                    <button on:click={closePlaylists} style="margin-left:1.2em;font-size:0.98em;">Close</button>
+                    {#if playlistsLoading}
+                      <div>Loading playlists...</div>
+                    {:else if playlistError}
+                      <div style="color:red;">Error: {playlistError}</div>
+                    {:else if playlists.length === 0}
+                      <div>No playlists found for this channel.</div>
+                    {:else}
+                      <table style="width:100%;margin-top:0.7em;">
+                        <thead>
+                          <tr>
+                            <th>Name</th>
+                            <th>Level</th>
+                            <th>ID</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {#each playlists as pl}
+                            <tr>
+                              <td>{pl.name}</td>
+                              <td>
+                                <select
+                                  bind:value={pl.level}
+                                  disabled={playlistLevelSaving[pl.id]}
+                                  on:change={e => savePlaylistLevel(pl.id, e.target.value)}
+                                >
+                                  <option value="">Not Set</option>
+                                  <option value="easy">Easy</option>
+                                  <option value="intermediate">Intermediate</option>
+                                  <option value="advanced">Advanced</option>
+                                  <option value="notyet">Not Yet Rated</option>
+                                </select>
+                              </td>
+                              <td style="font-size:0.9em;color:#999;">{pl.id}</td>
+                            </tr>
+                          {/each}
+                        </tbody>
+                      </table>
+                    {/if}
+                  </div>
+                </td>
+              </tr>
+            {/if}
           {/each}
         </tbody>
       </table>
