@@ -24,22 +24,30 @@ function mapAuthError(error) {
 // === NEW: Fetch profile row
 async function fetchProfile(userId) {
   if (!userId) return null;
+  console.log("[user.js] fetchProfile for userId:", userId);
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', userId)
     .single();
-  if (error) return null;
+  if (error) {
+    console.warn("[user.js] fetchProfile error:", error);
+    return null;
+  }
+  console.log("[user.js] fetchProfile returned:", data);
   return data;
 }
 
 export async function loadUser() {
+  console.log("[user.js] loadUser called");
   userLoading.set(true);
   const { data, error } = await supabase.auth.getUser();
+  console.log("[user.js] getUser returned:", { data, error });
   if (error || !data?.user) {
     user.set(null);
     userLoading.set(false);
     authChecked.set(true);
+    console.log("[user.js] No user found, set null");
     return;
   }
   // Fetch profile row for is_admin, etc.
@@ -47,6 +55,7 @@ export async function loadUser() {
   user.set({ ...data.user, profile });
   userLoading.set(false);
   authChecked.set(true);
+  console.log("[user.js] User set:", { ...data.user, profile });
 }
 
 export async function login(email, password) {
@@ -104,11 +113,14 @@ export async function updatePassword(newPassword) {
 
 // === UPDATED: Also fetch profile on auth state changes
 supabase.auth.onAuthStateChange(async (event, session) => {
+  console.log("[user.js] onAuthStateChange:", { event, session });
   if (session?.user) {
     const profile = await fetchProfile(session.user.id);
     user.set({ ...session.user, profile });
+    console.log("[user.js] onAuthStateChange user set:", { ...session.user, profile });
   } else {
     user.set(null);
+    console.log("[user.js] onAuthStateChange user set: null");
   }
   userLoading.set(false);
   authChecked.set(true);
