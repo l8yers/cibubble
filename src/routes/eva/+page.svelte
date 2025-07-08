@@ -1,5 +1,5 @@
 <script>
-  import { user, userLoading, authChecked } from '$lib/stores/user.js';
+  import { user, userLoading, authChecked, loadUser } from '$lib/stores/user.js';
   import { COUNTRY_OPTIONS, TAG_OPTIONS } from '$lib/constants';
   import Papa from 'papaparse';
   import { onMount } from 'svelte';
@@ -235,6 +235,7 @@
   }
 
   onMount(() => {
+    loadUser();
     refresh();
   });
 </script>
