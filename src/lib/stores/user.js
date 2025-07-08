@@ -2,9 +2,9 @@ import { writable } from 'svelte/store';
 import { supabase } from '$lib/supabaseClient';
 import { goto } from '$app/navigation';
 
-export const user = writable(undefined);      // undefined = not checked yet
-export const userLoading = writable(true);
-export const authChecked = writable(false);
+export const user = writable(undefined);      // 'undefined' means "not checked yet"
+export const userLoading = writable(true);    // true = loading, false = ready
+export const authChecked = writable(false);   // <- ADDED: true only after initial check
 export const authError = writable('');
 
 // Helper: map Supabase errors to user-friendly text
@@ -19,44 +19,23 @@ function mapAuthError(error) {
   if (error.message?.includes('Password should be at least')) {
     return 'Password is too short.';
   }
+  // Add more mappings as needed
   return error.message || 'Authentication error.';
-}
-
-// NEW: fetch profile for user id
-async function fetchProfile(userId) {
-  if (!userId) return null;
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    if (error) return null;
-    return data;
-  } catch (err) {
-    return null;
-  }
 }
 
 // Load user from Supabase (on mount and after auth changes)
 export async function loadUser() {
   userLoading.set(true);
   const { data, error } = await supabase.auth.getUser();
-  if (error || !data?.user) {
+  if (error) {
     user.set(null);
     userLoading.set(false);
-    authChecked.set(true);
+    authChecked.set(true); // <-- Mark as checked even if error
     return;
   }
-
-  // Fetch and merge profile row
-  const profileRow = await fetchProfile(data.user.id);
-  user.set({
-    ...data.user,
-    profile: profileRow,
-  });
+  user.set(data?.user || null);
   userLoading.set(false);
-  authChecked.set(true);
+  authChecked.set(true); // <-- Mark as checked after initial load
 }
 
 // Login
@@ -70,13 +49,13 @@ export async function login(email, password) {
   return { error, data };
 }
 
-// Logout
+// Logout: Clear user, localStorage/sessionStorage except theme, and redirect
 export async function logout() {
   userLoading.set(true);
   await supabase.auth.signOut();
   user.set(null);
   userLoading.set(false);
-  authChecked.set(true);
+  authChecked.set(true); // Still checked after logout!
   // Keep theme only
   const keepTheme = localStorage.getItem('theme');
   localStorage.clear();
@@ -119,17 +98,8 @@ export async function updatePassword(newPassword) {
 }
 
 // Keep Svelte store in sync with Supabase on all auth events
-supabase.auth.onAuthStateChange(async (event, session) => {
-  if (session?.user) {
-    // Fetch and merge profile row for new user
-    const profileRow = await fetchProfile(session.user.id);
-    user.set({
-      ...session.user,
-      profile: profileRow,
-    });
-  } else {
-    user.set(null);
-  }
+supabase.auth.onAuthStateChange((event, session) => {
+  user.set(session?.user || null);
   userLoading.set(false); 
-  authChecked.set(true);
+  authChecked.set(true); // <-- Mark as checked after any event
 });
