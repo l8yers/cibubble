@@ -1,27 +1,111 @@
 <script>
-  import { user, userLoading, authChecked, loadUser } from '$lib/stores/user.js';
+  import { supabase } from '$lib/supabaseClient';
   import { COUNTRY_OPTIONS, TAG_OPTIONS } from '$lib/constants';
   import Papa from 'papaparse';
   import { onMount } from 'svelte';
   import { stripAccent } from '$lib/utils/adminutils.js';
   import { getTagsForChannel } from '$lib/api/tags.js';
-  import { supabase } from '$lib/supabaseClient';
+  import { user, userLoading, authChecked } from '$lib/stores/user.js';
 
-  // --- Helper to robustly detect admin ---
-  function isUserAdmin(user) {
-    const v = user?.profile?.is_admin;
-    return v === true || v === "true" || v === 1;
+  // --- Direct admin check via profileRow ---
+  let profileRow = null;
+  let error = null;
+  let checked = false;
+  $: currentUser = $user;
+
+  async function checkProfileDirect() {
+    error = null;
+    profileRow = null;
+    checked = false;
+    if (!currentUser?.id) {
+      error = "No user ID found.";
+      checked = true;
+      return;
+    }
+    const { data, error: err } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', currentUser.id)
+      .single();
+    profileRow = data;
+    error = err;
+    checked = true;
   }
+
+  onMount(() => {
+    if (currentUser?.id) checkProfileDirect();
+  });
 
   // === Single Channel Add State ===
   let url = '';
   let loading = false;
-  let error = '';
+  let submitError = '';
   let success = false;
   let channelPreview = null;
   let level = '';
   let country = '';
   let selectedTags = [];
+
+  async function fetchChannelDetails() {
+    loading = true;
+    submitError = '';
+    success = false;
+    channelPreview = null;
+    try {
+      const res = await fetch('/api/fetch-youtube-details', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        submitError = data.error || 'Failed to fetch channel.';
+        return;
+      }
+      channelPreview = data.channel;
+    } catch (err) {
+      submitError = err.message || 'Fetch error';
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function submitChannel() {
+    submitError = '';
+    success = false;
+    if (!level || !channelPreview?.id) {
+      submitError = 'Level and channel data required.';
+      return;
+    }
+    try {
+      const payload = {
+        id: channelPreview.id,
+        name: channelPreview.title,
+        thumbnail: channelPreview.thumbnail,
+        level,
+        country,
+        tags: selectedTags.join(', ')
+      };
+      const res = await fetch('/api/insert-channel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        submitError = data.error || 'Insert failed';
+        return;
+      }
+      success = true;
+      url = '';
+      channelPreview = null;
+      level = '';
+      country = '';
+      selectedTags = [];
+    } catch (err) {
+      submitError = err.message || 'Insert error';
+    }
+  }
 
   // === Bulk Upload State ===
   let csvFile = null;
@@ -58,85 +142,6 @@
     } catch (err) {
       bulkUploading = false;
       bulkResults = [{ url: '', error: err.message || 'Bulk upload failed' }];
-    }
-  }
-
-  // === Video Sync Logic ===
-  let syncing = false;
-  let syncResult = null;
-
-  async function fetchChannelDetails() {
-    loading = true;
-    error = '';
-    success = false;
-    channelPreview = null;
-    try {
-      const res = await fetch('/api/fetch-youtube-details', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        error = data.error || 'Failed to fetch channel.';
-        return;
-      }
-      channelPreview = data.channel;
-    } catch (err) {
-      error = err.message || 'Fetch error';
-    } finally {
-      loading = false;
-    }
-  }
-
-  async function submitChannel() {
-    error = '';
-    success = false;
-    if (!level || !channelPreview?.id) {
-      error = 'Level and channel data required.';
-      return;
-    }
-    try {
-      const payload = {
-        id: channelPreview.id,
-        name: channelPreview.title,
-        thumbnail: channelPreview.thumbnail,
-        level,
-        country,
-        tags: selectedTags.join(', ')
-      };
-      const res = await fetch('/api/insert-channel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        error = data.error || 'Insert failed';
-        return;
-      }
-      success = true;
-      url = '';
-      channelPreview = null;
-      level = '';
-      country = '';
-      selectedTags = [];
-    } catch (err) {
-      error = err.message || 'Insert error';
-    }
-  }
-
-  async function syncVideos() {
-    syncing = true;
-    syncResult = null;
-    try {
-      const res = await fetch('/api/sync-videos', { method: 'POST' });
-      const data = await res.json();
-      syncResult = data;
-    } catch (err) {
-      syncResult = { error: err.message || 'Unknown sync error' };
-    } finally {
-      syncing = false;
     }
   }
 
@@ -246,234 +251,136 @@
   });
 </script>
 
-<!-- Debug info for admin -->
-<div style="background: #ffefd0; color: #702c10; font-size: 0.99em; padding: 0.5em; margin-bottom:1em; border-radius: 8px;">
-  <div>authChecked: {$authChecked ? 'true' : 'false'}</div>
-  <div>userLoading: {$userLoading ? 'true' : 'false'}</div>
-  <div>user: {JSON.stringify($user)}</div>
-  <div>profile: {JSON.stringify($user?.profile)}</div>
-  <div>is_admin value: {$user?.profile?.is_admin} (type: {typeof $user?.profile?.is_admin})</div>
-  <div>
-    Admin status:
-    {#if isUserAdmin($user)}
-      <span style="color:green;font-weight:bold;">You are admin ✅</span>
-    {:else}
-      <span style="color:red;font-weight:bold;">You are NOT admin ❌</span>
-    {/if}
-  </div>
-</div>
+<!-- ADMIN PANEL UI -->
+<h2>Admin Panel</h2>
 
-{#if !$authChecked}
-  <div style="margin:4em; text-align:center;">Checking login...</div>
-{:else if $userLoading}
-  <div style="margin:4em; text-align:center;">Loading user info...</div>
-{:else if !$user}
-  <div style="margin:4em; text-align:center;">You must be logged in to view this page.</div>
-{:else if !isUserAdmin($user)}
-  <div style="margin:4em; color:#e93c2f; text-align:center;">Not allowed (admin only).</div>
+{#if !checked}
+  <div>Loading...</div>
 {:else}
-  <!-- The entire admin panel as before... -->
-  <div class="container">
+  <p>
+    <strong>is_admin:</strong>
+    {profileRow?.is_admin === true ? '✅ TRUE' : profileRow?.is_admin === false ? '❌ FALSE' : String(profileRow?.is_admin)}
+  </p>
+  {#if profileRow?.is_admin === true}
+    <div class="container">
 
-    <!-- === Bulk Upload CSV Bar === -->
-    <div class="import-bar">
-      <span class="import-videos-title">BULK UPLOAD CSV</span>
-      <input
-        type="file"
-        accept=".csv"
-        bind:this={csvInput}
-        on:change={handleCsvFile}
-        aria-label="Select CSV file"
-        class="import-input"
-        style="min-width:unset;max-width:220px"
-      />
-      <button class="main-btn import-btn" on:click={uploadCsv} disabled={!csvFile || bulkUploading} aria-label="Bulk Upload">
-        {bulkUploading ? 'Uploading…' : 'Upload CSV'}
-      </button>
-    </div>
-
-    <!-- Bulk Upload Results -->
-    {#if bulkResults.length}
-      <div class="bulk-results">
-        <h3>Bulk Upload Results</h3>
-        <ul>
-          {#each bulkResults as r}
-            <li>
-              {r.url}
-              {#if r.ok}
-                — <span style="color: green;">✅ Success</span>
-              {:else}
-                — <span style="color: red;">❌ {r.error}</span>
-              {/if}
-            </li>
-          {/each}
-        </ul>
+      <!-- === Bulk Upload CSV Bar === -->
+      <div class="import-bar">
+        <span class="import-videos-title">BULK UPLOAD CSV</span>
+        <input
+          type="file"
+          accept=".csv"
+          bind:this={csvInput}
+          on:change={handleCsvFile}
+          aria-label="Select CSV file"
+          class="import-input"
+          style="min-width:unset;max-width:220px"
+        />
+        <button class="main-btn import-btn" on:click={uploadCsv} disabled={!csvFile || bulkUploading} aria-label="Bulk Upload">
+          {bulkUploading ? 'Uploading…' : 'Upload CSV'}
+        </button>
       </div>
-    {/if}
 
-    <!-- Failed Channels Section -->
-    {#if failedChannels.length}
-      <div class="bulk-failed">
-        <h3>❌ Failed to Add Channels</h3>
-        <ul>
-          {#each failedChannels as url}
-            <li>{url}</li>
-          {/each}
-        </ul>
-        <div style="margin-top: 0.7em;">
-          <em>Check the CSV or error messages above for details.</em>
-        </div>
-      </div>
-    {/if}
-
-    <!-- === Single Channel Add Section === -->
-    <h1>Add YouTube Channel</h1>
-    <div>
-      <label>YouTube Channel URL or @handle:</label>
-      <input bind:value={url} placeholder="@somehandle or full URL" />
-      <button on:click={fetchChannelDetails} disabled={loading}>
-        {loading ? 'Loading...' : 'Fetch'}
-      </button>
-    </div>
-
-    {#if error}
-      <p style="color: red;">{error}</p>
-    {/if}
-
-    {#if success}
-      <p style="color: green;">Channel inserted!</p>
-    {/if}
-
-    {#if channelPreview}
-      <hr />
-      <h2>Confirm Channel Info</h2>
-      <p><strong>{channelPreview.title}</strong></p>
-      <img src={channelPreview.thumbnail} alt="Thumbnail" width="120" height="120" />
-      <form on:submit|preventDefault={submitChannel}>
-        <div>
-          <label>Level (required):</label>
-          <div>
-            {#each ['easy', 'intermediate', 'advanced'] as lvl}
-              <label>
-                <input
-                  type="radio"
-                  bind:group={level}
-                  value={lvl}
-                  required
-                />
-                {lvl}
-              </label>
+      <!-- Bulk Upload Results -->
+      {#if bulkResults.length}
+        <div class="bulk-results">
+          <h3>Bulk Upload Results</h3>
+          <ul>
+            {#each bulkResults as r}
+              <li>
+                {r.url}
+                {#if r.ok}
+                  — <span style="color: green;">✅ Success</span>
+                {:else}
+                  — <span style="color: red;">❌ {r.error}</span>
+                {/if}
+              </li>
             {/each}
+          </ul>
+        </div>
+      {/if}
+
+      <!-- Failed Channels Section -->
+      {#if failedChannels.length}
+        <div class="bulk-failed">
+          <h3>❌ Failed to Add Channels</h3>
+          <ul>
+            {#each failedChannels as url}
+              <li>{url}</li>
+            {/each}
+          </ul>
+          <div style="margin-top: 0.7em;">
+            <em>Check the CSV or error messages above for details.</em>
           </div>
         </div>
-        <div>
-          <label>Country:</label>
-          <select bind:value={country}>
-            <option value="">None</option>
-            {#each COUNTRY_OPTIONS as c}
-              <option value={c}>{c}</option>
-            {/each}
-          </select>
-        </div>
-        <div>
-          <label>Tags:</label>
-          <select multiple bind:value={selectedTags}>
-            {#each TAG_OPTIONS as tag}
-              <option value={tag}>{tag}</option>
-            {/each}
-          </select>
-        </div>
-        <button type="submit">Submit Channel</button>
-      </form>
-    {/if}
+      {/if}
 
-    <!-- === VIDEO SYNC SECTION === -->
-    <div class="sync-section">
-      <button on:click={syncVideos} disabled={syncing}>
-        {syncing ? 'Syncing...' : 'Sync Videos for All Channels'}
-      </button>
-      {#if syncResult}
-        <pre>{JSON.stringify(syncResult, null, 2)}</pre>
+      <!-- === Single Channel Add Section === -->
+      <h1>Add YouTube Channel</h1>
+      <div>
+        <label>YouTube Channel URL or @handle:</label>
+        <input bind:value={url} placeholder="@somehandle or full URL" />
+        <button on:click={fetchChannelDetails} disabled={loading}>
+          {loading ? 'Loading...' : 'Fetch'}
+        </button>
+      </div>
+
+      {#if submitError}
+        <p style="color: red;">{submitError}</p>
+      {/if}
+
+      {#if success}
+        <p style="color: green;">Channel inserted!</p>
+      {/if}
+
+      {#if channelPreview}
+        <hr />
+        <h2>Confirm Channel Info</h2>
+        <p><strong>{channelPreview.title}</strong></p>
+        <img src={channelPreview.thumbnail} alt="Thumbnail" width="120" height="120" />
+        <form on:submit|preventDefault={submitChannel}>
+          <div>
+            <label>Level (required):</label>
+            <div>
+              {#each ['easy', 'intermediate', 'advanced'] as lvl}
+                <label>
+                  <input
+                    type="radio"
+                    bind:group={level}
+                    value={lvl}
+                    required
+                  />
+                  {lvl}
+                </label>
+              {/each}
+            </div>
+          </div>
+          <div>
+            <label>Country:</label>
+            <select bind:value={country}>
+              <option value="">None</option>
+              {#each COUNTRY_OPTIONS as c}
+                <option value={c}>{c}</option>
+              {/each}
+            </select>
+          </div>
+          <div>
+            <label>Tags:</label>
+            <select multiple bind:value={selectedTags}>
+              {#each TAG_OPTIONS as tag}
+                <option value={tag}>{tag}</option>
+              {/each}
+            </select>
+          </div>
+          <button type="submit">Submit Channel</button>
+        </form>
       {/if}
     </div>
-
-    <!-- === CHANNEL TOOLS SECTION (edit/search/delete) === -->
-    <hr />
-    <h2>Channel Tools</h2>
-    <div>
-      <input
-        type="text"
-        placeholder="Search channels…"
-        bind:value={search}
-        on:input={onSearchInput}
-        style="width:300px;margin-bottom:1em;"
-      />
-      <span style="margin-left:1em;">{filteredChannels.length} shown / {allChannels.length} total</span>
+  {:else}
+    <div style="color:#b22222;font-weight:bold;font-size:1.1em; margin-top:1em;">
+      Not allowed (admin only).
     </div>
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Country</th>
-          <th>Tags</th>
-          <th>Level</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each filteredChannels as chan}
-          <tr>
-            <td>{chan.name}</td>
-            <td>
-              <select
-                bind:value={chan._country}
-                on:change={e => setChannelCountry(chan.id, e.target.value)}
-                disabled={settingCountry[chan.id]}
-              >
-                <option value="">No Country</option>
-                {#each COUNTRY_OPTIONS as country}
-                  <option value={country}>{country}</option>
-                {/each}
-              </select>
-            </td>
-            <td>
-              {(chan._tags || []).map(t => t.name).join(', ')}
-            </td>
-            <td>
-              <select
-                bind:value={chan._newLevel}
-                on:change={e => setChannelLevel(chan.id, e.target.value)}
-                disabled={settingLevel[chan.id]}
-              >
-                <option value="">Set Level</option>
-                <option value="easy">Easy</option>
-                <option value="intermediate">Intermediate</option>
-                <option value="advanced">Advanced</option>
-                <option value="notyet">Not Yet Rated</option>
-              </select>
-            </td>
-            <td>
-              <button
-                on:click={() => deleteChannel(chan.id)}
-                disabled={deleting[chan.id]}
-                style="color:red;"
-              >Delete</button>
-            </td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
-    <div style="margin-top:1.5em;">
-      {#each Array(totalPages) as _, i}
-        <button on:click={() => goToPage(i + 1)} disabled={currentPage === i + 1}>
-          {i + 1}
-        </button>
-      {/each}
-    </div>
-    {#if message}
-      <div style="margin:1em;color:#244fa2;">{message}</div>
-    {/if}
-  </div>
+  {/if}
 {/if}
 
 <style>
@@ -515,49 +422,5 @@
     margin: 0.5em 0 0 0.5em;
     padding: 0;
     list-style: disc;
-  }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 1em;
-    background: #fafbfc;
-    border-radius: 10px;
-    box-shadow: 0 1.5px 8px #e0e0e040;
-  }
-  th, td {
-    padding: 0.7em 0.5em;
-    border-bottom: 1px solid #f0f0f0;
-    text-align: left;
-  }
-  th {
-    background: #f7fafd;
-    color: #244fa2;
-    font-weight: bold;
-  }
-  tr:last-child td {
-    border-bottom: none;
-  }
-  select, input[type="text"] {
-    padding: 0.34em 0.6em;
-    border-radius: 7px;
-    border: 1px solid #ddd;
-    font-size: 1em;
-    background: #fafafa;
-    color: #222;
-    min-width: 80px;
-    margin-right: 0.3em;
-  }
-  button[disabled] {
-    opacity: 0.65;
-    cursor: not-allowed;
-  }
-  .sync-section {
-    margin: 2em 0 2.5em 0;
-    padding: 1em 0;
-    border-top: 1px solid #e4e4e4;
-    border-bottom: 1px solid #e4e4e4;
-    display: flex;
-    flex-direction: column;
-    gap: 0.7em;
   }
 </style>
