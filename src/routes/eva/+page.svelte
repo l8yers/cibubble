@@ -5,9 +5,9 @@
   import { onMount } from 'svelte';
   import { stripAccent } from '$lib/utils/adminutils.js';
   import { getTagsForChannel } from '$lib/api/tags.js';
-  import { user, userLoading, authChecked } from '$lib/stores/user.js';
+  import { user } from '$lib/stores/user.js';
 
-  // --- Direct admin check via profileRow ---
+  // --- Admin Check (copy-paste from your working test file!) ---
   let profileRow = null;
   let error = null;
   let checked = false;
@@ -34,9 +34,47 @@
 
   onMount(() => {
     if (currentUser?.id) checkProfileDirect();
+    refresh();
   });
 
-  // === Single Channel Add State ===
+  // --- Bulk Upload State ---
+  let csvFile = null;
+  let bulkUploading = false;
+  let bulkResults = [];
+  let csvInput;
+  $: failedChannels = bulkResults.filter(r => !r.ok).map(r => r.url);
+
+  function handleCsvFile(e) {
+    csvFile = e.target.files[0];
+  }
+  async function uploadCsv() {
+    if (!csvFile) return;
+    bulkUploading = true;
+    bulkResults = [];
+    try {
+      const text = await csvFile.text();
+      const { data } = Papa.parse(text, { header: true, skipEmptyLines: true });
+      const rows = data.map(row => ({
+        url: (row.url || '').trim(),
+        tags: (row.tags || '').trim(),
+        country: (row.country || '').trim(),
+        level: (row.level || '').trim()
+      }));
+      const res = await fetch('/api/bulk-upload-channels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows })
+      });
+      const out = await res.json();
+      bulkUploading = false;
+      bulkResults = out.results || [];
+    } catch (err) {
+      bulkUploading = false;
+      bulkResults = [{ url: '', error: err.message || 'Bulk upload failed' }];
+    }
+  }
+
+  // --- Single Channel Add State ---
   let url = '';
   let loading = false;
   let submitError = '';
@@ -107,45 +145,7 @@
     }
   }
 
-  // === Bulk Upload State ===
-  let csvFile = null;
-  let bulkUploading = false;
-  let bulkResults = [];
-  let csvInput;
-  $: failedChannels = bulkResults.filter(r => !r.ok).map(r => r.url);
-
-  function handleCsvFile(e) {
-    csvFile = e.target.files[0];
-  }
-
-  async function uploadCsv() {
-    if (!csvFile) return;
-    bulkUploading = true;
-    bulkResults = [];
-    try {
-      const text = await csvFile.text();
-      const { data } = Papa.parse(text, { header: true, skipEmptyLines: true });
-      const rows = data.map(row => ({
-        url: (row.url || '').trim(),
-        tags: (row.tags || '').trim(),
-        country: (row.country || '').trim(),
-        level: (row.level || '').trim()
-      }));
-      const res = await fetch('/api/bulk-upload-channels', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rows })
-      });
-      const out = await res.json();
-      bulkUploading = false;
-      bulkResults = out.results || [];
-    } catch (err) {
-      bulkUploading = false;
-      bulkResults = [{ url: '', error: err.message || 'Bulk upload failed' }];
-    }
-  }
-
-  // --- Channel Tools State (search, edit, delete, paginate) ---
+  // --- Channel Editing State ---
   let allChannels = [];
   let refreshing = false;
   let settingCountry = {};
@@ -244,19 +244,11 @@
       refreshing = false;
     }
   }
-
-  onMount(() => {
-    loadUser();
-    refresh();
-  });
 </script>
 
-<!-- ADMIN PANEL UI -->
 <h2>Admin Panel</h2>
 
-{#if !checked}
-  <div>Loading...</div>
-{:else}
+{#if checked}
   <p>
     <strong>is_admin:</strong>
     {profileRow?.is_admin === true ? '✅ TRUE' : profileRow?.is_admin === false ? '❌ FALSE' : String(profileRow?.is_admin)}
@@ -375,12 +367,91 @@
           <button type="submit">Submit Channel</button>
         </form>
       {/if}
+
+      <!-- === CHANNEL TOOLS SECTION (edit/search/delete) === -->
+      <hr />
+      <h2>Channel Tools</h2>
+      <div>
+        <input
+          type="text"
+          placeholder="Search channels…"
+          bind:value={search}
+          on:input={onSearchInput}
+          style="width:300px;margin-bottom:1em;"
+        />
+        <span style="margin-left:1em;">{filteredChannels.length} shown / {allChannels.length} total</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Country</th>
+            <th>Tags</th>
+            <th>Level</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each filteredChannels as chan}
+            <tr>
+              <td>{chan.name}</td>
+              <td>
+                <select
+                  bind:value={chan._country}
+                  on:change={e => setChannelCountry(chan.id, e.target.value)}
+                  disabled={settingCountry[chan.id]}
+                >
+                  <option value="">No Country</option>
+                  {#each COUNTRY_OPTIONS as country}
+                    <option value={country}>{country}</option>
+                  {/each}
+                </select>
+              </td>
+              <td>
+                {(chan._tags || []).map(t => t.name).join(', ')}
+              </td>
+              <td>
+                <select
+                  bind:value={chan._newLevel}
+                  on:change={e => setChannelLevel(chan.id, e.target.value)}
+                  disabled={settingLevel[chan.id]}
+                >
+                  <option value="">Set Level</option>
+                  <option value="easy">Easy</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                  <option value="notyet">Not Yet Rated</option>
+                </select>
+              </td>
+              <td>
+                <button
+                  on:click={() => deleteChannel(chan.id)}
+                  disabled={deleting[chan.id]}
+                  style="color:red;"
+                >Delete</button>
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+      <div style="margin-top:1.5em;">
+        {#each Array(totalPages) as _, i}
+          <button on:click={() => goToPage(i + 1)} disabled={currentPage === i + 1}>
+            {i + 1}
+          </button>
+        {/each}
+      </div>
+      {#if message}
+        <div style="margin:1em;color:#244fa2;">{message}</div>
+      {/if}
     </div>
   {:else}
     <div style="color:#b22222;font-weight:bold;font-size:1.1em; margin-top:1em;">
       Not allowed (admin only).
     </div>
   {/if}
+{:else}
+  <div>Loading...</div>
 {/if}
 
 <style>
@@ -422,5 +493,49 @@
     margin: 0.5em 0 0 0.5em;
     padding: 0;
     list-style: disc;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1em;
+    background: #fafbfc;
+    border-radius: 10px;
+    box-shadow: 0 1.5px 8px #e0e0e040;
+  }
+  th, td {
+    padding: 0.7em 0.5em;
+    border-bottom: 1px solid #f0f0f0;
+    text-align: left;
+  }
+  th {
+    background: #f7fafd;
+    color: #244fa2;
+    font-weight: bold;
+  }
+  tr:last-child td {
+    border-bottom: none;
+  }
+  select, input[type="text"] {
+    padding: 0.34em 0.6em;
+    border-radius: 7px;
+    border: 1px solid #ddd;
+    font-size: 1em;
+    background: #fafafa;
+    color: #222;
+    min-width: 80px;
+    margin-right: 0.3em;
+  }
+  button[disabled] {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+  .sync-section {
+    margin: 2em 0 2.5em 0;
+    padding: 1em 0;
+    border-top: 1px solid #e4e4e4;
+    border-bottom: 1px solid #e4e4e4;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7em;
   }
 </style>
