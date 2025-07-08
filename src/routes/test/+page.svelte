@@ -1,19 +1,19 @@
 <script>
+  import { onMount } from 'svelte';
   import { user, userLoading, authChecked, loadUser } from '$lib/stores/user.js';
   import { COUNTRY_OPTIONS, TAG_OPTIONS } from '$lib/constants';
   import Papa from 'papaparse';
-  import { onMount } from 'svelte';
   import { stripAccent } from '$lib/utils/adminutils.js';
   import { getTagsForChannel } from '$lib/api/tags.js';
   import { supabase } from '$lib/supabaseClient';
 
-  // Robust admin check
-  function isUserAdmin(user) {
-    const v = user?.profile?.is_admin;
+  // Helper to robustly detect admin
+  function isUserAdmin(u) {
+    const v = u?.profile?.is_admin;
     return v === true || v === "true" || v === 1;
   }
 
-  // === Single Channel Add State ===
+  // Single Channel Add State
   let url = '';
   let loading = false;
   let error = '';
@@ -23,7 +23,7 @@
   let country = '';
   let selectedTags = [];
 
-  // === Bulk Upload State ===
+  // Bulk Upload State
   let csvFile = null;
   let bulkUploading = false;
   let bulkResults = [];
@@ -61,7 +61,7 @@
     }
   }
 
-  // === Video Sync Logic ===
+  // Video Sync Logic
   let syncing = false;
   let syncResult = null;
 
@@ -140,7 +140,7 @@
     }
   }
 
-  // --- Channel Tools State (search, edit, delete, paginate) ---
+  // Channel Tools State (search, edit, delete, paginate)
   let allChannels = [];
   let refreshing = false;
   let settingCountry = {};
@@ -246,14 +246,18 @@
   });
 </script>
 
-<!-- === Minimal debug: is_admin only === -->
-<div style="background: #ffefd0; color: #702c10; font-size: 1em; padding: 0.5em 0.9em 0.6em 0.9em; margin-bottom:1em; border-radius: 8px;">
-  <span style="font-weight:600;">is_admin:</span>
-  {#if isUserAdmin($user)}
-    <span style="color:green;font-weight:bold;">You are admin ✅</span>
-  {:else}
-    <span style="color:red;font-weight:bold;">You are NOT admin ❌</span>
-  {/if}
+<div style="background: #ffefd0; color: #702c10; font-size: 0.99em; padding: 0.5em; margin-bottom:1em; border-radius: 8px;">
+  <div>authChecked: {$authChecked ? 'true' : 'false'}</div>
+  <div>userLoading: {$userLoading ? 'true' : 'false'}</div>
+  <div>is_admin: {($user?.profile?.is_admin) ? '✅ TRUE' : '❌ FALSE'}</div>
+  <div>
+    Admin status:
+    {#if isUserAdmin($user)}
+      <span style="color:green;font-weight:bold;">You are admin ✅</span>
+    {:else}
+      <span style="color:red;font-weight:bold;">You are NOT admin ❌</span>
+    {/if}
+  </div>
 </div>
 
 {#if !$authChecked}
@@ -265,10 +269,8 @@
 {:else if !isUserAdmin($user)}
   <div style="margin:4em; color:#e93c2f; text-align:center;">Not allowed (admin only).</div>
 {:else}
-  <!-- === ADMIN PANEL === -->
+  <!-- === Bulk Upload CSV Bar === -->
   <div class="container">
-
-    <!-- === Bulk Upload CSV Bar === -->
     <div class="import-bar">
       <span class="import-videos-title">BULK UPLOAD CSV</span>
       <input
