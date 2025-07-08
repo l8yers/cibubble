@@ -55,3 +55,17 @@
   <h3>document.cookie</h3>
   <pre style="background:#eef;padding:8px;border-radius:5px;overflow-x:auto;">{documentCookies}</pre>
 </div>
+<div>
+  <strong>user:</strong>
+  <pre style="background:#eee;padding:8px;border-radius:5px;">
+    {JSON.stringify($user, null, 2)}
+  </pre>
+  {#if $user?.profile}
+    <strong>profile:</strong>
+    <pre style="background:#eee;padding:8px;border-radius:5px;">
+      {JSON.stringify($user.profile, null, 2)}
+    </pre>
+  {:else}
+    <em>No profile loaded</em>
+  {/if}
+</div>
