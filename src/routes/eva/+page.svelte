@@ -1,14 +1,11 @@
 <script>
-  import { user } from '$lib/stores/user.js';
+  import { user, userLoading, authChecked } from '$lib/stores/user.js';
   import { COUNTRY_OPTIONS, TAG_OPTIONS } from '$lib/constants';
   import Papa from 'papaparse';
   import { onMount } from 'svelte';
   import { stripAccent } from '$lib/utils/adminutils.js';
   import { getTagsForChannel } from '$lib/api/tags.js';
   import { supabase } from '$lib/supabaseClient';
-
-  // --- Minimal Security ---
-  user.subscribe((v) => $user = v);
 
   // === Single Channel Add State ===
   let url = '';
@@ -242,11 +239,23 @@
   });
 </script>
 
-{#if !$user}
+<!-- Debug info for admin -->
+<div style="background: #ffefd0; color: #702c10; font-size: 0.99em; padding: 0.5em; margin-bottom:1em; border-radius: 8px;">
+  <div>authChecked: {$authChecked ? 'true' : 'false'}</div>
+  <div>userLoading: {$userLoading ? 'true' : 'false'}</div>
+  <div>user: {JSON.stringify($user)}</div>
+</div>
+
+{#if !$authChecked}
+  <div style="margin:4em; text-align:center;">Checking login...</div>
+{:else if $userLoading}
+  <div style="margin:4em; text-align:center;">Loading user info...</div>
+{:else if !$user}
   <div style="margin:4em; text-align:center;">You must be logged in to view this page.</div>
 {:else if !$user.profile?.is_admin}
   <div style="margin:4em; color:#e93c2f; text-align:center;">Not allowed (admin only).</div>
 {:else}
+  <!-- The entire admin panel as before... -->
   <div class="container">
 
     <!-- === Bulk Upload CSV Bar === -->
