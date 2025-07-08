@@ -208,6 +208,9 @@
   async function setChannelLevel(channelId, level) {
     if (!level) return;
     settingLevel = { ...settingLevel, [channelId]: true };
+    // Update the level for the channel
+    await supabase.from('channels').update({ level }).eq('id', channelId);
+    // Update level for all videos under that channel
     await supabase.from('videos').update({ level }).eq('channel_id', channelId);
     message = `✅ All videos for this channel set to "${level}"`;
     await refresh();
@@ -242,7 +245,7 @@
             ...chan,
             _country: chan.country || '',
             _tags,
-            _newLevel: '',
+            _newLevel: chan.level || '',
           };
         })
       );
@@ -261,7 +264,7 @@
     playlistsLoading = true;
     playlists = [];
     playlistError = null;
-    let { data, error } = await supabase.from('playlists').select('*').eq('channel_id', channelId).order('name');
+    let { data, error } = await supabase.from('playlists').select('*').eq('channel_id', channelId).order('title');
     if (error) {
       playlistError = error.message;
     } else {
@@ -278,9 +281,9 @@
 
   async function savePlaylistLevel(playlistId, level) {
     playlistLevelSaving = { ...playlistLevelSaving, [playlistId]: true };
-    await supabase.from('playlists').update({ level }).eq('id', playlistId);
-    // optional: update locally
-    playlists = playlists.map(pl => pl.id === playlistId ? { ...pl, level } : pl);
+    // Update all videos with this playlist_id to the new level
+    await supabase.from('videos').update({ level }).eq('playlist_id', playlistId);
+    // Optionally: Refresh or mark locally
     playlistLevelSaving = { ...playlistLevelSaving, [playlistId]: false };
   }
 </script>
@@ -485,29 +488,30 @@
                       <table style="width:100%;margin-top:0.7em;">
                         <thead>
                           <tr>
-                            <th>Name</th>
-                            <th>Level</th>
+                            <th>Title</th>
+                            <th>Description</th>
                             <th>ID</th>
+                            <th>Set Videos Level</th>
                           </tr>
                         </thead>
                         <tbody>
                           {#each playlists as pl}
                             <tr>
-                              <td>{pl.name}</td>
+                              <td>{pl.title}</td>
+                              <td style="font-size:0.94em;">{pl.description}</td>
+                              <td style="font-size:0.9em;color:#999;">{pl.id}</td>
                               <td>
                                 <select
-                                  bind:value={pl.level}
-                                  disabled={playlistLevelSaving[pl.id]}
                                   on:change={e => savePlaylistLevel(pl.id, e.target.value)}
+                                  disabled={playlistLevelSaving[pl.id]}
                                 >
-                                  <option value="">Not Set</option>
+                                  <option value="">Set Level</option>
                                   <option value="easy">Easy</option>
                                   <option value="intermediate">Intermediate</option>
                                   <option value="advanced">Advanced</option>
                                   <option value="notyet">Not Yet Rated</option>
                                 </select>
                               </td>
-                              <td style="font-size:0.9em;color:#999;">{pl.id}</td>
                             </tr>
                           {/each}
                         </tbody>
