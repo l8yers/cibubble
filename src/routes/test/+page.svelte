@@ -3,11 +3,9 @@
   import { COUNTRY_OPTIONS, TAG_OPTIONS } from '$lib/constants';
   import Papa from 'papaparse';
   import { onMount } from 'svelte';
-  import { stripAccent } from '$lib/utils/adminutils.js';
-  import { getTagsForChannel } from '$lib/api/tags.js';
-  import { user, userLoading, authChecked } from '$lib/stores/user.js';
+  import { user } from '$lib/stores/user.js';
 
-  // Admin check, based on the "profileRow" from direct DB query
+  // Admin check, based on direct DB query
   let profileRow = null;
   let error = null;
   let checked = false;
@@ -149,7 +147,6 @@
 
 <h2>Admin Panel</h2>
 
-<!-- Only show is_admin log and admin panel if admin -->
 {#if checked}
   <p>
     <strong>is_admin:</strong>
