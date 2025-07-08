@@ -1,40 +1,12 @@
 <script>
+  import AdminGuard from '$lib/components/admin/AdminGuard.svelte';
   import { supabase } from '$lib/supabaseClient';
   import { COUNTRY_OPTIONS, TAG_OPTIONS } from '$lib/constants';
   import Papa from 'papaparse';
   import { onMount } from 'svelte';
   import { stripAccent } from '$lib/utils/adminutils.js';
   import { getTagsForChannel } from '$lib/api/tags.js';
-  import { user, userLoading, authChecked } from '$lib/stores/user.js';
-
-  // Admin check logic (test page style)
-  let profileRow = null;
-  let error = null;
-  let checked = false;
-  $: currentUser = $user;
-
-  async function checkProfileDirect() {
-    error = null;
-    profileRow = null;
-    checked = false;
-    if (!currentUser?.id) {
-      error = "No user ID found.";
-      checked = true;
-      return;
-    }
-    const { data, error: err } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', currentUser.id)
-      .single();
-    profileRow = data;
-    error = err;
-    checked = true;
-  }
-onMount(refresh);
-
-// This will call checkProfileDirect every time $user is hydrated, after login, etc.
-$: if ($user?.id && !checked) checkProfileDirect();
+  import { user } from '$lib/stores/user.js';
 
   // --- Channel Add State ---
   let url = '';
@@ -279,7 +251,6 @@ $: if ($user?.id && !checked) checkProfileDirect();
       playlistMessage = "Error loading playlists: " + (error.message ?? error);
       playlists = [];
     } else {
-      // For each playlist, fetch all videos' levels to determine single or mixed
       playlists = await Promise.all((data || []).map(async (pl) => {
         const { data: videos } = await supabase
           .from('videos')
@@ -303,271 +274,259 @@ $: if ($user?.id && !checked) checkProfileDirect();
     const { error } = await supabase.from('videos').update({ level: newLevel }).eq('playlist_id', playlistId);
     if (!error) {
       playlistMessage = `✅ All videos for playlist ${playlistId} set to "${newLevel}"`;
-      // Re-fetch playlists to reflect new level
       if (openPlaylistsChannelId) openPlaylistsForChannel(openPlaylistsChannelId);
     } else {
       playlistMessage = `❌ Error updating videos: ${error.message}`;
     }
     playlistLevelSaving = { ...playlistLevelSaving, [playlistId]: false };
   }
+
+  onMount(refresh);
 </script>
 
-{#if checked}
-  <p>
-    <strong>is_admin:</strong>
-    {profileRow?.is_admin === true ? '✅ TRUE' : profileRow?.is_admin === false ? '' : String(profileRow?.is_admin)}
-  </p>
-  {#if profileRow?.is_admin === true}
-    <div class="container">
+<AdminGuard>
+  <div class="container">
 
-      <!-- === Bulk Upload CSV Bar === -->
-      <div class="import-bar">
-        <span class="import-videos-title">BULK UPLOAD CSV</span>
-        <input
-          type="file"
-          accept=".csv"
-          bind:this={csvInput}
-          on:change={handleCsvFile}
-          aria-label="Select CSV file"
-          class="import-input"
-          style="min-width:unset;max-width:220px"
-        />
-        <button class="main-btn import-btn" on:click={uploadCsv} disabled={!csvFile || bulkUploading} aria-label="Bulk Upload">
-          {bulkUploading ? 'Uploading…' : 'Upload CSV'}
-        </button>
+    <!-- === Bulk Upload CSV Bar === -->
+    <div class="import-bar">
+      <span class="import-videos-title">BULK UPLOAD CSV</span>
+      <input
+        type="file"
+        accept=".csv"
+        bind:this={csvInput}
+        on:change={handleCsvFile}
+        aria-label="Select CSV file"
+        class="import-input"
+        style="min-width:unset;max-width:220px"
+      />
+      <button class="main-btn import-btn" on:click={uploadCsv} disabled={!csvFile || bulkUploading} aria-label="Bulk Upload">
+        {bulkUploading ? 'Uploading…' : 'Upload CSV'}
+      </button>
+    </div>
+
+    <!-- Bulk Upload Results -->
+    {#if bulkResults.length}
+      <div class="bulk-results">
+        <h3>Bulk Upload Results</h3>
+        <ul>
+          {#each bulkResults as r}
+            <li>
+              {r.url}
+              {#if r.ok}
+                — <span style="color: green;">✅ Success</span>
+              {:else}
+                — <span style="color: red;">❌ {r.error}</span>
+              {/if}
+            </li>
+          {/each}
+        </ul>
       </div>
+    {/if}
 
-      <!-- Bulk Upload Results -->
-      {#if bulkResults.length}
-        <div class="bulk-results">
-          <h3>Bulk Upload Results</h3>
-          <ul>
-            {#each bulkResults as r}
-              <li>
-                {r.url}
-                {#if r.ok}
-                  — <span style="color: green;">✅ Success</span>
-                {:else}
-                  — <span style="color: red;">❌ {r.error}</span>
-                {/if}
-              </li>
-            {/each}
-          </ul>
+    <!-- Failed Channels Section -->
+    {#if failedChannels.length}
+      <div class="bulk-failed">
+        <h3>❌ Failed to Add Channels</h3>
+        <ul>
+          {#each failedChannels as url}
+            <li>{url}</li>
+          {/each}
+        </ul>
+        <div style="margin-top: 0.7em;">
+          <em>Check the CSV or error messages above for details.</em>
         </div>
-      {/if}
-
-      <!-- Failed Channels Section -->
-      {#if failedChannels.length}
-        <div class="bulk-failed">
-          <h3>❌ Failed to Add Channels</h3>
-          <ul>
-            {#each failedChannels as url}
-              <li>{url}</li>
-            {/each}
-          </ul>
-          <div style="margin-top: 0.7em;">
-            <em>Check the CSV or error messages above for details.</em>
-          </div>
-        </div>
-      {/if}
-
-      <!-- === Single Channel Add Section === -->
-      <h1>Add YouTube Channel</h1>
-      <div>
-        <label>YouTube Channel URL or @handle:</label>
-        <input bind:value={url} placeholder="@somehandle or full URL" />
-        <button on:click={fetchChannelDetails} disabled={loading}>
-          {loading ? 'Loading...' : 'Fetch'}
-        </button>
       </div>
-      {#if submitError}
-        <p style="color: red;">{submitError}</p>
-      {/if}
-      {#if success}
-        <p style="color: green;">Channel inserted!</p>
-      {/if}
-      {#if channelPreview}
-        <hr />
-        <h2>Confirm Channel Info</h2>
-        <p><strong>{channelPreview.title}</strong></p>
-        <img src={channelPreview.thumbnail} alt="Thumbnail" width="120" height="120" />
-        <form on:submit|preventDefault={submitChannel}>
-          <div>
-            <label>Level (required):</label>
-            <div>
-              {#each ['easy', 'intermediate', 'advanced'] as lvl}
-                <label>
-                  <input
-                    type="radio"
-                    bind:group={level}
-                    value={lvl}
-                    required
-                  />
-                  {lvl}
-                </label>
-              {/each}
-            </div>
-          </div>
-          <div>
-            <label>Country:</label>
-            <select bind:value={country}>
-              <option value="">None</option>
-              {#each COUNTRY_OPTIONS as c}
-                <option value={c}>{c}</option>
-              {/each}
-            </select>
-          </div>
-          <div>
-            <label>Tags:</label>
-            <select multiple bind:value={selectedTags}>
-              {#each TAG_OPTIONS as tag}
-                <option value={tag}>{tag}</option>
-              {/each}
-            </select>
-          </div>
-          <button type="submit">Submit Channel</button>
-        </form>
-      {/if}
+    {/if}
 
-
-      <!-- === CHANNEL TOOLS SECTION (edit/search/delete) === -->
+    <!-- === Single Channel Add Section === -->
+    <h1>Add YouTube Channel</h1>
+    <div>
+      <label>YouTube Channel URL or @handle:</label>
+      <input bind:value={url} placeholder="@somehandle or full URL" />
+      <button on:click={fetchChannelDetails} disabled={loading}>
+        {loading ? 'Loading...' : 'Fetch'}
+      </button>
+    </div>
+    {#if submitError}
+      <p style="color: red;">{submitError}</p>
+    {/if}
+    {#if success}
+      <p style="color: green;">Channel inserted!</p>
+    {/if}
+    {#if channelPreview}
       <hr />
-      <h2>Channel Tools</h2>
-      <div>
-        <input
-          type="text"
-          placeholder="Search channels…"
-          bind:value={search}
-          on:input={onSearchInput}
-          style="width:300px;margin-bottom:1em;"
-        />
-        <span style="margin-left:1em;">{filteredChannels.length} shown / {allChannels.length} total</span>
-      </div>
-      <table>
-        <thead>
+      <h2>Confirm Channel Info</h2>
+      <p><strong>{channelPreview.title}</strong></p>
+      <img src={channelPreview.thumbnail} alt="Thumbnail" width="120" height="120" />
+      <form on:submit|preventDefault={submitChannel}>
+        <div>
+          <label>Level (required):</label>
+          <div>
+            {#each ['easy', 'intermediate', 'advanced'] as lvl}
+              <label>
+                <input
+                  type="radio"
+                  bind:group={level}
+                  value={lvl}
+                  required
+                />
+                {lvl}
+              </label>
+            {/each}
+          </div>
+        </div>
+        <div>
+          <label>Country:</label>
+          <select bind:value={country}>
+            <option value="">None</option>
+            {#each COUNTRY_OPTIONS as c}
+              <option value={c}>{c}</option>
+            {/each}
+          </select>
+        </div>
+        <div>
+          <label>Tags:</label>
+          <select multiple bind:value={selectedTags}>
+            {#each TAG_OPTIONS as tag}
+              <option value={tag}>{tag}</option>
+            {/each}
+          </select>
+        </div>
+        <button type="submit">Submit Channel</button>
+      </form>
+    {/if}
+
+    <!-- === CHANNEL TOOLS SECTION (edit/search/delete) === -->
+    <hr />
+    <h2>Channel Tools</h2>
+    <div>
+      <input
+        type="text"
+        placeholder="Search channels…"
+        bind:value={search}
+        on:input={onSearchInput}
+        style="width:300px;margin-bottom:1em;"
+      />
+      <span style="margin-left:1em;">{filteredChannels.length} shown / {allChannels.length} total</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Country</th>
+          <th>Tags</th>
+          <th>Level</th>
+          <th>Actions</th>
+          <th>Playlists</th>
+        </tr>
+      </thead>
+      <tbody>
+        {#each filteredChannels as chan}
           <tr>
-            <th>Name</th>
-            <th>Country</th>
-            <th>Tags</th>
-            <th>Level</th>
-            <th>Actions</th>
-            <th>Playlists</th>
+            <td>{chan.name}</td>
+            <td>
+              <select
+                bind:value={chan._country}
+                on:change={e => setChannelCountry(chan.id, e.target.value)}
+                disabled={settingCountry[chan.id]}
+              >
+                <option value="">No Country</option>
+                {#each COUNTRY_OPTIONS as country}
+                  <option value={country}>{country}</option>
+                {/each}
+              </select>
+            </td>
+            <td>
+              {(chan._tags || []).map(t => t.name).join(', ')}
+            </td>
+            <td>
+              <select
+                bind:value={chan._newLevel}
+                on:change={e => setChannelLevel(chan.id, e.target.value)}
+                disabled={settingLevel[chan.id]}
+              >
+                <option value="">Set Level</option>
+                <option value="easy">Easy</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+                <option value="notyet">Not Yet Rated</option>
+              </select>
+            </td>
+            <td>
+              <button
+                on:click={() => deleteChannel(chan.id)}
+                disabled={deleting[chan.id]}
+                style="color:red;"
+              >Delete</button>
+            </td>
+            <td>
+              <button on:click={() => openPlaylistsForChannel(chan.id)}>
+                Playlists
+              </button>
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          {#each filteredChannels as chan}
+          {#if openPlaylistsChannelId === chan.id}
             <tr>
-              <td>{chan.name}</td>
-              <td>
-                <select
-                  bind:value={chan._country}
-                  on:change={e => setChannelCountry(chan.id, e.target.value)}
-                  disabled={settingCountry[chan.id]}
-                >
-                  <option value="">No Country</option>
-                  {#each COUNTRY_OPTIONS as country}
-                    <option value={country}>{country}</option>
-                  {/each}
-                </select>
-              </td>
-              <td>
-                {(chan._tags || []).map(t => t.name).join(', ')}
-              </td>
-              <td>
-                <select
-                  bind:value={chan._newLevel}
-                  on:change={e => setChannelLevel(chan.id, e.target.value)}
-                  disabled={settingLevel[chan.id]}
-                >
-                  <option value="">Set Level</option>
-                  <option value="easy">Easy</option>
-                  <option value="intermediate">Intermediate</option>
-                  <option value="advanced">Advanced</option>
-                  <option value="notyet">Not Yet Rated</option>
-                </select>
-              </td>
-              <td>
-                <button
-                  on:click={() => deleteChannel(chan.id)}
-                  disabled={deleting[chan.id]}
-                  style="color:red;"
-                >Delete</button>
-              </td>
-              <td>
-                <button on:click={() => openPlaylistsForChannel(chan.id)}>
-                  Playlists
-                </button>
+              <td colspan="6" style="background:#faf9ff;">
+                <div style="padding:1em 0;">
+                  {#if playlistsLoading}
+                    <div>Loading playlists…</div>
+                  {:else if playlists.length === 0}
+                    <div>No playlists found for this channel.</div>
+                  {:else}
+                    <table style="width:100%;margin-top:0.7em;">
+                      <thead>
+                        <tr>
+                          <th>Title</th>
+                          <th>ID</th>
+                          <th>Set Videos Level</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {#each playlists as pl}
+                          <tr>
+                            <td>{pl.title}</td>
+                            <td style="font-size:0.9em;color:#999;">{pl.id}</td>
+                            <td>
+                              <select
+                                bind:value={pl._level}
+                                on:change={e => savePlaylistLevel(pl.id, e.target.value)}
+                                disabled={playlistLevelSaving[pl.id]}
+                              >
+                                <option value="">Set Level</option>
+                                <option value="easy">Easy</option>
+                                <option value="intermediate">Intermediate</option>
+                                <option value="advanced">Advanced</option>
+                                <option value="notyet">Not Yet Rated</option>
+                              </select>
+                            </td>
+                          </tr>
+                        {/each}
+                      </tbody>
+                    </table>
+                  {/if}
+                  {#if playlistMessage}
+                    <div style="margin-top:0.5em;color:#244fa2;">{playlistMessage}</div>
+                  {/if}
+                </div>
               </td>
             </tr>
-            {#if openPlaylistsChannelId === chan.id}
-              <tr>
-                <td colspan="6" style="background:#faf9ff;">
-                  <div style="padding:1em 0;">
-                    {#if playlistsLoading}
-                      <div>Loading playlists…</div>
-                    {:else if playlists.length === 0}
-                      <div>No playlists found for this channel.</div>
-                    {:else}
-                      <table style="width:100%;margin-top:0.7em;">
-                        <thead>
-                          <tr>
-                            <th>Title</th>
-                            <th>ID</th>
-                            <th>Set Videos Level</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {#each playlists as pl}
-                            <tr>
-                              <td>{pl.title}</td>
-                              <td style="font-size:0.9em;color:#999;">{pl.id}</td>
-                              <td>
-                                <select
-                                  bind:value={pl._level}
-                                  on:change={e => savePlaylistLevel(pl.id, e.target.value)}
-                                  disabled={playlistLevelSaving[pl.id]}
-                                >
-                                  <option value="">Set Level</option>
-                                  <option value="easy">Easy</option>
-                                  <option value="intermediate">Intermediate</option>
-                                  <option value="advanced">Advanced</option>
-                                  <option value="notyet">Not Yet Rated</option>
-                                </select>
-                              </td>
-                            </tr>
-                          {/each}
-                        </tbody>
-                      </table>
-                    {/if}
-                    {#if playlistMessage}
-                      <div style="margin-top:0.5em;color:#244fa2;">{playlistMessage}</div>
-                    {/if}
-                  </div>
-                </td>
-              </tr>
-            {/if}
-          {/each}
-        </tbody>
-      </table>
-      <div style="margin-top:1.5em;">
-        {#each Array(totalPages) as _, i}
-          <button on:click={() => goToPage(i + 1)} disabled={currentPage === i + 1}>
-            {i + 1}
-          </button>
+          {/if}
         {/each}
-      </div>
-      {#if message}
-        <div style="margin:1em;color:#244fa2;">{message}</div>
-      {/if}
+      </tbody>
+    </table>
+    <div style="margin-top:1.5em;">
+      {#each Array(totalPages) as _, i}
+        <button on:click={() => goToPage(i + 1)} disabled={currentPage === i + 1}>
+          {i + 1}
+        </button>
+      {/each}
     </div>
-  {:else}
-    <div style="color:#b22222;font-weight:bold;font-size:1.1em; margin-top:1em;">
-      Not allowed (admin only).
-    </div>
-  {/if}
-{:else}
-  <div>Loading...</div>
-{/if}
+    {#if message}
+      <div style="margin:1em;color:#244fa2;">{message}</div>
+    {/if}
+  </div>
+</AdminGuard>
 
 <style>
   .container {
@@ -643,14 +602,5 @@ $: if ($user?.id && !checked) checkProfileDirect();
   button[disabled] {
     opacity: 0.65;
     cursor: not-allowed;
-  }
-  .sync-section {
-    margin: 2em 0 2.5em 0;
-    padding: 1em 0;
-    border-top: 1px solid #e4e4e4;
-    border-bottom: 1px solid #e4e4e4;
-    display: flex;
-    flex-direction: column;
-    gap: 0.7em;
   }
 </style>
