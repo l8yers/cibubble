@@ -279,7 +279,19 @@
       playlistMessage = "Error loading playlists: " + (error.message ?? error);
       playlists = [];
     } else {
-      playlists = data || [];
+      // For each playlist, fetch all videos' levels to determine single or mixed
+      playlists = await Promise.all((data || []).map(async (pl) => {
+        const { data: videos } = await supabase
+          .from('videos')
+          .select('level')
+          .eq('playlist_id', pl.id);
+        let level = '';
+        if (videos && videos.length > 0) {
+          const uniqueLevels = Array.from(new Set(videos.map(v => v.level)));
+          level = uniqueLevels.length === 1 ? uniqueLevels[0] : '';
+        }
+        return { ...pl, _level: level };
+      }));
     }
     playlistsLoading = false;
   }
@@ -288,15 +300,15 @@
     if (!newLevel) return;
     playlistLevelSaving = { ...playlistLevelSaving, [playlistId]: true };
     playlistMessage = '';
-    // Update all videos for this playlist
     const { error } = await supabase.from('videos').update({ level: newLevel }).eq('playlist_id', playlistId);
     if (!error) {
       playlistMessage = `✅ All videos for playlist ${playlistId} set to "${newLevel}"`;
+      // Re-fetch playlists to reflect new level
+      if (openPlaylistsChannelId) openPlaylistsForChannel(openPlaylistsChannelId);
     } else {
       playlistMessage = `❌ Error updating videos: ${error.message}`;
     }
     playlistLevelSaving = { ...playlistLevelSaving, [playlistId]: false };
-    // Optionally, refresh playlists or channels if you want to reflect changes
   }
 </script>
 
@@ -522,6 +534,7 @@
                               <td style="font-size:0.9em;color:#999;">{pl.id}</td>
                               <td>
                                 <select
+                                  bind:value={pl._level}
                                   on:change={e => savePlaylistLevel(pl.id, e.target.value)}
                                   disabled={playlistLevelSaving[pl.id]}
                                 >
