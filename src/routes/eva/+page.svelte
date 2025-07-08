@@ -31,10 +31,10 @@
     error = err;
     checked = true;
   }
-  onMount(() => {
-    if (currentUser?.id) checkProfileDirect();
-    refresh();
-  });
+onMount(refresh);
+
+// This will call checkProfileDirect every time $user is hydrated, after login, etc.
+$: if ($user?.id && !checked) checkProfileDirect();
 
   // --- Channel Add State ---
   let url = '';
