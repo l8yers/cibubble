@@ -1,71 +1,55 @@
 <script>
-  import { user, userLoading, authChecked, loadUser, authError } from '$lib/stores/user.js';
+  import { user, userLoading, authChecked, loadUser } from '$lib/stores/user.js';
   import { onMount } from 'svelte';
-  import { supabase } from '$lib/supabaseClient';
-  import { writable } from 'svelte/store';
 
-  // Stores for session and raw auth info
-  const sessionInfo = writable(null);
-  const rawUserInfo = writable(null);
-
-  // Local/session storage values
-  let localStorageDump = '';
-  let sessionStorageDump = '';
-  let documentCookies = '';
-
-  async function refreshSupabaseSession() {
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    sessionInfo.set({ sessionData, sessionError });
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    rawUserInfo.set({ userData, userError });
+  // For explicit debugging
+  $: if ($user) {
+    console.log("USER:", $user);
+    console.log("PROFILE:", $user.profile);
+  } else {
+    console.log("USER: not loaded or not logged in");
   }
 
+  // Force load on mount (for direct page visit)
   onMount(() => {
     loadUser();
-    refreshSupabaseSession();
-
-    // Get local/session storage and cookies
-    localStorageDump = JSON.stringify(localStorage, null, 2);
-    sessionStorageDump = JSON.stringify(sessionStorage, null, 2);
-    documentCookies = document.cookie;
   });
+
+  // Check admin status
+  $: isAdmin = $user?.profile?.is_admin === true;
 </script>
 
-<div style="max-width:700px;margin:2.5em auto;padding:1.5em 2em;background:#fff;border-radius:18px;box-shadow:0 6px 30px 0 #0001,0 1.5px 7px #e3e8ee35;">
-  <h2>Auth Debug/Test</h2>
-  <div><strong>authChecked:</strong> {$authChecked ? 'true' : 'false'}</div>
-  <div><strong>userLoading:</strong> {$userLoading ? 'true' : 'false'}</div>
-  <div><strong>authError:</strong> {$authError}</div>
-  <div><strong>user:</strong> <pre style="background:#eee;padding:8px;border-radius:5px;">{JSON.stringify($user, null, 2)}</pre></div>
+<h2>Auth Debug/Test</h2>
 
-  <hr />
-  <h3>Supabase Session (auth.getSession())</h3>
-  <pre style="background:#eef;padding:8px;border-radius:5px;overflow-x:auto;">{JSON.stringify($sessionInfo, null, 2)}</pre>
-
-  <h3>Supabase User (auth.getUser())</h3>
-  <pre style="background:#eef;padding:8px;border-radius:5px;overflow-x:auto;">{JSON.stringify($rawUserInfo, null, 2)}</pre>
-
-  <hr />
-  <h3>localStorage</h3>
-  <pre style="background:#f9f9ef;padding:8px;border-radius:5px;overflow-x:auto;">{localStorageDump}</pre>
-
-  <h3>sessionStorage</h3>
-  <pre style="background:#f9f9ef;padding:8px;border-radius:5px;overflow-x:auto;">{sessionStorageDump}</pre>
-
-  <h3>document.cookie</h3>
-  <pre style="background:#eef;padding:8px;border-radius:5px;overflow-x:auto;">{documentCookies}</pre>
-</div>
 <div>
-  <strong>user:</strong>
-  <pre style="background:#eee;padding:8px;border-radius:5px;">
-    {JSON.stringify($user, null, 2)}
-  </pre>
-  {#if $user?.profile}
-    <strong>profile:</strong>
-    <pre style="background:#eee;padding:8px;border-radius:5px;">
-      {JSON.stringify($user.profile, null, 2)}
-    </pre>
-  {:else}
-    <em>No profile loaded</em>
-  {/if}
+  <div><b>authChecked:</b> {$authChecked ? 'true' : 'false'}</div>
+  <div><b>userLoading:</b> {$userLoading ? 'true' : 'false'}</div>
+  <div><b>user:</b> {JSON.stringify($user, null, 2)}</div>
+  <div><b>profile:</b> {JSON.stringify($user?.profile, null, 2)}</div>
+  <div><b>is_admin:</b> {$user?.profile?.is_admin ? 'true' : 'false'}</div>
 </div>
+
+{#if !$authChecked}
+  <div>Checking login state...</div>
+{:else if $userLoading}
+  <div>Loading user data...</div>
+{:else if !$user}
+  <div style="color: #e93c2f;">No user logged in.</div>
+{:else}
+  <div style="margin-top: 1em;">
+    <div>
+      <b>Logged in as:</b> {$user.email}
+    </div>
+    <div>
+      <b>Admin Status:</b>
+      {#if isAdmin}
+        <span style="color: green;">You are an admin ✅</span>
+      {:else}
+        <span style="color: #e93c2f;">You are NOT admin ❌</span>
+      {/if}
+    </div>
+    <div style="margin-top: 1em;">
+      <button on:click={loadUser}>Reload User</button>
+    </div>
+  </div>
+{/if}
