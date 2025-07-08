@@ -3,10 +3,11 @@ import { supabase } from '$lib/supabaseClient';
 import { goto } from '$app/navigation';
 
 export const user = writable(undefined);      // 'undefined' means "not checked yet"
-export const userLoading = writable(true);
-export const authChecked = writable(false);
+export const userLoading = writable(true);    // true = loading, false = ready
+export const authChecked = writable(false);   // <- ADDED: true only after initial check
 export const authError = writable('');
 
+// Helper: map Supabase errors to user-friendly text
 function mapAuthError(error) {
   if (!error) return '';
   if (error.message?.includes('Invalid login credentials')) {
@@ -18,46 +19,26 @@ function mapAuthError(error) {
   if (error.message?.includes('Password should be at least')) {
     return 'Password is too short.';
   }
+  // Add more mappings as needed
   return error.message || 'Authentication error.';
 }
 
-// === NEW: Fetch profile row
-async function fetchProfile(userId) {
-  if (!userId) return null;
-  console.log("[user.js] fetchProfile for userId:", userId);
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single();
-  if (error) {
-    console.warn("[user.js] fetchProfile error:", error);
-    return null;
-  }
-  console.log("[user.js] fetchProfile returned:", data);
-  return data;
-}
-
+// Load user from Supabase (on mount and after auth changes)
 export async function loadUser() {
-  console.log("[user.js] loadUser called");
   userLoading.set(true);
   const { data, error } = await supabase.auth.getUser();
-  console.log("[user.js] getUser returned:", { data, error });
-  if (error || !data?.user) {
+  if (error) {
     user.set(null);
     userLoading.set(false);
-    authChecked.set(true);
-    console.log("[user.js] No user found, set null");
+    authChecked.set(true); // <-- Mark as checked even if error
     return;
   }
-  // Fetch profile row for is_admin, etc.
-  const profile = await fetchProfile(data.user.id);
-  user.set({ ...data.user, profile });
+  user.set(data?.user || null);
   userLoading.set(false);
-  authChecked.set(true);
-  console.log("[user.js] User set:", { ...data.user, profile });
+  authChecked.set(true); // <-- Mark as checked after initial load
 }
 
+// Login
 export async function login(email, password) {
   authError.set('');
   userLoading.set(true);
@@ -68,12 +49,14 @@ export async function login(email, password) {
   return { error, data };
 }
 
+// Logout: Clear user, localStorage/sessionStorage except theme, and redirect
 export async function logout() {
   userLoading.set(true);
   await supabase.auth.signOut();
   user.set(null);
   userLoading.set(false);
-  authChecked.set(true);
+  authChecked.set(true); // Still checked after logout!
+  // Keep theme only
   const keepTheme = localStorage.getItem('theme');
   localStorage.clear();
   if (keepTheme) localStorage.setItem('theme', keepTheme);
@@ -81,6 +64,7 @@ export async function logout() {
   goto('/');
 }
 
+// Signup
 export async function signup(email, password) {
   authError.set('');
   userLoading.set(true);
@@ -91,6 +75,7 @@ export async function signup(email, password) {
   return { error, data };
 }
 
+// Update Email
 export async function updateEmail(newEmail) {
   authError.set('');
   userLoading.set(true);
@@ -101,6 +86,7 @@ export async function updateEmail(newEmail) {
   return { error, data };
 }
 
+// Update Password
 export async function updatePassword(newPassword) {
   authError.set('');
   userLoading.set(true);
@@ -111,17 +97,9 @@ export async function updatePassword(newPassword) {
   return { error, data };
 }
 
-// === UPDATED: Also fetch profile on auth state changes
-supabase.auth.onAuthStateChange(async (event, session) => {
-  console.log("[user.js] onAuthStateChange:", { event, session });
-  if (session?.user) {
-    const profile = await fetchProfile(session.user.id);
-    user.set({ ...session.user, profile });
-    console.log("[user.js] onAuthStateChange user set:", { ...session.user, profile });
-  } else {
-    user.set(null);
-    console.log("[user.js] onAuthStateChange user set: null");
-  }
-  userLoading.set(false);
-  authChecked.set(true);
+// Keep Svelte store in sync with Supabase on all auth events
+supabase.auth.onAuthStateChange((event, session) => {
+  user.set(session?.user || null);
+  userLoading.set(false); 
+  authChecked.set(true); // <-- Mark as checked after any event
 });
