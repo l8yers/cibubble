@@ -1,19 +1,19 @@
 <script>
   import { user, userLoading, authChecked, loadUser } from '$lib/stores/user.js';
-  import { onMount } from 'svelte';
   import { COUNTRY_OPTIONS, TAG_OPTIONS } from '$lib/constants';
   import Papa from 'papaparse';
+  import { onMount } from 'svelte';
   import { stripAccent } from '$lib/utils/adminutils.js';
   import { getTagsForChannel } from '$lib/api/tags.js';
   import { supabase } from '$lib/supabaseClient';
 
-  // Load user on mount (make sure auth/profile is loaded)
-  onMount(() => {
-    loadUser();
-    refresh();
-  });
+  // --- Helper to robustly detect admin ---
+  function isUserAdmin(user) {
+    const v = user?.profile?.is_admin;
+    return v === true || v === "true" || v === 1;
+  }
 
-  // Admin panel logic as before...
+  // === Single Channel Add State ===
   let url = '';
   let loading = false;
   let error = '';
@@ -23,7 +23,7 @@
   let country = '';
   let selectedTags = [];
 
-  // Bulk upload state
+  // === Bulk Upload State ===
   let csvFile = null;
   let bulkUploading = false;
   let bulkResults = [];
@@ -61,7 +61,10 @@
     }
   }
 
-  // Channel add logic
+  // === Video Sync Logic ===
+  let syncing = false;
+  let syncResult = null;
+
   async function fetchChannelDetails() {
     loading = true;
     error = '';
@@ -123,7 +126,21 @@
     }
   }
 
-  // Channel tools state (edit/search/delete/paginate)
+  async function syncVideos() {
+    syncing = true;
+    syncResult = null;
+    try {
+      const res = await fetch('/api/sync-videos', { method: 'POST' });
+      const data = await res.json();
+      syncResult = data;
+    } catch (err) {
+      syncResult = { error: err.message || 'Unknown sync error' };
+    } finally {
+      syncing = false;
+    }
+  }
+
+  // --- Channel Tools State (search, edit, delete, paginate) ---
   let allChannels = [];
   let refreshing = false;
   let settingCountry = {};
@@ -222,20 +239,26 @@
       refreshing = false;
     }
   }
+
+  onMount(() => {
+    loadUser();
+    refresh();
+  });
 </script>
 
-<!-- DEBUG AUTH INFO (Remove for prod) -->
-<div style="background: #ffeedd; color: #702c10; font-size: 0.99em; padding: 0.5em; margin-bottom:1em; border-radius: 8px;">
+<!-- Debug info for admin -->
+<div style="background: #ffefd0; color: #702c10; font-size: 0.99em; padding: 0.5em; margin-bottom:1em; border-radius: 8px;">
   <div>authChecked: {$authChecked ? 'true' : 'false'}</div>
   <div>userLoading: {$userLoading ? 'true' : 'false'}</div>
   <div>user: {JSON.stringify($user)}</div>
   <div>profile: {JSON.stringify($user?.profile)}</div>
+  <div>is_admin value: {$user?.profile?.is_admin} (type: {typeof $user?.profile?.is_admin})</div>
   <div>
     Admin status:
-    {#if $user?.profile?.is_admin === true}
-      <span style="color: green; font-weight: bold;">You are admin ✅</span>
+    {#if isUserAdmin($user)}
+      <span style="color:green;font-weight:bold;">You are admin ✅</span>
     {:else}
-      <span style="color: red; font-weight: bold;">You are NOT admin ❌</span>
+      <span style="color:red;font-weight:bold;">You are NOT admin ❌</span>
     {/if}
   </div>
 </div>
@@ -246,9 +269,10 @@
   <div style="margin:4em; text-align:center;">Loading user info...</div>
 {:else if !$user}
   <div style="margin:4em; text-align:center;">You must be logged in to view this page.</div>
-{:else if !$user.profile?.is_admin}
+{:else if !isUserAdmin($user)}
   <div style="margin:4em; color:#e93c2f; text-align:center;">Not allowed (admin only).</div>
 {:else}
+  <!-- The entire admin panel as before... -->
   <div class="container">
 
     <!-- === Bulk Upload CSV Bar === -->
@@ -362,6 +386,16 @@
         <button type="submit">Submit Channel</button>
       </form>
     {/if}
+
+    <!-- === VIDEO SYNC SECTION === -->
+    <div class="sync-section">
+      <button on:click={syncVideos} disabled={syncing}>
+        {syncing ? 'Syncing...' : 'Sync Videos for All Channels'}
+      </button>
+      {#if syncResult}
+        <pre>{JSON.stringify(syncResult, null, 2)}</pre>
+      {/if}
+    </div>
 
     <!-- === CHANNEL TOOLS SECTION (edit/search/delete) === -->
     <hr />
