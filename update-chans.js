@@ -49,7 +49,29 @@ function isGoodVideo(v, durations) {
   return true;
 }
 
-// Fetch only new videos published after lastSyncedAt (ISO string)
+// Get ALL playlists for a channel
+async function getPlaylists(channelId) {
+  let playlists = [];
+  let nextPage = '';
+  try {
+    do {
+      const url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet&channelId=${channelId}&maxResults=50${nextPage ? '&pageToken=' + nextPage : ''}&key=${YOUTUBE_API_KEY}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.items) playlists.push(...data.items);
+      nextPage = data.nextPageToken || '';
+    } while (nextPage);
+  } catch (err) {}
+  return playlists.map((pl) => ({
+    id: pl.id,
+    channel_id: pl.snippet.channelId,
+    title: pl.snippet.title,
+    thumbnail: pl.snippet.thumbnails?.default?.url || '',
+    description: pl.snippet.description,
+  }));
+}
+
+// Fetch only new videos published after lastSyncedAt (ISO string) for a playlist
 async function getNewPlaylistVideos(playlistId, lastSyncedAt) {
   let videos = [];
   let nextPage = '';
@@ -95,6 +117,7 @@ async function getNewPlaylistVideos(playlistId, lastSyncedAt) {
 
 async function main() {
   console.log('Starting incremental video sync for channels...');
+
   // Only fetch channels that HAVE last_synced_at
   const { data: channels, error: chanErr } = await supabase
     .from('channels')
@@ -111,21 +134,24 @@ async function main() {
   for (const channel of channels) {
     let channelResult = { id: channel.id, name: channel.name, added: 0, error: null };
     try {
-      // --- 1. Fetch uploads playlist ID ---
-      const url = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails,snippet&id=${channel.id}&key=${YOUTUBE_API_KEY}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      const uploadsPlaylistId = data.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
-      const channelTitle = data.items?.[0]?.snippet?.title || '';
-      if (!uploadsPlaylistId) throw new Error('No uploads playlist found for channel');
+      // --- 1. Fetch ALL playlists for this channel ---
+      const playlists = await getPlaylists(channel.id);
+      if (playlists.length) {
+        let { error: plErr } = await supabase.from('playlists').upsert(playlists, { onConflict: 'id' });
+        if (plErr) throw new Error('Failed to upsert playlists: ' + plErr.message);
+      }
 
-      // --- 2. Fetch only NEW videos since last_synced_at ---
-      const newVideos = await getNewPlaylistVideos(uploadsPlaylistId, channel.last_synced_at);
+      // --- 2. For each playlist, fetch new videos since last_synced_at ---
+      let allNewVideos = [];
+      for (const pl of playlists) {
+        const newVideos = await getNewPlaylistVideos(pl.id, channel.last_synced_at);
+        allNewVideos.push(...newVideos);
+      }
 
       // --- 3. De-duplicate by video id ---
       const seen = new Set();
       const dedupedVideos = [];
-      for (const v of newVideos) {
+      for (const v of allNewVideos) {
         if (!seen.has(v.id)) {
           dedupedVideos.push(v);
           seen.add(v.id);

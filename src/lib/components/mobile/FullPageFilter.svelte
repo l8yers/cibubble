@@ -365,7 +365,7 @@
 .switch input:checked + .slider:before { transform: translateX(13px);}
 .apply-btn {
   display: block; width: calc(100% - 2.4em); margin: 1.1em auto 0 auto;
-  background: var(--cibubble-red); color: #fff; font-weight: 800;
+  background: #101720; color: #fff; font-weight: 800;
   border: none; border-radius: 0; padding: 0.9em 0; font-size: 1.02em;
   box-shadow: 0 2px 14px #e65c4f44; cursor: pointer;
   transition: none;

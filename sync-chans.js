@@ -41,6 +41,14 @@ async function fetchVideoDurations(videoIds) {
   return results.reduce((acc, v) => ({ ...acc, [v.id]: v.length }), {});
 }
 
+function isGoodVideo(v, durations) {
+  const title = v.snippet?.title?.toLowerCase() ?? '';
+  if (!title || title === 'deleted video' || title === 'private video') return false;
+  const vid = v.contentDetails?.videoId;
+  if (!vid || !durations[vid] || durations[vid] < 180) return false;
+  return true;
+}
+
 async function getPlaylists(channelId) {
   let playlists = [];
   let nextPage = '';
@@ -60,14 +68,6 @@ async function getPlaylists(channelId) {
     thumbnail: pl.snippet.thumbnails?.default?.url || '',
     description: pl.snippet.description,
   }));
-}
-
-function isGoodVideo(v, durations) {
-  const title = v.snippet?.title?.toLowerCase() ?? '';
-  if (!title || title === 'deleted video' || title === 'private video') return false;
-  const vid = v.contentDetails?.videoId;
-  if (!vid || !durations[vid] || durations[vid] < 180) return false;
-  return true;
 }
 
 async function getPlaylistVideos(playlistId) {
@@ -105,105 +105,110 @@ async function getPlaylistVideos(playlistId) {
 // === MAIN SYNC LOGIC ===
 
 async function main() {
-  console.log('Starting video sync for unsynced channels (using uploads playlist)...');
-  // Only fetch channels that haven't been synced yet
+  console.log('Syncing all channels: all playlists and uploads');
   const { data: channels, error: chanErr } = await supabase
     .from('channels')
-    .select('*')
-    .is('last_synced_at', null);
+    .select('*');
+
   if (chanErr) throw new Error('Failed to fetch channels: ' + chanErr.message);
 
-  if (!channels.length) {
-    console.log('No unsynced channels to process.');
-    return;
-  }
+  let grandTotalPlaylists = 0, grandTotalVideos = 0, grandTotalUploads = 0;
+  let summary = [];
 
-  let report = [];
   for (const channel of channels) {
-    let channelResult = { id: channel.id, name: channel.name, added: 0, error: null };
+    let report = {
+      channel_id: channel.id,
+      channel_name: channel.name,
+      playlist_count: 0,
+      playlist_video_count: 0,
+      uploads_video_count: 0,
+      total_videos: 0,
+      error: null,
+    };
     try {
-      // --- 1. Upsert all manual playlists for UI ---
-      const plists = await getPlaylists(channel.id);
-      if (plists.length) {
-        let { error: plErr } = await supabase.from('playlists').upsert(plists, { onConflict: 'id' });
-        if (plErr) throw new Error('Failed to upsert playlists: ' + plErr.message);
+      // 1. Fetch and upsert all playlists
+      const playlists = await getPlaylists(channel.id);
+      report.playlist_count = playlists.length;
+      grandTotalPlaylists += playlists.length;
+
+      if (playlists.length) {
+        await supabase.from('playlists').upsert(playlists, { onConflict: 'id' });
       }
 
-      // --- 2. Fetch uploads playlist ID and metadata ---
-      const url = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails,snippet&id=${channel.id}&key=${YOUTUBE_API_KEY}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      const uploadsPlaylistId = data.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
-      const channelTitle = data.items?.[0]?.snippet?.title || '';
-      if (!uploadsPlaylistId) throw new Error('No uploads playlist found for channel');
+      // 2. For each playlist, get videos and upsert with correct playlist_id
+      let playlistVideoIds = new Set();
+      let videosToInsert = [];
+      for (const pl of playlists) {
+        const vids = await getPlaylistVideos(pl.id);
+        vids.forEach(v => {
+          playlistVideoIds.add(v.id);
+          videosToInsert.push({ ...v, playlist_id: pl.id });
+        });
+      }
+      report.playlist_video_count = playlistVideoIds.size;
 
-      // --- 3. Upsert uploads playlist (even if not in user playlists) ---
-      let uploadsPlaylistMeta = {
-        id: uploadsPlaylistId,
-        channel_id: channel.id,
-        title: 'Uploads',
-        thumbnail: '', // optional: can fetch or leave blank
-        description: `All uploads for ${channelTitle}`
-      };
-      await supabase.from('playlists').upsert([uploadsPlaylistMeta], { onConflict: 'id' });
+      // 3. Get uploads playlist id and videos
+      const chanDataUrl = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channel.id}&key=${YOUTUBE_API_KEY}`;
+      const res = await fetch(chanDataUrl);
+      const chanData = await res.json();
+      const uploadsPlaylistId = chanData.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+      if (!uploadsPlaylistId) {
+        report.error = 'No uploads playlist';
+        summary.push(report);
+        continue;
+      }
+      const uploadsVideos = await getPlaylistVideos(uploadsPlaylistId);
 
-      // --- 4. Fetch ALL videos from uploads playlist ---
-      const allVideos = await getPlaylistVideos(uploadsPlaylistId);
+      // 4. Add uploads videos not already in a playlist, with playlist_id: null
+      let uploadsOnly = 0;
+      uploadsVideos.forEach(v => {
+        if (!playlistVideoIds.has(v.id)) {
+          videosToInsert.push({ ...v, playlist_id: null });
+          uploadsOnly += 1;
+        }
+      });
+      report.uploads_video_count = uploadsOnly;
+      report.total_videos = videosToInsert.length;
 
-      // --- 5. De-duplicate by video id ---
-      const seen = new Set();
-      const dedupedVideos = [];
-      for (const v of allVideos) {
-        if (!seen.has(v.id)) {
-          dedupedVideos.push(v);
-          seen.add(v.id);
+      grandTotalVideos += videosToInsert.length;
+      grandTotalUploads += uploadsOnly;
+
+      // 5. Batch upsert videos (in batches of e.g. 300)
+      for (let i = 0; i < videosToInsert.length; i += 300) {
+        const batch = videosToInsert.slice(i, i + 300);
+        if (batch.length) {
+          await supabase.from('videos').upsert(batch, { onConflict: 'id' });
         }
       }
 
-      if (dedupedVideos.length === 0) {
-        channelResult.info = 'No videos found';
-      } else {
-        // Set video fields from channel for consistency
-        const channelTags = channel.tags
-          ? Array.isArray(channel.tags)
-            ? channel.tags
-            : String(channel.tags).split(',').map(t => t.trim()).filter(Boolean)
-          : [];
-        const country = channel.country || null;
-        const level = channel.level || null;
-        const toUpsert = dedupedVideos.map(v => ({
-          ...v,
-          tags: channelTags, // array for Postgres text[]
-          country,
-          level,
-        }));
-
-        let { error: insErr } = await supabase.from('videos').upsert(toUpsert, { onConflict: 'id' });
-        if (insErr) throw new Error(insErr.message);
-
-        channelResult.added = toUpsert.length;
-      }
-
-      // === The crucial bit: update last_synced_at! ===
+      // 6. Mark channel as synced
       await supabase.from('channels').update({ last_synced_at: new Date().toISOString() }).eq('id', channel.id);
 
-      console.log(`[OK] ${channel.name}: +${channelResult.added} videos`);
+      console.log(`[OK] ${channel.name}: Playlists=${report.playlist_count}, Playlist videos=${report.playlist_video_count}, Uploads-only=${report.uploads_video_count}, Total videos=${report.total_videos}`);
     } catch (err) {
-      channelResult.error = err.message;
+      report.error = err.message;
       console.error(`[FAIL] ${channel.name}: ${err.message}`);
     }
-    report.push(channelResult);
-    await new Promise(res => setTimeout(res, 300)); // avoid hammering APIs
+    summary.push(report);
+    await new Promise(res => setTimeout(res, 350)); // optional: avoid hammering APIs
   }
 
   // === Summary Report ===
-  const addedTotal = report.reduce((sum, r) => sum + (r.added || 0), 0);
-  console.log(`\n=== SYNC COMPLETE ===`);
-  report.forEach(r =>
-    console.log(`${r.name}: +${r.added || 0} ${r.error ? '❌ ' + r.error : ''}`)
-  );
-  console.log(`Total channels processed: ${report.length}`);
-  console.log(`Total videos added: ${addedTotal}`);
+  console.log('\n=== SUMMARY REPORT ===');
+  summary.forEach(r => {
+    if (r.error) {
+      console.log(`[FAIL] ${r.channel_name}: ${r.error}`);
+    } else {
+      console.log(
+        `[OK] ${r.channel_name} | Playlists: ${r.playlist_count} | Playlist vids: ${r.playlist_video_count} | Uploads-only vids: ${r.uploads_video_count} | Total: ${r.total_videos}`
+      );
+    }
+  });
+  console.log('\n==== GRAND TOTALS ====');
+  console.log(`Channels processed: ${summary.length}`);
+  console.log(`Playlists found: ${grandTotalPlaylists}`);
+  console.log(`Videos inserted: ${grandTotalVideos}`);
+  console.log(`Uploads-only (not in playlist): ${grandTotalUploads}`);
 }
 
 main();
