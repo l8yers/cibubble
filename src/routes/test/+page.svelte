@@ -1,42 +1,12 @@
 <script>
-  import { supabase } from '$lib/supabaseClient';
   import { user, userLoading, authChecked } from '$lib/stores/user.js';
-  import { onMount } from 'svelte';
-
-  let profileRow = null;
-  let error = null;
-  let checked = false;
-
-  $: currentUser = $user;
-
-  async function checkProfileDirect() {
-    error = null;
-    profileRow = null;
-    checked = false;
-    if (!currentUser?.id) {
-      error = "No user ID found.";
-      checked = true;
-      return;
-    }
-    const { data, error: err } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', currentUser.id)
-      .single();
-    profileRow = data;
-    error = err;
-    checked = true;
-  }
-
-  onMount(() => {
-    if (currentUser?.id) checkProfileDirect();
-  });
+  import { profile, profileLoading } from '$lib/stores/profile.js';
 </script>
 
-<h2>Admin Profile Test Page</h2>
+<h2>Admin Profile Store Test</h2>
 
 <div>
-  <strong>Auth:</strong><br>
+  <strong>Auth Status:</strong><br>
   authChecked: {$authChecked ? 'true' : 'false'}<br>
   userLoading: {$userLoading ? 'true' : 'false'}<br>
   user: <pre style="display:inline;">{JSON.stringify($user, null, 2)}</pre>
@@ -44,30 +14,40 @@
 
 <hr>
 
-<button on:click={checkProfileDirect} disabled={!currentUser?.id}>
-  {profileRow ? "Refresh Profile Row" : "Load Profile Row"}
-</button>
+<div>
+  <strong>Profile Row:</strong><br>
+  profileLoading: {$profileLoading ? 'true' : 'false'}<br>
+  profile: <pre style="display:inline;">{JSON.stringify($profile, null, 2)}</pre>
+</div>
 
-{#if checked}
-  <h3>Direct Query Result:</h3>
-  {#if error}
-    <div style="color:red"><strong>Error:</strong> {JSON.stringify(error, null, 2)}</div>
-  {:else if profileRow}
-    <pre>{JSON.stringify(profileRow, null, 2)}</pre>
-    <p>
-      <strong>is_admin:</strong>
-      {profileRow.is_admin === true ? '✅ TRUE' : profileRow.is_admin === false ? '❌ FALSE' : String(profileRow.is_admin)}
-    </p>
-    {#if profileRow.is_admin === true}
-      <div style="color:green;font-weight:bold;font-size:1.4em; margin-top:1em;">
-        ADMIN PANEL
-      </div>
-    {:else}
-      <div style="color:#b22222;font-weight:bold;font-size:1.1em; margin-top:1em;">
-        Not logged in
-      </div>
-    {/if}
+<hr>
+
+{#if !$authChecked}
+  <div>Checking authentication...</div>
+{:else if $userLoading}
+  <div>Loading user...</div>
+{:else if !$user}
+  <div>Not logged in</div>
+{:else if $profileLoading}
+  <div>Loading profile...</div>
+{:else if !$profile}
+  <div>No profile row found for this user.</div>
+{:else}
+  <div>
+    <strong>is_admin:</strong>
+    {$profile.is_admin === true
+      ? '✅ TRUE'
+      : $profile.is_admin === false
+        ? '❌ FALSE'
+        : String($profile.is_admin)}
+  </div>
+  {#if $profile.is_admin === true}
+    <div style="color:green; font-weight:bold; font-size:1.3em; margin-top:1em;">
+      ADMIN PANEL GOES HERE
+    </div>
   {:else}
-    <div>No profile row found for this user.</div>
+    <div style="color:#b22222;font-weight:bold;font-size:1.1em; margin-top:1em;">
+      Not allowed (admin only).
+    </div>
   {/if}
 {/if}
