@@ -312,12 +312,10 @@ $: if ($user?.id && !checked) checkProfileDirect();
   }
 </script>
 
-<h2>Admin Panel</h2>
-
 {#if checked}
   <p>
     <strong>is_admin:</strong>
-    {profileRow?.is_admin === true ? '✅ TRUE' : profileRow?.is_admin === false ? '❌ FALSE' : String(profileRow?.is_admin)}
+    {profileRow?.is_admin === true ? '✅ TRUE' : profileRow?.is_admin === false ? '' : String(profileRow?.is_admin)}
   </p>
   {#if profileRow?.is_admin === true}
     <div class="container">
@@ -431,15 +429,6 @@ $: if ($user?.id && !checked) checkProfileDirect();
         </form>
       {/if}
 
-      <!-- === VIDEO SYNC SECTION === -->
-      <div class="sync-section">
-        <button on:click={syncVideos} disabled={syncing}>
-          {syncing ? 'Syncing...' : 'Sync Videos for All Channels'}
-        </button>
-        {#if syncResult}
-          <pre>{JSON.stringify(syncResult, null, 2)}</pre>
-        {/if}
-      </div>
 
       <!-- === CHANNEL TOOLS SECTION (edit/search/delete) === -->
       <hr />
