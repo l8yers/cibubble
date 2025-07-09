@@ -14,25 +14,16 @@
 	import ManualEntryList from '$lib/components/progress/ManualEntryList.svelte';
 	import ManualEntryEditForm from '$lib/components/progress/ManualEntryEditForm.svelte';
 	import ProgressSettings from '$lib/components/progress/ProgressSettings.svelte';
-	import {
-		Timer,
-		CalendarCheck,
-		Award,
-		ExternalLink,
-		Plus,
-		List,
-		History,
-		AlignRight
-	} from 'lucide-svelte';
+	import { Timer, Award, ExternalLink, Plus, List, History, AlignRight } from 'lucide-svelte';
 	import { writable } from 'svelte/store';
 	import {
 		formatWatchTime,
 		formatFullTime,
 		formatMinutesOnly,
-		formatHours,
-		formatHoursMins // <-- ADD THIS
+		formatHours
 	} from '$lib/utils/time.js';
 	import BubbleSpinner from '$lib/components/ui/BubbleSpinner.svelte';
+	import { useScrollLock } from '$lib/utils/useScrollLock.js';
 
 	const SENTINEL_DATE = '1975-01-01';
 
@@ -67,6 +58,14 @@
 	$: watchedSeconds = (p.dailyTotals || []).reduce((sum, d) => sum + (d.totalSeconds || 0), 0);
 
 	// === Format as "X hrs Y mins", no seconds
+	function formatHoursMins(totalSeconds) {
+		const h = Math.floor(totalSeconds / 3600);
+		const m = Math.floor((totalSeconds % 3600) / 60);
+		const parts = [];
+		if (h) parts.push(`${h} hr${h === 1 ? '' : 's'}`);
+		if (m || !h) parts.push(`${m} min${m === 1 ? '' : 's'}`);
+		return parts.join(' ');
+	}
 
 	// === CALENDAR VIEW LOGIC ===
 	let calendarViewType = 'total';
@@ -83,56 +82,32 @@
 		{ key: 'watched', label: 'CIBUBBLE time only' },
 		{ key: 'manual', label: 'Outside time only' },
 		{ key: 'total', label: 'Total input time' }
-	].filter((v) => v.key !== calendarViewType);
+	].filter(v => v.key !== calendarViewType);
 
 	// Only run in browser
 	let clickListener;
 	onMount(() => {
-		clickListener = () => {
-			calendarMenuOpen = false;
-		};
-		if (typeof window !== 'undefined') {
+		clickListener = () => { calendarMenuOpen = false; };
+		if (typeof window !== "undefined") {
 			window.addEventListener('click', clickListener);
 		}
 	});
 	onDestroy(() => {
-		if (typeof window !== 'undefined') {
+		if (typeof window !== "undefined") {
 			window.removeEventListener('click', clickListener);
 		}
 	});
 
-	// === SCROLL LOCK LOGIC (minimal, no layout changes) ===
+	// === SCROLL LOCK LOGIC (CLEAN) ===
 	let modalOpen = false;
+	let cleanupScrollLock;
 	$: modalOpen = showManualModal || showManualTab || showSettings;
-
-	onMount(() => {
-		if (typeof document === 'undefined') return;
-		let prev = modalOpen;
-
-		const updateScroll = () => {
-			if (modalOpen) {
-				document.body.style.overflow = 'hidden';
-			} else {
-				document.body.style.overflow = '';
-			}
-		};
-
-		const interval = setInterval(() => {
-			if (modalOpen !== prev) {
-				updateScroll();
-				prev = modalOpen;
-			}
-		}, 30);
-
-		updateScroll();
-
-		return () => {
-			clearInterval(interval);
-			document.body.style.overflow = '';
-		};
-	});
+	$: {
+		if (cleanupScrollLock) cleanupScrollLock();
+		cleanupScrollLock = useScrollLock(modalOpen);
+	}
 	onDestroy(() => {
-		if (typeof document !== 'undefined') document.body.style.overflow = '';
+		if (cleanupScrollLock) cleanupScrollLock();
 	});
 </script>
 
