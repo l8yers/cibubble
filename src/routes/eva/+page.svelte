@@ -1,5 +1,6 @@
 <script>
   import AdminGuard from '$lib/components/admin/AdminGuard.svelte';
+  import AdminAddChannel from '$lib/components/admin/AdminAddChannel.svelte';
   import { supabase } from '$lib/supabaseClient';
   import { COUNTRY_OPTIONS, TAG_OPTIONS } from '$lib/constants';
   import Papa from 'papaparse';
@@ -7,78 +8,6 @@
   import { stripAccent } from '$lib/utils/adminutils.js';
   import { getTagsForChannel } from '$lib/api/tags.js';
   import { user } from '$lib/stores/user.js';
-
-  // --- Channel Add State ---
-  let url = '';
-  let loading = false;
-  let submitError = '';
-  let success = false;
-  let channelPreview = null;
-  let level = '';
-  let country = '';
-  let selectedTags = [];
-
-  async function fetchChannelDetails() {
-    loading = true;
-    submitError = '';
-    success = false;
-    channelPreview = null;
-    try {
-      const res = await fetch('/api/fetch-youtube-details', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        submitError = data.error || 'Failed to fetch channel.';
-        return;
-      }
-      channelPreview = data.channel;
-    } catch (err) {
-      submitError = err.message || 'Fetch error';
-    } finally {
-      loading = false;
-    }
-  }
-
-  async function submitChannel() {
-    submitError = '';
-    success = false;
-    if (!level || !channelPreview?.id) {
-      submitError = 'Level and channel data required.';
-      return;
-    }
-    try {
-      const payload = {
-        id: channelPreview.id,
-        name: channelPreview.title,
-        thumbnail: channelPreview.thumbnail,
-        level,
-        country,
-        tags: selectedTags.join(', ')
-      };
-      const res = await fetch('/api/insert-channel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        submitError = data.error || 'Insert failed';
-        return;
-      }
-      success = true;
-      url = '';
-      channelPreview = null;
-      level = '';
-      country = '';
-      selectedTags = [];
-      await refresh();
-    } catch (err) {
-      submitError = err.message || 'Insert error';
-    }
-  }
 
   // --- Bulk Upload State ---
   let csvFile = null;
@@ -115,23 +44,6 @@
     } catch (err) {
       bulkUploading = false;
       bulkResults = [{ url: '', error: err.message || 'Bulk upload failed' }];
-    }
-  }
-
-  // --- Sync Logic ---
-  let syncing = false;
-  let syncResult = null;
-  async function syncVideos() {
-    syncing = true;
-    syncResult = null;
-    try {
-      const res = await fetch('/api/sync-videos', { method: 'POST' });
-      const data = await res.json();
-      syncResult = data;
-    } catch (err) {
-      syncResult = { error: err.message || 'Unknown sync error' };
-    } finally {
-      syncing = false;
     }
   }
 
@@ -339,62 +251,11 @@
     {/if}
 
     <!-- === Single Channel Add Section === -->
-    <h1>Add YouTube Channel</h1>
-    <div>
-      <label>YouTube Channel URL or @handle:</label>
-      <input bind:value={url} placeholder="@somehandle or full URL" />
-      <button on:click={fetchChannelDetails} disabled={loading}>
-        {loading ? 'Loading...' : 'Fetch'}
-      </button>
-    </div>
-    {#if submitError}
-      <p style="color: red;">{submitError}</p>
-    {/if}
-    {#if success}
-      <p style="color: green;">Channel inserted!</p>
-    {/if}
-    {#if channelPreview}
-      <hr />
-      <h2>Confirm Channel Info</h2>
-      <p><strong>{channelPreview.title}</strong></p>
-      <img src={channelPreview.thumbnail} alt="Thumbnail" width="120" height="120" />
-      <form on:submit|preventDefault={submitChannel}>
-        <div>
-          <label>Level (required):</label>
-          <div>
-            {#each ['easy', 'intermediate', 'advanced'] as lvl}
-              <label>
-                <input
-                  type="radio"
-                  bind:group={level}
-                  value={lvl}
-                  required
-                />
-                {lvl}
-              </label>
-            {/each}
-          </div>
-        </div>
-        <div>
-          <label>Country:</label>
-          <select bind:value={country}>
-            <option value="">None</option>
-            {#each COUNTRY_OPTIONS as c}
-              <option value={c}>{c}</option>
-            {/each}
-          </select>
-        </div>
-        <div>
-          <label>Tags:</label>
-          <select multiple bind:value={selectedTags}>
-            {#each TAG_OPTIONS as tag}
-              <option value={tag}>{tag}</option>
-            {/each}
-          </select>
-        </div>
-        <button type="submit">Submit Channel</button>
-      </form>
-    {/if}
+    <AdminAddChannel
+      COUNTRY_OPTIONS={COUNTRY_OPTIONS}
+      TAG_OPTIONS={TAG_OPTIONS}
+      onChannelAdded={refresh}
+    />
 
     <!-- === CHANNEL TOOLS SECTION (edit/search/delete) === -->
     <hr />

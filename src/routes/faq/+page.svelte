@@ -5,7 +5,11 @@
       faqs: [
         {
           question: "What is CIBUBBLE?",
-          answer: "CIBUBBLE is a YouTube front end, with watched time tracking feature, for people learning Spanish using the Comprehensible Input method."
+          answer: "CIBUBBLE is a YouTube front end with a dreamingspanish style watched time tracking feature, populated with content from the r/dreamingspanish community spreadsheet."
+        },
+                {
+          question: "What is Dreaming Spanish",
+          answer: "Dreaming Spanish is ."
         },
       ]
     },
