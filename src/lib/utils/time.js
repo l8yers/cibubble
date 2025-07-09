@@ -40,3 +40,12 @@ export function getISOWeekNumber(date) {
 	const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
 	return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
 }
+
+export function formatHoursMins(totalSeconds) {
+	const h = Math.floor(totalSeconds / 3600);
+	const m = Math.floor((totalSeconds % 3600) / 60);
+	const parts = [];
+	if (h) parts.push(`${h} hr${h === 1 ? '' : 's'}`);
+	if (m || !h) parts.push(`${m} min${m === 1 ? '' : 's'}`);
+	return parts.join(' ');
+}
