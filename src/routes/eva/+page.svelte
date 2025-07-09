@@ -1,51 +1,11 @@
 <script>
   import AdminGuard from '$lib/components/admin/AdminGuard.svelte';
   import AdminAddChannel from '$lib/components/admin/AdminAddChannel.svelte';
+  import AdminBulkUpload from '$lib/components/admin/AdminBulkUpload.svelte';
   import { supabase } from '$lib/supabaseClient';
   import { COUNTRY_OPTIONS, TAG_OPTIONS } from '$lib/constants';
-  import Papa from 'papaparse';
-  import { onMount } from 'svelte';
   import { stripAccent } from '$lib/utils/adminutils.js';
   import { getTagsForChannel } from '$lib/api/tags.js';
-  import { user } from '$lib/stores/user.js';
-
-  // --- Bulk Upload State ---
-  let csvFile = null;
-  let bulkUploading = false;
-  let bulkResults = [];
-  let csvInput;
-  $: failedChannels = bulkResults.filter(r => !r.ok).map(r => r.url);
-
-  function handleCsvFile(e) {
-    csvFile = e.target.files[0];
-  }
-  async function uploadCsv() {
-    if (!csvFile) return;
-    bulkUploading = true;
-    bulkResults = [];
-    try {
-      const text = await csvFile.text();
-      const { data } = Papa.parse(text, { header: true, skipEmptyLines: true });
-      const rows = data.map(row => ({
-        url: (row.url || '').trim(),
-        tags: (row.tags || '').trim(),
-        country: (row.country || '').trim(),
-        level: (row.level || '').trim()
-      }));
-      const res = await fetch('/api/bulk-upload-channels', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rows })
-      });
-      const out = await res.json();
-      bulkUploading = false;
-      bulkResults = out.results || [];
-      await refresh();
-    } catch (err) {
-      bulkUploading = false;
-      bulkResults = [{ url: '', error: err.message || 'Bulk upload failed' }];
-    }
-  }
 
   // --- Channel Table / Playlists State ---
   let allChannels = [];
@@ -193,71 +153,25 @@
     playlistLevelSaving = { ...playlistLevelSaving, [playlistId]: false };
   }
 
+  import { onMount } from 'svelte';
   onMount(refresh);
 </script>
 
 <AdminGuard>
   <div class="container">
 
-    <!-- === Bulk Upload CSV Bar === -->
-    <div class="import-bar">
-      <span class="import-videos-title">BULK UPLOAD CSV</span>
-      <input
-        type="file"
-        accept=".csv"
-        bind:this={csvInput}
-        on:change={handleCsvFile}
-        aria-label="Select CSV file"
-        class="import-input"
-        style="min-width:unset;max-width:220px"
-      />
-      <button class="main-btn import-btn" on:click={uploadCsv} disabled={!csvFile || bulkUploading} aria-label="Bulk Upload">
-        {bulkUploading ? 'Uploading…' : 'Upload CSV'}
-      </button>
-    </div>
+    <!-- Bulk Upload CSV (component) -->
+    <AdminBulkUpload
+      on:refresh={refresh}
+    />
 
-    <!-- Bulk Upload Results -->
-    {#if bulkResults.length}
-      <div class="bulk-results">
-        <h3>Bulk Upload Results</h3>
-        <ul>
-          {#each bulkResults as r}
-            <li>
-              {r.url}
-              {#if r.ok}
-                — <span style="color: green;">✅ Success</span>
-              {:else}
-                — <span style="color: red;">❌ {r.error}</span>
-              {/if}
-            </li>
-          {/each}
-        </ul>
-      </div>
-    {/if}
-
-    <!-- Failed Channels Section -->
-    {#if failedChannels.length}
-      <div class="bulk-failed">
-        <h3>❌ Failed to Add Channels</h3>
-        <ul>
-          {#each failedChannels as url}
-            <li>{url}</li>
-          {/each}
-        </ul>
-        <div style="margin-top: 0.7em;">
-          <em>Check the CSV or error messages above for details.</em>
-        </div>
-      </div>
-    {/if}
-
-    <!-- === Single Channel Add Section === -->
+    <!-- Add Channel (component) -->
     <AdminAddChannel
       COUNTRY_OPTIONS={COUNTRY_OPTIONS}
       TAG_OPTIONS={TAG_OPTIONS}
-      onChannelAdded={refresh}
+      on:added={refresh}
     />
 
-    <!-- === CHANNEL TOOLS SECTION (edit/search/delete) === -->
     <hr />
     <h2>Channel Tools</h2>
     <div>
