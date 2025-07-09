@@ -457,8 +457,107 @@
       await removeFromWatchLater(video.id);
     }
   }
-</script>
 
+  // --- FILTER CHIP LOGIC ---
+  $: filterChips = [
+    // LEVELS: Only show chips if not all levels are selected
+    ...(
+      $selectedLevels.size && $selectedLevels.size < levels.length
+        ? Array.from($selectedLevels).map(lvl => ({
+            type: 'level',
+            label: utils.difficultyLabel ? utils.difficultyLabel(lvl) : lvl,
+            value: lvl,
+            clearClass: 'clear-btn--green'
+          }))
+        : []
+    ),
+    // TAGS
+    ...(
+      $selectedTags.size
+        ? Array.from($selectedTags).map(tag => ({
+            type: 'tag',
+            label: tag,
+            value: tag,
+            clearClass: 'clear-btn--red'
+          }))
+        : []
+    ),
+    // COUNTRY
+    ...(
+      $selectedCountry
+        ? [{
+            type: 'country',
+            label: countryOptions.find(c => c.value === $selectedCountry)?.label ?? $selectedCountry,
+            value: $selectedCountry,
+            clearClass: 'clear-btn--blue'
+          }]
+        : []
+    ),
+    // SEARCH
+    ...(
+      $searchTerm && $searchTerm.trim().length
+        ? [{
+            type: 'search',
+            label: `Search: "${$searchTerm}"`,
+            value: $searchTerm,
+            clearClass: 'clear-btn--gray'
+          }]
+        : []
+    ),
+    // CHANNEL
+    ...(
+      $selectedChannel && $selectedChannel !== '__ALL__' && $selectedChannel !== '__WATCH_LATER__'
+        ? [{
+            type: 'channel',
+            label: 'Channel',
+            value:
+              $videos.length > 0
+                ? ($videos[0].channel?.name ?? $videos[0].channel_name ?? $selectedChannel)
+                : $selectedChannel,
+            clearClass: 'clear-btn--blue'
+          }]
+        : []
+    ),
+  ];
+
+  function handleClearChip(chip) {
+    switch (chip.type) {
+      case 'level': {
+        const newLevels = new Set($selectedLevels);
+        newLevels.delete(chip.value);
+        // If empty, reset to all
+        selectedLevels.set(newLevels.size > 0 ? newLevels : new Set(levels));
+        break;
+      }
+      case 'tag': {
+        const newTags = new Set($selectedTags);
+        newTags.delete(chip.value);
+        selectedTags.set(newTags);
+        break;
+      }
+      case 'country':
+        selectedCountry.set('');
+        break;
+      case 'search':
+        searchTerm.set('');
+        break;
+      case 'channel':
+        selectedChannel.set('');
+        break;
+    }
+    updateUrlFromFilters({
+      selectedLevels,
+      selectedTags,
+      selectedCountry,
+      selectedChannel,
+      sortBy,
+      searchTerm,
+      get
+    });
+    resetAndFetch();
+  }
+
+</script>
 
 
 <div class="page-container">
@@ -483,21 +582,22 @@
     </div>
   {/if}
 
-  <div class="content-container">
-    {#if $selectedChannel && $selectedChannel !== '__ALL__' && $selectedChannel !== '__WATCH_LATER__'}
-      <div class="chips-row">
-        <FilterChip
-          type="info"
-          label="Filtered by channel"
-          value={$videos.length > 0
-            ? ($videos[0].channel?.name ?? $videos[0].channel_name ?? $selectedChannel)
-            : $selectedChannel}
-          onClear={clearChannelFilter}
-          clearClass="clear-btn--blue"
-        />
-      </div>
-    {/if}
 
+  {#if filterChips.length > 0}
+    <div class="chips-row">
+      {#each filterChips as chip}
+        <FilterChip
+          type={chip.type}
+          label={chip.label}
+          value={chip.value}
+          clearClass={chip.clearClass}
+          onClear={() => handleClearChip(chip)}
+        />
+      {/each}
+    </div>
+  {/if}
+
+  <div class="content-container">
     {#if $videos.length > 0}
       <VideoGrid
         videos={filteredVideos}
@@ -590,6 +690,7 @@
   {/if}
 </div>
 
+
 <style>
   .center-content {
     display: flex;
@@ -616,16 +717,16 @@
     gap: 0.7em;
     margin: 0 0 1em 0;
     justify-content: flex-start;
-    padding-left: 2rem;
-    padding-right: 2rem;
+    padding-left: 9rem;
+    padding-right: 9rem;
   }
   @media (max-width: 1200px) {
     .content-container {
       max-width: 1100px;
     }
     .chips-row {
-      padding-left: 2rem;
-      padding-right: 2rem;
+      padding-left: 4rem !important;
+      padding-right: 4rem;
     }
   }
   @media (max-width: 900px) {
@@ -695,5 +796,11 @@
   .load-more-btn:disabled {
     opacity: 0.66;
     cursor: not-allowed;
+  }
+    .chips-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
+    margin: 0 0 1em 0;
   }
 </style>

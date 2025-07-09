@@ -1,4 +1,3 @@
-<!-- src/lib/components/FilterChip.svelte -->
 <script>
   export let type = 'info';     // e.g. 'info', 'warning', 'success'
   export let label = '';
@@ -9,7 +8,11 @@
 
 <div class="chip {type}">
   <span>
-    <b>{label}:</b> {value}
+    {#if value && value !== label}
+      <b>{label}:</b> {value}
+    {:else}
+      <b>{label}</b>
+    {/if}
   </span>
   <button class="clear-btn {clearClass}" on:click={onClear}>✕ Clear</button>
 </div>
@@ -22,8 +25,7 @@
     background: #f6faff;
     color: #2652a2;
     border-radius: 8px;
-    padding: 0.32em 1.1em 0.32em 0.9em;
-    margin: 0.4em 0 0 0;
+    padding: 0.32em 0.9em 0.32em 0.9em;
     font-size: 1.04em;
     font-weight: 500;
     border: 1.3px solid #e3e9fa;
