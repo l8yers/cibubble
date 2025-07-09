@@ -32,7 +32,6 @@
 	let editEntry = null;
 
 	let showTotalTooltip = false;
-	let showTodayTooltip = false;
 	let showOutsideTooltip = false;
 
 	let lastFetchedUserId = null;
@@ -151,89 +150,66 @@
 			<div class="card stats-card">
 				<div class="card-heading">Statistics</div>
 				<div class="stats-list">
-					<div class="stat-item stat-time">
-						<div class="stat-icon-col">
-							<Timer class="stat-icon" size={30} />
-						</div>
-						<div class="stat-main">
-							<div class="stat-value">
-								<span
-									class="tooltip-parent"
-									tabindex="0"
-									on:mouseenter={() => (showTotalTooltip = true)}
-									on:mouseleave={() => (showTotalTooltip = false)}
-									on:focus={() => (showTotalTooltip = true)}
-									on:blur={() => (showTotalTooltip = false)}
-								>
-									{formatWatchTime(p.watchTime)}
-									{#if showTotalTooltip}
-										<span class="custom-tooltip stat-time-tooltip">
-											{formatHoursMins(p.watchTime)}
-										</span>
-									{/if}
-								</span>
-							</div>
-							<div class="stat-label">Total input</div>
-						</div>
-					</div>
-					<div class="stat-item stat-today">
-						<div class="stat-icon-col">
-							<CalendarCheck class="stat-icon" size={30} />
-						</div>
-						<div class="stat-main">
-							<div class="stat-value">
-								<span
-									class="tooltip-parent"
-									tabindex="0"
-									on:mouseenter={() => (showTodayTooltip = true)}
-									on:mouseleave={() => (showTodayTooltip = false)}
-									on:focus={() => (showTodayTooltip = true)}
-									on:blur={() => (showTodayTooltip = false)}
-								>
-									{formatWatchTime(p.todayWatchTime)}
-									{#if showTodayTooltip}
-										<span class="custom-tooltip stat-today-tooltip">
-											{formatHoursMins(p.todayWatchTime)}
-										</span>
-									{/if}
-								</span>
-							</div>
-							<div class="stat-label">Watched today</div>
-						</div>
-					</div>
-					<div class="stat-item stat-practiced">
-						<div class="stat-icon-col">
-							<Award class="stat-icon" size={30} />
-						</div>
-						<div class="stat-main">
-							<div class="stat-value">{p.daysPracticed}</div>
-							<div class="stat-label">Days practiced</div>
-						</div>
-					</div>
-					<div class="stat-item stat-outside">
-						<div class="stat-icon-col">
-							<ExternalLink class="stat-icon" size={30} />
-						</div>
-						<div class="stat-main">
-							<div class="stat-value tooltip-parent"
-								tabindex="0"
-								on:mouseenter={() => (showOutsideTooltip = true)}
-								on:mouseleave={() => (showOutsideTooltip = false)}
-								on:focus={() => (showOutsideTooltip = true)}
-								on:blur={() => (showOutsideTooltip = false)}
-							>
-								{formatHours(p.outsideTime)}
-								{#if showOutsideTooltip}
-									<span class="custom-tooltip stat-outside-tooltip">
-										Watched on CIBUBBLE:<br>
-										<b>{formatHoursMins(watchedSeconds)}</b>
-									</span>
-								{/if}
-							</div>
-							<div class="stat-label">From other sources</div>
-						</div>
-					</div>
-				</div>
+	<div class="stat-item stat-time">
+		<div class="stat-icon-col">
+			<Timer class="stat-icon" size={30} />
+		</div>
+		<div class="stat-main">
+			<div class="stat-value">
+				<span
+					class="tooltip-parent"
+					tabindex="0"
+					on:mouseenter={() => (showTotalTooltip = true)}
+					on:mouseleave={() => (showTotalTooltip = false)}
+					on:focus={() => (showTotalTooltip = true)}
+					on:blur={() => (showTotalTooltip = false)}
+				>
+					{formatWatchTime(p.watchTime)}
+					{#if showTotalTooltip}
+						<span class="custom-tooltip stat-time-tooltip">
+							{formatHoursMins(p.watchTime)}
+						</span>
+					{/if}
+				</span>
+			</div>
+			<div class="stat-label">Total input</div>
+		</div>
+	</div>
+	<!-- "Watched today" stat-item REMOVED HERE -->
+	<div class="stat-item stat-practiced">
+		<div class="stat-icon-col">
+			<Award class="stat-icon" size={30} />
+		</div>
+		<div class="stat-main">
+			<div class="stat-value">{p.daysPracticed}</div>
+			<div class="stat-label">Days practiced</div>
+		</div>
+	</div>
+	<div class="stat-item stat-outside">
+		<div class="stat-icon-col">
+			<ExternalLink class="stat-icon" size={30} />
+		</div>
+		<div class="stat-main">
+			<div class="stat-value tooltip-parent"
+				tabindex="0"
+				on:mouseenter={() => (showOutsideTooltip = true)}
+				on:mouseleave={() => (showOutsideTooltip = false)}
+				on:focus={() => (showOutsideTooltip = true)}
+				on:blur={() => (showOutsideTooltip = false)}
+			>
+				{formatHours(p.outsideTime)}
+				{#if showOutsideTooltip}
+					<span class="custom-tooltip stat-outside-tooltip">
+						Watched on CIBUBBLE:<br>
+						<b>{formatHoursMins(watchedSeconds)}</b>
+					</span>
+				{/if}
+			</div>
+			<div class="stat-label">From other sources</div>
+		</div>
+	</div>
+</div>
+
 			</div>
 
 			<!-- Activity Card -->
