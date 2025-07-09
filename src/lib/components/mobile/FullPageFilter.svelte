@@ -98,9 +98,21 @@
     localHideWatched = !localHideWatched;
     emitApply({ hideWatched: localHideWatched });
   }
+  // ---------------- PATCHED FUNCTION ----------------
   function selectChannel(channel) {
+    // When selecting a channel, reset all filters and set the channel (just like SortBar does)
+    localLevels = levels.map(l => l.value);
+    localTags = [];
+    localCountry = '';
+    localHideWatched = false;
     localChannel = channel;
-    emitApply({ selectedChannel: localChannel });
+    emitApply({
+      selectedLevels: localLevels,
+      selectedTags: [],
+      selectedCountry: '',
+      selectedChannel: channel,
+      hideWatched: false
+    });
   }
 </script>
 
@@ -262,6 +274,7 @@
     </div>
   </div>
 {/if}
+
 
 <style>
 :root {

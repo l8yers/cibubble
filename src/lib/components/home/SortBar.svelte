@@ -112,7 +112,6 @@
 		}
 	}
 
-	// When on random, changing ANY filter EXCEPT levels resets sortBy to new:
 	function handleSetCountry(c) {
 		emitChange({
 			selectedCountry: c === selectedCountry ? '' : c,
@@ -494,6 +493,8 @@
 					</div>
 				{/if}
 			</div>
+
+			<!-- ----------- MY CHANNELS (UPDATED) ----------- -->
 			{#if $user}
 				<div class="dropdown" bind:this={myChannelsDropdownRef}>
 					<button
@@ -515,7 +516,18 @@
 								<input
 									type="checkbox"
 									checked={selectedChannel === '__WATCH_LATER__'}
-									on:change={() => emitChange({ selectedChannel: '__WATCH_LATER__' })}
+									on:change={() =>
+										emitChange({
+											selectedLevels: levels.map((l) => l.value),
+											sortBy: 'new',
+											selectedCountry: '',
+											selectedTags: [],
+											hideWatched: false,
+											searchTerm: '',
+											searchOpen: false,
+											selectedChannel: '__WATCH_LATER__'
+										})
+									}
 								/>
 								<span style="display:flex;align-items:center;">
 									<Clock size={17} style="margin-right:4px;vertical-align:-2px;color:#101720;" />
@@ -527,8 +539,19 @@
 								<input
 									type="checkbox"
 									checked={selectedChannel === '__ALL__'}
-									on:change={() => emitChange({ selectedChannel: '__ALL__' })}
-								/>
+									on:change={() =>
+										emitChange({
+											selectedLevels: levels.map((l) => l.value),
+											sortBy: 'new',
+											selectedCountry: '',
+											selectedTags: [],
+											hideWatched: false,
+											searchTerm: '',
+											searchOpen: false,
+											selectedChannel: '__ALL__'
+											})
+										}
+									/>
 								<span>All Saved Channels</span>
 							</label>
 							{#if myChannels && myChannels.length}
@@ -537,7 +560,18 @@
 										<input
 											type="checkbox"
 											checked={selectedChannel === ch.id}
-											on:change={() => emitChange({ selectedChannel: ch.id })}
+											on:change={() =>
+												emitChange({
+													selectedLevels: levels.map((l) => l.value),
+													sortBy: 'new',
+													selectedCountry: '',
+													selectedTags: [],
+													hideWatched: false,
+													searchTerm: '',
+													searchOpen: false,
+													selectedChannel: ch.id
+												})
+											}
 										/>
 										<span>{ch.name}</span>
 									</label>
@@ -681,7 +715,18 @@
 								<input
 									type="checkbox"
 									checked={selectedChannel === '__WATCH_LATER__'}
-									on:change={() => emitChange({ selectedChannel: '__WATCH_LATER__' })}
+									on:change={() =>
+										emitChange({
+											selectedLevels: levels.map((l) => l.value),
+											sortBy: 'new',
+											selectedCountry: '',
+											selectedTags: [],
+											hideWatched: false,
+											searchTerm: '',
+											searchOpen: false,
+											selectedChannel: '__WATCH_LATER__'
+										})
+									}
 								/>
 								<span style="display:flex;align-items:center;">
 									<Clock size={17} style="margin-right:4px;vertical-align:-2px;color:#101720;" />
@@ -692,7 +737,18 @@
 								<input
 									type="checkbox"
 									checked={selectedChannel === '__ALL__'}
-									on:change={() => emitChange({ selectedChannel: '__ALL__' })}
+									on:change={() =>
+										emitChange({
+											selectedLevels: levels.map((l) => l.value),
+											sortBy: 'new',
+											selectedCountry: '',
+											selectedTags: [],
+											hideWatched: false,
+											searchTerm: '',
+											searchOpen: false,
+											selectedChannel: '__ALL__'
+										})
+									}
 								/>
 								<span>All Saved Channels</span>
 							</label>
@@ -702,7 +758,18 @@
 										<input
 											type="checkbox"
 											checked={selectedChannel === ch.id}
-											on:change={() => emitChange({ selectedChannel: ch.id })}
+											on:change={() =>
+												emitChange({
+													selectedLevels: levels.map((l) => l.value),
+													sortBy: 'new',
+													selectedCountry: '',
+													selectedTags: [],
+													hideWatched: false,
+													searchTerm: '',
+													searchOpen: false,
+													selectedChannel: ch.id
+												})
+											}
 										/>
 										<span>{ch.name}</span>
 									</label>
