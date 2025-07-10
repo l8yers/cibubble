@@ -751,106 +751,125 @@
 
 <style>
   .chips-container {
-    max-width: 1700px;
-    margin: 0 auto;
-    width: 100%;
-  }
-  .chips-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.38em;
-    margin: 1.1em 0 1.4em 0;
-    padding: 0;
-  }
+  max-width: 1640px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+.chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.38em;
+  margin: 1.1em 0 1.4em 0;
+  padding: 0;
+}
 
-  /* Responsive containers to match sortbar/grid */
+/* Responsive containers to match sortbar/grid */
+.sortbar-container,
+.content-container {
+  max-width: 1700px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* RESET FILTERS LINK */
+.reset-filters-link {
+  color: #d3212c;
+  font-weight: 600;
+  background: none;
+  border: none;
+  font-size: 1em;
+  cursor: pointer;
+  margin-left: 1.2em;
+  padding: 0;
+  box-shadow: none;
+  border-radius: 0;
+  letter-spacing: 0.02em;
+  transition: color 0.14s;
+}
+.reset-filters-link:hover,
+.reset-filters-link:focus {
+  color: #a11a22;
+}
+
+/* Page feedback and controls */
+.center-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 180px;
+  width: 100%;
+}
+.loading-more {
+  font-size: 1.15em;
+  color: #555;
+  margin: 2em 0 0 0;
+  text-align: center;
+}
+.text-muted {
+  color: #888;
+}
+.load-more-btn {
+  padding: 0.9em 2.4em;
+  font-size: 1.17em;
+  background: #fafbff;
+  border: 1.6px solid #d6d6ee;
+  border-radius: 13px;
+  box-shadow: 0 2px 12px #ececec80;
+  font-weight: 700;
+  cursor: pointer;
+  margin: 2em auto 0 auto;
+  transition: background 0.15s;
+  display: block;
+  position: relative;
+}
+.load-more-btn:disabled {
+  opacity: 0.66;
+  cursor: not-allowed;
+}
+
+/* ---- RESPONSIVE BREAKPOINTS ---- */
+@media (max-width: 1200px) {
+  .chips-container,
   .sortbar-container,
   .content-container {
-    max-width: 1700px;
-    margin: 0 auto;
-    width: 100%;
+    max-width: 1100px;
   }
-  @media (max-width: 1200px) {
-    .chips-container,
-    .sortbar-container,
-    .content-container {
-      max-width: 1100px;
-    }
-  }
-  @media (max-width: 900px) {
-    .chips-container,
-    .sortbar-container,
-    .content-container {
-      max-width: 700px;
-    }
-  }
-  @media (max-width: 700px) {
-    .chips-container,
-    .sortbar-container,
-    .content-container {
-      max-width: 100vw;
-      padding-left: 0.15em;
-      padding-right: 0.15em;
-    }
     .chips-row {
-      gap: 0.18em;
-      margin: 0.55em 0 0.55em 0; /* top and bottom margin for filter row */
-    }
+    gap: 0.18em;
+    margin: 2em;
   }
-
+}
+@media (max-width: 900px) {
+  .chips-container,
+  .sortbar-container,
+  .content-container {
+    max-width: 700px;
+  }
+      .chips-row {
+    gap: 0.18em;
+    margin: 2em;
+  }
+}
+@media (max-width: 700px) {
+  .chips-container,
+  .sortbar-container,
+  .content-container {
+    max-width: 100vw;
+    padding-left: 0.15em;
+    padding-right: 0.15em;
+  }
+  .chips-row {
+    gap: 0.18em;
+    margin: 1em;
+  }
   .reset-filters-link {
-    color: #d3212c;
-    font-weight: 700;
-    text-decoration: underline;
-    background: none;
-    border: none;
-    font-size: 1em;
-    cursor: pointer;
-    margin-left: 1.2em;
-    padding: 0;
-    box-shadow: none;
-    border-radius: 0;
-    letter-spacing: 0.02em;
-    transition: color 0.14s;
+    font-size: 0.92em;
+    margin-left: 0.44em;
+    font-weight: 500;
   }
-  .reset-filters-link:hover,
-  .reset-filters-link:focus {
-    color: #a11a22;
-  }
+}
 
-  .center-content {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 180px;
-    width: 100%;
-  }
-  .loading-more {
-    font-size: 1.15em;
-    color: #555;
-    margin: 2em 0 0 0;
-    text-align: center;
-  }
-  .text-muted {
-    color: #888;
-  }
-  .load-more-btn {
-    padding: 0.9em 2.4em;
-    font-size: 1.17em;
-    background: #fafbff;
-    border: 1.6px solid #d6d6ee;
-    border-radius: 13px;
-    box-shadow: 0 2px 12px #ececec80;
-    font-weight: 700;
-    cursor: pointer;
-    margin: 2em auto 0 auto;
-    transition: background 0.15s;
-    display: block;
-    position: relative;
-  }
-  .load-more-btn:disabled {
-    opacity: 0.66;
-    cursor: not-allowed;
-  }
 </style>
