@@ -3,16 +3,19 @@ import { supabase } from '$lib/supabaseClient';
 
 export async function GET({ url }) {
   try {
-    // Log basic environment to catch bad env issues
-    console.log("GET /api/videos starting", {
-      SUPABASE_URL: process.env.VITE_SUPABASE_URL,
-      SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY,
-    });
+    // Log incoming query params and context
+    console.log('---- API CALL /api/videos ----');
+    console.log('Raw search:', url.search);
+    const paramsObj = Object.fromEntries(url.searchParams.entries());
+    console.log('Query params:', paramsObj);
 
     const pageSize = Number(url.searchParams.get('pageSize') ?? 30);
 
     // Filters
-    const levels = url.searchParams.get('levels')?.split(',').filter(Boolean);
+    const levelsParam = url.searchParams.get('levels');
+    const levels = levelsParam && levelsParam.trim().length > 0
+      ? levelsParam.split(',').filter(Boolean)
+      : null;
     const tags = url.searchParams.get('tags')?.split(',').filter(Boolean);
     const country = url.searchParams.get('country');
     const channel = url.searchParams.get('channel');
@@ -20,15 +23,13 @@ export async function GET({ url }) {
     const sort = url.searchParams.get('sort') ?? 'new';
     const search = url.searchParams.get('search') ?? '';
 
-    // If levels is empty, bail
-    if (Array.isArray(levels) && levels.length === 0) {
-      return json({ videos: [], total: 0, hasMore: false });
-    }
+    // Log decoded filter values
+    console.log({ sort, levels, tags, country, channel, playlist, search });
 
     // --- RANDOM: Use random_videos only ---
     if (sort === 'random') {
       const params = {
-        p_levels: levels?.length ? levels : null,
+        p_levels: levels && levels.length ? levels : null,
         // p_tags: tags?.length ? tags : null,
         // p_country: country || null,
         // p_channel_ids: channel ? channel.split(',').filter(Boolean) : null,
@@ -42,6 +43,8 @@ export async function GET({ url }) {
         console.error('Supabase RPC random_videos error:', error);
         return json({ error: error.message }, { status: 500 });
       }
+      // Log sample returned
+      console.log("Random videos returned:", (data || []).slice(0,2));
       return json({
         videos: data ?? [],
         total: data?.length ?? 0,
@@ -55,7 +58,7 @@ export async function GET({ url }) {
       const pageSize = Number(url.searchParams.get('pageSize') ?? 50);
       const offset = (page - 1) * pageSize;
       const params = {
-        p_levels: levels?.length ? levels : null,
+        p_levels: levels && levels.length ? levels : null,
         p_tags: tags?.length ? tags : null,
         p_country: country || null,
         p_channel_ids: channel ? channel.split(',').filter(Boolean) : null,
@@ -73,7 +76,8 @@ export async function GET({ url }) {
         return json({ error: error.message }, { status: 500 });
       }
 
-      // If fewer than pageSize returned, assume we're at the end
+      // Log sample returned
+      console.log("Latest videos returned:", (data || []).slice(0,2));
       return json({
         videos: data ?? [],
         total: data?.length ?? 0,
@@ -87,6 +91,7 @@ export async function GET({ url }) {
       .from('videos')
       .select('*, playlist:playlist_id(title), channel:channel_id(name,country,tags)', { count: 'exact' });
 
+    // PATCH: Only filter by level if levels is non-null and non-empty
     if (levels && levels.length) query = query.in('level', levels);
 
     // --- PATCH: Channel tags filter ---
@@ -158,6 +163,24 @@ export async function GET({ url }) {
     if (error) {
       console.error('Supabase videos table query error:', error);
       return json({ error: error.message }, { status: 500 });
+    }
+
+    // Log sample video data
+    if (data && data.length) {
+      console.log('First 2 videos returned:');
+      console.log(
+        JSON.stringify(
+          data.slice(0, 2).map(v => ({
+            id: v.id,
+            title: v.title,
+            level: v.level,
+            length: v.length,
+            published: v.published
+          })), null, 2
+        )
+      );
+    } else {
+      console.log('No videos returned!');
     }
 
     return json({

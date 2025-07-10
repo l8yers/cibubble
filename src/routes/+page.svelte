@@ -207,6 +207,11 @@
 
     const { videos: fetched, hasMore: more } = resultJson;
 
+    // ==== DEBUG LOG: See what a video looks like after fetching ====
+    if (fetched && fetched.length > 0) {
+      console.log('Fetched video sample:', fetched[0]);
+    }
+
     if (append) {
       videos.update((vs) => [...vs, ...fetched]);
     } else {
@@ -352,6 +357,26 @@
     resetAndFetch();
   }
 
+  function handleResetFilters() {
+    selectedLevels.set(new Set(['easy', 'intermediate', 'advanced']));
+    selectedTags.set(new Set());
+    selectedCountry.set('');
+    selectedChannel.set('');
+    sortBy.set('new');
+    searchTerm.set('');
+    hideWatched.set(false);
+    updateUrlFromFilters({
+      selectedLevels,
+      selectedTags,
+      selectedCountry,
+      selectedChannel,
+      sortBy,
+      searchTerm,
+      get
+    });
+    resetAndFetch();
+  }
+
   let firstLoad = true;
   let lastQuery = '';
   $: currentQuery = $page.url.search;
@@ -377,9 +402,11 @@
       ? $videos
       : ($selectedChannel === '__WATCH_LATER__'
           ? $videos.filter((v) => $watchLaterIds.has(v.id))
-          : $hideWatched
-            ? $videos.filter((v) => !$watchedIds.has(v.id))
-            : $videos
+          : $selectedChannel === '__ALL__'
+            ? $videos
+            : $hideWatched
+              ? $videos.filter((v) => !$watchedIds.has(v.id))
+              : $videos
         )
         .filter(v => {
           // Hide videos with private/deleted/unavailable titles
@@ -394,6 +421,11 @@
           ) return false;
           return true;
         });
+
+  // ==== DEBUG LOG: See what a video looks like after filtering ====
+  $: if (filteredVideos && filteredVideos.length > 0) {
+    console.log('Filtered video sample:', filteredVideos[0]);
+  }
 
   // Saved channels handling
   $: if ($user) {
@@ -460,13 +492,13 @@
 
   // --- FILTER CHIP LOGIC ---
   $: filterChips = [
-    // LEVELS: Only show chips if not all levels are selected
+    // LEVELS: Show if any selected (not all)
     ...(
       $selectedLevels.size && $selectedLevels.size < levels.length
         ? Array.from($selectedLevels).map(lvl => ({
             type: 'level',
             label: utils.difficultyLabel ? utils.difficultyLabel(lvl) : lvl,
-            value: lvl,
+            value: '',
             clearClass: 'clear-btn--green'
           }))
         : []
@@ -477,7 +509,7 @@
         ? Array.from($selectedTags).map(tag => ({
             type: 'tag',
             label: tag,
-            value: tag,
+            value: '',
             clearClass: 'clear-btn--red'
           }))
         : []
@@ -488,8 +520,19 @@
         ? [{
             type: 'country',
             label: countryOptions.find(c => c.value === $selectedCountry)?.label ?? $selectedCountry,
-            value: $selectedCountry,
+            value: '',
             clearClass: 'clear-btn--blue'
+          }]
+        : []
+    ),
+    // SORT (non-default sorts only)
+    ...(
+      $sortBy && $sortBy !== 'new'
+        ? [{
+            type: 'sort',
+            label: sortChoices.find(sc => sc.value === $sortBy)?.label ?? $sortBy,
+            value: '',
+            clearClass: 'clear-btn--purple'
           }]
         : []
     ),
@@ -499,24 +542,38 @@
         ? [{
             type: 'search',
             label: `Search: "${$searchTerm}"`,
-            value: $searchTerm,
+            value: '',
             clearClass: 'clear-btn--gray'
           }]
         : []
     ),
-    // CHANNEL
+    // CHANNELS (explicit for watchlater and all)
     ...(
-      $selectedChannel && $selectedChannel !== '__ALL__' && $selectedChannel !== '__WATCH_LATER__'
+      $selectedChannel === '__WATCH_LATER__'
         ? [{
-            type: 'channel',
-            label: 'Channel',
-            value:
-              $videos.length > 0
-                ? ($videos[0].channel?.name ?? $videos[0].channel_name ?? $selectedChannel)
-                : $selectedChannel,
+            type: 'watchlater',
+            label: 'Watch Later',
+            value: '',
             clearClass: 'clear-btn--blue'
           }]
-        : []
+        : $selectedChannel === '__ALL__'
+          ? [{
+              type: 'channel',
+              label: 'All Saved Channels',
+              value: '',
+              clearClass: 'clear-btn--blue'
+            }]
+          : $selectedChannel && $selectedChannel !== ''
+            ? [{
+                type: 'channel',
+                label:
+                  $videos.length > 0
+                    ? ($videos[0].channel?.name ?? $videos[0].channel_name ?? $selectedChannel)
+                    : $selectedChannel,
+                value: '',
+                clearClass: 'clear-btn--blue'
+              }]
+            : []
     ),
   ];
 
@@ -524,24 +581,27 @@
     switch (chip.type) {
       case 'level': {
         const newLevels = new Set($selectedLevels);
-        newLevels.delete(chip.value);
-        // If empty, reset to all
-        selectedLevels.set(newLevels.size > 0 ? newLevels : new Set(levels));
+        newLevels.delete(chip.value || chip.label?.toLowerCase());
+        selectedLevels.set(newLevels);
         break;
       }
       case 'tag': {
         const newTags = new Set($selectedTags);
-        newTags.delete(chip.value);
+        newTags.delete(chip.label);
         selectedTags.set(newTags);
         break;
       }
       case 'country':
         selectedCountry.set('');
         break;
+      case 'sort':
+        sortBy.set('new');
+        break;
       case 'search':
         searchTerm.set('');
         break;
       case 'channel':
+      case 'watchlater':
         selectedChannel.set('');
         break;
     }
@@ -556,7 +616,6 @@
     });
     resetAndFetch();
   }
-
 </script>
 
 
@@ -582,7 +641,6 @@
     </div>
   {/if}
 
-
   {#if filterChips.length > 0}
     <div class="chips-row">
       {#each filterChips as chip}
@@ -594,6 +652,14 @@
           onClear={() => handleClearChip(chip)}
         />
       {/each}
+<a
+  href="#"
+  class="reset-filters-link"
+  on:click|preventDefault={handleResetFilters}
+>
+  Reset filters
+</a>
+
     </div>
   {/if}
 
@@ -690,8 +756,26 @@
   {/if}
 </div>
 
-
 <style>
+  .reset-filters-link {
+  color: #d3212c;
+  font-weight: 700;
+  text-decoration: underline;
+  background: none;
+  border: none;
+  font-size: 1em;
+  cursor: pointer;
+  margin-left: 1.2em;
+  padding: 0;
+  box-shadow: none;
+  border-radius: 0;
+  letter-spacing: 0.02em;
+  transition: color 0.14s;
+}
+.reset-filters-link:hover,
+.reset-filters-link:focus {
+  color: #a11a22;
+}
   .center-content {
     display: flex;
     justify-content: center;
@@ -767,9 +851,6 @@
     text-align: center;
     min-height: 48px;
   }
-  .center-content > * {
-    margin-bottom: 0.75em;
-  }
   .loading-more {
     font-size: 1.15em;
     color: #555;
@@ -797,7 +878,7 @@
     opacity: 0.66;
     cursor: not-allowed;
   }
-    .chips-row {
+  .chips-row {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5em;

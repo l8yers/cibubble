@@ -860,7 +860,7 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 1em;
-		margin: 2em 2em 2em 2em;
+		margin: 2em 2em 1em 2em;
 		padding: 0.5em 1.2em 0.5em 1.2em;
 		background: #fafbfc;
 		border-radius: var(--cibubble-radius);

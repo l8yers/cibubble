@@ -11,11 +11,13 @@ function toStorable(val) {
     tags: Array.from(val.tags)
   };
 }
+
 function fromStorable(val) {
   // Convert Arrays back to Sets
   return {
     ...val,
-    levels: new Set(val.levels ?? ALL_LEVELS),
+    // PATCH: Use empty Set if none stored (not ALL_LEVELS fallback)
+    levels: new Set(val.levels ?? []),
     tags: new Set(val.tags ?? []),
   };
 }
@@ -40,9 +42,9 @@ function createPersistedStore(key, initialValue) {
   return store;
 }
 
-// Default filters object
+// Default filters object: levels is empty Set to mean "show all"
 export const filterState = createPersistedStore(STORE_KEY, {
-  levels: new Set(ALL_LEVELS),
+  levels: new Set(),
   tags: new Set(),
   country: '',
   channel: '',

@@ -13,13 +13,11 @@ export function filtersToQuery({
 } = {}) {
   const params = new URLSearchParams();
 
-  // Only set 'level' if *not* all levels are selected
-  if (
-    levels &&
-    (levels.size !== ALL_LEVELS.length || !ALL_LEVELS.every(lvl => levels.has(lvl)))
-  ) {
+  // PATCH: Only set 'level' param if at least one is selected (empty means "show all")
+  if (levels && levels.size > 0) {
     params.set('level', Array.from(levels).join(','));
   }
+  // If levels is empty, do not set 'level' param (== show all)
 
   if (tags?.size) {
     params.set('tags', Array.from(tags).join(','));
@@ -42,9 +40,10 @@ export function queryToFilters(qs = '') {
   const params = new URLSearchParams(qs);
 
   let levelParam = params.get('level');
+  // PATCH: If 'level' is missing or empty, set to empty Set (means show all)
   const levels = levelParam && levelParam.trim()
     ? new Set(levelParam.split(',').filter(Boolean))
-    : new Set(ALL_LEVELS);
+    : new Set();
 
   let tagParam = params.get('tags');
   const tags = tagParam && tagParam.trim()
@@ -99,9 +98,8 @@ export function applyFiltersFromQueryString(qs) {
   const safeLevels = new Set(
     Array.from(filters.levels).filter((lvl) => ALL_LEVELS.includes(lvl))
   );
-  selectedLevels.set(
-    safeLevels.size ? safeLevels : new Set(ALL_LEVELS)
-  );
+  // PATCH: Use empty Set if no levels, don't fallback to all
+  selectedLevels.set(safeLevels);
   selectedTags.set(filters.tags.size ? filters.tags : new Set());
   selectedCountry.set(filters.country || '');
   selectedChannel.set(filters.channel || '');

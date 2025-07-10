@@ -18,9 +18,19 @@ export function filterAndSortVideos(videos, {
 
   if (selectedChannel) filtered = filtered.filter(v => v.channel_name === selectedChannel);
   if (selectedPlaylist) filtered = filtered.filter(v => v.playlist?.title === selectedPlaylist);
-  filtered = filtered.filter(
-    v => v.title && v.title !== 'Private video' && v.title !== 'Deleted video' && selectedLevels.has(v.level)
-  );
+
+  // PATCH: If selectedLevels is not empty, filter by levels. If empty, show all.
+  if (selectedLevels && selectedLevels.size > 0) {
+    filtered = filtered.filter(
+      v => v.title && v.title !== 'Private video' && v.title !== 'Deleted video' && selectedLevels.has(v.level)
+    );
+  } else {
+    // Only filter out private/deleted/no-title videos if showing all
+    filtered = filtered.filter(
+      v => v.title && v.title !== 'Private video' && v.title !== 'Deleted video'
+    );
+  }
+
   if (hideWatched) filtered = filtered.filter(v => !watchedIds.has(String(v.id)));
   if (selectedCountry) {
     filtered = filtered.filter(v =>
