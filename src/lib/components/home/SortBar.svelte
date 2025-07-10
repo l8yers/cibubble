@@ -79,7 +79,6 @@
 		if (val === 'random') {
 			emitChange({
 				sortBy: 'random',
-				// keep current selectedLevels
 				selectedCountry: '',
 				selectedTags: [],
 				selectedChannel: '',
@@ -97,7 +96,6 @@
 		else next.add(lvl);
 		emitChange({
 			selectedLevels: Array.from(next)
-			// don't change sortBy, even if random is active
 		});
 	}
 	function handleToggleAllLevels() {
@@ -159,6 +157,8 @@
 		});
 		showMyChannelsDropdown = false;
 	}
+
+	// handleResetFilters is now unused, but left in case you want it for later
 	function handleResetFilters() {
 		emitChange({
 			selectedLevels: levels.map((l) => l.value),
@@ -418,7 +418,6 @@
 				</button>
 				{#if showTagDropdown}
 					<div class="dropdown-content tags-dropdown-content">
-						<!-- ... Tags Content ... -->
 						<div style="margin-bottom:0.7em;">
 							<div class="dropdown-label" style="font-weight:700; font-size:1.01em;">Top Tags</div>
 							{#each topTags as tag}
@@ -800,11 +799,7 @@
 				{/if}
 			</div>
 		{/if}
-		{#if filtersChanged}
-			<button class="reset-filters-btn" type="button" on:click={handleResetFilters}>
-				reset filters
-			</button>
-		{/if}
+		<!-- RESET FILTERS BUTTON REMOVED -->
 	</div>
 	<div class="controls-right">
 		{#if $user && !searchOpen}
@@ -844,6 +839,7 @@
 		</div>
 	</div>
 </div>
+
 
 <style>
 	:root {
