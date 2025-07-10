@@ -53,7 +53,7 @@
       {/if}
     {/if}
   </span>
-  <button class="close-x" aria-label="Clear filter" on:click={onClear}>
+  <button class="close-x {clearClass}" aria-label="Clear filter" on:click={onClear}>
     <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
       <path d="M6 6l8 8M14 6l-8 8" stroke="#60666b" stroke-width="2" stroke-linecap="round"/>
     </svg>
@@ -76,6 +76,7 @@
     transition: background 0.15s, box-shadow 0.13s;
     user-select: none;
     cursor: pointer;
+    min-height: 2em;
   }
   .chip:hover {
     background: linear-gradient(135deg, #e3e7eb 70%, #d2d8df 100%);
@@ -122,10 +123,37 @@
     align-items: center;
     transition: background 0.13s;
   }
-  .close-x:hover {
+  .close-x:hover,
+  .close-x:focus {
     background: #dde2e7;
   }
   .close-x svg {
     display: block;
+  }
+
+  /* ----- MOBILE COMPACT STYLES ----- */
+  @media (max-width: 650px) {
+    .chip {
+      font-size: 0.87em;
+      padding: 0.13em 0.43em 0.13em 0.33em;
+      border-radius: 6px;
+      margin: 0.07em 0.07em 0.07em 0.07em;
+      gap: 0.13em;
+      min-height: 1.6em;
+    }
+    .chip-icon {
+      margin-right: 0.09em;
+      margin-left: -0.08em;
+    }
+    .main {
+      font-size: 0.97em;
+    }
+    .sub {
+      font-size: 0.91em;
+    }
+    .close-x {
+      margin-left: 0.21em;
+      padding: 0.07em 0.09em 0.05em 0.09em;
+    }
   }
 </style>

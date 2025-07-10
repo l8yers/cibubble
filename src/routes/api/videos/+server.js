@@ -165,23 +165,6 @@ export async function GET({ url }) {
       return json({ error: error.message }, { status: 500 });
     }
 
-    // Log sample video data
-    if (data && data.length) {
-      console.log('First 2 videos returned:');
-      console.log(
-        JSON.stringify(
-          data.slice(0, 2).map(v => ({
-            id: v.id,
-            title: v.title,
-            level: v.level,
-            length: v.length,
-            published: v.published
-          })), null, 2
-        )
-      );
-    } else {
-      console.log('No videos returned!');
-    }
 
     return json({
       videos: data ?? [],

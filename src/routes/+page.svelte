@@ -207,7 +207,6 @@
 
     const { videos: fetched, hasMore: more } = resultJson;
 
-    // ==== DEBUG LOG: See what a video looks like after fetching ====
     if (fetched && fetched.length > 0) {
       console.log('Fetched video sample:', fetched[0]);
     }
@@ -492,7 +491,6 @@
 
   // --- FILTER CHIP LOGIC ---
   $: filterChips = [
-    // LEVELS: Show if any selected (not all)
     ...(
       $selectedLevels.size && $selectedLevels.size < levels.length
         ? Array.from($selectedLevels).map(lvl => ({
@@ -503,7 +501,6 @@
           }))
         : []
     ),
-    // TAGS
     ...(
       $selectedTags.size
         ? Array.from($selectedTags).map(tag => ({
@@ -514,7 +511,6 @@
           }))
         : []
     ),
-    // COUNTRY
     ...(
       $selectedCountry
         ? [{
@@ -525,7 +521,6 @@
           }]
         : []
     ),
-    // SORT (non-default sorts only)
     ...(
       $sortBy && $sortBy !== 'new'
         ? [{
@@ -536,7 +531,6 @@
           }]
         : []
     ),
-    // SEARCH
     ...(
       $searchTerm && $searchTerm.trim().length
         ? [{
@@ -547,7 +541,6 @@
           }]
         : []
     ),
-    // CHANNELS (explicit for watchlater and all)
     ...(
       $selectedChannel === '__WATCH_LATER__'
         ? [{
@@ -618,7 +611,6 @@
   }
 </script>
 
-
 <div class="page-container">
   {#if mounted && !$isMobile}
     <div class="sortbar-container">
@@ -642,24 +634,25 @@
   {/if}
 
   {#if filterChips.length > 0}
-    <div class="chips-row">
-      {#each filterChips as chip}
-        <FilterChip
-          type={chip.type}
-          label={chip.label}
-          value={chip.value}
-          clearClass={chip.clearClass}
-          onClear={() => handleClearChip(chip)}
-        />
-      {/each}
-<a
-  href="#"
-  class="reset-filters-link"
-  on:click|preventDefault={handleResetFilters}
->
-  Reset filters
-</a>
-
+    <div class="chips-container">
+      <div class="chips-row">
+        {#each filterChips as chip}
+          <FilterChip
+            type={chip.type}
+            label={chip.label}
+            value={chip.value}
+            clearClass={chip.clearClass}
+            onClear={() => handleClearChip(chip)}
+          />
+        {/each}
+        <a
+          href="#"
+          class="reset-filters-link"
+          on:click|preventDefault={handleResetFilters}
+        >
+          Reset filters
+        </a>
+      </div>
     </div>
   {/if}
 
@@ -757,99 +750,81 @@
 </div>
 
 <style>
+  .chips-container {
+    max-width: 1700px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .chips-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.38em;
+    margin: 1.1em 0 1.4em 0;
+    padding: 0;
+  }
+
+  /* Responsive containers to match sortbar/grid */
+  .sortbar-container,
+  .content-container {
+    max-width: 1700px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  @media (max-width: 1200px) {
+    .chips-container,
+    .sortbar-container,
+    .content-container {
+      max-width: 1100px;
+    }
+  }
+  @media (max-width: 900px) {
+    .chips-container,
+    .sortbar-container,
+    .content-container {
+      max-width: 700px;
+    }
+  }
+  @media (max-width: 700px) {
+    .chips-container,
+    .sortbar-container,
+    .content-container {
+      max-width: 100vw;
+      padding-left: 0.15em;
+      padding-right: 0.15em;
+    }
+    .chips-row {
+      gap: 0.18em;
+      margin: 0.55em 0 0.55em 0; /* top and bottom margin for filter row */
+    }
+  }
+
   .reset-filters-link {
-  color: #d3212c;
-  font-weight: 700;
-  text-decoration: underline;
-  background: none;
-  border: none;
-  font-size: 1em;
-  cursor: pointer;
-  margin-left: 1.2em;
-  padding: 0;
-  box-shadow: none;
-  border-radius: 0;
-  letter-spacing: 0.02em;
-  transition: color 0.14s;
-}
-.reset-filters-link:hover,
-.reset-filters-link:focus {
-  color: #a11a22;
-}
+    color: #d3212c;
+    font-weight: 700;
+    text-decoration: underline;
+    background: none;
+    border: none;
+    font-size: 1em;
+    cursor: pointer;
+    margin-left: 1.2em;
+    padding: 0;
+    box-shadow: none;
+    border-radius: 0;
+    letter-spacing: 0.02em;
+    transition: color 0.14s;
+  }
+  .reset-filters-link:hover,
+  .reset-filters-link:focus {
+    color: #a11a22;
+  }
+
   .center-content {
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 180px;
     width: 100%;
-  }
-  .page-container {
-    width: 100%;
-  }
-  .sortbar-container {
-    max-width: 1700px;
-    margin: 0 auto;
-  }
-  .content-container {
-    max-width: 1700px;
-    margin: 0 auto;
-  }
-  .chips-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.7em;
-    margin: 0 0 1em 0;
-    justify-content: flex-start;
-    padding-left: 9rem;
-    padding-right: 9rem;
-  }
-  @media (max-width: 1200px) {
-    .content-container {
-      max-width: 1100px;
-    }
-    .chips-row {
-      padding-left: 4rem !important;
-      padding-right: 4rem;
-    }
-  }
-  @media (max-width: 900px) {
-    .content-container {
-      max-width: 700px;
-    }
-    .chips-row {
-      padding-left: 2rem;
-      padding-right: 2rem;
-    }
-  }
-  @media (max-width: 700px) {
-    .page-container {
-      padding-left: 0.3em;
-      padding-right: 0.3em;
-    }
-    .sortbar-container {
-      max-width: 100vw;
-      margin: 0;
-    }
-    .content-container {
-      max-width: 100vw;
-      margin-left: 0;
-      margin-right: 0;
-    }
-    .chips-row {
-      padding-left: 0.3rem;
-      padding-right: 0.3rem;
-    }
-  }
-  .center-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    margin: 1em 0 2em 0;
-    width: 100%;
-    text-align: center;
-    min-height: 48px;
   }
   .loading-more {
     font-size: 1.15em;
@@ -877,11 +852,5 @@
   .load-more-btn:disabled {
     opacity: 0.66;
     cursor: not-allowed;
-  }
-  .chips-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5em;
-    margin: 0 0 1em 0;
   }
 </style>

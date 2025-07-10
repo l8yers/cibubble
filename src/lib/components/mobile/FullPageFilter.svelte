@@ -62,20 +62,6 @@
   function handleClose() {
     dispatch('close');
   }
-  function handleReset() {
-    localLevels = levels.map(l => l.value);
-    localTags = [];
-    localCountry = '';
-    localChannel = '';
-    localHideWatched = false;
-    emitApply({
-      selectedLevels: localLevels,
-      selectedTags: [],
-      selectedCountry: '',
-      selectedChannel: '',
-      hideWatched: false
-    });
-  }
   function toggleLevel(level) {
     if (localLevels.includes(level)) localLevels = localLevels.filter(l => l !== level);
     else localLevels = [...localLevels, level];
@@ -146,7 +132,6 @@
           </li>
         </ul>
         <button class="apply-btn" on:click={handleApply}>View videos</button>
-        <button class="reset-btn" on:click={handleReset}>Reset filters</button>
       {:else if page === 'levels'}
         <div class="modal-header">
           <button class="back-btn" on:click={() => page='main'}><ChevronLeft /></button>
@@ -161,7 +146,6 @@
           {/each}
         </div>
         <button class="apply-btn" on:click={handleApply}>View videos</button>
-        <button class="reset-btn" on:click={handleReset}>Reset filters</button>
       {:else if page === 'country'}
         <div class="modal-header">
           <button class="back-btn" on:click={() => page='main'}><ChevronLeft /></button>
@@ -188,7 +172,6 @@
           {/each}
         </div>
         <button class="apply-btn" on:click={handleApply}>View videos</button>
-        <button class="reset-btn" on:click={handleReset}>Reset filters</button>
       {:else if page === 'tags'}
         <div class="modal-header">
           <button class="back-btn" on:click={() => page='main'}><ChevronLeft /></button>
@@ -203,7 +186,6 @@
           {/each}
         </div>
         <button class="apply-btn" on:click={handleApply}>View videos</button>
-        <button class="reset-btn" on:click={handleReset}>Reset filters</button>
       {:else if page === 'channels'}
         <div class="modal-header">
           <button class="back-btn" on:click={() => page='main'}><ChevronLeft /></button>
@@ -269,7 +251,6 @@
           </a>
         </div>
         <button class="apply-btn" on:click={handleApply}>View videos</button>
-        <button class="reset-btn" on:click={handleReset}>Reset filters</button>
       {/if}
     </div>
   </div>
@@ -386,15 +367,6 @@
   margin-bottom: 0.1em;
 }
 .apply-btn:hover { background: #b83d2f; }
-.reset-btn {
-  display: block; width: calc(100% - 2.4em); margin: 0.7em auto 0 auto;
-  background: #f5f7fa; color: var(--cibubble-red); font-weight: 700;
-  border: none; border-radius: 0; padding: 0.86em 0; font-size: 0.98em;
-  box-shadow: 0 2px 14px #f7fafc2b; cursor: pointer;
-  transition: none;
-  letter-spacing: 0.02em;
-}
-.reset-btn:hover { background: #ffe7e2; }
 .options-list {
   padding: 1em 1.1em 0.2em 1.1em;
   background: #fff;
