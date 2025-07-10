@@ -6,22 +6,10 @@
   import { autoplay } from '$lib/stores/autoplay.js';
 
   export let video;
-
-  // ---- YOUR CONTROL FLAG ----
   export let sortBarIsVisibleMobile = false;
 
   let isMobile = false;
-  let showMobileBar = true; // controls the bottom bar
-
-  onMount(() => {
-    const checkMobile = () => {
-      isMobile = window.innerWidth <= 800;
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  });
-
+  let showMobileBar = true;
   let suggestions = [];
   let loading = true;
   let playlistTitle = '';
@@ -41,59 +29,64 @@
     return `/?${params.toString()}`;
   }
 
-  $: if (video) fetchSuggestions();
+  // Responsive detection
+  onMount(() => {
+    const checkMobile = () => {
+      isMobile = window.innerWidth <= 800;
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  });
 
-  async function fetchSuggestions() {
+  $: if (video) fetchSidebarSuggestions();
+
+  async function fetchSidebarSuggestions() {
     loading = true;
     suggestions = [];
     playlistTitle = '';
 
-    if (video.playlist_id) {
-      const { data: playlistVids } = await supabase
-        .from('videos')
-        .select('*, channel:channel_id(name), playlist:playlist_id(title)')
-        .eq('playlist_id', video.playlist_id)
-        .neq('id', video.id)
-        .order('playlist_position', { ascending: true })
-        .limit(30);
-      suggestions = playlistVids || [];
-      if (playlistVids && playlistVids[0]?.playlist?.title) {
-        playlistTitle = playlistVids[0].playlist.title;
+    // 1. Try to find a playlist containing this video
+    const { data: playlists, error } = await supabase
+      .from('playlists')
+      .select('id, title, videos')
+      .contains('videos', [video.id])
+      .limit(1);
+
+    if (playlists && playlists.length > 0) {
+      // Video is part of a playlist!
+      const playlist = playlists[0];
+      playlistTitle = playlist.title;
+
+      // Get all video IDs in order, except the current video
+      const playlistIds = playlist.videos.filter(id => id !== video.id);
+
+      // Fetch their details, keep playlist order
+      if (playlistIds.length > 0) {
+        const { data: vids } = await supabase
+          .from('videos')
+          .select('*, channel:channel_id(name)')
+          .in('id', playlistIds);
+
+        // Reorder as per playlist order
+        suggestions = playlistIds
+          .map(id => vids.find(v => v.id === id))
+          .filter(Boolean);
+      } else {
+        suggestions = [];
       }
     } else {
-      const { data: sameChannel } = await supabase
+      // Not in a playlist: fetch random videos from this channel (not current video)
+      const { data: vids } = await supabase
         .from('videos')
         .select('*, channel:channel_id(name)')
         .eq('channel_id', video.channel_id)
         .neq('id', video.id)
         .limit(30);
-      const { data: otherChannelsRaw } = await supabase
-        .from('videos')
-        .select('*, channel:channel_id(name)')
-        .neq('channel_id', video.channel_id)
-        .neq('id', video.id)
-        .limit(400);
 
-      function shuffle(arr) {
-        return (arr || []).map(v => [Math.random(), v]).sort(([a], [b]) => a - b).map(([, v]) => v);
-      }
-
-      const channelMap = {};
-      for (const v of shuffle(otherChannelsRaw || [])) {
-        if (!channelMap[v.channel_id]) channelMap[v.channel_id] = v;
-      }
-      const otherVids = Object.values(channelMap).slice(0, 23);
-      let channelVids = shuffle(sameChannel || []).slice(0, 7);
-
-      let suggestionsMixed = otherVids.slice();
-      let insertIndexes = shuffle([...Array(Math.min(15, suggestionsMixed.length)).keys()]).slice(0, channelVids.length);
-
-      insertIndexes.forEach((idx, i) => {
-        let pos = Math.min(idx, suggestionsMixed.length);
-        suggestionsMixed.splice(pos, 0, channelVids[i]);
-      });
-
-      suggestions = suggestionsMixed.slice(0, 30);
+      // Shuffle for randomness
+      suggestions = (vids || []).sort(() => Math.random() - 0.5);
+      playlistTitle = '';
     }
     loading = false;
   }
@@ -103,9 +96,9 @@
   <div class="sidebar-root">
     <div class="sidebar-header">
       <span class="sidebar-title">
-        {video.playlist_id
-          ? (playlistTitle ? `Playlist: ${playlistTitle}` : "Playlist")
-          : "Suggested Videos"}
+        {playlistTitle
+          ? `Playlist: ${playlistTitle}`
+          : "More from this channel"}
       </span>
       {#if isMobile}
         <button
@@ -160,7 +153,7 @@
                     <ChartNoAxesColumnIncreasing size={17} stroke-width="2.1" color="#fff" />
                   </span>
                 {/if}
-                {#if !video.playlist_id && v.channel_id && (v.channel?.name || v.channel_name)}
+                {#if !playlistTitle && v.channel_id && (v.channel?.name || v.channel_name)}
                   <span
                     class="meta-link"
                     style="color:#2e9be6;cursor:pointer;"
@@ -196,6 +189,7 @@
     <span class="mobile-more-bar-chevron"><ChevronUp size={22} /></span>
   </div>
 {/if}
+
 
 <style>
 .sidebar-root {

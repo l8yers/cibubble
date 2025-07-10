@@ -1,18 +1,20 @@
 import { createClient } from '@supabase/supabase-js';
 import fetch from 'node-fetch';
 
+// ENV VARS
 const SUPABASE_URL = 'https://iqglferuworovlmbcdwe.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxZ2xmZXJ1d29yb3ZsbWJjZHdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkzMzA2NDcsImV4cCI6MjA2NDkwNjY0N30.K38r9VgYhAWCP-VBPWtOdsOfQjPDGWFuwS8DS5aT3QA';
-const YOUTUBE_API_KEY = 'AIzaSyAzRowhM9LUtWDY5QnaEc70vzgiSFHilus';
+const YOUTUBE_API_KEY = 'AIzaSyCVeNHjLfZpCEKTuqjzAtVLYC-gaeRcHf0';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Helpers
 
+// CORRECTED! No 'id' or 'type=playlist' here.
 async function getAllPlaylists(channelId) {
   let playlists = [];
   let nextPage = '';
   do {
-    const url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet&id&type=playlist&channelId=${channelId}&maxResults=50${nextPage ? `&pageToken=${nextPage}` : ''}&key=${YOUTUBE_API_KEY}`;
+    const url = `https://www.googleapis.com/youtube/v3/playlists?part=snippet&channelId=${channelId}&maxResults=50${nextPage ? `&pageToken=${nextPage}` : ''}&key=${YOUTUBE_API_KEY}`;
     const res = await fetch(url);
     const data = await res.json();
     if (data.items) playlists.push(...data.items);
@@ -38,11 +40,12 @@ async function getAllPlaylistVideoIds(playlistId) {
 }
 
 async function main() {
-  // Grab all channels
+  // Grab all channels where playlists_last_synced is null
   const { data: channels, error } = await supabase
     .from('channels')
     .select('id, name')
     .is('playlists_last_synced', null);
+
   if (error) throw new Error('Failed to fetch channels: ' + error.message);
 
   for (const chan of channels) {
