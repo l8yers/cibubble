@@ -83,7 +83,7 @@
     {:else}
       <a class="nav-link" href="/login">Log In / Sign Up</a>
     {/if}
-  </div> <div></div>
+  </div>
 
   <!-- Mobile right-side drawer menu -->
   {#if menuOpen}
