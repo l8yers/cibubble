@@ -12,7 +12,6 @@
     localValue = searchValue;
   }
 
-  // Focus input and open keyboard on mobile when search is opened
   $: if (openSearch) {
     tick().then(() => {
       if (searchInputRef) searchInputRef.focus();
@@ -27,6 +26,7 @@
   function handleKeydown(e) {
     if (e.key === 'Enter') {
       dispatch('submitSearch', localValue);
+      handleCloseSearch();
     }
   }
 
@@ -39,8 +39,10 @@
   function handleSubmit(e) {
     e.preventDefault();
     dispatch('submitSearch', localValue);
+    handleCloseSearch();
   }
 </script>
+
 
 <nav class="mobile-menu-bar {openSearch ? 'search-open' : ''}">
   {#if !openSearch}
