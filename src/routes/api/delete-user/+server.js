@@ -1,29 +1,37 @@
 import { json } from '@sveltejs/kit';
 import { createClient } from '@supabase/supabase-js';
 
-// You MUST set these secrets in Netlify/Supabase
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// --- API Handler ---
-export async function POST({ locals }) {
-  // Ensure user is authenticated
-  const user = locals.user;
-  if (!user) {
-    return json({ error: 'Not authenticated' }, { status: 401 });
+if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+  throw new Error('SUPABASE_URL and SERVICE_ROLE_KEY must be set in environment variables');
+}
+
+const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+
+export async function POST({ request }) {
+  // Get the JWT access token sent in the Authorization header
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader) {
+    return json({ error: 'Missing token' }, { status: 401 });
   }
 
-  // Create Service Role client (server-side only!)
-  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+  const token = authHeader.replace('Bearer ', '');
 
-  // Optionally: delete user data in your own tables
-  // await admin.from('watch_sessions').delete().eq('user_id', user.id);
+  // Validate and decode the JWT using the Supabase Admin client
+  const { data, error } = await admin.auth.getUser(token);
 
-  // Actually delete the user from Supabase Auth
-  const { error } = await admin.auth.admin.deleteUser(user.id);
+  if (error || !data?.user) {
+    return json({ error: 'Not authorized' }, { status: 401 });
+  }
 
-  if (error) {
-    return json({ error: error.message }, { status: 500 });
+  const userId = data.user.id;
+
+  // Actually delete the user
+  const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
+  if (deleteError) {
+    return json({ error: deleteError.message }, { status: 500 });
   }
 
   return json({ success: true });

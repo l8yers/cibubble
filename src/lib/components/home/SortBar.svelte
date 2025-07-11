@@ -12,6 +12,7 @@
 		Clock
 	} from 'lucide-svelte';
 	import { user } from '$lib/stores/user.js';
+	import { TOP_TAGS, ALL_TAGS } from '$lib/constants/tags.js';
 
 	export let levels = [];
 	export let sortChoices = [];
@@ -189,129 +190,6 @@
 	function toTitleCase(str) {
 		return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1));
 	}
-
-	const topTags = [
-		'history',
-		'for learners',
-		'personal development',
-		"children's science",
-		'current events',
-		'videogames',
-		'health',
-		'news',
-		'lifestyle',
-		'random facts'
-	];
-	const allTags = [
-		'ai voice',
-		'animated stories',
-		'animation',
-		'animals',
-		'art',
-		'argentina',
-		'bags',
-		'baseball',
-		'business',
-		'canary islands',
-		'challenges',
-		"children's history",
-		"children's science",
-		"children's stories",
-		'colombia',
-		'comedy',
-		'comedy jokes test rain',
-		'cooking',
-		'cost of living',
-		'country life',
-		'creepy',
-		'critiques',
-		'current events',
-		'cuba',
-		'culture',
-		'debates',
-		'dubbed show',
-		'education',
-		'el salvador',
-		'equatorial guinea',
-		'facts',
-		'fashion',
-		'finance',
-		'fitness',
-		'food reviews',
-		'for learners',
-		'france',
-		'gardening',
-		'geography',
-		'gravy',
-		'guatemala',
-		'health',
-		'heart',
-		'history',
-		"how it's made",
-		'human mind',
-		'iceland',
-		'interviews',
-		'italy',
-		'jam',
-		'jam toast',
-		'journalist',
-		"kid's show",
-		'kids show',
-		'kpop',
-		'language learning',
-		'latin america',
-		'law',
-		'level',
-		'life',
-		'life in iceland',
-		'life in japan',
-		'life in korea',
-		'lifestyle',
-		'lifestyle in japan',
-		'main',
-		'manufacturing',
-		'mexico',
-		'mindfullness',
-		'montessori',
-		'motivation',
-		'music',
-		'nasa',
-		'nature',
-		'news',
-		'not native speaker',
-		'panama',
-		'paraguay',
-		'peru',
-		'personal development',
-		'philosophy',
-		'playlists',
-		'politics',
-		'pop culture',
-		'positive affirmations',
-		'psychology',
-		'pyschology',
-		'puerto rico',
-		'random facts',
-		're sales',
-		'relationships',
-		'religion',
-		'science',
-		'shorts',
-		'sobriety',
-		'spain',
-		'sports',
-		'storytelling',
-		'street interviews',
-		'tarot',
-		'tech',
-		'test',
-		'travel',
-		'true crime',
-		'uruguay',
-		'various',
-		'videogames',
-		'weather'
-	].sort((a, b) => a.localeCompare(b));
 </script>
 
 <div class="cibubble-bar-container">
@@ -417,7 +295,6 @@
 						{/if}
 					</div>
 				{/if}
-				<!-- Individual Dropdowns or More Dropdown -->
 				{#if !isTablet && !isSmallMobile}
 					<!-- Tags Dropdown -->
 					<div class="dropdown" bind:this={tagDropdownRef}>
@@ -437,7 +314,7 @@
 							<div class="dropdown-content tags-dropdown-content">
 								<div style="margin-bottom:0.7em;">
 									<div class="dropdown-label" style="font-weight:700; font-size:1.01em;">Top Tags</div>
-									{#each topTags as tag}
+									{#each TOP_TAGS as tag}
 										<label class="level-checkbox">
 											<input
 												type="checkbox"
@@ -451,8 +328,8 @@
 								<hr style="margin:0.5em 0 0.5em 0;" />
 								<div>
 									<div class="dropdown-label" style="font-weight:700; font-size:1.01em;">All Tags</div>
-									{#each allTags as tag}
-										{#if !topTags.includes(tag)}
+									{#each ALL_TAGS as tag}
+										{#if !TOP_TAGS.includes(tag)}
 											<label class="level-checkbox">
 												<input
 													type="checkbox"
@@ -665,7 +542,7 @@
 								<div>
 									<div class="dropdown-label" style="font-weight:700; font-size:1.01em;">Tags</div>
 									<div class="levels-list">
-										{#each topTags as tag}
+										{#each TOP_TAGS as tag}
 											<label class="level-checkbox">
 												<input
 													type="checkbox"
@@ -676,8 +553,8 @@
 											</label>
 										{/each}
 										<hr style="margin:0.5em 0 0.5em 0;" />
-										{#each allTags as tag}
-											{#if !topTags.includes(tag)}
+										{#each ALL_TAGS as tag}
+											{#if !TOP_TAGS.includes(tag)}
 												<label class="level-checkbox">
 													<input
 														type="checkbox"
@@ -841,6 +718,7 @@
 		</div>
 	{/if}
 </div>
+
 <style>
 :root {
 	--cibubble-red: #eb1000;

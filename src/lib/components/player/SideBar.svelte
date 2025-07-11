@@ -199,7 +199,7 @@
                 {#if !playlistTitle && v.channel_id && (v.channel?.name || v.channel_name)}
                   <span
                     class="meta-link"
-                    style="color:#2e9be6;cursor:pointer;"
+                    style="color:#101720;cursor:pointer;"
                     title={v.channel?.name ?? v.channel_name}
                     tabindex="0"
                     on:click={() => window.location = makeChannelUrl(v.channel_id)}
@@ -233,8 +233,6 @@
   </div>
 {/if}
 
-
-
 <style>
 .sidebar-root {
   width: 100%;
@@ -246,9 +244,8 @@
   box-sizing: border-box;
   background: #fff;
   padding: 1.1rem 0 1.1rem 0;
-    flex: 1 1 0;
+  flex: 1 1 0;
   min-height: 0;
-
   padding-bottom: calc(1.1rem + env(safe-area-inset-bottom, 0));
 }
 
@@ -422,12 +419,12 @@
   line-clamp: 2;
   flex: 1;
   line-height: 1.16;
-  color: #232323;
+  color: #101720;
   transition: none;
 }
 .sidebar-card-title:hover,
 .sidebar-card-title:focus {
-  color: #232323;
+  color: #101720;
   background: none;
   text-decoration: none;
   outline: none;
@@ -455,15 +452,13 @@
 }
 
 .meta-link {
-  color: #252525;
+  color: #101720;
   font-size: 0.97em;
   text-decoration: none;
-  background: #f6f6f6;
   border-radius: 3px;
   padding: 0.10em 0.48em;
   margin-right: 0.13em;
   font-weight: 500;
-  transition: background 0.13s, color 0.13s;
   display: flex;
   align-items: center;
   flex: 1 1 0;
@@ -474,11 +469,8 @@
   text-overflow: ellipsis;
   cursor: pointer;
 }
-.meta-link:hover, .meta-link:focus {
-  background: #e4e4e4;
-  color: #e93c2f;
-  outline: 1.5px solid #e93c2f;
-}
+/* Removed all hover/focus/outline styling for meta-link */
+
 .mobile-more-bar {
   position: fixed;
   bottom: 0;
