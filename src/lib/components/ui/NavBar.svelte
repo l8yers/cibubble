@@ -1,21 +1,26 @@
 <script>
   import { user, logout } from '$lib/stores/user.js';
   import { onMount } from 'svelte';
+  import { Settings as SettingsIcon } from 'lucide-svelte';
 
   let menuOpen = false;
+  let accountDropdownOpen = false;
 
   function handleMenu(e) {
     e.stopPropagation();
     menuOpen = !menuOpen;
   }
-
   function closeMenu() {
     menuOpen = false;
   }
-
   function handleLogout() {
     logout();
     closeMenu();
+    accountDropdownOpen = false;
+  }
+  function openAccountDropdown(e) {
+    e.stopPropagation();
+    accountDropdownOpen = !accountDropdownOpen;
   }
 
   onMount(() => {
@@ -23,9 +28,17 @@
       if (window.innerWidth > 720) menuOpen = false;
     };
     window.addEventListener('resize', handler);
+
     const closeOnOutside = (e) => {
       if (menuOpen && !e.target.closest('.mobile-drawer') && !e.target.closest('.menu-toggle')) {
         menuOpen = false;
+      }
+      if (
+        accountDropdownOpen &&
+        !e.target.closest('.account-dropdown') &&
+        !e.target.closest('.account-cog')
+      ) {
+        accountDropdownOpen = false;
       }
     };
     document.addEventListener('click', closeOnOutside);
@@ -51,7 +64,15 @@
     <a class="nav-link" href="/">Watch</a>
     {#if $user}
       <a class="nav-link" href="/progress">Progress</a>
-      <button class="logout-btn" on:click={logout} aria-label="Log out">Logout</button>
+      <div class="account-cog" tabindex="0" aria-haspopup="true" aria-expanded={accountDropdownOpen} on:click={openAccountDropdown}>
+        <SettingsIcon size={22} stroke="#101720" />
+        {#if accountDropdownOpen}
+          <div class="account-dropdown" tabindex="-1">
+            <a href="/account" class="nav-link dropdown-link" on:click={() => accountDropdownOpen = false}>Account</a>
+            <button class="nav-link dropdown-link" type="button" on:click={handleLogout}>Logout</button>
+          </div>
+        {/if}
+      </div>
     {:else}
       <a class="nav-link" href="/login">Log In / Sign Up</a>
     {/if}
@@ -67,6 +88,7 @@
         <a class="drawer-item" href="/" on:click={closeMenu}>Watch</a>
         {#if $user}
           <a class="drawer-item" href="/progress" on:click={closeMenu}>Progress</a>
+          <a class="drawer-item" href="/account" on:click={closeMenu}>Account</a>
           <button class="drawer-item" on:click={handleLogout} aria-label="Log out">Logout</button>
         {:else}
           <a class="drawer-item" href="/login" on:click={closeMenu}>Log In / Sign Up</a>
@@ -108,8 +130,51 @@
   transition: background 0.18s, color 0.18s;
   font-family: inherit;
 }
-
 .logout-btn { font-family: inherit; }
+
+.account-cog {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-left: 0.1em;
+  position: relative;
+  height: 2.1em;
+  width: 2.1em;
+}
+.account-dropdown {
+  position: absolute;
+  top: 2.5em;
+  right: 0;
+  min-width: 130px;
+  background: #fff;
+  border: 1px solid #ececec;
+  border-radius: 11px;
+  box-shadow: 0 3px 16px #242b3322;
+  z-index: 1112;
+  padding: 0.55em 0.18em;     /* More padding than before */
+  display: flex;
+  flex-direction: column;
+  gap: 0.07em;
+}
+.dropdown-link {
+  /* Inherit nav-link but make sure width/flex works in dropdown */
+  display: block;
+  text-align: left;
+  width: 100%;
+  margin: 0;
+  font-weight: 500;          /* LESS bold than nav-link */
+}
+.account-dropdown .dropdown-link {
+  padding-left: 1em;
+  padding-right: 1em;
+}
+.account-dropdown .dropdown-link:focus,
+.account-dropdown .dropdown-link:hover {
+  background: #e6f1fb;
+  color: #eb1000;
+  outline: none;
+}
 
 /* Hamburger menu (mobile only) */
 .menu-toggle {
@@ -204,7 +269,7 @@
     padding: 0 !important;
     min-height: unset;
     height: 48px;
-    align-items: center;   /* <-- Center everything vertically */
+    align-items: center;
   }
   .nav-links { display: none; }
   .menu-toggle { display: block; }
@@ -219,7 +284,6 @@
     height: 2.1em !important;
     max-height: 38px !important;
     width: auto !important;
-    /* Optional: vertically center for pixel-perfect look */
     align-self: center;
   }
 }

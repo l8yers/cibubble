@@ -13,7 +13,6 @@
 	import MonthlyCalendar from '$lib/components/progress/MonthlyCalendar.svelte';
 	import ManualEntryList from '$lib/components/progress/ManualEntryList.svelte';
 	import ManualEntryEditForm from '$lib/components/progress/ManualEntryEditForm.svelte';
-	import ProgressSettings from '$lib/components/progress/ProgressSettings.svelte';
 	import { Timer, Award, ExternalLink, Plus, List, History, AlignRight } from 'lucide-svelte';
 	import { writable } from 'svelte/store';
 	import {
