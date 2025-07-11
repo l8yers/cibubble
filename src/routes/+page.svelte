@@ -20,6 +20,7 @@
   import { saveFiltersToStorage, loadFiltersFromStorage } from '$lib/utils/filterStorage.js';
   import { handleClearChip, handleResetFilters } from '$lib/utils/filterHandlers.js';
   import { buildFilterChips } from '$lib/utils/buildFilterChips.js';
+  import { filterVideos } from '$lib/utils/filterVideos.js';
 
   import {
     watchLaterIds,
@@ -365,36 +366,15 @@
     resetAndFetch();
   }
 
-  // ---- FILTERED VIDEOS LOGIC ----
-  $: filteredVideos =
-    $sortBy === 'random'
-      ? $videos
-      : ($selectedChannel === '__WATCH_LATER__'
-          ? $videos.filter((v) => $watchLaterIds.has(v.id))
-          : $selectedChannel === '__ALL__'
-            ? $videos
-            : $hideWatched
-              ? $videos.filter((v) => !$watchedIds.has(v.id))
-              : $videos
-        )
-        .filter(v => {
-          // Hide videos with private/deleted/unavailable titles
-          if (!v.title || typeof v.title !== 'string') return false;
-          const t = v.title.trim().toLowerCase();
-          if (
-            t === '' ||
-            t === 'deleted video' ||
-            t === 'private video' ||
-            t.startsWith('[deleted') ||
-            t.includes('video unavailable')
-          ) return false;
-          return true;
-        });
-
-  // ==== DEBUG LOG: See what a video looks like after filtering ====
-  $: if (filteredVideos && filteredVideos.length > 0) {
-    console.log('Filtered video sample:', filteredVideos[0]);
-  }
+  // ---- FILTERED VIDEOS LOGIC (now using utility) ----
+  $: filteredVideos = filterVideos({
+    videos: $videos,
+    sortBy: $sortBy,
+    selectedChannel: $selectedChannel,
+    hideWatched: $hideWatched,
+    watchLaterIds: $watchLaterIds,
+    watchedIds: $watchedIds
+  });
 
   // Saved channels handling
   $: if ($user) {
@@ -505,230 +485,228 @@
   }
 </script>
 
-
-
 <div class="page-container">
-  {#if mounted && !$isMobile}
-    <div class="sortbar-container">
-      <SortBar
-        {levels}
-        {sortChoices}
-        {countryOptions}
-        {tagOptions}
-        selectedLevels={Array.from($selectedLevels)}
-        sortBy={$sortBy}
-        selectedCountry={$selectedCountry}
-        selectedTags={Array.from($selectedTags)}
-        hideWatched={$hideWatched}
-        searchTerm={$searchTerm}
-        {searchOpen}
-        myChannels={$userChannels}
-        selectedChannel={$selectedChannel}
-        on:change={handleSortBarChange}
-      />
-    </div>
-  {/if}
+	{#if mounted && !$isMobile}
+		<div class="sortbar-container">
+			<SortBar
+				{levels}
+				{sortChoices}
+				{countryOptions}
+				{tagOptions}
+				selectedLevels={Array.from($selectedLevels)}
+				sortBy={$sortBy}
+				selectedCountry={$selectedCountry}
+				selectedTags={Array.from($selectedTags)}
+				hideWatched={$hideWatched}
+				searchTerm={$searchTerm}
+				{searchOpen}
+				myChannels={$userChannels}
+				selectedChannel={$selectedChannel}
+				on:change={handleSortBarChange}
+			/>
+		</div>
+	{/if}
 
-  {#if filterChips.length > 0}
-    <div class="chips-container">
-      <FilterChipsRow
-        {filterChips}
-        showReset={true}
-        onClearChip={clearChipHandler}
-        onReset={resetFiltersHandler}
-      />
-    </div>
-  {/if}
+	{#if filterChips.length > 0}
+		<div class="chips-container">
+			<FilterChipsRow
+				{filterChips}
+				showReset={true}
+				onClearChip={clearChipHandler}
+				onReset={resetFiltersHandler}
+			/>
+		</div>
+	{/if}
 
-  <div class="content-container">
-    {#if $videos.length > 0}
-      <VideoGrid
-        videos={filteredVideos}
-        getBestThumbnail={utils.getBestThumbnail}
-        difficultyColor={utils.difficultyColor}
-        difficultyLabel={utils.difficultyLabel}
-        formatLength={utils.formatLength}
-        {filterByChannel}
-        query={$page.url.search}
-        {isChannelSaved}
-        {isWatchLater}
-        onAddToChannels={handleAddToChannels}
-        onRemoveFromChannels={handleRemoveFromChannels}
-        onAddToWatchLater={handleAddToWatchLater}
-        onRemoveFromWatchLater={handleRemoveFromWatchLater}
-      />
-      {#if $sortBy === 'random'}
-        <button
-          class="load-more-btn"
-          on:click={loadMore}
-          disabled={$loading}
-          style="margin: 2em auto; display: block; position: relative;"
-        >
-          {#if $isLoadingMore && $loading}
-            <div class="bubble-spinner-bottom">
-              <BubbleSpinner />
-            </div>
-            <span style="opacity:0.3;pointer-events:none;">Load More</span>
-          {:else}
-            Load More
-          {/if}
-        </button>
-      {:else if $hasMore}
-        <div bind:this={sentinel} style="height: 2em;"></div>
-      {/if}
-    {/if}
-  </div>
+	<div class="content-container">
+		{#if $videos.length > 0}
+			<VideoGrid
+				videos={filteredVideos}
+				getBestThumbnail={utils.getBestThumbnail}
+				difficultyColor={utils.difficultyColor}
+				difficultyLabel={utils.difficultyLabel}
+				formatLength={utils.formatLength}
+				{filterByChannel}
+				query={$page.url.search}
+				{isChannelSaved}
+				{isWatchLater}
+				onAddToChannels={handleAddToChannels}
+				onRemoveFromChannels={handleRemoveFromChannels}
+				onAddToWatchLater={handleAddToWatchLater}
+				onRemoveFromWatchLater={handleRemoveFromWatchLater}
+			/>
+			{#if $sortBy === 'random'}
+				<button
+					class="load-more-btn"
+					on:click={loadMore}
+					disabled={$loading}
+					style="margin: 2em auto; display: block; position: relative;"
+				>
+					{#if $isLoadingMore && $loading}
+						<div class="bubble-spinner-bottom">
+							<BubbleSpinner />
+						</div>
+						<span style="opacity:0.3;pointer-events:none;">Load More</span>
+					{:else}
+						Load More
+					{/if}
+				</button>
+			{:else if $hasMore}
+				<div bind:this={sentinel} style="height: 2em;"></div>
+			{/if}
+		{/if}
+	</div>
 
-  <div class="center-content">
-    {#if $loading && !$isLoadingMore}
-      <div class="bubble-spinner-overlay" style="top: 90px !important;">
-        <BubbleSpinner />
-      </div>
-    {:else if $errorMsg}
-      <ErrorMessage message={$errorMsg} />
-    {:else if $loadedOnce && filteredVideos.length === 0}
-      <div class="loading-more text-muted">No videos match your filters.</div>
-    {/if}
-  </div>
+	<div class="center-content">
+		{#if $loading && !$isLoadingMore}
+			<div class="bubble-spinner-overlay" style="top: 90px !important;">
+				<BubbleSpinner />
+			</div>
+		{:else if $errorMsg}
+			<ErrorMessage message={$errorMsg} />
+		{:else if $loadedOnce && filteredVideos.length === 0}
+			<div class="loading-more text-muted">No videos match your filters.</div>
+		{/if}
+	</div>
 
-  {#if $isLoadingMore && $loading && $hasMore && $sortBy !== 'random'}
-    <div class="bubble-spinner-bottom">
-      <BubbleSpinner />
-    </div>
-  {/if}
+	{#if $isLoadingMore && $loading && $hasMore && $sortBy !== 'random'}
+		<div class="bubble-spinner-bottom">
+			<BubbleSpinner />
+		</div>
+	{/if}
 
-  {#if mounted && $isMobile}
-    <MobileMenuBar
-      openSearch={showMobileSearch}
-      searchValue={$searchTerm}
-      on:showSearch={() => (showMobileSearch = true)}
-      on:closeSearch={() => (showMobileSearch = false)}
-      on:searchInput={(e) => handleMobileSearchInput(e.detail)}
-      on:submitSearch={(e) => handleMobileSearchSubmit(e.detail)}
-      on:sort={() => (showSortDropdown = true)}
-      on:filter={() => (showFullPageFilter = true)}
-    />
-    <SortDropdown
-      open={showSortDropdown}
-      {sortChoices}
-      selectedSort={$sortBy}
-      onSelect={handleMobileSortSelect}
-      onClose={() => (showSortDropdown = false)}
-    />
-    <FullPageFilter
-      open={showFullPageFilter}
-      {levels}
-      selectedLevels={Array.from($selectedLevels)}
-      {countryOptions}
-      selectedCountry={$selectedCountry}
-      {tagOptions}
-      selectedTags={Array.from($selectedTags)}
-      myChannels={$userChannels}
-      selectedChannel={$selectedChannel}
-      hideWatched={$hideWatched}
-      currentSort={$sortBy}
-      on:apply={handleMobileFilterApply}
-      on:close={() => (showFullPageFilter = false)}
-    />
-  {/if}
+	{#if mounted && $isMobile}
+		<MobileMenuBar
+			openSearch={showMobileSearch}
+			searchValue={$searchTerm}
+			on:showSearch={() => (showMobileSearch = true)}
+			on:closeSearch={() => (showMobileSearch = false)}
+			on:searchInput={(e) => handleMobileSearchInput(e.detail)}
+			on:submitSearch={(e) => handleMobileSearchSubmit(e.detail)}
+			on:sort={() => (showSortDropdown = true)}
+			on:filter={() => (showFullPageFilter = true)}
+		/>
+		<SortDropdown
+			open={showSortDropdown}
+			{sortChoices}
+			selectedSort={$sortBy}
+			onSelect={handleMobileSortSelect}
+			onClose={() => (showSortDropdown = false)}
+		/>
+		<FullPageFilter
+			open={showFullPageFilter}
+			{levels}
+			selectedLevels={Array.from($selectedLevels)}
+			{countryOptions}
+			selectedCountry={$selectedCountry}
+			{tagOptions}
+			selectedTags={Array.from($selectedTags)}
+			myChannels={$userChannels}
+			selectedChannel={$selectedChannel}
+			hideWatched={$hideWatched}
+			currentSort={$sortBy}
+			on:apply={handleMobileFilterApply}
+			on:close={() => (showFullPageFilter = false)}
+		/>
+	{/if}
 </div>
 
 <style>
-  .chips-container {
-    max-width: 1640px;
-    margin: 0 auto;
-    width: 100%;
-    box-sizing: border-box;
-  }
+	.chips-container {
+		max-width: 1640px;
+		margin: 0 auto;
+		width: 100%;
+		box-sizing: border-box;
+	}
 
-  .sortbar-container,
-  .content-container {
-    max-width: 1700px;
-    margin: 0 auto;
-    width: 100%;
-    box-sizing: border-box;
-  }
+	.sortbar-container,
+	.content-container {
+		max-width: 1700px;
+		margin: 0 auto;
+		width: 100%;
+		box-sizing: border-box;
+	}
 
-  .reset-filters-link {
-    color: #d3212c;
-    font-weight: 600;
-    background: none;
-    border: none;
-    font-size: 1em;
-    cursor: pointer;
-    margin-left: 1.2em;
-    padding: 0;
-    box-shadow: none;
-    border-radius: 0;
-    letter-spacing: 0.02em;
-    transition: color 0.14s;
-  }
-  .reset-filters-link:hover,
-  .reset-filters-link:focus {
-    color: #a11a22;
-  }
+	.reset-filters-link {
+		color: #d3212c;
+		font-weight: 600;
+		background: none;
+		border: none;
+		font-size: 1em;
+		cursor: pointer;
+		margin-left: 1.2em;
+		padding: 0;
+		box-shadow: none;
+		border-radius: 0;
+		letter-spacing: 0.02em;
+		transition: color 0.14s;
+	}
+	.reset-filters-link:hover,
+	.reset-filters-link:focus {
+		color: #a11a22;
+	}
 
-  .center-content {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 180px;
-    width: 100%;
-  }
-  .loading-more {
-    font-size: 1.15em;
-    color: #555;
-    margin: 2em 0 0 0;
-    text-align: center;
-  }
-  .text-muted {
-    color: #888;
-  }
-  .load-more-btn {
-    padding: 0.9em 2.4em;
-    font-size: 1.17em;
-    background: #fafbff;
-    border: 1.6px solid #d6d6ee;
-    border-radius: 13px;
-    box-shadow: 0 2px 12px #ececec80;
-    font-weight: 700;
-    cursor: pointer;
-    margin: 2em auto 0 auto;
-    transition: background 0.15s;
-    display: block;
-    position: relative;
-  }
-  .load-more-btn:disabled {
-    opacity: 0.66;
-    cursor: not-allowed;
-  }
+	.center-content {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		min-height: 180px;
+		width: 100%;
+	}
+	.loading-more {
+		font-size: 1.15em;
+		color: #555;
+		margin: 2em 0 0 0;
+		text-align: center;
+	}
+	.text-muted {
+		color: #888;
+	}
+	.load-more-btn {
+		padding: 0.9em 2.4em;
+		font-size: 1.17em;
+		background: #fafbff;
+		border: 1.6px solid #d6d6ee;
+		border-radius: 13px;
+		box-shadow: 0 2px 12px #ececec80;
+		font-weight: 700;
+		cursor: pointer;
+		margin: 2em auto 0 auto;
+		transition: background 0.15s;
+		display: block;
+		position: relative;
+	}
+	.load-more-btn:disabled {
+		opacity: 0.66;
+		cursor: not-allowed;
+	}
 
-  @media (max-width: 1200px) {
-    .chips-container,
-    .sortbar-container,
-    .content-container {
-      max-width: 1100px;
-    }
-  }
-  @media (max-width: 900px) {
-    .chips-container,
-    .sortbar-container,
-    .content-container {
-      max-width: 700px;
-    }
-  }
-  @media (max-width: 700px) {
-    .chips-container,
-    .sortbar-container,
-    .content-container {
-      max-width: 100vw;
-      padding-left: 0.15em;
-      padding-right: 0.15em;
-    }
-    .reset-filters-link {
-      font-size: 0.92em;
-      margin-left: 0.44em;
-      font-weight: 500;
-    }
-  }
+	@media (max-width: 1200px) {
+		.chips-container,
+		.sortbar-container,
+		.content-container {
+			max-width: 1100px;
+		}
+	}
+	@media (max-width: 900px) {
+		.chips-container,
+		.sortbar-container,
+		.content-container {
+			max-width: 700px;
+		}
+	}
+	@media (max-width: 700px) {
+		.chips-container,
+		.sortbar-container,
+		.content-container {
+			max-width: 100vw;
+			padding-left: 0.15em;
+			padding-right: 0.15em;
+		}
+		.reset-filters-link {
+			font-size: 0.92em;
+			margin-left: 0.44em;
+			font-weight: 500;
+		}
+	}
 </style>
