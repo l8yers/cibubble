@@ -4,6 +4,8 @@
   import * as utils from '$lib/utils/utils.js';
   import { ChartNoAxesColumnIncreasing, ChevronUp, ChevronDown } from 'lucide-svelte';
   import { autoplay } from '$lib/stores/autoplay.js';
+  import { user } from '$lib/stores/user.js';
+  import { hideWatchedSidebar } from '$lib/stores/hideWatchedSidebar.js';
 
   export let video;
   export let sortBarIsVisibleMobile = false;
@@ -13,6 +15,8 @@
   let suggestions = [];
   let loading = true;
   let playlistTitle = '';
+
+  let watchedIds = new Set();
 
   function badgeColor(level) {
     switch ((level || '').toLowerCase()) {
@@ -29,7 +33,6 @@
     return `/?${params.toString()}`;
   }
 
-  // Responsive detection
   onMount(() => {
     const checkMobile = () => {
       isMobile = window.innerWidth <= 800;
@@ -39,44 +42,58 @@
     return () => window.removeEventListener('resize', checkMobile);
   });
 
-  $: if (video) fetchSidebarSuggestions();
+  // SUGGESTIONS + WATCHED LOGIC
+
+  $: fetchSidebarSuggestions();
 
   async function fetchSidebarSuggestions() {
+    if (!video) {
+      suggestions = [];
+      playlistTitle = '';
+      return;
+    }
     loading = true;
     suggestions = [];
     playlistTitle = '';
+    watchedIds = new Set();
 
-    // 1. Try to find a playlist containing this video
-    const { data: playlists, error } = await supabase
+    // Find playlist for current video
+    const { data: playlists } = await supabase
       .from('playlists')
       .select('id, title, videos')
       .contains('videos', [video.id])
       .limit(1);
 
+    let vidsToShow = [];
+
     if (playlists && playlists.length > 0) {
-      // Video is part of a playlist!
+      // Playlist case
       const playlist = playlists[0];
       playlistTitle = playlist.title;
-
-      // Get all video IDs in order, except the current video
       const playlistIds = playlist.videos.filter(id => id !== video.id);
 
-      // Fetch their details, keep playlist order
       if (playlistIds.length > 0) {
+        // Fetch those videos in order
         const { data: vids } = await supabase
           .from('videos')
           .select('*, channel:channel_id(name)')
           .in('id', playlistIds);
 
-        // Reorder as per playlist order
-        suggestions = playlistIds
-          .map(id => vids.find(v => v.id === id))
-          .filter(Boolean);
-      } else {
-        suggestions = [];
+        vidsToShow = playlistIds.map(id => vids.find(v => v.id === id)).filter(Boolean);
+
+        // Fetch watched IDs for this user *in this playlist*
+        if ($user) {
+          const { data: watched } = await supabase
+            .from('watched_sessions')
+            .select('video_id')
+            .eq('user_id', $user.id)
+            .in('video_id', playlistIds);
+
+          watchedIds = new Set((watched || []).map(row => row.video_id));
+        }
       }
     } else {
-      // Not in a playlist: fetch random videos from this channel (not current video)
+      // Not in a playlist: fetch videos from this channel (not current video)
       const { data: vids } = await supabase
         .from('videos')
         .select('*, channel:channel_id(name)')
@@ -84,10 +101,28 @@
         .neq('id', video.id)
         .limit(30);
 
-      // Shuffle for randomness
-      suggestions = (vids || []).sort(() => Math.random() - 0.5);
+      vidsToShow = (vids || []).sort(() => Math.random() - 0.5);
       playlistTitle = '';
+
+      // Fetch watched IDs for this user *in this channel*
+      if ($user && vidsToShow.length > 0) {
+        const candidateIds = vidsToShow.map(v => v.id);
+        const { data: watched } = await supabase
+          .from('watched_sessions')
+          .select('video_id')
+          .eq('user_id', $user.id)
+          .in('video_id', candidateIds);
+
+        watchedIds = new Set((watched || []).map(row => row.video_id));
+      }
     }
+
+    // --- Hide watched videos if toggle is ON (use the store value) ---
+    if ($hideWatchedSidebar && watchedIds.size) {
+      vidsToShow = vidsToShow.filter(v => !watchedIds.has(v.id));
+    }
+
+    suggestions = vidsToShow;
     loading = false;
   }
 </script>
@@ -116,6 +151,14 @@
         <label class="toggle">
           <input type="checkbox" bind:checked={$autoplay} />
           <span class="toggle-label">Autoplay</span>
+        </label>
+        <label class="toggle">
+          <input
+            type="checkbox"
+            checked={$hideWatchedSidebar}
+            on:change={e => hideWatchedSidebar.set(e.target.checked)}
+          />
+          <span class="toggle-label">Hide Watched</span>
         </label>
       </div>
     </div>
@@ -189,6 +232,7 @@
     <span class="mobile-more-bar-chevron"><ChevronUp size={22} /></span>
   </div>
 {/if}
+
 
 
 <style>
