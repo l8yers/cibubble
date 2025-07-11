@@ -107,3 +107,4 @@ export function applyFiltersFromQueryString(qs) {
   sortBy.set(filters.sort || 'new');
   searchTerm.set(filters.search || '');
 }
+

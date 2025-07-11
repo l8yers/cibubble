@@ -6,6 +6,7 @@
   import VideoGrid from '$lib/components/home/VideoGrid.svelte';
   import SortBar from '$lib/components/home/SortBar.svelte';
   import FilterChip from '$lib/components/home/FilterChip.svelte';
+  import FilterChipsRow from '$lib/components/home/FilterChipsRow.svelte';
   import BubbleSpinner from '$lib/components/ui/BubbleSpinner.svelte';
   import ErrorMessage from '$lib/components/home/ErrorMessage.svelte';
 
@@ -50,6 +51,8 @@
   import { isMobile } from '$lib/stores/screen.js';
 
   import { supabase } from '$lib/supabaseClient';
+
+  import { handleClearChip, handleResetFilters } from '$lib/utils/filterHandlers.js';
 
   // Loading state
   const loadedOnce = writable(false);
@@ -356,26 +359,6 @@
     resetAndFetch();
   }
 
-  function handleResetFilters() {
-    selectedLevels.set(new Set(['easy', 'intermediate', 'advanced']));
-    selectedTags.set(new Set());
-    selectedCountry.set('');
-    selectedChannel.set('');
-    sortBy.set('new');
-    searchTerm.set('');
-    hideWatched.set(false);
-    updateUrlFromFilters({
-      selectedLevels,
-      selectedTags,
-      selectedCountry,
-      selectedChannel,
-      sortBy,
-      searchTerm,
-      get
-    });
-    resetAndFetch();
-  }
-
   let firstLoad = true;
   let lastQuery = '';
   $: currentQuery = $page.url.search;
@@ -570,44 +553,34 @@
     ),
   ];
 
-  function handleClearChip(chip) {
-    switch (chip.type) {
-      case 'level': {
-        const newLevels = new Set($selectedLevels);
-        newLevels.delete(chip.value || chip.label?.toLowerCase());
-        selectedLevels.set(newLevels);
-        break;
-      }
-      case 'tag': {
-        const newTags = new Set($selectedTags);
-        newTags.delete(chip.label);
-        selectedTags.set(newTags);
-        break;
-      }
-      case 'country':
-        selectedCountry.set('');
-        break;
-      case 'sort':
-        sortBy.set('new');
-        break;
-      case 'search':
-        searchTerm.set('');
-        break;
-      case 'channel':
-      case 'watchlater':
-        selectedChannel.set('');
-        break;
-    }
-    updateUrlFromFilters({
+  // Pass in closures so you can use Svelte's get() and current page-scoped fns
+  function clearChipHandler(chip) {
+    handleClearChip({
+      chip,
       selectedLevels,
       selectedTags,
       selectedCountry,
       selectedChannel,
       sortBy,
       searchTerm,
+      updateUrlFromFilters,
+      resetAndFetch,
       get
     });
-    resetAndFetch();
+  }
+  function resetFiltersHandler() {
+    handleResetFilters({
+      selectedLevels,
+      selectedTags,
+      selectedCountry,
+      selectedChannel,
+      sortBy,
+      searchTerm,
+      hideWatched,
+      updateUrlFromFilters,
+      resetAndFetch,
+      get
+    });
   }
 </script>
 
@@ -635,24 +608,12 @@
 
   {#if filterChips.length > 0}
     <div class="chips-container">
-      <div class="chips-row">
-        {#each filterChips as chip}
-          <FilterChip
-            type={chip.type}
-            label={chip.label}
-            value={chip.value}
-            clearClass={chip.clearClass}
-            onClear={() => handleClearChip(chip)}
-          />
-        {/each}
-        <a
-          href="#"
-          class="reset-filters-link"
-          on:click|preventDefault={handleResetFilters}
-        >
-          Reset filters
-        </a>
-      </div>
+      <FilterChipsRow
+        {filterChips}
+        showReset={true}
+        onClearChip={clearChipHandler}
+        onReset={resetFiltersHandler}
+      />
     </div>
   {/if}
 
@@ -751,125 +712,100 @@
 
 <style>
   .chips-container {
-  max-width: 1640px;
-  margin: 0 auto;
-  width: 100%;
-  box-sizing: border-box;
-}
-.chips-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.38em;
-  margin: 1.1em 0 1.4em 0;
-  padding: 0;
-}
+    max-width: 1640px;
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+  }
 
-/* Responsive containers to match sortbar/grid */
-.sortbar-container,
-.content-container {
-  max-width: 1700px;
-  margin: 0 auto;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-/* RESET FILTERS LINK */
-.reset-filters-link {
-  color: #d3212c;
-  font-weight: 600;
-  background: none;
-  border: none;
-  font-size: 1em;
-  cursor: pointer;
-  margin-left: 1.2em;
-  padding: 0;
-  box-shadow: none;
-  border-radius: 0;
-  letter-spacing: 0.02em;
-  transition: color 0.14s;
-}
-.reset-filters-link:hover,
-.reset-filters-link:focus {
-  color: #a11a22;
-}
-
-/* Page feedback and controls */
-.center-content {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 180px;
-  width: 100%;
-}
-.loading-more {
-  font-size: 1.15em;
-  color: #555;
-  margin: 2em 0 0 0;
-  text-align: center;
-}
-.text-muted {
-  color: #888;
-}
-.load-more-btn {
-  padding: 0.9em 2.4em;
-  font-size: 1.17em;
-  background: #fafbff;
-  border: 1.6px solid #d6d6ee;
-  border-radius: 13px;
-  box-shadow: 0 2px 12px #ececec80;
-  font-weight: 700;
-  cursor: pointer;
-  margin: 2em auto 0 auto;
-  transition: background 0.15s;
-  display: block;
-  position: relative;
-}
-.load-more-btn:disabled {
-  opacity: 0.66;
-  cursor: not-allowed;
-}
-
-/* ---- RESPONSIVE BREAKPOINTS ---- */
-@media (max-width: 1200px) {
-  .chips-container,
   .sortbar-container,
   .content-container {
-    max-width: 1100px;
+    max-width: 1700px;
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
   }
-    .chips-row {
-    gap: 0.18em;
-    margin: 2em;
-  }
-}
-@media (max-width: 900px) {
-  .chips-container,
-  .sortbar-container,
-  .content-container {
-    max-width: 700px;
-  }
-      .chips-row {
-    gap: 0.18em;
-    margin: 2em;
-  }
-}
-@media (max-width: 700px) {
-  .chips-container,
-  .sortbar-container,
-  .content-container {
-    max-width: 100vw;
-    padding-left: 0.15em;
-    padding-right: 0.15em;
-  }
-  .chips-row {
-    gap: 0.18em;
-    margin: 1em;
-  }
+
   .reset-filters-link {
-    font-size: 0.92em;
-    margin-left: 0.44em;
-    font-weight: 500;
+    color: #d3212c;
+    font-weight: 600;
+    background: none;
+    border: none;
+    font-size: 1em;
+    cursor: pointer;
+    margin-left: 1.2em;
+    padding: 0;
+    box-shadow: none;
+    border-radius: 0;
+    letter-spacing: 0.02em;
+    transition: color 0.14s;
   }
-}
+  .reset-filters-link:hover,
+  .reset-filters-link:focus {
+    color: #a11a22;
+  }
 
+  .center-content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 180px;
+    width: 100%;
+  }
+  .loading-more {
+    font-size: 1.15em;
+    color: #555;
+    margin: 2em 0 0 0;
+    text-align: center;
+  }
+  .text-muted {
+    color: #888;
+  }
+  .load-more-btn {
+    padding: 0.9em 2.4em;
+    font-size: 1.17em;
+    background: #fafbff;
+    border: 1.6px solid #d6d6ee;
+    border-radius: 13px;
+    box-shadow: 0 2px 12px #ececec80;
+    font-weight: 700;
+    cursor: pointer;
+    margin: 2em auto 0 auto;
+    transition: background 0.15s;
+    display: block;
+    position: relative;
+  }
+  .load-more-btn:disabled {
+    opacity: 0.66;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 1200px) {
+    .chips-container,
+    .sortbar-container,
+    .content-container {
+      max-width: 1100px;
+    }
+  }
+  @media (max-width: 900px) {
+    .chips-container,
+    .sortbar-container,
+    .content-container {
+      max-width: 700px;
+    }
+  }
+  @media (max-width: 700px) {
+    .chips-container,
+    .sortbar-container,
+    .content-container {
+      max-width: 100vw;
+      padding-left: 0.15em;
+      padding-right: 0.15em;
+    }
+    .reset-filters-link {
+      font-size: 0.92em;
+      margin-left: 0.44em;
+      font-weight: 500;
+    }
+  }
 </style>
