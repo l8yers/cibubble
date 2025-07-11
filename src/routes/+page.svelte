@@ -17,6 +17,9 @@
   import * as utils from '$lib/utils/utils.js';
   import { filtersToQuery, queryToFilters } from '$lib/utils/filters.js';
   import { updateUrlFromFilters } from '$lib/utils/url.js';
+  import { saveFiltersToStorage, loadFiltersFromStorage } from '$lib/utils/filterStorage.js';
+  import { handleClearChip, handleResetFilters } from '$lib/utils/filterHandlers.js';
+
   import {
     watchLaterIds,
     addToWatchLater,
@@ -51,8 +54,6 @@
   import { isMobile } from '$lib/stores/screen.js';
 
   import { supabase } from '$lib/supabaseClient';
-
-  import { handleClearChip, handleResetFilters } from '$lib/utils/filterHandlers.js';
 
   // Loading state
   const loadedOnce = writable(false);
@@ -113,21 +114,6 @@
   const sortChoices = SORT_CHOICES;
   let countryOptions = COUNTRY_OPTIONS;
   let tagOptions = TAG_OPTIONS;
-
-  function saveFiltersToStorage(filters) {
-    try {
-      localStorage.setItem('cibubble-filters', JSON.stringify(filters));
-    } catch (_) {}
-  }
-
-  function loadFiltersFromStorage() {
-    try {
-      const data = localStorage.getItem('cibubble-filters');
-      return data ? JSON.parse(data) : null;
-    } catch {
-      return null;
-    }
-  }
 
   function setupObserver() {
     if (observerInstance) {
@@ -583,6 +569,7 @@
     });
   }
 </script>
+
 
 <div class="page-container">
   {#if mounted && !$isMobile}
