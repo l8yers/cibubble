@@ -8,6 +8,12 @@
   let newPassword = '';
   let message = '';
 
+  // Delete account modal state
+  let showDeleteModal = false;
+  let deleteConfirmInput = '';
+  let deleteError = '';
+  let deleting = false;
+
   $: email = $user?.email ?? '';
 
   async function updateEmail() {
@@ -43,6 +49,44 @@
   function back() {
     goto('/');
   }
+
+  async function handleDeleteAccount() {
+    deleteError = '';
+    deleting = true;
+    // Optionally: remove all user-related data from DB here
+
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      deleteError = "Error signing out: " + error.message;
+      deleting = false;
+      return;
+    }
+    // Actually delete the user from Supabase Auth
+    const res = await fetch('/api/delete-user', { method: 'POST', credentials: 'include' });
+    if (!res.ok) {
+      deleteError = 'Error deleting account. Please try again later.';
+      deleting = false;
+      return;
+    }
+    // Done
+    deleting = false;
+    goto('/');
+  }
+
+  function openDeleteModal() {
+    showDeleteModal = true;
+    deleteConfirmInput = '';
+    deleteError = '';
+  }
+
+  function closeDeleteModal() {
+    showDeleteModal = false;
+    deleteConfirmInput = '';
+    deleteError = '';
+  }
+
+  $: deleteAllowed =
+    deleteConfirmInput.trim().toLowerCase() === 'delete account';
 </script>
 
 <div class="settings-page">
@@ -73,7 +117,51 @@
     <button class="change-btn" on:click={updatePassword}>Change Password</button>
   </div>
   <div class="message">{message}</div>
+
+  <div class="delete-row">
+    <button class="delete-btn" type="button" on:click={openDeleteModal}>
+      Delete Account
+    </button>
+  </div>
 </div>
+
+{#if showDeleteModal}
+  <div class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-title">Delete Account</div>
+      <div class="modal-desc">
+        <p>
+          Are you sure you want to permanently delete your account? <b>This cannot be undone.</b>
+        </p>
+        <p>
+          To confirm, type <code>delete account</code> below.
+        </p>
+      </div>
+      <input
+        class="delete-confirm-input"
+        type="text"
+        placeholder="Type: delete account"
+        bind:value={deleteConfirmInput}
+        autocomplete="off"
+        disabled={deleting}
+      />
+      {#if deleteError}
+        <div class="modal-error">{deleteError}</div>
+      {/if}
+      <div class="modal-actions">
+        <button on:click={closeDeleteModal} type="button" disabled={deleting}>Cancel</button>
+        <button
+          class="delete-btn"
+          type="button"
+          disabled={!deleteAllowed || deleting}
+          on:click={handleDeleteAccount}
+        >
+          {deleting ? 'Deleting…' : 'Delete Account'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
 :root {
@@ -97,14 +185,12 @@
   flex-direction: column;
   gap: 0.7em;
 }
-
 .settings-header-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.2em;
 }
-
 .section-title {
   color: #101010;
   font-size: 1.32rem;
@@ -112,7 +198,6 @@
   letter-spacing: 0.2px;
   margin-bottom: 0.1em;
 }
-
 .settings-link {
   color: #2562e9;
   font-size: 1.07em;
@@ -129,7 +214,6 @@
   text-decoration: underline;
   outline: 1.5px solid var(--cibubble-red);
 }
-
 .profile-row {
   display: flex;
   align-items: center;
@@ -151,7 +235,6 @@
   color: #444;
   font-weight: 500;
 }
-
 .form-row {
   display: flex;
   flex-direction: column;
@@ -195,7 +278,6 @@ input:focus {
   background: var(--cibubble-red-dark);
   outline: 1.5px solid #b8271b;
 }
-
 .message {
   color: #26890d;
   min-height: 1.5em;
@@ -204,7 +286,115 @@ input:focus {
   letter-spacing: 0.01em;
   margin-top: 0.2em;
 }
+.delete-row {
+  margin-top: 1.8em;
+  display: flex;
+  justify-content: center;
+}
+.delete-btn {
+  background: var(--cibubble-red);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.04rem;
+  font-weight: 700;
+  padding: 0.75em 2em;
+  cursor: pointer;
+  transition: background 0.19s, box-shadow 0.14s;
+  box-shadow: 0 1.5px 7px #e93c2f18;
+}
+.delete-btn:disabled {
+  background: #ccc;
+  color: #fff;
+  cursor: not-allowed;
+  opacity: 0.67;
+}
+.delete-btn:hover, .delete-btn:focus {
+  background: var(--cibubble-red-dark);
+  outline: 1.5px solid #b8271b;
+}
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(30,40,60, 0.20);
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 2.1em 1.6em 1.45em 1.6em;
+  box-shadow: 0 4px 30px #e93c2f22;
+  max-width: 330px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.7em;
+}
+.modal-title {
+  font-size: 1.21em;
+  font-weight: 700;
+  color: var(--cibubble-red);
+  margin-bottom: 0.21em;
+}
+.modal-desc {
+  font-size: 1.04em;
+  color: #232323;
+  margin-bottom: 0.38em;
+}
+.delete-confirm-input {
+  width: 100%;
+  padding: 0.67em 1em;
+  border: 1.2px solid #ececec;
+  border-radius: 7px;
+  margin-bottom: 0.61em;
+  font-size: 1.05em;
+  background: #fafafa;
+  color: #232323;
+  outline: none;
+  transition: border 0.13s, box-shadow 0.13s;
+}
+.delete-confirm-input:focus {
+  border: 1.5px solid var(--cibubble-red);
+  box-shadow: 0 2px 7px #e93c2f13;
+  background: #fff9f7;
+}
+.modal-error {
+  color: var(--cibubble-red);
+  margin-bottom: 0.28em;
+  font-weight: 500;
+  min-height: 1.2em;
+  font-size: 1em;
+}
+.modal-actions {
+  display: flex;
+  gap: 1.2em;
+  justify-content: flex-end;
+  margin-top: 0.1em;
+}
+.modal-actions button {
+  padding: 0.6em 1.7em;
+  font-size: 1.01em;
+  border-radius: 7px;
+  border: none;
+  font-weight: 600;
+  background: #f3f3f3;
+  color: #181818;
+  cursor: pointer;
+  transition: background 0.13s;
+}
+.modal-actions .delete-btn {
+  background: var(--cibubble-red);
+  color: #fff;
+  font-weight: 700;
+}
+.modal-actions button:focus {
+  outline: 1.5px solid #2562e9;
+}
 @media (max-width: 800px) {
   .settings-page {
     max-width: 99vw;
@@ -213,21 +403,9 @@ input:focus {
     margin-top: 1.4em;
     font-size: 0.98em;
   }
-  .settings-header-row {
-    margin-bottom: 1em;
-  }
-  .section-title {
-    font-size: 1.08rem;
-  }
-  .profile-row {
-    font-size: 0.99em;
-    padding: 0.42em 0.77em;
-    border-radius: 6px;
-  }
-  .change-btn {
-    font-size: 1em;
-    padding: 0.72em 0;
-    margin-bottom: 0.22em;
+  .modal {
+    max-width: 96vw;
+    padding: 1.3em 0.5em 1.12em 0.5em;
   }
 }
 </style>
