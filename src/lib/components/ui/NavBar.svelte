@@ -1,7 +1,7 @@
 <script>
   import { user, logout } from '$lib/stores/user.js';
   import { onMount } from 'svelte';
-  import { Settings as SettingsIcon } from 'lucide-svelte';
+  import { Settings, User, LogOut } from 'lucide-svelte';
 
   let menuOpen = false;
   let accountDropdownOpen = false;
@@ -12,20 +12,23 @@
   }
   function closeMenu() {
     menuOpen = false;
+    accountDropdownOpen = false;
   }
   function handleLogout() {
     logout();
     closeMenu();
-    accountDropdownOpen = false;
   }
-  function openAccountDropdown(e) {
+  function toggleAccountDropdown(e) {
     e.stopPropagation();
     accountDropdownOpen = !accountDropdownOpen;
   }
 
   onMount(() => {
     const handler = () => {
-      if (window.innerWidth > 720) menuOpen = false;
+      if (window.innerWidth > 720) {
+        menuOpen = false;
+        accountDropdownOpen = false;
+      }
     };
     window.addEventListener('resize', handler);
 
@@ -33,11 +36,7 @@
       if (menuOpen && !e.target.closest('.mobile-drawer') && !e.target.closest('.menu-toggle')) {
         menuOpen = false;
       }
-      if (
-        accountDropdownOpen &&
-        !e.target.closest('.account-dropdown') &&
-        !e.target.closest('.account-cog')
-      ) {
+      if (accountDropdownOpen && !e.target.closest('.account-menu') && !e.target.closest('.account-icon')) {
         accountDropdownOpen = false;
       }
     };
@@ -64,12 +63,20 @@
     <a class="nav-link" href="/">Watch</a>
     {#if $user}
       <a class="nav-link" href="/progress">Progress</a>
-      <div class="account-cog" tabindex="0" aria-haspopup="true" aria-expanded={accountDropdownOpen} on:click={openAccountDropdown}>
-        <SettingsIcon size={22} stroke="#101720" />
+      <div class="account-icon-wrapper" tabIndex="0">
+        <button class="account-icon" aria-label="Account menu" on:click={toggleAccountDropdown}>
+          <Settings size="20" stroke-width="2.1" color="#23253c" />
+        </button>
         {#if accountDropdownOpen}
-          <div class="account-dropdown" tabindex="-1">
-            <a href="/account" class="nav-link dropdown-link" on:click={() => accountDropdownOpen = false}>Account</a>
-            <button class="nav-link dropdown-link" type="button" on:click={handleLogout}>Logout</button>
+          <div class="account-menu">
+            <a href="/account" class="account-menu-link">
+              <User size="17" stroke-width="2" style="margin-right:0.67em; vertical-align:middle;" />
+              Account
+            </a>
+            <button class="account-menu-link" on:click={handleLogout}>
+              <LogOut size="17" stroke-width="2" style="margin-right:0.67em; vertical-align:middle;" />
+              Logout
+            </button>
           </div>
         {/if}
       </div>
@@ -88,8 +95,14 @@
         <a class="drawer-item" href="/" on:click={closeMenu}>Watch</a>
         {#if $user}
           <a class="drawer-item" href="/progress" on:click={closeMenu}>Progress</a>
-          <a class="drawer-item" href="/account" on:click={closeMenu}>Account</a>
-          <button class="drawer-item" on:click={handleLogout} aria-label="Log out">Logout</button>
+          <a class="drawer-item" href="/account" on:click={closeMenu}>
+            <User size="16" style="margin-right:0.54em; vertical-align:middle;" />
+            Account
+          </a>
+          <button class="drawer-item" on:click={handleLogout} aria-label="Log out">
+            <LogOut size="16" style="margin-right:0.54em; vertical-align:middle;" />
+            Logout
+          </button>
         {:else}
           <a class="drawer-item" href="/login" on:click={closeMenu}>Log In / Sign Up</a>
         {/if}
@@ -130,51 +143,8 @@
   transition: background 0.18s, color 0.18s;
   font-family: inherit;
 }
-.logout-btn { font-family: inherit; }
 
-.account-cog {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  margin-left: 0.1em;
-  position: relative;
-  height: 2.1em;
-  width: 2.1em;
-}
-.account-dropdown {
-  position: absolute;
-  top: 2.5em;
-  right: 0;
-  min-width: 130px;
-  background: #fff;
-  border: 1px solid #ececec;
-  border-radius: 11px;
-  box-shadow: 0 3px 16px #242b3322;
-  z-index: 1112;
-  padding: 0.55em 0.18em;     /* More padding than before */
-  display: flex;
-  flex-direction: column;
-  gap: 0.07em;
-}
-.dropdown-link {
-  /* Inherit nav-link but make sure width/flex works in dropdown */
-  display: block;
-  text-align: left;
-  width: 100%;
-  margin: 0;
-  font-weight: 500;          /* LESS bold than nav-link */
-}
-.account-dropdown .dropdown-link {
-  padding-left: 1em;
-  padding-right: 1em;
-}
-.account-dropdown .dropdown-link:focus,
-.account-dropdown .dropdown-link:hover {
-  background: #e6f1fb;
-  color: #eb1000;
-  outline: none;
-}
+.logout-btn { font-family: inherit; }
 
 /* Hamburger menu (mobile only) */
 .menu-toggle {
@@ -253,10 +223,62 @@
   display: block;
   text-decoration: none;
   letter-spacing: 0.01em;
+  display: flex;
+  align-items: center;
 }
 .drawer-item:hover, .drawer-item:focus {
   background: #e6f1fb;
   color: #eb1000;
+  outline: none;
+}
+
+/* --- Account Menu Dropdown --- */
+.account-icon-wrapper {
+  position: relative;
+  display: inline-block;
+}
+.account-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.13em 0.45em 0.13em 0.45em;
+  margin-left: 0.19em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.account-menu {
+  position: absolute;
+  right: 0;
+  top: 2.25em;
+  background: #fff;
+  border-radius: 11px;
+  box-shadow: 0 4px 22px #e3e4e8a8;
+  min-width: 151px;
+  padding: 0.47em 0.18em;
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+}
+.account-menu-link {
+  color: #23253c;
+  text-decoration: none;
+  background: none;
+  border: none;
+  font-size: 1.04em;
+  padding: 0.70em 1.18em 0.62em 1.1em;
+  border-radius: 7px;
+  text-align: left;
+  font-weight: 480;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: background 0.12s, color 0.12s;
+}
+.account-menu-link:hover,
+.account-menu-link:focus {
+  background: #e6f1fb;
+  color: #e93c2f;
   outline: none;
 }
 
