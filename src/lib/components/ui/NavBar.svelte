@@ -1,7 +1,7 @@
 <script>
   import { user, logout } from '$lib/stores/user.js';
   import { onMount } from 'svelte';
-  import { Settings, User, LogOut } from 'lucide-svelte';
+  import { Tv, User, LogOut, BarChart2, Settings, Menu } from 'lucide-svelte';
 
   let menuOpen = false;
   let accountDropdownOpen = false;
@@ -65,7 +65,7 @@
       <a class="nav-link" href="/progress">Progress</a>
       <div class="account-icon-wrapper" tabIndex="0">
         <button class="account-icon" aria-label="Account menu" on:click={toggleAccountDropdown}>
-          <Settings size="20" stroke-width="2.1" color="#23253c" />
+          <Menu size="20" stroke-width="2.1" color="#23253c" />
         </button>
         {#if accountDropdownOpen}
           <div class="account-menu">
@@ -92,9 +92,15 @@
         <div class="drawer-top-row">
           <button class="drawer-close" aria-label="Close menu" on:click={closeMenu}>×</button>
         </div>
-        <a class="drawer-item" href="/" on:click={closeMenu}>Watch</a>
+        <a class="drawer-item" href="/" on:click={closeMenu}>
+          <Tv size="16" style="margin-right:0.54em; vertical-align:middle;" />
+          Watch
+        </a>
         {#if $user}
-          <a class="drawer-item" href="/progress" on:click={closeMenu}>Progress</a>
+          <a class="drawer-item" href="/progress" on:click={closeMenu}>
+            <BarChart2 size="16" style="margin-right:0.54em; vertical-align:middle;" />
+            Progress
+          </a>
           <a class="drawer-item" href="/account" on:click={closeMenu}>
             <User size="16" style="margin-right:0.54em; vertical-align:middle;" />
             Account
@@ -104,7 +110,10 @@
             Logout
           </button>
         {:else}
-          <a class="drawer-item" href="/login" on:click={closeMenu}>Log In / Sign Up</a>
+          <a class="drawer-item" href="/login" on:click={closeMenu}>
+            <User size="16" style="margin-right:0.54em; vertical-align:middle;" />
+            Log In / Sign Up
+          </a>
         {/if}
       </aside>
     </div>
@@ -143,10 +152,8 @@
   transition: background 0.18s, color 0.18s;
   font-family: inherit;
 }
-
 .logout-btn { font-family: inherit; }
 
-/* Hamburger menu (mobile only) */
 .menu-toggle {
   display: none;
   background: none;
@@ -157,7 +164,6 @@
 }
 .menu-icon { width: 2em; height: 2em; stroke: #181818; }
 
-/* --- Mobile Right Drawer --- */
 .drawer-backdrop {
   position: fixed;
   inset: 0;
@@ -220,11 +226,10 @@
   border-radius: 0;
   cursor: pointer;
   transition: background 0.11s, color 0.13s;
-  display: block;
-  text-decoration: none;
-  letter-spacing: 0.01em;
   display: flex;
   align-items: center;
+  text-decoration: none;
+  letter-spacing: 0.01em;
 }
 .drawer-item:hover, .drawer-item:focus {
   background: #e6f1fb;
@@ -232,7 +237,6 @@
   outline: none;
 }
 
-/* --- Account Menu Dropdown --- */
 .account-icon-wrapper {
   position: relative;
   display: inline-block;
