@@ -700,8 +700,8 @@
 		.sortbar-container,
 		.content-container {
 			max-width: 100vw;
-			padding-left: 0.15em;
-			padding-right: 0.15em;
+			padding-left: 0em;
+			padding-right: 0em;
 		}
 		.reset-filters-link {
 			font-size: 0.92em;
