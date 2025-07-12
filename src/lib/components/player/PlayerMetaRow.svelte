@@ -87,7 +87,7 @@
       {utils.difficultyLabel(video.level)}
     </span>
 
-    {#each videoTags as tag}
+    {#each videoTags.slice(0, 5) as tag}
       <span
         class="player-tag"
         tabindex="0"
@@ -101,10 +101,21 @@
       </span>
     {/each}
 
+    {#if videoTags.length > 5}
+      <button
+        class="player-tags-more"
+        type="button"
+        aria-label="View all tags"
+        on:click={() => dispatch('openTags')}
+      >
+        MORE TAGS
+      </button>
+    {/if}
+
     <button
       class="player-tags-badge"
       type="button"
-      aria-label="View tags"
+      aria-label="Add tags"
       on:click={() => dispatch('openTags')}
     >
       ADD TAGS
@@ -151,6 +162,7 @@
   gap: 0.7em;
   margin-top: 0.18em;
   margin-bottom: 0;
+  flex-wrap: wrap; /* allow wrap on all screens */
 }
 
 .player-tag {
@@ -179,6 +191,32 @@
 .player-tag:focus {
   filter: brightness(1.17);
   outline: 2px solid #fff6;
+}
+
+.player-tags-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ddd2;
+  color: #36454F;
+  border-radius: 6px;
+  font-size: 0.81em;
+  font-weight: 700;
+  padding: 0 0.65em;
+  height: 23px;
+  line-height: 23px;
+  letter-spacing: 0.01em;
+  border: none;
+  cursor: pointer;
+  margin-left: 0.12em;
+  text-transform: uppercase;
+  transition: background 0.14s;
+}
+.player-tags-more:hover,
+.player-tags-more:focus {
+  background: #ccccee;
+  color: #1a1a1a;
+  outline: none;
 }
 
 .meta-channel-row {
@@ -286,9 +324,14 @@
   .player-meta-badges {
     gap: 0.44em;
     margin-top: 0.06em;
+    flex-wrap: wrap;
+    max-height: 54px;   /* 2 rows (23px + gap each) */
+    overflow-y: hidden; /* hides further tags after 2 rows */
+    overflow-x: visible;
   }
   .player-diff-badge,
-  .player-tags-badge {
+  .player-tags-badge,
+  .player-tags-more {
     font-size: 0.80em;
     height: 20px;
     padding: 0 0.5em;
