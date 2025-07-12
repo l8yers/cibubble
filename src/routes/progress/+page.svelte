@@ -419,22 +419,24 @@
 		background: #fff;
 		transition: box-shadow 0.17s;
 	}
-	.stat-time {
-		background: #ffeaea;
-		border-color: #ffeaea;
+	/* === NEW MUTED PASTEL SCHEME === */
+	.stat-time {        /* Total input */
+		background: #ffd4cf;   /* soft coral */
+		border-color: #ffd4cf;
 	}
-	.stat-today {
-		background: #eaffea;
-		border-color: #eaffea;
+	.stat-today {       /* Today’s input */
+		background: #d9f5e6;   /* mint */
+		border-color: #d9f5e6;
 	}
-	.stat-practiced {
-		background: #fff6e4;
-		border-color: #fff6e4;
+	.stat-practiced {   /* Days practiced */
+		background: #fff4c9;   /* honey */
+		border-color: #fff4c9;
 	}
-	.stat-outside {
-		background: #e7f5fb;
-		border-color: #e7f5fb;
+	.stat-outside {     /* From other sources */
+		background: #ddebff;   /* sky */
+		border-color: #ddebff;
 	}
+	/* === ICON & TEXT COLORS RESET === */
 	.stat-item .stat-icon-col {
 		flex: 0 0 auto;
 		display: flex;
@@ -447,7 +449,7 @@
 		width: 70px !important;
 		height: 70px !important;
 		opacity: 0.98;
-		color: #101720;
+		color: #101720;   /* back to black */
 	}
 	.stat-item .stat-main {
 		display: flex;
@@ -460,14 +462,14 @@
 		font-weight: 600;
 		margin-bottom: 0.07em;
 		line-height: 1.09;
-		color: #101720;
+		color: #101720;   /* back to black */
 	}
 	.stat-label {
 		font-size: 0.93em;
 		font-weight: 600;
 		margin-bottom: 0.08em;
 		margin-top: 0.1em;
-		color: #101720;
+		color: #101720;   /* back to black */
 	}
 	/* Manual links styling */
 	.manual-links-row {
@@ -592,9 +594,10 @@
 		max-width: 160px;
 		margin-right: 1.7em;
 	}
+	/* Mini-stats with subtle neutral background */
 	.mini-stat-card {
-		background: #f7f8fc;
-		border: 1.2px solid #ededf2;
+		background: #f6f7f9;
+		border: 1.2px solid #e2e6ea;
 		border-radius: 13px;
 		padding: 0.88em 1em 0.78em 1em;
 		display: flex;
@@ -676,14 +679,18 @@
 		opacity: 0.96;
 		transition: opacity 0.13s;
 	}
+	/* Tooltips pick stronger shades of the new palette */
 	.stat-time-tooltip {
-		background: rgba(255, 85, 85, 0.92);
+		background: #ff8d82;
 	}
 	.stat-today-tooltip {
-		background: rgba(28, 183, 85, 0.93);
+		background: #4ecb8f;
+	}
+	.stat-practiced-tooltip {
+		background: #ffd24d;
 	}
 	.stat-outside-tooltip {
-		background: #3582c5;
+		background: #6daaff;
 	}
 	@media (max-width: 900px) {
 		.progress-row {
@@ -691,15 +698,9 @@
 			flex-direction: column;
 			gap: 0.5em;
 		}
-		.stats-card {
-			order: 1;
-		}
-		.activity-card {
-			order: 2;
-		}
-		.manual-input-card {
-			order: 3;
-		}
+		.stats-card { order: 1; }
+		.activity-card { order: 2; }
+		.manual-input-card { order: 3; }
 		.activity-2col {
 			flex-direction: column;
 			gap: 1em;
@@ -721,18 +722,10 @@
 			max-width: 100% !important;
 			box-sizing: border-box;
 		}
-		.mini-stat-number {
-			font-size: 1.08em;
-		}
-		.mini-stat-label {
-			font-size: 0.91em;
-		}
-		.calendar-section {
-			max-width: 100%;
-		}
-		.stats-list {
-			gap: 0.7em;
-		}
+		.mini-stat-number { font-size: 1.08em; }
+		.mini-stat-label  { font-size: 0.91em; }
+		.calendar-section { max-width: 100%; }
+		.stats-list { gap: 0.7em; }
 		.stat-item {
 			font-size: 0.99em;
 			padding: 0.8em 0.6em 0.7em 0.6em;
@@ -746,11 +739,8 @@
 			width: 40px !important;
 			height: 40px !important;
 		}
-		.stat-value {
-			font-size: 1.13em;
-		}
+		.stat-value { font-size: 1.13em; }
 	}
-
 	@media (max-width: 600px) {
 		.progress-layout {
 			margin: 0.6em 0.6em 1.4em 0.6em;
@@ -766,17 +756,9 @@
 			box-shadow: 0 3px 16px 0 #e9eaee55;
 			margin-bottom: 0.5em;
 		}
-		.card-heading {
-			font-size: 1.04em;
-		}
-		.manual-links-row {
-			gap: 0.5em;
-		}
-		.activity-stats-cards {
-			gap: 0.4em;
-		}
-		.mini-stat-card {
-			padding: 0.38em 0.07em 0.38em 0.07em;
-		}
+		.card-heading { font-size: 1.04em; }
+		.manual-links-row { gap: 0.5em; }
+		.activity-stats-cards { gap: 0.4em; }
+		.mini-stat-card { padding: 0.38em 0.07em 0.38em 0.07em; }
 	}
 </style>
