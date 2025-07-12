@@ -63,7 +63,7 @@
 @media (max-width: 700px) {
   .chips-row {
     gap: 0.18em;
-    margin: 1em;
+    margin: 0.25em;
   }
   .reset-filters-link {
     font-size: 0.92em;
